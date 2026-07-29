@@ -186,11 +186,11 @@ func _test_traffic_denial_and_actor_teardown_release_delivery() -> void:
 	_world.yard.restore({"version": 2, "slots": []})
 	_world.traffic.clear()
 	var entry := Vector2(
-		PortLayout.GATE_ROAD_X, PortLayout.TOP_MARGIN - 24.0)
+		PortLayout.ROAD_IN_X, PortLayout.TOP_MARGIN - 24.0)
 	var blocker := Node2D.new()
 	blocker.position = entry
 	_world.entities.add_child(blocker)
-	_world.traffic.reserve(blocker, "gate")
+	_world.traffic.join(blocker)
 
 	var denied := StructureActor.new()
 	denied.setup("tt", 0, _world)
@@ -200,8 +200,33 @@ func _test_traffic_denial_and_actor_teardown_release_delivery() -> void:
 	_expect(_world.yard._reservations.size() == reservations_before,
 		"gate denial does not reserve an EXPORT landing")
 	denied.free()
-	_world.traffic.release(blocker)
+	_world.traffic.leave(blocker)
 	blocker.free()
+
+	# A driving lane belongs to one hauler at a time, and a hauler that cannot
+	# get a lane must hand back the landing slot request_job just reserved for
+	# it. Every lane is occupied here so the denial is guaranteed.
+	var lane_holders: Array[Node2D] = []
+	for lane_y in PortLayout.lane_ys():
+		var holder := Node2D.new()
+		holder.position = Vector2(PortLayout.ROAD_IN_X, -400.0)
+		_world.entities.add_child(holder)
+		_world.traffic.reserve_lane(holder, "lane_%d" % roundi(lane_y))
+		lane_holders.append(holder)
+	var held_reservations := _world.yard._reservations.size()
+	var blocked := StructureActor.new()
+	blocked.setup("tt", 2, _world)
+	_world.entities.add_child(blocked)
+	blocked._try_take_job()
+	_expect(blocked._job_data.is_empty() and blocked._lane_key.is_empty(),
+		"a hauler with no free driving lane takes no job")
+	_expect(_world.yard._reservations.size() == held_reservations,
+		"a hauler denied a driving lane returns the landing it just reserved")
+	blocked.free()
+	for holder in lane_holders:
+		_world.traffic.leave(holder)
+		holder.free()
+	_world.traffic.clear()
 
 	var cancelled := StructureActor.new()
 	cancelled.setup("tt", 1, _world)

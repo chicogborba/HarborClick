@@ -12,6 +12,9 @@ const HAULERS := ["tt", "empilhadeira", "reach_stacker"]
 
 enum Job { IDLE, ENTERING, TO_TARGET, WORKING, TO_ROAD, LEAVING }
 
+## How long a hauler may sit blocked before it gives the job back.
+const STALL_TIMEOUT := 12.0
+
 var id: String = ""
 var index := 0
 
@@ -29,16 +32,28 @@ var _lane_y := 0.0
 var _lane_x := 0.0
 var _vertical := false
 var _block_origin := Vector2.ZERO
+var _block_index := -1
 var _speed := 26.0
 
 # hauler job state
 var _job: Job = Job.IDLE
 var _job_data: Dictionary = {}
 var _waypoints: Array[Vector2] = []
+var _lane_key := ""
+var _stalled := 0.0
 var _cooldown := 0.0
 var _work_timer := 0.0
 var _carrying := false
 var _world: PortWorld
+
+# walker state
+var _stroll_target := Vector2.ZERO
+var _stroll_pause := 0.0
+var _facing := "side"
+
+# gantry state
+var _gantry_cycle := 0.0
+var _gantry_idle := true
 
 
 func setup(structure_id: String, actor_index: int, world: PortWorld) -> void:
@@ -62,7 +77,7 @@ func _exit_tree() -> void:
 		_world.cancel_job(_job_data)
 		_job_data = {}
 	if _world.traffic != null:
-		_world.traffic.release(self)
+		_world.traffic.leave(self)
 
 
 # ---------------------------------------------------------------- building
@@ -147,10 +162,32 @@ func _build_static(sprite_name: String) -> void:
 
 
 func _build_worker() -> void:
-	_walk = _anim("worker_sheet", 12, 9, 12, 7.0)
+	## worker_sheet is 4 side frames, then 4 walking down, then 4 walking up.
+	## Playing it as one 12-frame strip made the figure flicker between facings
+	## every seventh of a second; each direction is its own animation now.
+	_walk = AnimatedSprite2D.new()
+	var frames := SpriteFrames.new()
+	var tex: Texture2D = load("res://assets/sprites/worker_sheet.png")
+	for pair in [["side", 0], ["down", 4], ["up", 8]]:
+		var anim := StringName(pair[0])
+		if anim != &"default":
+			frames.add_animation(anim)
+		frames.set_animation_speed(anim, 7.0)
+		for i in 4:
+			var at := AtlasTexture.new()
+			at.atlas = tex
+			at.region = Rect2((int(pair[1]) + i) * 9, 0, 9, 12)
+			frames.add_frame(anim, at)
+	frames.remove_animation(&"default")
+	_walk.sprite_frames = frames
+	_walk.centered = false
+	_walk.animation = &"side"
+	_walk.frame = randi() % 4
+	_walk.play()
 	_sprite = _walk
 	add_child(_walk)
 	_speed = randf_range(11.0, 17.0)
+	_stroll_pause = randf_range(0.2, 2.5)
 
 
 func _build_vehicle(sprite_name: String, speed: float) -> void:
@@ -275,8 +312,9 @@ func set_lane(lane_y: float, vertical: bool = false, lane_x: float = 0.0) -> voi
 	_vertical = vertical
 
 
-func set_block(origin: Vector2) -> void:
+func set_block(origin: Vector2, block_index: int = -1) -> void:
 	_block_origin = origin
+	_block_index = block_index
 
 
 # ------------------------------------------------------------------ process
@@ -293,11 +331,11 @@ func _process(delta: float) -> void:
 		"trem":
 			_run_rail(delta)
 		"drone":
-			_fly()
+			_fly(delta)
 		"rtg":
-			_rtg_cycle()
+			_rtg_cycle(delta)
 		"sts":
-			_sts_cycle()
+			_sts_cycle(delta)
 		"torre":
 			if _extra != null:
 				_extra.rotation = _t * 1.1
@@ -332,30 +370,39 @@ func _try_take_job() -> void:
 	if _world == null:
 		_cooldown = 1.0
 		return
-	var road_x := PortLayout.GATE_ROAD_X
-	var entry := Vector2(road_x, PortLayout.TOP_MARGIN - 24.0)
+	var entry := Vector2(PortLayout.ROAD_IN_X, PortLayout.TOP_MARGIN - 24.0)
 	# Check the shared gate before request_job reserves an EXPORT landing.
-	if _world.traffic != null and not _world.traffic.can_enter(self, "gate", entry):
-		_cooldown = 0.5
+	if _world.traffic != null and not _world.traffic.gate_clear(self, entry):
+		_cooldown = 0.4
 		return
 	var job := _world.request_job()
 	if job.is_empty():
 		_cooldown = randf_range(1.5, 3.5)
 		return
+
+	var target: Vector2 = job.pos
+	var lane_y := PortLayout.nearest_lane(target.y + 6.0)
+	var lane_key := "lane_%d" % roundi(lane_y)
+	# A driving lane is a dead end: the hauler has to reverse back out of it.
+	# Taking one that is already occupied is the only way two vehicles could
+	# ever meet head-on, so the job is handed straight back if it is busy.
+	if _world.traffic != null and not _world.traffic.reserve_lane(self, lane_key):
+		_world.cancel_job(job)
+		_cooldown = randf_range(0.5, 1.2)
+		return
 	if _world.traffic != null:
-		_world.traffic.reserve(self, "gate")
+		_world.traffic.join(self)
+	_lane_key = lane_key
 	_job_data = job
 	_carrying = job.type == "deliver"
 	_cargo.visible = _carrying
 	if _carrying:
 		_set_cargo_color(job.color)
 
-	var target: Vector2 = job.pos
-	var lane_y := PortLayout.nearest_lane(target.y + 6.0)
 	position = entry
 	visible = true
 	_waypoints = [
-		Vector2(road_x, lane_y),
+		Vector2(PortLayout.ROAD_IN_X, lane_y),
 		Vector2(target.x + PortLayout.BOX_W * 0.5, lane_y),
 	]
 	_job = Job.ENTERING
@@ -375,6 +422,19 @@ func _follow_waypoints(delta: float) -> void:
 			_on_waypoints_done()
 		return
 	var dir := delta_v.normalized()
+	# Hold station behind whatever is in front. Every shared stretch of road is
+	# one-way, so waiting here always resolves — the vehicle ahead is never
+	# waiting on this one. The stall timer is a belt-and-braces guard: a hauler
+	# frozen on a lane it has reserved would starve every other hauler, so it
+	# gives up the job rather than hold the terminal hostage.
+	if _world != null and _world.traffic != null \
+			and not _world.traffic.can_advance(self, position + dir * step):
+		_face(dir)
+		_stalled += delta
+		if _stalled > STALL_TIMEOUT:
+			_abandon_job()
+		return
+	_stalled = 0.0
 	position += dir * step
 	_face(dir)
 
@@ -399,7 +459,7 @@ func _on_waypoints_done() -> void:
 			_job = Job.WORKING
 			_work_timer = 0.9
 		Job.TO_ROAD:
-			_waypoints = [Vector2(PortLayout.GATE_ROAD_X, PortLayout.TOP_MARGIN - 30.0)]
+			_waypoints = [Vector2(PortLayout.ROAD_OUT_X, PortLayout.TOP_MARGIN - 30.0)]
 			_job = Job.LEAVING
 		Job.LEAVING:
 			_end_job()
@@ -425,36 +485,74 @@ func _finish_work() -> void:
 			_carrying = false
 			_cargo.visible = false
 	var lane_y := position.y
-	_waypoints = [Vector2(PortLayout.GATE_ROAD_X, lane_y)]
+	_waypoints = [Vector2(PortLayout.ROAD_OUT_X, lane_y)]
 	_job = Job.TO_ROAD
+
+
+func _abandon_job() -> void:
+	## Hand the cargo reservation back rather than commit it: nothing was
+	## delivered, and a phantom commit would leak a container's identity.
+	if _world != null and not _job_data.is_empty():
+		_world.cancel_job(_job_data)
+	_job_data = {}
+	_release_job_state()
 
 
 func _end_job() -> void:
 	if _world != null and not _job_data.is_empty():
 		_world.commit_job(_job_data)
+	_release_job_state()
+
+
+func _release_job_state() -> void:
 	_job = Job.IDLE
 	_job_data = {}
 	_waypoints.clear()
+	_lane_key = ""
 	_carrying = false
 	_cargo.visible = false
 	visible = false
 	if _world != null and _world.traffic != null:
-		_world.traffic.release(self)
+		# Leaving drops both the lane and the vehicle's place in traffic: an
+		# off-site hauler parked on the spawn point must not block the gate.
+		_world.traffic.leave(self)
 	_cooldown = randf_range(1.0, 4.0)
 
 
 # ---------- other behaviours ----------
 
 func _walk_lane(delta: float) -> void:
-	position.x += _dir * _speed * delta
-	if position.x < PortLayout.GATE_ROAD_X:
-		_dir = 1.0
-	elif position.x > PortLayout.QUAY_X1 - 12.0:
-		_dir = -1.0
-	_walk.flip_h = _dir < 0.0
-	if _walk.frame >= 4:
-		_walk.frame = _walk.frame % 4
-	position.y = _lane_y + sin(_t * 5.0 + _phase) * 0.5
+	## Rounds, not a pendulum. The stevedore picks a spot on the terminal,
+	## walks to it, stands there a moment as if checking something, and picks
+	## another — the old version bounced between two invisible walls forever.
+	if _stroll_pause > 0.0:
+		_stroll_pause -= delta
+		_walk.pause()
+		return
+	if _stroll_target == Vector2.ZERO or position.distance_to(_stroll_target) < 1.5:
+		_pick_stroll_target()
+		_stroll_pause = randf_range(0.8, 3.4)
+		return
+	_walk.play()
+	var to_target := _stroll_target - position
+	var step := to_target.normalized() * _speed * delta
+	position += step if to_target.length() > step.length() else to_target
+	if absf(to_target.x) > absf(to_target.y):
+		_walk.animation = &"side"
+		_walk.flip_h = to_target.x < 0.0
+	else:
+		_walk.animation = &"down" if to_target.y > 0.0 else &"up"
+		_walk.flip_h = false
+
+
+func _pick_stroll_target() -> void:
+	var lanes := PortLayout.lane_ys()
+	# Mostly patrol your own lane; now and then walk a row over, so the yard
+	# reads as staffed rather than as a row of independent pendulums.
+	var lane := _lane_y if randf() < 0.7 or lanes.is_empty() \
+		else lanes[randi() % lanes.size()] + 3.0
+	_stroll_target = Vector2(
+		randf_range(PortLayout.BLOCK_X0, PortLayout.QUAY_X1 - 14.0), lane)
 
 
 func _patrol_water(delta: float) -> void:
@@ -473,19 +571,39 @@ func _run_rail(delta: float) -> void:
 		position.x = -220.0
 
 
-func _fly() -> void:
+func _fly(delta: float) -> void:
+	## A survey drone flies a route over the yard instead of orbiting a point.
 	var home: Vector2 = get_meta("home", position)
-	position = home + Vector2(sin(_t * 0.55 + _phase) * 46.0,
-		sin(_t * 0.9 + _phase) * 26.0)
+	if _stroll_target == Vector2.ZERO or position.distance_to(_stroll_target) < 3.0:
+		_stroll_target = home + Vector2(
+			randf_range(-58.0, 58.0), randf_range(-70.0, 70.0))
+	var to_target := _stroll_target - position
+	var step := to_target.normalized() * 22.0 * delta
+	position += step if to_target.length() > step.length() else to_target
+	position.y += sin(_t * 2.4 + _phase) * 0.25
 	if _shadow != null:
-		_shadow.position = Vector2(2, 14 + sin(_t * 0.9 + _phase) * 1.5)
+		_shadow.position = Vector2(2, 14 + sin(_t * 2.4 + _phase) * 1.5)
 
 
-func _rtg_cycle() -> void:
+func _rtg_cycle(delta: float) -> void:
+	## The transtainer only runs over a block that actually holds boxes, and
+	## the container it shuttles takes the colour of one standing in that
+	## block. An empty block gets a parked machine, which is what a real yard
+	## looks like — and it stops the terminal pretending to be busy when the
+	## player's yard is empty.
+	var color := _world.yard.block_top_color(_block_index) if _world != null \
+		and _world.yard != null else -1
+	if color < 0:
+		_park_gantry(Vector2(PortLayout.BLOCK_W * 0.5 - 10.0, 6.0))
+		return
+	if _gantry_idle:
+		_gantry_idle = false
+		_set_cargo_color(color)
+	_gantry_cycle += delta
 	var travel := PortLayout.BLOCK_H - 22.0
 	position.y = _block_origin.y - 8.0 + (sin(_t * 0.25 + _phase) * 0.5 + 0.5) * travel
 	var cycle := 5.0
-	var t: float = fmod(_t + _phase, cycle) / cycle
+	var t: float = fmod(_gantry_cycle + _phase, cycle) / cycle
 	var span := PortLayout.BLOCK_W - 4.0
 	var x: float = 14.0 + (sin(t * TAU) * 0.5 + 0.5) * span
 	_extra.position = Vector2(x - 10.0, 6.0)
@@ -496,11 +614,23 @@ func _rtg_cycle() -> void:
 	_cargo.visible = carrying
 	if carrying:
 		_cargo.position = _spreader.position
+	elif t < 0.05:
+		_set_cargo_color(color)
 
 
-func _sts_cycle() -> void:
+func _sts_cycle(delta: float) -> void:
+	## The portainer works the berth, so it only swings while there is a ship
+	## alongside with something to move — and it carries the box in the
+	## direction the berth is actually working it.
+	var ship := _world.ship if _world != null else null
+	if ship == null or not ship.is_working() \
+			or ship.phase == Ship.Phase.WAITING_EXPORT:
+		_park_gantry(Vector2(-32.0, 12.0))
+		return
+	_gantry_idle = false
+	_gantry_cycle += delta
 	var cycle := 6.0
-	var t: float = fmod(_t + _phase, cycle) / cycle
+	var t: float = fmod(_gantry_cycle + _phase, cycle) / cycle
 	var yard_x := -30.0
 	var ship_x := 52.0
 	var x: float
@@ -521,12 +651,27 @@ func _sts_cycle() -> void:
 		carrying = (t - 0.72) / 0.14 < 0.5
 	else:
 		x = yard_x
+	# Loading runs the same arc backwards: the box leaves the yard side full
+	# and the spreader comes back from the ship empty.
+	if ship.is_loading():
+		carrying = not carrying
 	_extra.position = Vector2(x - 2.0, 12.0)
 	_spreader.visible = true
 	_spreader.position = Vector2(x - 5.0, 18.0 + drop)
 	_cargo.visible = carrying
 	if carrying:
 		_cargo.position = _spreader.position
+
+
+func _park_gantry(trolley_position: Vector2) -> void:
+	## Nothing to lift: trolley home, spreader up, no phantom container.
+	_gantry_idle = true
+	if _extra != null:
+		_extra.position = _extra.position.lerp(trolley_position, 0.06)
+	if _spreader != null:
+		_spreader.visible = false
+	if _cargo != null:
+		_cargo.visible = false
 
 
 static func _ease(k: float) -> float:

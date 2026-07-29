@@ -10,7 +10,13 @@ const VIEW_H := 480.0
 
 const GATE_X := -30.0             # trucks vanish past this, off to the city
 const YARD_X0 := 14.0             # paved area starts (service road)
-const GATE_ROAD_X := 22.0         # vertical service road the trucks run on
+const GATE_ROAD_X := 22.0         # centre line of the vertical service road
+## The service road carries traffic both ways, so it is split into two
+## one-way columns. Without this, a hauler driving in and a hauler driving out
+## share a centre line and either overlap or deadlock waiting for each other.
+const ROAD_LANE_HALF := 7.0
+const ROAD_IN_X := GATE_ROAD_X - ROAD_LANE_HALF
+const ROAD_OUT_X := GATE_ROAD_X + ROAD_LANE_HALF
 const BLOCK_X0 := 36.0            # first container block
 const QUAY_X0 := 196.0
 const QUAY_X1 := 240.0

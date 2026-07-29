@@ -290,6 +290,20 @@ func has_sector(sector: StringName) -> bool:
 	return false
 
 
+func block_top_color(block_index: int) -> int:
+	## The colour of some box currently standing in a block, or -1 when the
+	## block is empty. Gantries use it so the container they are seen shuttling
+	## is a container that is really there.
+	if block_index < 0:
+		return -1
+	var first := block_index * SLOTS_PER_BLOCK
+	for slot in range(first, mini(first + SLOTS_PER_BLOCK, _levels.size())):
+		var stack: Array = _units.get(slot, [])
+		if not stack.is_empty():
+			return (stack[stack.size() - 1] as CargoUnit).color
+	return -1
+
+
 func fullest_slot(sector: StringName = &"") -> int:
 	var best := -1
 	var best_level := 0

@@ -81,8 +81,9 @@ func _place(actor: StructureActor, id: String, index: int) -> void:
 			actor.position = Vector2(PortLayout.QUAY_X0 + 4.0,
 				PortLayout.sts_y(index, maxi(n, 2)))
 		"rtg":
-			var block := _rtg_block(index)
-			actor.set_block(block)
+			var block_index := _rtg_block_index(index)
+			var block := PortLayout.block_origin(block_index)
+			actor.set_block(block, block_index)
 			actor.position = Vector2(block.x - 13.0, block.y - 8.0)
 		"estivador":
 			var lanes := PortLayout.lane_ys()
@@ -120,13 +121,13 @@ func _south_water(index: int, spacing: float) -> float:
 	return berth_end + fmod(index * spacing, span)
 
 
-func _rtg_block(index: int) -> Vector2:
+func _rtg_block_index(index: int) -> int:
 	var blocks := PortLayout.block_count()
 	if blocks == 0:
-		return PortLayout.block_origin(0)
+		return 0
 	@warning_ignore("integer_division")
 	var stride: int = maxi(1, blocks / maxi(1, CAPS.get("rtg", 3)))
-	return PortLayout.block_origin((index * stride) % blocks)
+	return (index * stride) % blocks
 
 
 func _slot_index(id: String, index: int) -> int:
