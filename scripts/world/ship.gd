@@ -111,9 +111,12 @@ func nudge() -> void: _nudge = 1.0
 func set_flights_in_progress(total: int) -> void: _flights_in_progress = maxi(0, total)
 
 
-func select_variant(variant_seed: int, call_index: int) -> Dictionary:
-	## Variant choice is deterministic and history-aware; cargo bays stay at 24.
-	ship_variant = ShipCatalog.select_variant(variant_seed, call_index, variant_history)
+func select_variant(variant_seed: int, call_index: int,
+		blocks: int = 9999) -> Dictionary:
+	## Deterministic, history-aware, and now size-aware: the classes on offer
+	## are the ones the terminal is big enough to work.
+	ship_variant = ShipCatalog.select_variant(variant_seed, call_index,
+		variant_history, blocks)
 	if not ship_variant.is_empty():
 		variant_history.append(str(ship_variant.id))
 		while variant_history.size() > 8:
@@ -127,8 +130,20 @@ func variant_id() -> StringName:
 
 
 func operational_capacity() -> int:
-	## Informational vessel capacity, never the 24-transfer berth capacity.
+	## The vessel's nominal size in TEU, for flavour and for the journal.
 	return int(ship_variant.get("capacity", 0))
+
+
+func bay_rows() -> int:
+	## How many rows of the bay grid this class actually has. A feeder is not
+	## a Panamax with empty slots — it is a shorter ship, and the hull is
+	## scaled to match.
+	return clampi(int(ship_variant.get("bay_rows", ROWS)), 2, ROWS)
+
+
+func bay_capacity() -> int:
+	## The number of boxes this call moves in each direction.
+	return COLS * bay_rows()
 
 
 func _apply_ship_variant() -> void:
@@ -136,6 +151,9 @@ func _apply_ship_variant() -> void:
 		return
 	var hull_scale: Vector2 = ship_variant.get("hull_scale", Vector2.ONE)
 	var hull_offset: Vector2 = ship_variant.get("hull_offset", Vector2.ZERO)
+	# A shorter class is a shorter hull: the grid and the sprite have to agree
+	# or a feeder is a full-length ship with half its deck empty.
+	hull_scale.y *= float(bay_rows()) / float(ROWS)
 	_hull.scale = hull_scale
 	_hull.position = hull_offset
 	_cargo.scale = hull_scale
@@ -184,7 +202,7 @@ func _empty_grid() -> void:
 	_reserved.clear()
 	for c in COLS:
 		var column: Array = []
-		column.resize(ROWS)
+		column.resize(bay_rows())
 		_slots.append(column)
 
 func _build_import_view() -> void:
@@ -192,7 +210,7 @@ func _build_import_view() -> void:
 	for i in _imports.size():
 		var col := i % COLS
 		@warning_ignore("integer_division") var row := i / COLS
-		if row < ROWS: _make_box(col, row, _imports[i])
+		if row < bay_rows(): _make_box(col, row, _imports[i])
 
 func _make_box(col: int, row: int, unit: CargoUnit) -> void:
 	var sprite := Sprite2D.new()
@@ -207,7 +225,7 @@ func _make_box(col: int, row: int, unit: CargoUnit) -> void:
 
 func take_container() -> Dictionary:
 	for col in range(COLS - 1, -1, -1):
-		for row in ROWS:
+		for row in bay_rows():
 			var item: Variant = _slots[col][row]
 			if item != null:
 				var sprite: Sprite2D = item.sprite
@@ -230,7 +248,7 @@ func begin_loading() -> void:
 func reserve_bay() -> Dictionary:
 	if _export_claimed >= _export_target: return {}
 	for col in COLS:
-		for row in range(ROWS - 1, -1, -1):
+		for row in range(bay_rows() - 1, -1, -1):
 			var key := "%d,%d" % [col, row]
 			if _slots[col][row] == null and not _reserved.has(key):
 				_reserved[key] = true
@@ -242,7 +260,11 @@ func release_bay(bay: Dictionary) -> void:
 	var key := "%d,%d" % [int(bay.col), int(bay.row)]
 	if _reserved.erase(key): _export_claimed = maxi(0, _export_claimed - 1)
 func place_unit(col: int, row: int, unit: CargoUnit) -> bool:
-	if unit == null or unit.sector != CargoUnit.EXPORT or col < 0 or col >= COLS or row < 0 or row >= ROWS:
+	# Sector is not checked here any more. Since the yard tranships, a box being
+	# loaded may well have arrived as an IMPORT on an earlier call — refusing it
+	# made every such transfer roll back with "movimento cancelado" and the
+	# berth could never finish loading.
+	if unit == null or col < 0 or col >= COLS or row < 0 or row >= bay_rows():
 		return false
 	var key := "%d,%d" % [col, row]
 	if not _reserved.has(key) or _slots[col][row] != null:
@@ -259,7 +281,7 @@ func ready_to_depart() -> bool:
 func arrive() -> void:
 	if _imports.is_empty():
 		var generated: Array[CargoUnit] = []
-		for i in COLS * ROWS: generated.append(CargoUnit.new("", CargoUnit.IMPORT, randi() % 8))
+		for i in bay_capacity(): generated.append(CargoUnit.new("", CargoUnit.IMPORT, randi() % 8))
 		set_manifest(generated, generated.size())
 	_set_phase(Phase.ARRIVING)
 	visible = true

@@ -1,10 +1,25 @@
 class_name ShipCatalog
-## Declarative visual ship catalogue. Cargo capacity remains governed by PortLayout.
+## The fleet. A class is a real size, not a repaint: `bay_rows` is how many
+## rows of the berth grid it actually carries, so a feeder moves a third of
+## what a New Panamax does and its hull is drawn a third shorter.
+##
+## `unlock_blocks` gates a class behind the terminal being big enough to work
+## it. A first-hour port only ever sees feeders, and the first Panamax on the
+## berth is a visible event rather than a number going up.
 
 const SILHOUETTES: Array[Dictionary] = [
-	{"id": "coastal_feeder", "title": "Feeder Costeiro", "capacity": 1200, "hull_scale": Vector2(0.90, 0.94), "hull_offset": Vector2(8.0, 3.0), "wake_scale": Vector2(0.88, 0.95)},
-	{"id": "panamax", "title": "Panamax", "capacity": 4500, "hull_scale": Vector2(1.00, 1.00), "hull_offset": Vector2.ZERO, "wake_scale": Vector2.ONE},
-	{"id": "new_panamax", "title": "New Panamax", "capacity": 8000, "hull_scale": Vector2(1.08, 1.03), "hull_offset": Vector2(-8.0, -2.0), "wake_scale": Vector2(1.08, 1.02)},
+	{"id": "coastal_feeder", "title": "Feeder Costeiro", "capacity": 1200,
+		"bay_rows": 4, "unlock_blocks": 0,
+		"hull_scale": Vector2(0.90, 0.94), "hull_offset": Vector2(8.0, 3.0), "wake_scale": Vector2(0.88, 0.95)},
+	{"id": "coastal", "title": "Costeiro", "capacity": 2600,
+		"bay_rows": 7, "unlock_blocks": 12,
+		"hull_scale": Vector2(0.95, 0.97), "hull_offset": Vector2(4.0, 1.0), "wake_scale": Vector2(0.94, 0.98)},
+	{"id": "panamax", "title": "Panamax", "capacity": 4500,
+		"bay_rows": 10, "unlock_blocks": 18,
+		"hull_scale": Vector2(1.00, 1.00), "hull_offset": Vector2.ZERO, "wake_scale": Vector2.ONE},
+	{"id": "new_panamax", "title": "New Panamax", "capacity": 8000,
+		"bay_rows": 12, "unlock_blocks": 21,
+		"hull_scale": Vector2(1.08, 1.03), "hull_offset": Vector2(-8.0, -2.0), "wake_scale": Vector2(1.08, 1.02)},
 ]
 
 const PALETTES: Array[Dictionary] = [
@@ -15,17 +30,31 @@ const PALETTES: Array[Dictionary] = [
 ]
 
 
-static func select_variant(variant_seed: int, call_index: int, history: Array[String] = []) -> Dictionary:
+static func unlocked_silhouettes(blocks: int) -> Array[Dictionary]:
+	## Everything the terminal is currently big enough to handle. Always at
+	## least the feeder, so a brand new port still gets a ship.
+	var allowed: Array[Dictionary] = []
+	for silhouette in SILHOUETTES:
+		if int(silhouette.get("unlock_blocks", 0)) <= blocks:
+			allowed.append(silhouette)
+	if allowed.is_empty():
+		allowed.append(SILHOUETTES[0])
+	return allowed
+
+
+static func select_variant(variant_seed: int, call_index: int,
+		history: Array[String] = [], blocks: int = 9999) -> Dictionary:
 	var candidates: Array[Dictionary] = []
 	var blocked := ""
 	if history.size() >= 2 and history[history.size() - 1] == history[history.size() - 2]:
 		blocked = history[history.size() - 1]
-	for silhouette in SILHOUETTES:
+	for silhouette in unlocked_silhouettes(blocks):
 		for palette in PALETTES:
 			var variant_id := "%s:%s" % [String(silhouette.id), String(palette.id)]
 			if variant_id != blocked:
 				candidates.append({"id": variant_id, "silhouette_id": silhouette.id, "palette_id": palette.id,
-					"capacity": silhouette.capacity, "hull_scale": silhouette.hull_scale,
+					"capacity": silhouette.capacity, "bay_rows": silhouette.bay_rows,
+					"title": silhouette.title, "hull_scale": silhouette.hull_scale,
 					"hull_offset": silhouette.hull_offset, "wake_scale": silhouette.wake_scale,
 					"hull_color": palette.hull, "wake_color": palette.wake, "cargo_color": palette.cargo})
 	if candidates.is_empty():
@@ -52,7 +81,8 @@ static func is_valid() -> bool:
 	var palettes := {}
 	for silhouette in SILHOUETTES:
 		var id := StringName(silhouette.get("id", ""))
-		if id.is_empty() or silhouettes.has(id) or int(silhouette.get("capacity", 0)) <= 0:
+		if id.is_empty() or silhouettes.has(id) or int(silhouette.get("capacity", 0)) <= 0 \
+				or int(silhouette.get("bay_rows", 0)) <= 0:
 			return false
 		silhouettes[id] = true
 	for palette in PALETTES:

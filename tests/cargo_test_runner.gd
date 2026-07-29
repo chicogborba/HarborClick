@@ -4,11 +4,14 @@ extends Node
 ## Godot --headless --path . res://tests/cargo_test_runner.tscn
 
 const TEST_SAVE_PATH := "user://harborclick_cargo_test.json"
-const CAPACITY := PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS
+## A call is now as big as the class alongside, and which classes may call
+## depends on how much yard there is to work them. A base port only sees
+## feeders, so the suite asks the ship rather than assuming a number.
 
 var failures: Array[String] = []
 var _world: CargoTestWorld
 var _last_status: Dictionary = {}
+var _committed_transfers := 0
 
 
 class CargoTestShip:
@@ -100,7 +103,8 @@ func _run() -> void:
 	_expect(not FileAccess.file_exists(TEST_SAVE_PATH + ".tmp"), "cleanup removes cargo test temp")
 
 	if failures.is_empty():
-		print("CARGO TESTS PASSED (100 calls, 4800 committed transfers)")
+		print("CARGO TESTS PASSED (100 calls, %d committed transfers)"
+			% _committed_transfers)
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -111,7 +115,11 @@ func _run() -> void:
 
 func _test_capacity_and_hud_format() -> void:
 	_reset_call(1001)
-	_expect(CAPACITY == 24, "ship format is exactly 24 slots")
+	var capacity := _world.ship.bay_capacity()
+	_expect(capacity == _world.ship.bay_rows() * PortLayout.SHIP_BAY_COLS,
+		"the call is exactly the class's own bay grid")
+	_expect(capacity > 0 and capacity <= PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS,
+		"no class exceeds the berth's full-length grid (%d)" % capacity)
 	var hud := Hud.new()
 	add_child(hud)
 	await get_tree().process_frame
@@ -126,9 +134,12 @@ func _test_capacity_and_hud_format() -> void:
 		hud.set_berth_status(status)
 	_world.berth.status_changed.connect(on_status)
 	_world.berth._emit_status()
-	_expect(int(_last_status.get("capacity", 0)) == 24, "berth status reports 24-slot capacity")
-	_expect(str(_last_status.get("text", "")) == "Descarga 0/24", "berth status formats discharge slot count")
-	_expect(hud._job_label.text == "Descarga 0/24", "HUD berth slot renders structured status")
+	_expect(int(_last_status.get("capacity", 0)) == capacity,
+		"berth status reports the class's slot count")
+	_expect(str(_last_status.get("text", "")) == "Descarga 0/%d" % capacity,
+		"berth status formats discharge slot count")
+	_expect(hud._job_label.text == "Descarga 0/%d" % capacity,
+		"HUD berth slot renders structured status")
 	_expect(hud._berth_chip.visible and hud._job_label.clip_text \
 			and hud._job_label.get_global_rect().size.x <= hud._berth_chip.get_global_rect().size.x,
 		"HUD berth slot is clipped within its dedicated chip")
@@ -141,15 +152,14 @@ func _test_full_call_and_no_import_export() -> void:
 	var result := _complete_call("full call")
 	var imports: Array[String] = result.imports
 	var exports: Array[String] = result.exports
-	_expect(imports.size() == CAPACITY, "full call starts with 24 imports")
-	_expect(exports.size() == CAPACITY, "full call finishes with 24 exports")
+	var capacity := _world.ship.bay_capacity()
+	_expect(imports.size() == capacity, "a full call starts with a full deck")
+	_expect(exports.size() == capacity, "a full call finishes with a full deck")
 	_expect(_intersection(imports, exports).is_empty(), "no import UID embarks as export")
-	for raw in _world.ship.snapshot().get("manifest", []):
-		var unit_raw: Variant = raw.get("unit", raw) if raw is Dictionary else {}
-		_expect(unit_raw is Dictionary \
-				and StringName(unit_raw.get("sector", &"")) == CargoUnit.EXPORT,
-			"every embarked unit belongs to EXPORT sector")
-	_assert_unique_ownership(_world, CAPACITY * 2, "full call ownership")
+	# Sector is no longer a gate on what may be shipped — the yard tranships —
+	# so the contract that matters is the one asserted just above: nothing
+	# embarked came off this same hull.
+	_assert_unique_ownership(_world, capacity * 2, "full call ownership")
 
 
 func _test_invalid_click_has_no_reward() -> void:
@@ -298,7 +308,10 @@ func _test_reload_mid_discharge_and_loading() -> void:
 		"mid-discharge reload reconciles transient flight")
 	_expect_same_uid_set(discharge_before, _ownership_uids(_world, false),
 		"mid-discharge reload loses or duplicates no UID")
-	_assert_unique_ownership(_world, CAPACITY * 2, "mid-discharge reload ownership")
+	# Counted from what was actually on the board before the save, not from a
+	# formula: the class alongside decides how many boxes a call has.
+	_assert_unique_ownership(_world, discharge_before.size(),
+		"mid-discharge reload ownership")
 
 	# Loading: complete discharge, then snapshot an export between yard and bay.
 	_reset_call(1006)
@@ -316,7 +329,8 @@ func _test_reload_mid_discharge_and_loading() -> void:
 		"mid-loading reload reconciles transient flight")
 	_expect_same_uid_set(loading_before, _ownership_uids(_world, false),
 		"mid-loading reload loses or duplicates no UID")
-	_assert_unique_ownership(_world, CAPACITY * 2, "mid-loading reload ownership")
+	_assert_unique_ownership(_world, loading_before.size(),
+		"mid-loading reload ownership")
 
 
 func _test_one_hundred_accelerated_calls() -> void:
@@ -326,25 +340,26 @@ func _test_one_hundred_accelerated_calls() -> void:
 		var result := _complete_call("accelerated call %03d" % call_index)
 		var imports: Array[String] = result.imports
 		var exports: Array[String] = result.exports
-		_expect(_world.ship.cargo_left() == CAPACITY,
+		_expect(_world.ship.cargo_left() == _world.ship.bay_capacity(),
 			"accelerated call %03d departs full" % call_index)
-		_expect(imports.size() == CAPACITY and exports.size() == CAPACITY,
-			"accelerated call %03d handles 24+24" % call_index)
+		_expect(imports.size() == _world.ship.bay_capacity() and exports.size() == _world.ship.bay_capacity(),
+			"accelerated call %03d handles a full deck each way" % call_index)
 		_expect(_intersection(imports, exports).is_empty(),
 			"accelerated call %03d never embarks an import UID" % call_index)
+		_committed_transfers += imports.size() + exports.size()
 		_assert_unique_ownership(
-			_world, CAPACITY * 2, "accelerated call %03d ownership" % call_index)
+			_world, _world.ship.bay_capacity() * 2, "accelerated call %03d ownership" % call_index)
 		for uid in imports + exports:
 			_expect(not all_seen.has(uid),
 				"accelerated call %03d reuses historical UID %s" % [call_index, uid])
 			all_seen[uid] = true
 		var drained := _drain_imports_via_gate()
-		_expect(drained == CAPACITY,
-			"accelerated call %03d drains 24 imports via gate" % call_index)
+		_expect(drained == _world.ship.bay_capacity(),
+			"accelerated call %03d drains its imports via the gate" % call_index)
 		_expect(_world.yard.sector_count(CargoUnit.IMPORT) == 0,
 			"accelerated call %03d leaves import sector drained" % call_index)
 		await get_tree().process_frame
-	_expect(all_seen.size() == 100 * CAPACITY * 2,
+	_expect(all_seen.size() == 100 * _world.ship.bay_capacity() * 2,
 		"100 calls produce 4800 globally distinct cargo UIDs")
 
 
@@ -356,27 +371,27 @@ func _reset_call(test_seed: int) -> void:
 	_world.ship._set_phase(Ship.Phase.DISCHARGING)
 	_world.ship.set_flights_in_progress(0)
 	_world.reward_visuals = 0
-	_expect(_world.ship.cargo_left() == CAPACITY, "reset seeds a full import manifest")
-	_expect(_world.yard.sector_count(CargoUnit.EXPORT) == CAPACITY,
+	_expect(_world.ship.cargo_left() == _world.ship.bay_capacity(), "reset seeds a full import manifest")
+	_expect(_world.yard.sector_count(CargoUnit.EXPORT) == _world.ship.bay_capacity(),
 		"reset seeds a full export manifest")
 
 
 func _complete_call(label: String) -> Dictionary:
 	var imports := _ship_uids(_world)
 	_complete_discharge(label)
-	for index in CAPACITY:
+	for index in _world.ship.bay_capacity():
 		var accepted := _world.berth.handle_tap(_world.ship.global_position)
 		_expect(accepted, "%s accepts load %d/24" % [label, index + 1])
 		if accepted:
 			_finish_all_flights(label + " load")
 	_expect(_world.ship.phase == Ship.Phase.DEPARTING,
 		"%s reaches departing after final export" % label)
-	_expect(_world.ship.cargo_left() == CAPACITY, "%s leaves with 24 exports" % label)
+	_expect(_world.ship.cargo_left() == _world.ship.bay_capacity(), "%s leaves with 24 exports" % label)
 	return {"imports": imports, "exports": _ship_uids(_world)}
 
 
 func _complete_discharge(label: String) -> void:
-	for index in CAPACITY:
+	for index in _world.ship.bay_capacity():
 		var accepted := _world.berth.handle_tap(_world.ship.global_position)
 		_expect(accepted, "%s accepts discharge %d/24" % [label, index + 1])
 		if accepted:

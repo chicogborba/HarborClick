@@ -11,7 +11,7 @@ extends Node
 
 const TEST_SAVE_PATH := "user://harborclick_automation_test.json"
 const STEP := 1.0 / 30.0
-const CAPACITY := PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS
+## The class alongside decides how big a call is, so the suite asks the ship.
 
 var failures: Array[String] = []
 var _world: AutoTestWorld
@@ -134,9 +134,10 @@ func _test_a_full_call_completes_without_a_single_tap() -> void:
 		var uid := str(snapshot.get("uid", ""))
 		_expect(not uids.has(uid), "automation never ships a duplicate UID")
 		uids[uid] = true
-	_expect(uids.size() == CAPACITY,
+	var capacity := _world.ship.bay_capacity()
+	_expect(uids.size() == capacity,
 		"an automated call still departs with a full deck (%d of %d)"
-			% [uids.size(), CAPACITY])
+			% [uids.size(), capacity])
 	var imports := {}
 	for uid: String in _world.ship.import_manifest_uids():
 		imports[uid] = true

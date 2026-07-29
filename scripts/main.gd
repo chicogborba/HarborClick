@@ -229,11 +229,14 @@ func _set_berth_hint(text: String) -> void:
 		# Keep the rail's card in step with the phase text even between the
 		# berth's own status emissions.
 		var progress := world.ship.export_progress()
-		var capacity := PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS
+		var capacity := world.ship.bay_capacity()
 		var done: float = float(capacity - world.ship.cargo_left()) \
 			if world.ship.is_discharging() else float(progress.x)
+		var silhouette := ShipCatalog.get_silhouette(
+			StringName(world.ship.ship_variant.get("silhouette_id", "")))
 		rail.set_berth({
 			"text": text,
+			"vessel": str(silhouette.get("title", "")),
 			"current": done if world.ship.is_working() else 0.0,
 			"total": float(capacity) if world.ship.is_working() else 0.0,
 			"auto_rate": rate,

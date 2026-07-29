@@ -251,6 +251,9 @@ de deixar o jogador construir uma run que evapora no reload.
 - **Acessibilidade** — foco alcança tudo por Tab/setas, Enter ativa, Escape e
   Back fecham; anel de foco de dois tons; nomes acessíveis em toda tecla de
   ícone. Todo texto funcional passa de 4,5:1, verificado por teste.
+- **Frota** — quatro classes com capacidade real (feeder 8 → New Panamax 24).
+  Qual delas pode atracar depende de quanto pátio existe pra trabalhá-la, então
+  o porto cresce em tamanho de navio, não só em número.
 - **Portão** — caminhões da cidade estacionam na praça ao lado do gate e são
   clicáveis como o navio. Caminhão carregado é porta de **entrada** com o pátio
   vazio; caminhão vazio é porta de **saída** com o pátio cheio. Sem isso o
@@ -629,11 +632,13 @@ antigo aparece intacto no perfil 1; reabrir o jogo volta pro menu.
 
 - [ ] `PortLayout` ganha berços múltiplos; o segundo e o terceiro são
       destravados por marcos de terreno.
-- [ ] `ShipCatalog` passa a ter classes com capacidade real crescente —
-      **feeder 8 → coastal 16 → panamax 24 → post-panamax 40** — com casco,
-      largura e paleta próprios.
-- [ ] A classe sorteada depende do tamanho do porto: no começo só feeder;
-      navio grande é um evento visível.
+- [x] `ShipCatalog` tem quatro classes com capacidade **real**: feeder 8,
+      costeiro 14, Panamax 20, New Panamax 24 contêineres por escala. A classe
+      não é repintura — `bay_rows` é quantas fileiras da grade do berço ela
+      carrega, e o casco é desenhado proporcionalmente mais curto.
+- [x] A classe sorteada depende do tamanho do pátio (`unlock_blocks`): um
+      porto de primeira hora só vê feeder, e o primeiro Panamax no berço é um
+      evento visível em vez de um número subindo.
 - [ ] `FleetDirector` agenda chegadas, mantém uma fila de espera fora do porto
       quando todos os berços estão ocupados, e persiste a fila.
 - [ ] Cada berço tem seu próprio `BerthCallController` e seu próprio chip de

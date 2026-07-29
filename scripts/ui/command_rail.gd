@@ -259,6 +259,9 @@ func set_berth(status: Dictionary) -> void:
 		_berth_bar.value = clampf(current, 0.0, total)
 	var rate := float(status.get("auto_rate", 0.0))
 	var parts: PackedStringArray = []
+	var vessel := str(status.get("vessel", ""))
+	if not vessel.is_empty():
+		parts.append(vessel)
 	if total > 0.0:
 		parts.append("%d / %d" % [int(current), int(total)])
 	if rate > 0.0:

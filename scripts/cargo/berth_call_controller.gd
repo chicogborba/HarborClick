@@ -54,13 +54,16 @@ func seed_new(p_seed: int = 0) -> void:
 		# second global random draw solely for presentation.
 		_variant_seed = call_id.hash()
 	if ship != null:
-		ship.select_variant(_variant_seed, _variant_call_index)
+		# Which classes can call here at all depends on how much yard there is
+		# to work them, so the first Panamax is something the port earned.
+		ship.select_variant(_variant_seed, _variant_call_index,
+			PortLayout.block_count())
 	_variant_call_index += 1
 	_imports.clear()
 	_exported.clear()
 	_active.clear()
 	_in_flight = 0
-	var capacity := PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS
+	var capacity := ship.bay_capacity()
 	for i in capacity:
 		_imports.append(CargoUnit.new("%s_i_%02d" % [call_id, i], CargoUnit.IMPORT,
 			randi() % 8, "", call_id))
@@ -75,7 +78,8 @@ func seed_new(p_seed: int = 0) -> void:
 
 
 func ensure_export_stock() -> void:
-	var capacity := PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS
+	var capacity := ship.bay_capacity() if ship != null \
+		else PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS
 	_seeded_exports.append_array(yard.ensure_export_manifest(call_id, capacity))
 	if yard.sector_count(CargoUnit.EXPORT) < capacity:
 		_notice("export_capacity", "Área de exportação sem espaço para o manifesto completo.")
@@ -272,8 +276,7 @@ func departure_bonus(perfect: bool) -> float:
 
 
 func _on_ship_departed() -> void:
-	var perfect: bool = _exported.size() \
-		== PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS
+	var perfect: bool = _exported.size() >= ship.bay_capacity()
 	var summary := {"call_id": call_id,
 		"exports": _exported.map(func(u: CargoUnit) -> Dictionary: return u.snapshot()),
 		"perfect": perfect}
@@ -300,7 +303,7 @@ func _notice(code: String, text: String) -> void:
 func _emit_status() -> void:
 	if ship == null:
 		return
-	var capacity := PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS
+	var capacity := ship.bay_capacity()
 	var state := _state_name(ship.phase)
 	var progress := ship.export_progress()
 	var handled := capacity - ship.cargo_left() if ship.is_discharging() else progress.x
