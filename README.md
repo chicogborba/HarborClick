@@ -694,11 +694,15 @@ meio do nada.
 
 ### Fase F — mapa-múndi e rotas — P2
 
-- [ ] Mapa estilizado com o porto no centro e destinos ao redor.
-- [ ] Rota comprável com origem, destino, ETA, classe de navio, valor e mix de
-      carga; a rota alimenta as chegadas da Fase C.
-- [ ] Trade-offs: curta e estável, longa e valiosa, arriscada com eventos.
-- [ ] Uma rota nova muda o navio ou o ganho visível em até duas escalas.
+- [x] Mapa estilizado com o porto no centro e destinos ao redor: carta com
+      costa, grade de coordenadas, alfinete de casa e as linhas das rotas que o
+      porto tem, tudo desenhado a partir do mesmo dado.
+- [x] Rota comprável com origem, destino, classe de navio e frete; a rota
+      decide que casco atraca. **ETA e mix de carga por rota continuam
+      abertos** — hoje a rota muda quem chega e quanto paga, não quando.
+- [x] Trade-offs: a cabotagem chama sempre e paga a taxa base, a travessia paga
+      várias vezes mais. Rota **arriscada com eventos** espera a Fase G.
+- [x] Uma rota nova muda o navio e o frete já na escala seguinte.
 - [ ] Integrar ETA ao progresso offline.
 - [ ] Coleção de pinturas de casco e bandeiras ligada a rotas e conquistas.
 
