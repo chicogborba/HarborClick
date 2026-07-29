@@ -152,6 +152,7 @@ func _ready() -> void:
 				"text": notice.get("text", ""),
 			}))
 	world.ship.phase_changed.connect(_on_ship_phase)
+	hud.job_tick.connect(func() -> void: _on_ship_phase(world.ship.phase))
 	_on_ship_phase(world.ship.phase)
 
 	tutorial = TutorialSpotlight.new()
@@ -204,9 +205,16 @@ func _on_ship_phase(phase: int) -> void:
 func _set_berth_hint(text: String) -> void:
 	## Portrait reads it over the port, desktop reads it in the rail. One call
 	## site so the two can never drift apart.
-	hud.set_job_hint(text)
+	var full := text
+	var rate := world.berth.auto_rate() if world != null and world.berth != null else 0.0
+	if rate > 0.0 and world.ship != null and world.ship.is_working():
+		# Once equipment is working the ship, say so: the tap is a boost from
+		# here on, and the player should be able to see that without counting
+		# boxes.
+		full = "%s  -  %.1f/s auto" % [text, rate]
+	hud.set_job_hint(full)
 	if rail != null:
-		rail.set_berth_status(text)
+		rail.set_berth_status(full)
 
 
 func _apply_view_metrics(metrics: Dictionary) -> void:

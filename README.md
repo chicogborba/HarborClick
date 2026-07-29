@@ -67,6 +67,7 @@ godot --headless --path . res://tests/contrast_test_runner.tscn
 godot --headless --path . res://tests/a11y_test_runner.tscn
 godot --headless --path . res://tests/backup_test_runner.tscn
 godot --headless --path . res://tests/profile_test_runner.tscn
+godot --headless --path . res://tests/automation_test_runner.tscn
 
 # cenários de balanceamento (ativo, híbrido, casual, offline e recuperação)
 godot --headless --path . --script res://tools/balance/run_balance.gd -- all
@@ -244,6 +245,10 @@ de deixar o jogador construir uma run que evapora no reload.
 - **Acessibilidade** — foco alcança tudo por Tab/setas, Enter ativa, Escape e
   Back fecham; anel de foco de dois tons; nomes acessíveis em toda tecla de
   ícone. Todo texto funcional passa de 4,5:1, verificado por teste.
+- **Automação** — portêiner, transtêiner e flutuante movem carga sozinhos no
+  berço, pela mesma transação do toque. Uma escala inteira acontece sem um
+  toque quando há equipamento; o toque vira empurrão. A partida paga um bônus
+  medido em segundos da renda atual.
 - **Perfis** — três terminais independentes em `user://profiles/<n>/`. O slot
   é parte do caminho, nunca do payload, então um save exportado de um entra em
   qualquer outro. O `user://save.json` da build antiga vira o perfil 1 sozinho.
@@ -583,14 +588,17 @@ exatamente a mesma frota.
 
 ### Fase D — automação e recompensa de partida — P1
 
-- [ ] Portêiner e transtêiner comprados passam a mover carga de verdade: cada
-      um contribui com uma taxa de movimentos por segundo no berço que atende.
-- [ ] O toque continua valendo — vira um empurrão instantâneo por cima da
-      automação, nunca o único caminho.
-- [ ] O HUD mostra a taxa automática do berço ao lado da fase.
-- [ ] Bônus de partida ao navio sair completo, proporcional à classe e ao
-      tempo de operação, com uma faixa validada no simulador.
-- [ ] Escala perfeita (sem recusa e sem reversão) paga um extra pequeno.
+- [x] Portêiner, transtêiner e guindaste flutuante passam a mover carga de
+      verdade: cada um contribui com movimentos por segundo, com teto pra não
+      virar borrão. Automação chama **a mesma transação** que o toque, então
+      existe um único caminho capaz de criar ou destruir um UID.
+- [x] O toque continua valendo — empurrão instantâneo por cima da automação.
+- [x] O HUD mostra a taxa automática do berço ao lado da fase.
+- [x] Bônus de partida precificado em **segundos da renda do próprio porto**,
+      não num número fixo que é enorme na primeira hora e invisível na
+      terceira. Entra como recompensa de carreira, então não encurta a curva de
+      prestígio contra a qual o simulador foi balanceado.
+- [x] Escala com convés completo paga +35%.
 
 Aceite: com equipamento suficiente uma escala inteira acontece sem um toque; o
 bônus de partida nunca passa de uma banda definida da CPS; o simulador continua

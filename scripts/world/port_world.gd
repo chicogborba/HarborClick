@@ -283,6 +283,11 @@ func _apply_water_quality(metrics: Dictionary) -> void:
 		_water_foam.set_quality(level)
 
 
+func _process(delta: float) -> void:
+	if berth != null:
+		berth.tick(delta)
+
+
 # ---------- input ----------
 
 func _unhandled_input(event: InputEvent) -> void:

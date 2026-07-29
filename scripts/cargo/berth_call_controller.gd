@@ -20,6 +20,19 @@ var _seeded_exports: Array[CargoUnit] = []
 var _active: Dictionary = {} # transfer id -> restart-reconciliation record
 var _variant_seed := 0
 var _variant_call_index := 0
+var _auto_carry := 0.0
+
+## Gantries that actually reach a hull. Everything else in the yard feeds the
+## stacks; these are the machines that work a berth, so they are the ones that
+## can move cargo without a finger on the screen.
+const AUTO_MOVERS := {"sts": 0.28, "rtg": 0.10, "flutuante": 0.16}
+## Ceiling on the automatic rate, in moves per second. Past this the flights
+## overlap into an unreadable smear and the tap stops meaning anything.
+const AUTO_RATE_CAP := 6.0
+## The departure bonus is expressed as seconds of current income so it can
+## never outgrow the economy it sits in.
+const DEPARTURE_SECONDS := 12.0
+const PERFECT_CALL_BONUS := 0.35
 
 
 func setup(p_world: PortWorld, p_ship: Ship, p_yard: ContainerYard) -> void:
@@ -74,6 +87,43 @@ func arrive() -> void:
 		seed_new()
 	ship.arrive()
 	_emit_status()
+
+
+func auto_rate() -> float:
+	## Moves per second the bought equipment performs on its own.
+	var rate := 0.0
+	for id: String in AUTO_MOVERS:
+		rate += float(AUTO_MOVERS[id]) * float(GameState.structure_count(id))
+	return minf(rate, AUTO_RATE_CAP)
+
+
+func tick(delta: float) -> void:
+	## Automation runs the very same transaction a tap does — reserve, fly,
+	## commit — so there is exactly one path that can move a container and one
+	## place a UID can be created or destroyed.
+	if ship == null or not ship.is_working():
+		_auto_carry = 0.0
+		return
+	var rate := auto_rate()
+	if rate <= 0.0:
+		return
+	_auto_carry += rate * delta
+	# One move per frame at most: a burst would launch a dozen flights on the
+	# same frame and they would land on top of each other.
+	if _auto_carry < 1.0:
+		return
+	_auto_carry -= 1.0
+	if _auto_carry > 2.0:
+		_auto_carry = 2.0
+	# Exactly the branch a tap takes. WAITING_EXPORT has to fall through to
+	# `_load`, because that is the only thing that flips the ship into loading —
+	# routing it anywhere else leaves an automated call parked forever with a
+	# full yard and an empty deck.
+	var origin := ship.global_position if ship != null else Vector2.ZERO
+	if ship.is_discharging():
+		_discharge(origin)
+	else:
+		_load(origin)
 
 
 func set_input_enabled(input_allowed: bool) -> void:
@@ -208,10 +258,34 @@ func _commit_reward(pos: Vector2) -> Dictionary:
 	return {"tx_id": tx_id, "value": GameState.click_power, "crit": false}
 
 
+func departure_bonus(perfect: bool) -> float:
+	## Paid on a completed call, priced in seconds of the port's own income so
+	## it scales with the run instead of being a flat number that is enormous
+	## in the first hour and invisible in the third.
+	var rate := maxf(GameState.cps, GameState.click_power)
+	var bonus := rate * DEPARTURE_SECONDS
+	if perfect:
+		bonus *= 1.0 + PERFECT_CALL_BONUS
+	return bonus
+
+
 func _on_ship_departed() -> void:
+	var perfect: bool = _exported.size() \
+		== PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS
 	var summary := {"call_id": call_id,
 		"exports": _exported.map(func(u: CargoUnit) -> Dictionary: return u.snapshot()),
-		"perfect": _exported.size() == PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS}
+		"perfect": perfect}
+	var bonus := departure_bonus(perfect)
+	if bonus > 0.0:
+		# Career money: it spends, but it must not shortcut the prestige curve
+		# the simulator was balanced against.
+		GameState.grant_nonproductive_reward(bonus)
+		summary["bonus"] = bonus
+		EventBus.notification_requested.emit({
+			"id": "call_bonus", "kind": &"milestone", "priority": 2,
+			"text": "Escala concluída%s. +%s TEU de frete."
+				% [" sem falhas" if perfect else "", GameState.fmt(bonus)],
+		})
 	call_completed.emit(summary)
 	EventBus.berth_call_completed.emit(summary)
 	_emit_status()
