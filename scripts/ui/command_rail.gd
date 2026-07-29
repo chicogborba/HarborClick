@@ -27,6 +27,8 @@ var _column: VBoxContainer
 var _readout: Readout
 var _berth_chip: PanelContainer
 var _berth_label: Label
+var _berth_bar: ProgressBar
+var _berth_detail: Label
 var _objective: PanelContainer
 var _objective_title: Label
 var _objective_progress: Label
@@ -71,13 +73,41 @@ func _build_board() -> void:
 	_readout.setup(Readout.Style.PAPER)
 	_column.add_child(_readout)
 
-	_berth_chip = UiTheme.panel(UiTheme.slate_style(false, 4))
+	# The berth is the thing the player is actually watching, and the rail had
+	# a hand-sized patch of blank paper under the keys. It gets a real card:
+	# what the berth is doing, how far through it is, and what the machines are
+	# contributing without a finger on the screen.
+	_berth_chip = PanelContainer.new()
+	UiTheme.apply_panel(_berth_chip, UiTheme.card_style(&"normal"))
+	_berth_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_berth_chip.visible = false
 	_column.add_child(_berth_chip)
-	_berth_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_LIGHT)
+	var berth_col := VBoxContainer.new()
+	berth_col.add_theme_constant_override(&"separation", 3)
+	berth_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_berth_chip.add_child(berth_col)
+	var berth_head := HBoxContainer.new()
+	berth_head.add_theme_constant_override(&"separation", 4)
+	berth_head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	berth_col.add_child(berth_head)
+	berth_head.add_child(UiTheme.icon(UiTheme.Icon.SHIP))
+	_berth_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK)
 	_berth_label.clip_text = true
 	_berth_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_berth_chip.add_child(_berth_label)
+	_berth_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	berth_head.add_child(_berth_label)
+	_berth_bar = ProgressBar.new()
+	var bar_styles := UiTheme.bar_styles()
+	_berth_bar.add_theme_stylebox_override(&"background", bar_styles[0])
+	_berth_bar.add_theme_stylebox_override(&"fill", bar_styles[1])
+	_berth_bar.show_percentage = false
+	_berth_bar.custom_minimum_size.y = 9.0
+	_berth_bar.max_value = 1.0
+	_berth_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	berth_col.add_child(_berth_bar)
+	_berth_detail = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	_berth_detail.clip_text = true
+	berth_col.add_child(_berth_detail)
 
 	_objective = PanelContainer.new()
 	UiTheme.apply_panel(_objective, UiTheme.card_style(&"ready"))
@@ -127,6 +157,16 @@ func _build_board() -> void:
 		"Reconstruir o porto e emitir ações", prestige_requested)
 	_prestige_key.visible = false
 	_keys.add_child(_prestige_key)
+	# The keys never fill a full-height board and the blank sheet under them
+	# read as unfinished. A pencil lying across it says "someone works here"
+	# for the price of one sprite.
+	var pencil_row := Control.new()
+	pencil_row.custom_minimum_size.y = 24.0
+	pencil_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_keys.add_child(pencil_row)
+	var pencil := UiTheme.desk_prop("ui_pencil", -6.0)
+	pencil.position = Vector2(12, 6)
+	pencil_row.add_child(pencil)
 
 	# The keys do not fill a full-height board, and blank parchment reads as
 	# unfinished. The gap carries the three numbers a foreman would actually
@@ -188,7 +228,26 @@ func _make_key(text: String, icon: UiTheme.Icon, kind: StringName,
 # --------------------------------------------------------------------- state
 
 func set_berth_status(text: String) -> void:
+	set_berth({"text": text})
+
+
+func set_berth(status: Dictionary) -> void:
+	var text := str(status.get("text", ""))
 	_berth_label.text = text
+	var total := float(status.get("total", 0.0))
+	var current := float(status.get("current", 0.0))
+	_berth_bar.visible = total > 0.0
+	if total > 0.0:
+		_berth_bar.max_value = total
+		_berth_bar.value = clampf(current, 0.0, total)
+	var rate := float(status.get("auto_rate", 0.0))
+	var parts: PackedStringArray = []
+	if total > 0.0:
+		parts.append("%d / %d" % [int(current), int(total)])
+	if rate > 0.0:
+		parts.append("%.1f/s automático" % rate)
+	_berth_detail.text = "  -  ".join(parts)
+	_berth_detail.visible = not _berth_detail.text.is_empty()
 	_berth_chip.visible = _desktop and not text.is_empty()
 
 
@@ -268,8 +327,11 @@ func _layout() -> void:
 	_bar.visible = not _desktop
 	if _desktop:
 		var width := clampf(safe.size.x * 0.30, 240.0, 360.0)
-		_board.size = Vector2(width, safe.size.y - 16.0)
-		_board.position = Vector2(safe.end.x - width - 8.0, safe.position.y + 8.0)
+		# The spring clip straddles the top edge, so the board starts far
+		# enough down for the hardware to be on screen.
+		var top := safe.position.y + 20.0
+		_board.size = Vector2(width, safe.end.y - top - 8.0)
+		_board.position = Vector2(safe.end.x - width - 8.0, top)
 		# Overlays land exactly here, so opening the shop reads as the rail
 		# turning a page instead of a panel arriving from off screen.
 		content_rect = Rect2(_board.position, _board.size)

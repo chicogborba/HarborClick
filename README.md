@@ -377,6 +377,34 @@ viewport compra a mesma legibilidade sem peso visual nenhum.
 Aceite: ao simular 0→`1e15` e 100 ganhos/s, ícone, origem do número e a linha
 de taxa não se movem sequer um pixel (coberto por `ui_p0_test_runner`).
 
+#### O material da interface — revisado em 30/07/2026
+
+A primeira versão da prancheta era desenho certo, execução chapada: dois tons
+por superfície, nenhuma sombra entre camadas e um miolo de nine-patch
+**esticado**, que obrigava toda superfície a ser cor sólida pra sobreviver a
+ser alargada. O resultado lia como diagrama, não como objeto.
+
+Duas regras arrumaram isso:
+
+- **Toda camada joga sombra na de baixo.** Prancheta no mundo, papel na
+  prancheta, ficha no papel, prendedor no papel. Sem isso o conjunto fica
+  chapado por melhor que cada peça seja.
+- **Nada é retângulo de dois tons.** Madeira, aço, papel e cada tecla correm
+  rampa de quatro ou cinco passos, e as faces chapadas carregam veio, fibra ou
+  risco de escovado.
+
+O miolo do nine-patch agora é **ladrilhado**, não esticado
+(`AXIS_STRETCH_MODE_TILE`), que é o que permite o papel ter fibra e pauta de
+verdade.
+
+O que se vê: madeira com veio e cantoneiras de aço rebitadas; prendedor de mola
+cromado de 72px com pega serrilhada; papel pautado com fibra; fichas com borda
+picotada e sombra própria; teclas com face iluminada, saia sombreada e sombra
+projetada; ardósia virou placa de aço parafusada. E um lápis de carpinteiro
+largado no papel em branco — ornamento, e vale: prancheta só com linhas
+impressas lê como formulário, com um lápis atravessado lê como coisa que
+alguém acabou de segurar.
+
 #### Loja, ajustes e overlays — revisado em 29/07/2026
 
 A superfície roxo-marinho desenhada em tempo de execução foi substituída. Ela

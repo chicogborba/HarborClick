@@ -138,9 +138,7 @@ func _ready() -> void:
 		cam.focus_on(PortLayout.yard_bottom() - 120.0, 0.9))
 
 	world.berth.status_changed.connect(hud.set_berth_status)
-	world.berth.status_changed.connect(
-		func(status: Dictionary) -> void:
-			rail.set_berth_status(str(status.get("text", ""))))
+	world.berth.status_changed.connect(_on_berth_status)
 	world.berth.notice_requested.connect(
 		func(notice: Dictionary) -> void:
 			# Berth notices are refusals — full yard, invalid box, reverted
@@ -202,6 +200,14 @@ func _on_ship_phase(phase: int) -> void:
 			_set_berth_hint("Aguardando próximo navio")
 
 
+func _on_berth_status(status: Dictionary) -> void:
+	## The rail draws a card, so it wants the numbers, not a sentence.
+	var payload := status.duplicate()
+	payload["auto_rate"] = world.berth.auto_rate() if world != null \
+		and world.berth != null else 0.0
+	rail.set_berth(payload)
+
+
 func _set_berth_hint(text: String) -> void:
 	## Portrait reads it over the port, desktop reads it in the rail. One call
 	## site so the two can never drift apart.
@@ -213,8 +219,19 @@ func _set_berth_hint(text: String) -> void:
 		# boxes.
 		full = "%s  -  %.1f/s auto" % [text, rate]
 	hud.set_job_hint(full)
-	if rail != null:
-		rail.set_berth_status(full)
+	if rail != null and world != null and world.berth != null:
+		# Keep the rail's card in step with the phase text even between the
+		# berth's own status emissions.
+		var progress := world.ship.export_progress()
+		var capacity := PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS
+		var done: float = float(capacity - world.ship.cargo_left()) \
+			if world.ship.is_discharging() else float(progress.x)
+		rail.set_berth({
+			"text": text,
+			"current": done if world.ship.is_working() else 0.0,
+			"total": float(capacity) if world.ship.is_working() else 0.0,
+			"auto_rate": rate,
+		})
 
 
 func _apply_view_metrics(metrics: Dictionary) -> void:

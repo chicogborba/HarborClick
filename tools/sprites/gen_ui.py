@@ -1,57 +1,92 @@
-"""UI chrome: the foreman's clipboard.
+"""UI chrome: the foreman's clipboard, drawn as an object rather than a box.
 
-Every overlay in HarborClick is one physical object you could pick up on the
-quay: a weathered wooden clipboard with a steel spring clip holding a stack of
-manifest paper. Cards are rows torn off that manifest, prices are ink stamped
-on a dark slate, and the only saturated colours are the amber "GO" keys and the
-teal service tags — the same two accents the machines wear in the yard.
+Every overlay in HarborClick is one thing you could pick up on the quay: a
+weathered wooden clipboard, steel corner protectors, a chrome spring clip, and
+a stack of manifest paper under it. Cards are slips torn off that manifest,
+prices are ink stamped into a steel plate, and the only saturated colours are
+the amber "GO" keys and the teal service tags — the same two accents the
+machines wear in the yard.
 
-The old flat rounded panels were drawn at runtime with StyleBoxFlat, which
-anti-aliased its corners and never matched the pixel grid. Everything here is
-a nine-patch so the interface stays in the same material as the port.
+Two rules keep it looking like a material instead of a diagram:
+
+* **Every layer casts a shadow onto the one below it.** Board on world, paper
+  on board, slip on paper, clip on paper. Without that the whole thing reads
+  flat no matter how good the individual pieces are.
+* **Nothing is a two-tone rectangle.** Wood, steel, paper and every key run a
+  four or five step ramp, and the flat faces carry grain, fibre or a brushed
+  streak.
+
+The nine-patch centre is *tiled*, not stretched (`AXIS_STRETCH_MODE_TILE` in
+`UiTheme.nine`), which is what lets the paper carry real fibre texture — a
+stretched centre would smear one row of pixels across the whole panel.
 """
 from common import new_img, rect, hline, vline, px, save, sheet, speckle
 
-# --- UI palette (kept local so the world palette stays about the world) ---
-WOOD_D = (74, 50, 38, 255)
+# --- wood: five steps, warm, with a cool dark edge ---
+WOOD_XD = (48, 32, 26, 255)
+WOOD_D = (76, 52, 38, 255)
 WOOD = (112, 78, 54, 255)
-WOOD_L = (150, 108, 74, 255)
-WOOD_XL = (182, 140, 100, 255)
+WOOD_L = (146, 104, 70, 255)
+WOOD_XL = (180, 136, 96, 255)
 
-STEEL_D = (86, 84, 96, 255)
-STEEL = (140, 138, 150, 255)
-STEEL_L = (196, 194, 204, 255)
+# --- steel: five steps so a rivet and a brushed face can coexist ---
+STEEL_XD = (52, 50, 62, 255)
+STEEL_D = (88, 86, 100, 255)
+STEEL = (136, 134, 148, 255)
+STEEL_L = (184, 182, 194, 255)
+STEEL_XL = (226, 226, 234, 255)
 
+# --- paper: the field colours are fixed by the contrast suite; the extra
+# steps exist only for fibre, edges and shadow, and stay within a few points
+# of luminance of the field so AA still holds.
+PAPER_XD = (168, 148, 118, 255)
 PAPER_D = (206, 188, 156, 255)
 PAPER = (238, 224, 198, 255)
 PAPER_L = (250, 240, 218, 255)
-PAPER_XD = (176, 158, 130, 255)
+PAPER_XL = (255, 250, 236, 255)
+PAPER_FIBRE = (228, 213, 186, 255)
+PAPER_RULE = (216, 202, 176, 255)
 
-SLATE_XD = (26, 23, 34, 255)
+SLATE_XD = (20, 18, 27, 255)
 SLATE_D = (34, 30, 44, 255)
 SLATE = (52, 46, 66, 255)
 SLATE_L = (78, 70, 96, 255)
+SLATE_XL = (104, 96, 124, 255)
 
+AMBER_XD = (128, 78, 18, 255)
 AMBER_D = (176, 112, 30, 255)
 AMBER = (232, 160, 48, 255)
 AMBER_L = (252, 202, 96, 255)
+AMBER_XL = (255, 228, 158, 255)
 # The teal and rust keys carry cream text, so their bases are darkened until
 # that text clears 4.5:1 — see tests/contrast_test_runner.gd.
+TEAL_XD = (16, 52, 52, 255)
 TEAL_D = (26, 74, 74, 255)
 TEAL = (44, 116, 110, 255)
 TEAL_L = (92, 178, 166, 255)
+TEAL_XL = (150, 214, 200, 255)
+RUST_XD = (78, 28, 24, 255)
 RUST_D = (112, 42, 34, 255)
 RUST = (150, 60, 48, 255)
+RUST_L = (196, 100, 78, 255)
 INK = (58, 44, 46, 255)
 INK_SOFT = (84, 68, 64, 255)
+
+## Every layer drops the same shadow, so the whole interface agrees about
+## where the light is (upper left) and how thick the paper is.
+SHADOW_1 = (38, 26, 24, 70)
+SHADOW_2 = (38, 26, 24, 36)
 
 # Legacy names still generated so an older save/scene never loads a hole.
 FRAME_D, FRAME, FRAME_L = WOOD_D, WOOD, WOOD_L
 
 
-def rivet(img, x, y, light=STEEL_L, dark=WOOD_D):
-    px(img, x, y, light)
-    px(img, x + 1, y + 1, dark)
+def rivet(img, x, y):
+    """A domed steel rivet: lit crown, dark seat, one specular pixel."""
+    px(img, x, y, STEEL_L)
+    px(img, x + 1, y, STEEL_XL)
+    px(img, x, y + 1, STEEL_D)
+    px(img, x + 1, y + 1, STEEL)
 
 
 def bevel(img, x, y, w, h, light, dark):
@@ -62,221 +97,334 @@ def bevel(img, x, y, w, h, light, dark):
     vline(img, x + w - 1, y, h, dark)
 
 
+def corner_notch(img, w, h, depth=2):
+    """Chamfer all four corners so no surface is a hard rectangle."""
+    for step in range(depth):
+        for dx in range(depth - step):
+            for cx, cy in ((dx, step), (w - 1 - dx, step),
+                           (dx, h - 1 - step), (w - 1 - dx, h - 1 - step)):
+                px(img, cx, cy, (0, 0, 0, 0))
+
+
+def drop_shadow(img, x, y, w, h):
+    """The two-step shadow every layer casts on the one beneath it."""
+    hline(img, x + 1, y + h, w - 1, SHADOW_1)
+    hline(img, x + 2, y + h + 1, w - 2, SHADOW_2)
+    vline(img, x + w, y + 1, h - 1, SHADOW_1)
+    vline(img, x + w + 1, y + 2, h - 2, SHADOW_2)
+
+
+def wood_grain(img, x, y, w, h, seed=3):
+    """Streaks along the grain, plus a couple of knots."""
+    import random as _random
+    rng = _random.Random(seed)
+    for row in range(y, y + h):
+        if rng.random() < 0.34:
+            length = rng.randint(2, max(2, w - 2))
+            start = rng.randint(x, max(x, x + w - length))
+            tone = WOOD_L if rng.random() < 0.6 else WOOD_D
+            hline(img, start, row, length, tone)
+    for _ in range(2):
+        kx = rng.randint(x + 1, x + max(1, w - 2))
+        ky = rng.randint(y, y + max(0, h - 1))
+        px(img, kx, ky, WOOD_XD)
+
+
+def paper_fibre(img, x, y, w, h, seed=11):
+    """Sparse fibre flecks. Kept within a few points of the field's luminance
+    so the contrast suite still measures what it thinks it measures."""
+    speckle(img, x, y, w, h, [PAPER_FIBRE, PAPER_L], 0.16, seed=seed)
+
+
 # ------------------------------------------------------------------ surfaces
 
 def gen_board():
-    """24x24 nine-patch, margin 8: the clipboard body.
+    """32x32 nine-patch, margin 12: the clipboard itself.
 
-    Everything decorative lives inside 8px of an edge, so the stretched middle
-    stays perfectly flat parchment no matter how wide the overlay gets.
+    Wood back board with grain and steel corner protectors, a sunk well, and
+    the manifest paper inside it. Everything decorative lives within 12px of an
+    edge; the middle 8x8 is plain fibred paper and tiles.
     """
-    s = 24
+    s = 32
     img = new_img(s, s)
-    # wooden back board
-    rect(img, 0, 0, s, s, WOOD_D)
+    # --- wooden back board ---
+    rect(img, 0, 0, s, s, WOOD_XD)
     rect(img, 1, 1, s - 2, s - 2, WOOD)
+    wood_grain(img, 2, 2, s - 4, s - 4, seed=5)
     bevel(img, 1, 1, s - 2, s - 2, WOOD_L, WOOD_D)
-    # grain, only in the corner patch so it never tiles into stripes
-    for gx, gy in ((2, 4), (3, 5), (4, 4), (s - 5, 3), (s - 4, 4), (3, s - 5)):
-        px(img, gx, gy, WOOD_XL)
-    # sunk paper well
-    rect(img, 4, 4, s - 8, s - 8, WOOD_D)
-    rect(img, 5, 5, s - 10, s - 10, PAPER_XD)
-    rect(img, 6, 6, s - 12, s - 12, PAPER)
-    hline(img, 6, 6, s - 12, PAPER_L)
-    vline(img, 6, 6, s - 12, PAPER_L)
-    hline(img, 6, s - 7, s - 12, PAPER_D)
-    vline(img, s - 7, 6, s - 12, PAPER_D)
-    # corner rivets holding the paper down
-    for rx, ry in ((2, 2), (s - 4, 2), (2, s - 4), (s - 4, s - 4)):
-        rivet(img, rx, ry)
+    hline(img, 2, 2, s - 4, WOOD_XL)
+
+    # --- steel corner protectors ---
+    for ox, oy, flip_x, flip_y in ((1, 1, 1, 1), (s - 2, 1, -1, 1),
+                                   (1, s - 2, 1, -1), (s - 2, s - 2, -1, -1)):
+        for i in range(6):
+            px(img, ox + flip_x * i, oy, STEEL_D if i > 3 else STEEL)
+            px(img, ox, oy + flip_y * i, STEEL_D if i > 3 else STEEL)
+        px(img, ox, oy, STEEL_XL)
+        px(img, ox + flip_x, oy + flip_y, STEEL_L)
+        rivet(img, ox + flip_x * 2, oy + flip_y * 2)
+
+    # --- the well the paper sits in, with its own cast shadow ---
+    rect(img, 5, 5, s - 10, s - 10, WOOD_XD)
+    rect(img, 6, 6, s - 12, s - 12, PAPER_XD)
+    rect(img, 7, 7, s - 14, s - 14, PAPER)
+    paper_fibre(img, 8, 8, s - 16, s - 16, seed=17)
+    # light falls in from the upper left: the well's top and left edges are in
+    # shadow, the opposite pair catches it
+    hline(img, 7, 7, s - 14, PAPER_D)
+    hline(img, 7, 8, s - 14, PAPER_XD)
+    vline(img, 7, 7, s - 14, PAPER_D)
+    hline(img, 7, s - 8, s - 14, PAPER_L)
+    vline(img, s - 8, 7, s - 14, PAPER_L)
+    corner_notch(img, s, s, 2)
     save(img, "ui_board")
 
 
 def gen_clip():
-    """The steel spring clip that holds the manifest onto the board.
+    """The chrome spring clip. Drawn big enough to read as hardware.
 
-    It straddles the top edge of the board, so the top third is the raised
-    thumb plate and the bottom is the jaw biting down on the paper.
+    It straddles the top edge of a board: raised thumb plate with a knurled
+    grip, a jaw biting the paper, side springs, and a shadow on the sheet.
     """
-    w, h = 46, 15
+    w, h = 72, 22
     img = new_img(w, h)
-    # raised thumb plate, narrower than the jaw
-    rect(img, 12, 0, w - 24, 4, STEEL_D)
-    rect(img, 13, 1, w - 26, 3, STEEL)
-    hline(img, 14, 1, w - 28, STEEL_L)
-    # jaw body
-    rect(img, 1, 3, w - 2, h - 6, STEEL_D)
-    rect(img, 2, 4, w - 4, h - 9, STEEL)
-    hline(img, 3, 4, w - 6, STEEL_L)
-    # the bite line where paper enters
-    hline(img, 2, h - 4, w - 4, (52, 50, 62, 255))
-    hline(img, 2, h - 3, w - 4, STEEL_D)
-    # rivets on each shoulder
-    for rx in (5, w - 7):
-        px(img, rx, 7, STEEL_L)
-        px(img, rx + 1, 8, (52, 50, 62, 255))
-    # contact shadow on the paper below
-    rect(img, 4, h - 2, w - 8, 1, (0, 0, 0, 70))
-    # clipped corners
-    for cx, cy in ((1, 3), (w - 2, 3), (12, 0), (w - 13, 0)):
-        px(img, cx, cy, (0, 0, 0, 0))
+
+    # cast shadow first, so the metal sits on top of it
+    rect(img, 6, h - 3, w - 12, 2, SHADOW_1)
+    rect(img, 9, h - 1, w - 18, 1, SHADOW_2)
+
+    # --- raised thumb plate ---
+    plate_x, plate_w = 20, w - 40
+    rect(img, plate_x, 0, plate_w, 6, STEEL_XD)
+    rect(img, plate_x + 1, 1, plate_w - 2, 4, STEEL)
+    hline(img, plate_x + 2, 1, plate_w - 4, STEEL_XL)
+    hline(img, plate_x + 1, 4, plate_w - 2, STEEL_D)
+    # knurled grip
+    for gx in range(plate_x + 3, plate_x + plate_w - 3, 3):
+        vline(img, gx, 2, 3, STEEL_L)
+        vline(img, gx + 1, 2, 3, STEEL_XD)
+
+    # --- jaw body ---
+    rect(img, 2, 5, w - 4, h - 9, STEEL_XD)
+    rect(img, 3, 6, w - 6, h - 12, STEEL)
+    # brushed streaks along the jaw
+    for sy, tone in ((6, STEEL_XL), (7, STEEL_L), (10, STEEL_D), (12, STEEL_D)):
+        hline(img, 4, sy, w - 8, tone)
+    # the bite line where the paper enters
+    hline(img, 3, h - 6, w - 6, STEEL_XD)
+    hline(img, 3, h - 5, w - 6, (30, 28, 38, 255))
+    hline(img, 3, h - 4, w - 6, STEEL_D)
+
+    # --- side springs and rivets ---
+    for sx in (1, w - 3):
+        rect(img, sx, 7, 2, h - 13, STEEL_D)
+        px(img, sx, 7, STEEL_L)
+    for rx in (10, w - 12):
+        rivet(img, rx, 8)
+
+    corner_notch(img, w, h, 2)
     save(img, "ui_clip")
 
 
 def gen_paper():
-    """12x12 nine-patch, margin 4: the sheet cards are laid out on.
+    """16x16 nine-patch, margin 5: the sheet cards are laid out on.
 
-    Deliberately a shade darker than a card so a list of cards reads as
-    separate slips of paper rather than one continuous block of cream.
+    A shade darker than a card so a list reads as separate slips rather than
+    one block of cream, ruled like a real manifest, and creased along the top
+    where the clip holds it down.
     """
-    s = 12
+    s = 16
     img = new_img(s, s)
-    rect(img, 0, 0, s, s, (166, 148, 122, 255))
+    rect(img, 0, 0, s, s, PAPER_XD)
     rect(img, 1, 1, s - 2, s - 2, PAPER_D)
-    hline(img, 1, 1, s - 2, (188, 170, 142, 255))
-    hline(img, 1, s - 2, s - 2, (188, 170, 142, 255))
+    speckle(img, 1, 1, s - 2, s - 2, [(198, 180, 148, 255), (214, 197, 166, 255)],
+            0.14, seed=23)
+    # faint rules every four pixels: the centre tiles, so they carry on down
+    for ry in range(3, s - 1, 4):
+        hline(img, 1, ry, s - 2, PAPER_RULE)
+    # the crease under the clip and the lift at the bottom edge
+    hline(img, 1, 1, s - 2, (188, 170, 140, 255))
+    hline(img, 1, 2, s - 2, (198, 180, 150, 255))
+    hline(img, 1, s - 2, s - 2, PAPER)
     save(img, "ui_paper")
 
 
-def _card(name, field, edge, edge_hi, rail=None):
-    """12x12 nine-patch, margin 4: one torn-off manifest row."""
-    s = 12
+def _card(name, field, edge, edge_hi, rail=None, fibre_seed=31):
+    """16x16 nine-patch, margin 5: one slip torn off the manifest.
+
+    The right edge is perforated and the whole slip drops a shadow, so a list
+    of them reads as loose paper on a sheet instead of a stack of divs.
+    """
+    s = 16
     img = new_img(s, s)
-    rect(img, 0, 0, s, s, edge)
-    rect(img, 1, 1, s - 2, s - 2, field)
-    hline(img, 1, 1, s - 2, edge_hi)
-    vline(img, 1, 1, s - 2, edge_hi)
-    hline(img, 1, s - 2, s - 2, PAPER_D)
+    # shadow under the slip
+    hline(img, 2, s - 1, s - 3, SHADOW_1)
+    vline(img, s - 1, 2, s - 3, SHADOW_1)
+
+    rect(img, 0, 0, s - 1, s - 1, edge)
+    rect(img, 1, 1, s - 3, s - 3, field)
+    speckle(img, 2, 2, s - 5, s - 5, [PAPER_FIBRE, PAPER_XL], 0.10,
+            seed=fibre_seed)
+    hline(img, 1, 1, s - 3, edge_hi)
+    vline(img, 1, 1, s - 3, edge_hi)
+    hline(img, 1, s - 3, s - 3, PAPER_D)
+    # perforation: the torn side of a slip
+    for py in range(2, s - 2, 3):
+        px(img, s - 2, py, PAPER_XD)
     if rail is not None:
-        # a colour-coded spine on the left, like a file label
-        vline(img, 0, 1, s - 2, rail[0])
-        vline(img, 1, 1, s - 2, rail[1])
-    # clipped corners keep it reading as paper, not a web div
-    for cx, cy in ((0, 0), (s - 1, 0), (0, s - 1), (s - 1, s - 1)):
+        # a colour-coded spine, like a file label
+        vline(img, 0, 1, s - 3, rail[0])
+        vline(img, 1, 1, s - 3, rail[1])
+        px(img, 1, 1, rail[2] if len(rail) > 2 else rail[1])
+    for cx, cy in ((0, 0), (s - 2, 0), (0, s - 2), (s - 2, s - 2)):
         px(img, cx, cy, (0, 0, 0, 0))
     save(img, name)
 
 
 def gen_cards():
-    _card("ui_card", PAPER, PAPER_XD, PAPER_L)
-    _card("ui_card_hi", PAPER_L, AMBER_D, PAPER_L, rail=(AMBER_D, AMBER))
-    _card("ui_card_off", (200, 190, 176, 255), (162, 152, 142, 255),
-          (214, 206, 194, 255))
-    _card("ui_card_done", (206, 220, 208, 255), TEAL_D, (228, 240, 230, 255),
-          rail=(TEAL_D, TEAL))
+    _card("ui_card", PAPER, PAPER_XD, PAPER_L, fibre_seed=31)
+    _card("ui_card_hi", PAPER_L, AMBER_D, PAPER_XL,
+          rail=(AMBER_XD, AMBER, AMBER_L), fibre_seed=37)
+    _card("ui_card_off", (200, 190, 176, 255), (156, 146, 136, 255),
+          (216, 208, 196, 255), fibre_seed=41)
+    _card("ui_card_done", (206, 220, 208, 255), TEAL_D, (230, 242, 232, 255),
+          rail=(TEAL_XD, TEAL, TEAL_L), fibre_seed=43)
 
 
 def gen_slate():
-    """10x10 nine-patch, margin 3: dark readout for numbers and stamps."""
-    s = 10
-    img = new_img(s, s)
-    rect(img, 0, 0, s, s, SLATE_XD)
-    rect(img, 1, 1, s - 2, s - 2, SLATE_D)
-    hline(img, 1, 1, s - 2, SLATE)
-    for cx, cy in ((0, 0), (s - 1, 0), (0, s - 1), (s - 1, s - 1)):
-        px(img, cx, cy, (0, 0, 0, 0))
-    save(img, "ui_slate")
+    """14x14 nine-patch, margin 5: the steel plate a number is stamped into.
 
-    lit = new_img(s, s)
-    rect(lit, 0, 0, s, s, AMBER_D)
-    rect(lit, 1, 1, s - 2, s - 2, SLATE_D)
-    hline(lit, 1, 1, s - 2, SLATE)
-    for cx, cy in ((0, 0), (s - 1, 0), (0, s - 1), (s - 1, s - 1)):
-        px(lit, cx, cy, (0, 0, 0, 0))
-    save(lit, "ui_slate_lit")
+    Was a flat dark rounded box. It is a bevelled plate now: dark recessed
+    face, lit top-left lip, shaded bottom-right, and two screws holding it on.
+    """
+    def plate(name, border):
+        s = 14
+        img = new_img(s, s)
+        hline(img, 2, s - 1, s - 3, SHADOW_1)
+        rect(img, 0, 0, s - 1, s - 1, border)
+        rect(img, 1, 1, s - 3, s - 3, SLATE_D)
+        # the recess: light catches the far edge, the near edge is in shadow
+        hline(img, 1, 1, s - 3, SLATE_XD)
+        vline(img, 1, 1, s - 3, SLATE_XD)
+        hline(img, 1, s - 3, s - 3, SLATE)
+        vline(img, s - 3, 1, s - 3, SLATE)
+        hline(img, 2, 3, s - 5, SLATE)
+        for sx, sy in ((2, 2), (s - 4, s - 4)):
+            px(img, sx, sy, SLATE_XL)
+            px(img, sx + 1, sy + 1, SLATE_XD)
+        for cx, cy in ((0, 0), (s - 2, 0), (0, s - 2), (s - 2, s - 2)):
+            px(img, cx, cy, (0, 0, 0, 0))
+        save(img, name)
+
+    plate("ui_slate", SLATE_XD)
+    plate("ui_slate_lit", AMBER_D)
 
 
 def gen_well():
-    """10x10 nine-patch, margin 3: recessed socket an item sprite sits in."""
-    s = 10
+    """14x14 nine-patch, margin 5: the socket an item sprite sits in.
+
+    A hole punched in the paper: hard shadow on the lit side, a bright lip
+    opposite, and a slightly cooler floor so the sprite in it pops.
+    """
+    s = 14
     img = new_img(s, s)
-    rect(img, 0, 0, s, s, PAPER_D)
-    rect(img, 1, 1, s - 2, s - 2, (222, 206, 178, 255))
-    # inset shadow: dark on the lit side, highlight opposite
-    hline(img, 1, 1, s - 2, PAPER_XD)
-    vline(img, 1, 1, s - 2, PAPER_XD)
-    hline(img, 1, s - 2, s - 2, PAPER_L)
+    rect(img, 0, 0, s, s, PAPER_XD)
+    rect(img, 1, 1, s - 2, s - 2, (220, 204, 176, 255))
+    speckle(img, 2, 2, s - 4, s - 4, [(212, 196, 168, 255)], 0.12, seed=53)
+    # inset: the top-left of a hole is the dark side
+    hline(img, 1, 1, s - 2, (160, 140, 112, 255))
+    hline(img, 1, 2, s - 2, (186, 168, 138, 255))
+    vline(img, 1, 1, s - 2, (168, 148, 120, 255))
+    hline(img, 1, s - 2, s - 2, PAPER_XL)
     vline(img, s - 2, 1, s - 2, PAPER_L)
+    corner_notch(img, s, s, 1)
     save(img, "ui_well")
 
 
 # ------------------------------------------------------------------- controls
 
-def _button(base, light, dark, name, text_dark=True):
-    s = 12
+def _button(base, light, xlight, dark, xdark, name):
+    """16x16 nine-patch, margin 5: a chunky physical key.
+
+    Five tones and a cast shadow. The old two-tone version read as a coloured
+    rectangle; this one has a lit top face, a shaded skirt and a shadow, so it
+    looks like something that can be pressed.
+    """
+    s = 16
     img = new_img(s, s)
-    rect(img, 0, 0, s, s, dark)
-    rect(img, 1, 0, s - 2, s - 1, base)
-    hline(img, 2, 0, s - 4, light)
-    vline(img, 1, 1, s - 3, light)
-    hline(img, 1, s - 1, s - 2, dark)
-    for cx, cy in ((0, 0), (s - 1, 0), (0, s - 1), (s - 1, s - 1)):
+    hline(img, 2, s - 1, s - 3, SHADOW_1)
+    vline(img, s - 1, 2, s - 3, SHADOW_1)
+
+    rect(img, 0, 0, s - 1, s - 1, xdark)
+    rect(img, 1, 1, s - 3, s - 3, base)
+    hline(img, 2, 1, s - 5, xlight)
+    hline(img, 1, 2, s - 3, light)
+    vline(img, 1, 2, s - 5, light)
+    hline(img, 1, s - 4, s - 3, dark)
+    hline(img, 1, s - 3, s - 3, xdark)
+    vline(img, s - 3, 2, s - 5, dark)
+    for cx, cy in ((0, 0), (s - 2, 0), (0, s - 2), (s - 2, s - 2)):
         px(img, cx, cy, (0, 0, 0, 0))
     save(img, name)
 
 
 def gen_buttons():
-    _button(AMBER, AMBER_L, AMBER_D, "ui_btn")
-    _button(AMBER_D, AMBER, (128, 78, 20, 255), "ui_btn_down")
-    _button(TEAL, TEAL_L, TEAL_D, "ui_btn_alt")
-    _button((176, 166, 154, 255), (202, 194, 182, 255), (132, 122, 112, 255),
-            "ui_btn_off")
-    _button(RUST, (218, 128, 96, 255), RUST_D, "ui_btn_danger")
-
-    # ghost: paper-coloured outline key for secondary actions on the board
-    s = 12
-    img = new_img(s, s)
-    rect(img, 0, 0, s, s, PAPER_XD)
-    rect(img, 1, 1, s - 2, s - 2, PAPER)
-    hline(img, 1, 1, s - 2, PAPER_L)
-    hline(img, 1, s - 2, s - 2, PAPER_D)
-    for cx, cy in ((0, 0), (s - 1, 0), (0, s - 1), (s - 1, s - 1)):
-        px(img, cx, cy, (0, 0, 0, 0))
-    save(img, "ui_btn_ghost")
+    _button(AMBER, AMBER_L, AMBER_XL, AMBER_D, AMBER_XD, "ui_btn")
+    # pressed: the key sinks, so light and shade swap
+    _button(AMBER_D, AMBER, AMBER_L, AMBER_XD, AMBER_XD, "ui_btn_down")
+    _button(TEAL, TEAL_L, TEAL_XL, TEAL_D, TEAL_XD, "ui_btn_alt")
+    _button((178, 168, 156, 255), (204, 196, 186, 255), (224, 218, 210, 255),
+            (138, 128, 118, 255), (104, 96, 88, 255), "ui_btn_off")
+    _button(RUST, RUST_L, (222, 140, 116, 255), RUST_D, RUST_XD, "ui_btn_danger")
+    _button(PAPER, PAPER_L, PAPER_XL, PAPER_D, PAPER_XD, "ui_btn_ghost")
 
 
 def gen_tabs():
-    """12x12 nine-patch, margin 4: file-folder tabs sitting on the board."""
-    s = 12
-    # active tab: same parchment as the sheet, so it reads as continuous paper
+    """16x16 nine-patch, margin 5: file-folder tabs sitting on the board."""
+    s = 16
+    # active: continuous with the sheet below, so the bottom edge is open
     on = new_img(s, s)
-    rect(on, 0, 0, s, s, PAPER_XD)
+    rect(on, 0, 0, s, s - 1, PAPER_XD)
     rect(on, 1, 0, s - 2, s - 1, PAPER)
-    hline(on, 2, 0, s - 4, PAPER_L)
+    speckle(on, 2, 2, s - 4, s - 4, [PAPER_FIBRE], 0.10, seed=61)
+    hline(on, 2, 0, s - 4, PAPER_XL)
+    hline(on, 1, 1, s - 2, PAPER_L)
     vline(on, 1, 1, s - 2, PAPER_L)
     vline(on, s - 2, 1, s - 2, PAPER_D)
-    hline(on, 1, s - 1, s - 2, PAPER)          # open bottom: joins the sheet
+    hline(on, 1, s - 1, s - 2, PAPER)
     for cx in (0, s - 1):
         px(on, cx, 0, (0, 0, 0, 0))
     save(on, "ui_tab_on")
 
-    # inactive tab: pushed back into the shade of the wooden board
-    # Light enough that the dimmed tab label still clears 4.5:1 against it.
+    # inactive: pushed back into the board's shadow, with a fold at the base
     off = new_img(s, s)
-    rect(off, 0, 0, s, s, WOOD_D)
-    rect(off, 1, 1, s - 2, s - 1, (196, 178, 150, 255))
-    hline(off, 2, 1, s - 4, (214, 198, 172, 255))
-    hline(off, 1, s - 1, s - 2, WOOD_D)
+    rect(off, 0, 1, s, s - 1, WOOD_XD)
+    rect(off, 1, 2, s - 2, s - 3, (196, 178, 150, 255))
+    speckle(off, 2, 3, s - 4, s - 5, [(184, 166, 138, 255)], 0.12, seed=67)
+    hline(off, 2, 2, s - 4, (214, 198, 172, 255))
+    hline(off, 1, s - 2, s - 2, (168, 150, 124, 255))
+    hline(off, 1, s - 1, s - 2, WOOD_XD)
     for cx in (0, s - 1):
-        px(off, cx, 0, (0, 0, 0, 0))
+        px(off, cx, 1, (0, 0, 0, 0))
     save(off, "ui_tab_off")
 
 
 def gen_segments():
-    """8x8 nine-patch, margin 3: the x1/x10/x25/MAX segmented control."""
-    s = 8
-    on = new_img(s, s)
-    rect(on, 0, 0, s, s, INK)
-    rect(on, 1, 1, s - 2, s - 2, AMBER)
-    hline(on, 1, 1, s - 2, AMBER_L)
-    hline(on, 1, s - 2, s - 2, AMBER_D)
+    """10x10 nine-patch, margin 4: the x1/x10/x25/MAX segmented control."""
+    on = new_img(10, 10)
+    rect(on, 0, 0, 10, 9, AMBER_XD)
+    rect(on, 1, 1, 8, 7, AMBER)
+    hline(on, 2, 1, 6, AMBER_XL)
+    hline(on, 1, 2, 8, AMBER_L)
+    hline(on, 1, 7, 8, AMBER_D)
+    hline(on, 1, 9, 8, SHADOW_2)
     save(on, "ui_seg_on")
 
-    off = new_img(s, s)
-    rect(off, 0, 0, s, s, PAPER_XD)
-    rect(off, 1, 1, s - 2, s - 2, (224, 210, 184, 255))
-    hline(off, 1, 1, s - 2, PAPER_L)
+    off = new_img(10, 10)
+    rect(off, 0, 0, 10, 9, PAPER_XD)
+    rect(off, 1, 1, 8, 7, (226, 212, 186, 255))
+    hline(off, 1, 1, 8, PAPER_XL)
+    hline(off, 1, 7, 8, PAPER_D)
     save(off, "ui_seg_off")
 
 
@@ -284,57 +432,102 @@ def gen_focus():
     """12x12 nine-patch, margin 4: the keyboard focus ring, hollow centre.
 
     Two tones on purpose. A single-colour ring cannot be visible on both the
-    cream paper of the board and the near-black slate of a readout, so the
-    outer pixel is ink and the inner one is cream: whichever surface it lands
-    on, one of the two reads.
+    cream paper of a board and the near-black steel of a readout, so the outer
+    pixel is ink and the inner one is cream: whichever it lands on, one reads.
     """
     s = 12
     img = new_img(s, s)
     rect(img, 0, 0, s, s, INK)
-    rect(img, 1, 1, s - 2, s - 2, PAPER_L)
+    rect(img, 1, 1, s - 2, s - 2, PAPER_XL)
     rect(img, 2, 2, s - 4, s - 4, (0, 0, 0, 0))
     save(img, "ui_focus")
 
 
 def gen_bar():
-    """8x8 nine-patch, margin 3: progress trough and fill."""
-    bg = new_img(8, 8)
-    rect(bg, 0, 0, 8, 8, PAPER_XD)
-    rect(bg, 1, 1, 6, 6, (196, 180, 152, 255))
-    hline(bg, 1, 1, 6, (172, 156, 130, 255))
+    """10x10 nine-patch, margin 4: a progress trough cut into the paper."""
+    bg = new_img(10, 10)
+    rect(bg, 0, 0, 10, 10, PAPER_XD)
+    rect(bg, 1, 1, 8, 8, (200, 184, 154, 255))
+    hline(bg, 1, 1, 8, (172, 154, 126, 255))
+    hline(bg, 1, 8, 8, PAPER_L)
     save(bg, "ui_bar_bg")
 
-    fill = new_img(8, 8)
-    rect(fill, 0, 0, 8, 8, TEAL_D)
-    rect(fill, 1, 1, 6, 6, TEAL)
-    hline(fill, 1, 1, 6, TEAL_L)
+    fill = new_img(10, 10)
+    rect(fill, 0, 0, 10, 10, TEAL_XD)
+    rect(fill, 1, 1, 8, 8, TEAL)
+    hline(fill, 1, 1, 8, TEAL_L)
+    hline(fill, 1, 2, 8, TEAL_XL)
+    hline(fill, 1, 8, 8, TEAL_D)
     save(fill, "ui_bar_fill")
 
 
 def gen_scroll():
-    """8x8 nine-patches, margin 3: a sunk trough and a rounded wooden grip.
-
-    The first version was a flat wood slab running the full height of the
-    list, which read as a broken strip sitting on top of the cards rather than
-    as something you could drag.
-    """
-    bg = new_img(8, 8)
-    rect(bg, 0, 0, 8, 8, (0, 0, 0, 0))
-    rect(bg, 2, 0, 4, 8, (176, 158, 130, 255))
-    vline(bg, 2, 0, 8, (150, 132, 108, 255))
-    vline(bg, 5, 0, 8, PAPER_D)
+    """10x10 nine-patches, margin 4: a sunk channel and a wooden grip."""
+    bg = new_img(10, 10)
+    rect(bg, 0, 0, 10, 10, (0, 0, 0, 0))
+    rect(bg, 3, 0, 4, 10, (186, 168, 140, 255))
+    vline(bg, 3, 0, 10, (160, 142, 116, 255))
+    vline(bg, 6, 0, 10, PAPER_L)
     save(bg, "ui_scroll_bg")
 
-    grab = new_img(8, 8)
-    rect(grab, 0, 0, 8, 8, (0, 0, 0, 0))
-    rect(grab, 1, 0, 6, 8, WOOD_D)
-    rect(grab, 2, 1, 4, 6, WOOD)
-    vline(grab, 2, 1, 6, WOOD_L)
-    hline(grab, 2, 1, 4, WOOD_L)
-    # clipped ends so the grip reads as a rounded grip, not a bar
-    for cx, cy in ((1, 0), (6, 0), (1, 7), (6, 7)):
+    grab = new_img(10, 10)
+    rect(grab, 0, 0, 10, 10, (0, 0, 0, 0))
+    rect(grab, 2, 0, 6, 10, WOOD_XD)
+    rect(grab, 3, 1, 4, 8, WOOD)
+    vline(grab, 3, 1, 8, WOOD_L)
+    vline(grab, 6, 1, 8, WOOD_D)
+    hline(grab, 3, 1, 4, WOOD_XL)
+    for cx, cy in ((2, 0), (7, 0), (2, 9), (7, 9)):
         px(grab, cx, cy, (0, 0, 0, 0))
     save(grab, "ui_scroll_grab")
+
+
+def gen_desk_props():
+    """Loose objects that live on the board: a carpenter's pencil and a clip.
+
+    Pure ornament, and worth it. A clipboard with nothing but printed rows on
+    it reads as a form; one with a pencil lying across the bottom reads as
+    something a person was just holding.
+    """
+    # --- flat carpenter's pencil, lying at a slight angle ---
+    w, h = 34, 9
+    pencil = new_img(w, h)
+    rect(pencil, 2, h - 2, w - 5, 1, SHADOW_1)
+    body_x, body_w = 6, w - 12
+    rect(pencil, body_x, 1, body_w, 6, (198, 148, 44, 255))
+    hline(pencil, body_x, 1, body_w, (232, 186, 78, 255))
+    hline(pencil, body_x, 2, body_w, (216, 166, 60, 255))
+    hline(pencil, body_x, 6, body_w, (156, 110, 28, 255))
+    # painted band and the maker's stripe
+    rect(pencil, body_x + 4, 1, 2, 6, (172, 122, 34, 255))
+    hline(pencil, body_x + 9, 3, body_w - 14, (240, 206, 120, 255))
+    # sharpened tip
+    for i in range(5):
+        rect(pencil, body_x + body_w + i, 2 + (i // 2), 1, 5 - i, (206, 176, 132, 255))
+    rect(pencil, w - 2, 4, 2, 1, (48, 44, 52, 255))
+    px(pencil, w - 3, 4, (72, 66, 76, 255))
+    # ferrule and eraser
+    rect(pencil, body_x - 4, 1, 3, 6, STEEL)
+    hline(pencil, body_x - 4, 1, 3, STEEL_L)
+    hline(pencil, body_x - 4, 6, 3, STEEL_D)
+    rect(pencil, body_x - 6, 2, 2, 4, (206, 128, 116, 255))
+    hline(pencil, body_x - 6, 2, 2, (228, 158, 146, 255))
+    save(pencil, "ui_pencil")
+
+    # --- steel paperclip, seen flat on ---
+    cw, ch = 14, 20
+    clip = new_img(cw, ch)
+    rect(clip, 3, ch - 2, 8, 1, SHADOW_2)
+    for x in (3, 9):
+        vline(clip, x, 2, ch - 6, STEEL_D)
+    for x in (4, 10):
+        vline(clip, x, 2, ch - 6, STEEL_L)
+    hline(clip, 3, 2, 8, STEEL_L)
+    hline(clip, 3, ch - 4, 8, STEEL_D)
+    vline(clip, 6, 5, ch - 10, STEEL)
+    vline(clip, 7, 5, ch - 10, STEEL_XL)
+    hline(clip, 6, 5, 2, STEEL_L)
+    save(clip, "ui_paperclip")
 
 
 def gen_scrims():
@@ -534,5 +727,6 @@ if __name__ == "__main__":
     gen_focus()
     gen_bar()
     gen_scroll()
+    gen_desk_props()
     gen_scrims()
     gen_icons()

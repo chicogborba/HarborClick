@@ -118,7 +118,10 @@ func set_profile(profile: String) -> void:
 func _fit_berth_chip() -> void:
 	## The chip hugs its text instead of holding a fixed slab: a short phase
 	## like "Descarga 8/24" should not paint a bar across the port.
-	if _berth_chip == null or _job_label == null:
+	# The berth can emit one last status while the scene is being torn down —
+	# leaving to the menu does exactly that — and by then there is no viewport
+	# to measure against.
+	if _berth_chip == null or _job_label == null or not is_inside_tree():
 		return
 	_berth_chip.visible = not _job_label.text.is_empty()
 	var safe := _resolved_safe_rect(get_viewport().get_visible_rect().size)

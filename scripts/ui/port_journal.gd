@@ -353,14 +353,16 @@ func _reward_text(reward: Variant) -> String:
 	if not reward is Dictionary or reward.is_empty():
 		return "sem recompensa"
 	var kind := StringName(reward.get("kind", ""))
+	# Short on purpose: this line shares a 256px rail with the progress figures,
+	# and a truncated reward tells the player nothing at all.
 	match kind:
 		&"teu":
 			return "+%s TEU" % GameState.fmt(float(reward.get("amount", 0.0)))
 		&"meta":
-			return "+%d de carreira" % int(reward.get("amount", 1))
+			return "+%d carreira" % int(reward.get("amount", 1))
 		&"cosmetic":
-			return "item de coleção"
-	return "recompensa especial"
+			return "coleção"
+	return "especial"
 
 
 func _layout() -> void:
@@ -379,8 +381,11 @@ func _layout() -> void:
 		_sheet.size = slot.size
 		_sheet.position = slot.position
 	else:
-		_sheet.size = Vector2(safe.size.x - 12.0, maxf(220.0, safe.size.y - 24.0))
-		_sheet.position = Vector2(safe.position.x + 6.0, safe.end.y - _sheet.size.y - 6.0)
+		var top := safe.position.y + 20.0
+		_sheet.size = Vector2(safe.size.x - 12.0,
+			maxf(220.0, safe.end.y - top - 6.0))
+		_sheet.position = Vector2(safe.position.x + 6.0,
+			safe.end.y - _sheet.size.y - 6.0)
 	_backdrop.visible = _open
 	_sheet.visible = _open
 	UiTheme.place_clip(_clip, _sheet, safe)

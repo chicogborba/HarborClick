@@ -32,7 +32,9 @@ func _test_safe_area_and_journal_close() -> void:
 	journal.open()
 	await get_tree().process_frame
 	_expect(_inside(safe, journal._sheet.get_global_rect()), "journal mobile sheet remains inside safe area")
-	_expect(journal._sheet.size.y >= safe.size.y - 24.0, "journal is almost full-height on mobile")
+	# The board starts far enough down for its spring clip to be on screen, so
+	# "almost full height" now means the safe area minus that clip and a margin.
+	_expect(journal._sheet.size.y >= safe.size.y - 30.0, "journal is almost full-height on mobile")
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.pressed = true

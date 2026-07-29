@@ -61,6 +61,11 @@ func _build() -> void:
 	_slots.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	sheet.add_child(_slots)
 
+	# A pencil clipped to the corner of the board, the way one actually would be.
+	var pencil := UiTheme.desk_prop("ui_pencil", -8.0)
+	pencil.name = "Pencil"
+	add_child(pencil)
+
 	_status = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -177,3 +182,7 @@ func _layout() -> void:
 	_board.custom_minimum_size = _board.size
 	_board.position = (view - _board.size) * 0.5
 	UiTheme.place_clip(_clip, _board, Rect2(Vector2.ZERO, view))
+	var pencil := get_node_or_null(^"Pencil") as Control
+	if pencil != null:
+		pencil.position = _board.position + Vector2(
+			_board.size.x - pencil.size.x - 16.0, _board.size.y - 14.0)

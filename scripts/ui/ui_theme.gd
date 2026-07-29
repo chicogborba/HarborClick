@@ -129,48 +129,54 @@ static func nine(sprite: String, margin: int,
 	box.texture = load("res://assets/sprites/%s.png" % sprite)
 	box.set_texture_margin_all(margin)
 	box.set_content_margin_all(margin if content < 0 else content)
+	# Tiled, not stretched. A stretched centre smears one row of pixels across
+	# the whole panel, which is why the paper could never carry fibre or ruling
+	# before — every surface had to be a flat colour to survive being widened.
+	box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
+	box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
 	return box
 
 
-static func board_style(content: int = 10) -> StyleBoxTexture:
-	## The clipboard itself: wooden frame, sunk parchment field.
-	return nine("ui_board", 8, content)
+static func board_style(content: int = 12) -> StyleBoxTexture:
+	## The clipboard itself: wood with grain, steel corner protectors, and the
+	## manifest sunk into a well.
+	return nine("ui_board", 12, content)
 
 
 static func paper_style(content: int = 5) -> StyleBoxTexture:
-	## A bare manifest sheet, for regions already inside a board.
-	return nine("ui_paper", 4, content)
+	## A ruled manifest sheet, for regions already inside a board.
+	return nine("ui_paper", 5, content)
 
 
 static func card_style(state: StringName = &"normal") -> StyleBoxTexture:
 	## `normal` | `ready` (affordable) | `locked` | `done`
 	match state:
 		&"ready":
-			return nine("ui_card_hi", 4, 5)
+			return nine("ui_card_hi", 5, 6)
 		&"locked":
-			return nine("ui_card_off", 4, 5)
+			return nine("ui_card_off", 5, 6)
 		&"done":
-			return nine("ui_card_done", 4, 5)
+			return nine("ui_card_done", 5, 6)
 		_:
-			return nine("ui_card", 4, 5)
+			return nine("ui_card", 5, 6)
 
 
 static func slate_style(lit: bool = false, content: int = 4) -> StyleBoxTexture:
 	## Dark readout. Numbers live here so they never sit on textured paper.
-	return nine("ui_slate_lit" if lit else "ui_slate", 3, content)
+	return nine("ui_slate_lit" if lit else "ui_slate", 5, content)
 
 
 static func well_style(content: int = 3) -> StyleBoxTexture:
 	## Recessed socket a port sprite sits in.
-	return nine("ui_well", 3, content)
+	return nine("ui_well", 5, content)
 
 
 static func tab_style(active: bool) -> StyleBoxTexture:
-	return nine("ui_tab_on" if active else "ui_tab_off", 4, 4)
+	return nine("ui_tab_on" if active else "ui_tab_off", 5, 5)
 
 
 static func bar_styles() -> Array[StyleBoxTexture]:
-	return [nine("ui_bar_bg", 3, 1), nine("ui_bar_fill", 3, 1)]
+	return [nine("ui_bar_bg", 4, 1), nine("ui_bar_fill", 4, 1)]
 
 
 static func apply_panel(control: Control, style: StyleBox) -> void:
@@ -207,7 +213,7 @@ static func top_fade(height: float = 72.0) -> TextureRect:
 	return node
 
 
-const CLIP_SIZE := Vector2(46, 15)
+const CLIP_SIZE := Vector2(72, 22)
 
 
 static func clip_badge() -> TextureRect:
@@ -222,14 +228,30 @@ static func clip_badge() -> TextureRect:
 	return node
 
 
+static func desk_prop(sprite: String, rotation_degrees: float = 0.0) -> TextureRect:
+	## A loose object resting on the paper. Ornament, and worth it: a board with
+	## nothing but printed rows reads as a form, one with a pencil across it
+	## reads as something a person was just holding.
+	var node := TextureRect.new()
+	node.texture = load("res://assets/sprites/%s.png" % sprite)
+	node.custom_minimum_size = node.texture.get_size()
+	node.size = node.texture.get_size()
+	node.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	node.pivot_offset = node.size * 0.5
+	node.rotation_degrees = rotation_degrees
+	return node
+
+
 static func place_clip(clip: TextureRect, board: Control, safe: Rect2) -> void:
 	## Straddles the board's top edge, and stands down entirely when the board
 	## is tall enough to reach the top of the safe area — a clip drawn over the
 	## status bar or the TEU readout is worse than no clip.
-	var top := board.position.y - 7.0
+	var top := board.position.y - 11.0
 	# It needs real air above it. A clip drawn into the top strip of the screen
 	# lands on the status bar or the TEU readout, which is worse than no clip.
-	clip.visible = board.visible and top >= safe.position.y + 22.0
+	clip.visible = board.visible and top >= safe.position.y + 26.0
 	clip.position = Vector2(
 		board.position.x + (board.size.x - CLIP_SIZE.x) * 0.5, top)
 
@@ -293,11 +315,11 @@ static func restore_focus(control: Control) -> void:
 
 static func style_button(node: Button, kind: StringName) -> void:
 	## Restyling in place keeps signal connections and focus state intact.
-	var normal := nine(str(_BUTTON_SPRITES.get(kind, "ui_btn")), 4, 4)
+	var normal := nine(str(_BUTTON_SPRITES.get(kind, "ui_btn")), 5, 5)
 	node.add_theme_stylebox_override(&"normal", normal)
 	node.add_theme_stylebox_override(&"hover", normal)
-	node.add_theme_stylebox_override(&"pressed", nine("ui_btn_down", 4, 4))
-	node.add_theme_stylebox_override(&"disabled", nine("ui_btn_off", 4, 4))
+	node.add_theme_stylebox_override(&"pressed", nine("ui_btn_down", 5, 5))
+	node.add_theme_stylebox_override(&"disabled", nine("ui_btn_off", 5, 5))
 	node.add_theme_stylebox_override(&"focus", _focus_style())
 	var text_color: Color = _BUTTON_TEXT.get(kind, INK)
 	node.add_theme_color_override(&"font_color", text_color)
@@ -308,6 +330,13 @@ static func style_button(node: Button, kind: StringName) -> void:
 	# nobody can read is still a bad key, so it stays as legible as a disabled
 	# state is allowed to look.
 	node.add_theme_color_override(&"font_disabled_color", Color8(86, 78, 74))
+	# The glyph on a key follows the key's own text colour. Leaving it white
+	# made an amber star on a cream ghost key read as an empty box.
+	node.add_theme_color_override(&"icon_normal_color", text_color)
+	node.add_theme_color_override(&"icon_hover_color", text_color)
+	node.add_theme_color_override(&"icon_pressed_color", CREAM)
+	node.add_theme_color_override(&"icon_focus_color", text_color)
+	node.add_theme_color_override(&"icon_disabled_color", Color8(120, 112, 104))
 
 
 ## The two tones of the focus ring. A single colour cannot be visible on both
@@ -358,7 +387,7 @@ static func segment(text: String, active: bool) -> Button:
 
 static func style_segment(node: Button, active: bool) -> void:
 	var sprite := "ui_seg_on" if active else "ui_seg_off"
-	var box := nine(sprite, 3, 3)
+	var box := nine(sprite, 4, 4)
 	node.add_theme_stylebox_override(&"normal", box)
 	node.add_theme_stylebox_override(&"hover", box)
 	node.add_theme_stylebox_override(&"pressed", nine("ui_seg_on", 3, 3))
@@ -397,9 +426,9 @@ static func style_scroll(scroll: ScrollContainer) -> void:
 	var bar := scroll.get_v_scroll_bar()
 	if bar == null:
 		return
-	bar.add_theme_stylebox_override(&"scroll", nine("ui_scroll_bg", 3, 0))
+	bar.add_theme_stylebox_override(&"scroll", nine("ui_scroll_bg", 4, 0))
 	for state in [&"grabber", &"grabber_highlight", &"grabber_pressed"]:
-		bar.add_theme_stylebox_override(state, nine("ui_scroll_grab", 3, 0))
+		bar.add_theme_stylebox_override(state, nine("ui_scroll_grab", 4, 0))
 	bar.custom_minimum_size.x = SCROLL_WIDTH
 
 
