@@ -22,6 +22,15 @@ const QUAY_X0 := 196.0
 const QUAY_X1 := 240.0
 const WATER_X0 := 240.0
 
+## The road out to the city. Trucks park on this apron beside the gate, which
+## is the terminal's second door: without it cargo can only arrive and leave by
+## sea, and a closed loop can jam.
+const GATE_APRON_Y := 4.0
+const GATE_BAY_W := 22.0
+const GATE_BAY_H := 26.0
+const GATE_BAY_GAP := 8.0
+const GATE_BAY_X := 40.0
+
 const TOP_MARGIN := 30.0
 const SHIP_X := 244.0
 const SHIP_Y := 60.0
@@ -110,6 +119,17 @@ static func world_bottom() -> float:
 
 static func rail_y() -> float:
 	return world_bottom() - 26.0
+
+
+static func gate_bay_position(bay: int) -> Vector2:
+	## Top-left of a parking bay on the gate apron.
+	return Vector2(GATE_BAY_X + bay * (GATE_BAY_W + GATE_BAY_GAP), GATE_APRON_Y)
+
+
+static func gate_bay_rect(bay: int) -> Rect2:
+	## Generous on purpose: this is a touch target on a phone, not a hitbox.
+	return Rect2(gate_bay_position(bay) - Vector2(4, 4),
+		Vector2(GATE_BAY_W + 8.0, GATE_BAY_H + 8.0))
 
 
 static func lane_ys() -> Array[float]:

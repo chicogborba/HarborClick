@@ -14,7 +14,9 @@ var atmosphere: Atmosphere
 var skyscape: Skyscape
 var critters: Critters
 var berth: BerthCallController
+var gate: GateDock
 var traffic: TrafficCoordinator
+var _gate_view: Node2D
 
 var entities: Node2D          # y-sorted ground level
 var overhead: Node2D          # gantries, drones, boxes in flight
@@ -157,6 +159,17 @@ func _spawn_ship() -> void:
 	traffic = TrafficCoordinator.new()
 	SaveManager.register_section(
 		&"traffic_cargo", _traffic_snapshot, _traffic_restore, _traffic_seed)
+	gate = GateDock.new()
+	gate.setup(self, yard)
+	gate.changed.connect(_rebuild_gate_view)
+	gate.notice_requested.connect(
+		func(notice: Dictionary) -> void:
+			EventBus.notification_requested.emit({
+				"id": "gate_%s" % notice.get("code", "notice"),
+				"kind": &"blocked", "priority": 1,
+				"text": notice.get("text", "")}))
+	SaveManager.register_section(
+		&"gate_dock", gate.snapshot, gate.restore, gate.seed_new)
 	if ship.phase == Ship.Phase.AWAY:
 		berth.arrive()
 
@@ -299,6 +312,43 @@ func _apply_water_quality(metrics: Dictionary) -> void:
 func _process(delta: float) -> void:
 	if berth != null:
 		berth.tick(delta)
+	if gate != null:
+		gate.tick(delta)
+
+
+func _rebuild_gate_view() -> void:
+	## One sprite per parked truck, plus the boxes still on its bed, so the
+	## player can see at a glance which way this one is running.
+	if _gate_view == null:
+		_gate_view = Node2D.new()
+		_gate_view.name = "GateDock"
+		entities.add_child(_gate_view)
+	for child in _gate_view.get_children():
+		child.queue_free()
+	if gate == null:
+		return
+	for bay: int in gate.bays.keys():
+		var truck: Dictionary = gate.bays[bay]
+		var root := Node2D.new()
+		root.position = PortLayout.gate_bay_position(bay)
+		_gate_view.add_child(root)
+		var body := Sprite2D.new()
+		body.texture = preload("res://assets/sprites/veh_tt.png")
+		body.centered = false
+		body.scale = Vector2(0.7, 0.7)
+		root.add_child(body)
+		var carried: Array = truck.cargo
+		for index in carried.size():
+			var box := Sprite2D.new()
+			var atlas := AtlasTexture.new()
+			atlas.atlas = _containers
+			atlas.region = Rect2(
+				posmod((carried[index] as CargoUnit).color, 8) * 24, 0, 24, 13)
+			box.texture = atlas
+			box.centered = false
+			box.scale = Vector2(0.62, 0.62)
+			box.position = Vector2(-1, 12.0 + index * 8.0)
+			root.add_child(box)
 
 
 # ---------- input ----------
@@ -326,6 +376,8 @@ func _try_tap(world_pos: Vector2) -> void:
 			AudioManager.play_sfx("click", 0.12)
 	elif critters != null and critters.tap_cat(world_pos):
 		AudioManager.play_sfx("meow", 0.10)
+	elif gate != null and gate.handle_tap(world_pos):
+		AudioManager.play_sfx("click", 0.12)
 	elif atmosphere != null and atmosphere.tap_lamp(world_pos):
 		pass
 

@@ -68,6 +68,7 @@ godot --headless --path . res://tests/a11y_test_runner.tscn
 godot --headless --path . res://tests/backup_test_runner.tscn
 godot --headless --path . res://tests/profile_test_runner.tscn
 godot --headless --path . res://tests/automation_test_runner.tscn
+godot --headless --path . res://tests/gate_test_runner.tscn
 
 # cenários de balanceamento (ativo, híbrido, casual, offline e recuperação)
 godot --headless --path . --script res://tools/balance/run_balance.gd -- all
@@ -245,6 +246,11 @@ de deixar o jogador construir uma run que evapora no reload.
 - **Acessibilidade** — foco alcança tudo por Tab/setas, Enter ativa, Escape e
   Back fecham; anel de foco de dois tons; nomes acessíveis em toda tecla de
   ícone. Todo texto funcional passa de 4,5:1, verificado por teste.
+- **Portão** — caminhões da cidade estacionam na praça ao lado do gate e são
+  clicáveis como o navio. Caminhão carregado é porta de **entrada** com o pátio
+  vazio; caminhão vazio é porta de **saída** com o pátio cheio. Sem isso o
+  terminal é um ciclo fechado (entra por mar, sai por mar) e um ciclo fechado
+  trava.
 - **Automação** — portêiner, transtêiner e flutuante movem carga sozinhos no
   berço, pela mesma transação do toque. Uma escala inteira acontece sem um
   toque quando há equipamento; o toque vira empurrão. A partida paga um bônus
