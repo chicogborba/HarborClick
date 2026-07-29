@@ -15,8 +15,12 @@ const KEYS := [
 ]
 
 const LAMP_ENERGY := 1.05
+## How hard the quay masts burn while a ship is being worked, regardless of
+## the time of day.
+const BERTH_WORK_ENERGY := 0.55
 
 var world: PortWorld
+var _berth_active := false
 
 var _tint: CanvasModulate
 var _lamps_root: Node2D
@@ -62,16 +66,23 @@ func rebuild_lamps() -> void:
 			+ PortLayout.BLOCK_H + 3.0
 		var rx: float = runways[row % runways.size()]
 		spots.append(Vector2(rx - 5.0, lane_y))
+	for spot in spots:
+		_add_lamp(spot, false)
 	# on the quay, clear of the crane rails
 	y = PortLayout.TOP_MARGIN + 40.0
 	while y < PortLayout.world_bottom() - 20.0:
-		spots.append(Vector2(PortLayout.QUAY_X0 - 12.0, y))
+		_add_lamp(Vector2(PortLayout.QUAY_X0 - 12.0, y), true)
 		y += 150.0
-	for spot in spots:
-		_add_lamp(spot)
 
 
-func _add_lamp(pos: Vector2) -> void:
+func set_berth_active(active: bool) -> void:
+	## A working berth is lit whatever the clock says — that is what a real
+	## terminal does, and it makes the one place the player should be tapping
+	## the brightest thing on screen during a call.
+	_berth_active = active
+
+
+func _add_lamp(pos: Vector2, quay: bool) -> void:
 	var root := Node2D.new()
 	root.position = pos
 	_lamps_root.add_child(root)
@@ -95,7 +106,8 @@ func _add_lamp(pos: Vector2) -> void:
 	light.color = Color8(255, 228, 172)
 	root.add_child(light)
 
-	_lamps.append({"lit": lit, "light": light, "phase": randf() * 10.0})
+	_lamps.append({"lit": lit, "light": light, "phase": randf() * 10.0,
+		"quay": quay})
 
 
 func _build_fog() -> void:
@@ -135,12 +147,15 @@ func _process(delta: float) -> void:
 	for lamp: Dictionary in _lamps:
 		var lit: Sprite2D = lamp.lit
 		var light: PointLight2D = lamp.light
+		var lamp_target := target
+		if bool(lamp.quay) and _berth_active:
+			lamp_target = maxf(lamp_target, BERTH_WORK_ENERGY)
 		var flicker := 1.0
-		if target > 0.05 and lit.modulate.a < 0.85:
+		if lamp_target > 0.05 and lit.modulate.a < 0.85:
 			flicker = 0.4 + 0.6 * absf(sin(lamp.phase + Time.get_ticks_msec() * 0.02))
-		lit.modulate.a = move_toward(lit.modulate.a, target, delta * 0.8)
-		light.energy = move_toward(light.energy, target * LAMP_ENERGY * flicker,
-			delta * 1.1)
+		lit.modulate.a = move_toward(lit.modulate.a, lamp_target, delta * 0.8)
+		light.energy = move_toward(light.energy,
+			lamp_target * LAMP_ENERGY * flicker, delta * 1.1)
 		light.texture_scale = 1.5 + _fog_amount * 0.9
 
 	if _fog_amount > 0.5:
@@ -161,10 +176,6 @@ func _sample(t: float) -> Color:
 
 
 func _night_factor(t: float) -> float:
-	if t < 0.20 or t >= 0.88:
-		return 1.0
-	elif t < 0.32:
-		return 1.0 - smoothstep(0.20, 0.32, t)
-	elif t < 0.74:
-		return 0.0
-	return smoothstep(0.74, 0.88, t)
+	## One curve, shared with Skyscape: the flood lights and the reflections on
+	## the water can never disagree about whether it is night.
+	return Skyscape._night_factor(t)

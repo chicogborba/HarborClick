@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dye502mmxe7p6"
-path="res://.godot/imported/cloud_0.png-f22b3a523a871ec56439a28569e38d6d.ctex"
+uid="uid://dkcp3jpiknf5v"
+path="res://.godot/imported/prop_buoy.png-e044ca7d3018fce42c1cb9e2c77fcc84.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/cloud_0.png"
-dest_files=["res://.godot/imported/cloud_0.png-f22b3a523a871ec56439a28569e38d6d.ctex"]
+source_file="res://assets/sprites/prop_buoy.png"
+dest_files=["res://.godot/imported/prop_buoy.png-e044ca7d3018fce42c1cb9e2c77fcc84.ctex"]
 
 [params]
 

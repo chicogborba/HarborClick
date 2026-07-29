@@ -193,6 +193,79 @@ def gen_shadow_blob():
     save(img, "prop_shadow")
 
 
+def gen_buoy():
+    """Port-hand channel mark, seen from above: red can with a lamp on top.
+
+    Two frames — upright and heeled over — so a line of them can bob out of
+    phase in the approach channel without any per-buoy animation code.
+    """
+    frames = []
+    for tilt in (0, 1):
+        img = new_img(12, 14)
+        cx = 5 + tilt
+        # wake collar where the hull meets the water
+        for wy, ww in ((11, 9), (12, 7)):
+            rect(img, 5 - ww // 2 + tilt, wy, ww, 1, (198, 226, 232, 150))
+        rect(img, cx - 3, 5, 7, 7, (186, 66, 54, 255))
+        hline(img, cx - 3, 5, 7, (222, 104, 84, 255))
+        hline(img, cx - 3, 11, 7, (140, 42, 38, 255))
+        vline(img, cx + 3, 5, 7, (140, 42, 38, 255))
+        rect(img, cx - 1, 1, 3, 4, (120, 112, 118, 255))
+        px(img, cx - 1, 1, (170, 164, 168, 255))
+        rect(img, cx - 1, 0, 2, 2, (250, 208, 96, 255))
+        frames.append(outline(img))
+    save(sheet(frames), "prop_buoy")
+
+
+def gen_cloud():
+    """Two soft cloud silhouettes.
+
+    Drawn as flat white blobs: the world tints them at runtime, and the same
+    sprite is reused darkened as the shadow it drops on the terminal.
+    """
+    frames = []
+    for seed, lumps in ((7, ((7, 9, 6, 4), (15, 7, 8, 5), (24, 9, 7, 4),
+                             (31, 10, 5, 3))),
+                        (11, ((6, 10, 5, 3), (13, 8, 8, 5), (22, 10, 6, 4)))):
+        img = new_img(40, 18)
+        for cx, cy, rx, ry in lumps:
+            patch(img, cx, cy, rx, ry, (250, 250, 252, 255), seed=seed + cx)
+        # a flatter, slightly grey underside reads as bulk from above
+        for cx, cy, rx, ry in lumps:
+            patch(img, cx, cy + ry - 1, rx - 1, 1, (222, 226, 236, 255),
+                  seed=seed + cx)
+        frames.append(img)
+    # both frames share a canvas so they can live in one AtlasTexture
+    save(sheet(frames), "prop_cloud")
+
+
+def gen_moon():
+    """The moon as it appears reflected on the water, not as a sky object."""
+    img = new_img(18, 18)
+    for y in range(18):
+        for x in range(18):
+            dist = math.hypot(x - 8.5, y - 8.5)
+            if dist <= 8.0:
+                px(img, x, y, P.MOON)
+            if 6.6 < dist <= 8.0:
+                px(img, x, y, (196, 200, 214, 255))
+    for cx, cy, r in ((6, 6, 2), (11, 9, 1), (8, 12, 1)):
+        patch(img, cx, cy, r, r, (206, 210, 222, 255), seed=cx * 13)
+    save(img, "prop_moon")
+
+
+def gen_star():
+    """Three twinkle frames of a single glint, 3x3 each."""
+    frames = []
+    for bright in (255, 190, 120):
+        img = new_img(3, 3)
+        px(img, 1, 1, (P.STAR[0], P.STAR[1], P.STAR[2], bright))
+        for x, y in ((0, 1), (2, 1), (1, 0), (1, 2)):
+            px(img, x, y, (P.STAR[0], P.STAR[1], P.STAR[2], bright // 3))
+        frames.append(img)
+    save(sheet(frames), "prop_star")
+
+
 if __name__ == "__main__":
     print("props:")
     gen_lamp()
@@ -207,3 +280,7 @@ if __name__ == "__main__":
     gen_dust()
     gen_splash()
     gen_shadow_blob()
+    gen_buoy()
+    gen_cloud()
+    gen_moon()
+    gen_star()

@@ -84,6 +84,15 @@ func _prepare() -> void:
 func _run(size: Vector2i) -> void:
 	if _wants("world"):
 		await _shot("world")
+	if _wants("night"):
+		# Reflections and flood lights only exist after dark, so they need
+		# their own pass rather than whatever the clock happens to say.
+		var was := TimeManager.time_of_day
+		TimeManager.time_of_day = 0.95
+		await get_tree().create_timer(2.6).timeout
+		await _shot("night")
+		TimeManager.time_of_day = was
+		await get_tree().create_timer(0.4).timeout
 	if _wants("shop"):
 		_main.shop._on_tab("structures")
 		await get_tree().create_timer(0.4).timeout

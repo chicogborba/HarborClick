@@ -107,7 +107,7 @@ scripts/
   progression/ carreira, conquistas, contratos, Diário e persistência
   world/       port_layout, port_world, ship, água/espuma por qualidade,
                container_yard, structure_*, ground_baker, atmosphere,
-               critters, port_camera
+               skyscape, critters, port_camera
   ui/          ui_theme, port_icon, hud, shop, shop_card, tutorial, Diário,
                capital, notification_coordinator, toast_layer, settings_panel,
                offline_popup
@@ -115,8 +115,9 @@ tools/
   venv/        Python + Pillow
   sprites/     geradores de pixel art, fonte e UI
   audio/       synth chiptune + geradores de SFX/música
-  capture/     harness de screenshot: roda o jogo de verdade em toda a matriz
-               de resolução e falha se algum overlay sair do viewport
+  capture/     harness de screenshot (roda o jogo de verdade em toda a matriz
+               de resolução e falha se algum overlay sair do viewport) e
+               medição de frame time no cenário de estresse
 tests/         regressão headless de core/save, UI, tráfego, notificações e
                100 escalas de carga
 ```
@@ -174,6 +175,9 @@ separada, em `tools/sprites/gen_ui.py`.
   embarque pelo mesmo motivo.
 - **Dia/noite** — ciclo de 12 min. `Atmosphere` interpola o tint global, acende
   os postes com flicker ao anoitecer e roda a névoa (15% dos dias) com foghorn.
+  Os mastros do cais também acendem enquanto o berço está sendo trabalhado.
+- **Céu** — `Skyscape`. De cima não se olha pra cima: nuvem é só a sombra que
+  ela joga no pátio, lua e estrelas só o reflexo na água, por baixo do casco.
 - **Áudio** — 13 SFX e 3 trilhas longas e calmas (dia/noite/neblina) com
   crossfade. Liga/desliga em Ajustes, persistido em `user://audio.cfg`.
 - **Tráfego** — via de serviço de mão dupla separada em duas colunas, faixa de
@@ -655,12 +659,28 @@ com geometria fixa e sem movimento adicional.
 - [x] Criar níveis automáticos low/medium/high para shader e sprites de água.
 - [x] Corrigir o cartão do tutorial para permanecer compacto e fugir do alvo.
 - [x] Proteger chamadas de áudio feitas antes de o pool terminar de iniciar.
-- [ ] Aumentar a composição útil do porto — a faixa de terra não comprada e o
-      vazio à esquerda ainda ocupam cerca de um terço da tela. A **leitura das
-      faixas** já foi feita: a via de serviço tem eixo pintado e duas mãos.
-- [ ] Reaproveitar boia, nuvens, lua e estrelas sem poluir a leitura.
-- [ ] Adicionar detalhes ociosos ligados ao estado real: trabalhadores,
-      iluminação, sinalização de setor e manutenção.
+- [x] Melhorar a leitura das faixas: a via de serviço ganhou eixo pintado e
+      duas mãos, e cada bloco tem cabeceira pintada — âmbar para importação,
+      teal para exportação. Antes nada no chão dizia onde a carga de saída
+      podia pousar.
+- [x] Aumentar a composição útil do porto **por densidade, não por largura**.
+      O terminal já ocupa a largura inteira do retrato por construção: os
+      blocos terminam em x=194, o cais vai até 240 e a água restante é
+      exatamente o casco. Alargar o mundo obrigaria a rolar na horizontal num
+      telefone, o que contraria o pilar 1. O ganho veio de encher o quadro:
+      marcação de setor, boias de canal, sombra de nuvem, reflexo noturno e
+      detalhes ligados ao estado real.
+- [x] Reaproveitar boia, nuvens, lua e estrelas sem poluir a leitura. Numa
+      câmera de topo não dá pra olhar pra cima, então nada disso é desenhado
+      como céu: a nuvem só aparece como a sombra que joga no pátio, e a lua e
+      as estrelas só como reflexo na água, **por baixo** do casco. Os quatro
+      PNGs eram órfãos da versão-base, sem gerador; agora saem de
+      `tools/sprites/gen_props.py` como o resto.
+- [x] Adicionar detalhes ociosos ligados ao estado real: a equipe caminha em
+      direção ao cais enquanto o berço está sendo trabalhado, os mastros do
+      cais acendem durante a operação independente da hora, e a sinalização de
+      setor está pintada no chão. Detalhe ocioso só vale a pena quando conta
+      alguma coisa verdadeira.
 
 Aceite deste pacote:
 
@@ -669,7 +689,13 @@ Aceite deste pacote:
 - [x] wake mais lento na chegada, mais rápido na saída e desligado no berço;
 - [x] espuma/splash limitados por qualidade, sem crescimento por altura;
 - [x] 100 escalas e 4.800 transferências passam sem quebrar o contrato de carga;
-- [ ] referência mobile e desktop sustenta 60 FPS no cenário de estresse.
+- [ ] referência mobile e desktop sustenta 60 FPS no cenário de estresse —
+      **desktop medido e aprovado**, aparelho móvel real ainda pendente.
+      `tools/capture/perf.tscn` monta o pior terminal possível (tudo comprado,
+      todo terreno, pátio lotado nas três alturas, neblina e luzes acesas) e
+      falha se o p95 estourar 16,67 ms. Num M1: p95 de 6,7 ms em 390×844,
+      6,9 ms em 1280×720 e 12,4 ms em 1920×1080. Não há aparelho no ambiente
+      para fechar a outra metade.
 
 #### Fase 5 — mapa, rotas e expansão meta — P2
 

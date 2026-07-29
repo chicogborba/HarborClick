@@ -551,8 +551,13 @@ func _pick_stroll_target() -> void:
 	# reads as staffed rather than as a row of independent pendulums.
 	var lane := _lane_y if randf() < 0.7 or lanes.is_empty() \
 		else lanes[randi() % lanes.size()] + 3.0
+	# While the berth is being worked, the crew drifts toward the quay. Idle
+	# detail is only worth having when it tells you something true.
+	var working := _world != null and _world.ship != null and _world.ship.is_working()
+	var from_x := PortLayout.QUAY_X0 - 40.0 if working and randf() < 0.6 \
+		else PortLayout.BLOCK_X0
 	_stroll_target = Vector2(
-		randf_range(PortLayout.BLOCK_X0, PortLayout.QUAY_X1 - 14.0), lane)
+		randf_range(from_x, PortLayout.QUAY_X1 - 14.0), lane)
 
 
 func _patrol_water(delta: float) -> void:

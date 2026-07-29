@@ -63,11 +63,23 @@ static func bake(world_h: int) -> ImageTexture:
 		_blend_region(img, tufts, Rect2i(((v + 2) % 4) * 10, 0, 10, 8),
 			tx, paved_bottom - 3)
 
-	# --- container bay markings under every block ---
+	# --- container bay markings under every block, colour-coded by sector ---
+	# The yard is split into import and export areas, and until now nothing on
+	# the ground said which was which — the player had to infer it from where
+	# boxes happened to land. Amber heads an import bay, teal an export one.
 	var bay := _img("gr_bay_marks")
 	for i in PortLayout.block_count():
 		var origin := PortLayout.block_origin(i)
 		_blend(img, bay, int(origin.x) - 1, int(origin.y) - 1)
+		var export_bay := posmod(i, PortLayout.BLOCK_COLUMNS) \
+			== PortLayout.BLOCK_COLUMNS - 1
+		var head := Color8(104, 194, 176) if export_bay else Color8(232, 176, 78)
+		var head_y := int(origin.y) - 4
+		for bx in range(int(origin.x), int(origin.x + PortLayout.BLOCK_W)):
+			# dashed, so it reads as paint rather than as a solid barrier
+			if (bx / 3) % 2 == 0:
+				_pixel(img, bx, head_y, head)
+				_pixel(img, bx, head_y + 1, head.darkened(0.35))
 
 	# --- lane paint between block rows ---
 	var dash := _img("gr_lane_dash")
@@ -102,6 +114,12 @@ static func bake(world_h: int) -> ImageTexture:
 		_blend(img, edge, int(PortLayout.WATER_X0) - 10, ty)
 
 	return ImageTexture.create_from_image(img)
+
+
+static func _pixel(dst: Image, x: int, y: int, color: Color) -> void:
+	if x < 0 or y < 0 or x >= dst.get_width() or y >= dst.get_height():
+		return
+	dst.set_pixel(x, y, color)
 
 
 static func _blit(dst: Image, src: Image, x: int, y: int) -> void:

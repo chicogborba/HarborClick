@@ -162,6 +162,8 @@ func _ready() -> void:
 
 func _on_ship_phase(phase: int) -> void:
 	## The board tells you what the berth needs, so tapping always has a point.
+	if world != null and world.atmosphere != null:
+		world.atmosphere.set_berth_active(world.ship.is_working())
 	match phase:
 		Ship.Phase.DISCHARGING:
 			hud.set_job_hint("Descarga: toque no navio")

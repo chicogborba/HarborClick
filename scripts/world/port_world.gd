@@ -11,6 +11,7 @@ var ship: Ship
 var yard: ContainerYard
 var structures: StructureLayer
 var atmosphere: Atmosphere
+var skyscape: Skyscape
 var critters: Critters
 var berth: BerthCallController
 var traffic: TrafficCoordinator
@@ -75,6 +76,11 @@ func _ready() -> void:
 	atmosphere = Atmosphere.new()
 	add_child(atmosphere)
 	atmosphere.setup(self)
+
+	skyscape = Skyscape.new()
+	skyscape.name = "Skyscape"
+	add_child(skyscape)
+	skyscape.setup(self)
 
 	critters = Critters.new()
 	add_child(critters)
@@ -164,6 +170,26 @@ func _rebuild_decals() -> void:
 		_decals.add_child(b)
 		y += 46.0
 
+	# channel marks in the open water south of the berth, on the line the ship
+	# comes down. They stay clear of the hull's footprint so the berth stays
+	# the most legible thing on the water.
+	var buoy_sheet: Texture2D = preload("res://assets/sprites/prop_buoy.png")
+	var channel_top := PortLayout.SHIP_Y + PortLayout.SHIP_H + 34.0
+	var channel_x := PortLayout.WATER_X0 + 46.0
+	var buoy_y := channel_top
+	var buoy_index := 0
+	while buoy_y < PortLayout.world_bottom() + 60.0:
+		var buoy := Sprite2D.new()
+		var frame := AtlasTexture.new()
+		frame.atlas = buoy_sheet
+		frame.region = Rect2((buoy_index % 2) * 12, 0, 12, 14)
+		buoy.texture = frame
+		buoy.centered = true
+		buoy.position = Vector2(channel_x + rng.randf_range(-6.0, 6.0), buoy_y)
+		_decals.add_child(buoy)
+		buoy_y += 96.0
+		buoy_index += 1
+
 	# puddles and oil marks on the pavement
 	for i in 18:
 		var p := Sprite2D.new()
@@ -207,6 +233,8 @@ func _on_land_bought(_id: String) -> void:
 	_rebuild_decals()
 	structures.rebuild()
 	atmosphere.rebuild_lamps()
+	if skyscape != null:
+		skyscape.rebuild()
 	for i in 6:
 		spawn_dust(Vector2(randf_range(40.0, 180.0),
 			PortLayout.yard_bottom() - randf_range(10.0, 80.0)))
@@ -225,6 +253,8 @@ func _on_prestiged(_shares: int) -> void:
 	_rebuild_decals()
 	structures.rebuild()
 	atmosphere.rebuild_lamps()
+	if skyscape != null:
+		skyscape.rebuild()
 
 
 func visible_bottom() -> float:
