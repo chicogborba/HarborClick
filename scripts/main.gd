@@ -8,8 +8,11 @@ var hud: Hud
 var shell: ResponsiveShell
 var toasts: ToastLayer
 var settings: SettingsPanel
-var tutorial: Tutorial
-var _overlay_state := {"shop": false, "settings": false}
+var objective: ObjectiveChip
+var journal: PortJournal
+var prestige_dialog: PrestigeDialog
+var tutorial: TutorialSpotlight
+var _overlay_state := {"shop": false, "settings": false, "journal": false, "prestige": false}
 
 
 func _ready() -> void:
@@ -43,8 +46,49 @@ func _ready() -> void:
 	settings.name = "Settings"
 	add_child(settings)
 	hud.settings_pressed.connect(settings.open)
+	settings.tutorial_replay_requested.connect(_replay_tutorial)
+
+	objective = ObjectiveChip.new()
+	objective.name = "ObjectiveChip"
+	objective.setup(Progression, {
+		"get_recommended": Callable(Progression, "get_recommended_objective"),
+	})
+	add_child(objective)
+
+	journal = PortJournal.new()
+	journal.name = "PortJournal"
+	journal.setup(Progression, {
+		"get_objectives": Callable(Progression, "get_all_objectives"),
+		"pin": Callable(Progression, "pin_objective"),
+		"get_contract": Callable(self, "_journal_contract"),
+		"accept_contract": Callable(Progression, "accept_contract"),
+	})
+	add_child(journal)
+	objective.journal_requested.connect(journal.open)
+	Progression.objective_pinned.connect(func(_id: StringName, _item: Dictionary) -> void: objective.refresh())
+	Progression.objective_progressed.connect(func(_id: StringName, _progress: float, _target: float) -> void:
+		objective.refresh()
+		journal.refresh())
+	Progression.achievement_unlocked.connect(func(_id: StringName, _item: Dictionary) -> void:
+		objective.refresh()
+		journal.refresh())
+	Progression.contract_updated.connect(func(_contract: Dictionary) -> void: journal.refresh())
+	Progression.contract_finished.connect(func(_contract: Dictionary, _completed: bool) -> void: journal.refresh())
+
+	prestige_dialog = PrestigeDialog.new()
+	prestige_dialog.name = "PrestigeDialog"
+	prestige_dialog.setup({
+		"quote": Callable(self, "_prestige_quote"),
+		"commit": Callable(self, "_commit_prestige"),
+		"purchase_node": Callable(GameState, "buy_prestige_node"),
+	})
+	add_child(prestige_dialog)
+	hud.prestige_pressed.connect(prestige_dialog.open)
+
 	shop.open_changed.connect(_on_overlay_changed.bind("shop"))
 	settings.open_changed.connect(_on_overlay_changed.bind("settings"))
+	journal.open_changed.connect(_on_overlay_changed.bind("journal"))
+	prestige_dialog.open_changed.connect(_on_overlay_changed.bind("prestige"))
 
 	var offline := OfflinePopup.new()
 	offline.name = "OfflinePopup"
@@ -77,10 +121,16 @@ func _ready() -> void:
 	world.ship.phase_changed.connect(_on_ship_phase)
 	_on_ship_phase(world.ship.phase)
 
-	tutorial = Tutorial.new()
-	tutorial.name = "Tutorial"
+	tutorial = TutorialSpotlight.new()
+	tutorial.name = "TutorialSpotlight"
+	tutorial.setup({
+		"get_target_rect": Callable(self, "_tutorial_target_rect"),
+		"reduced_motion": Callable(self, "_tutorial_reduced_motion"),
+	})
 	add_child(tutorial)
-	tutorial.start()
+	tutorial.finished.connect(_on_tutorial_finished)
+	if not GameState.flags.get("tutorial_done", false):
+		tutorial.start()
 
 	shell.metrics_changed.connect(_apply_view_metrics)
 	shell.world_input_blocked_changed.connect(_on_world_input_blocked)
@@ -123,6 +173,12 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 	shop.apply_view_metrics(metrics)
 	toasts.apply_view_metrics(metrics)
 	settings.apply_view_metrics(metrics)
+	if objective != null:
+		objective.apply_view_metrics(metrics)
+	if journal != null:
+		journal.apply_view_metrics(metrics)
+	if prestige_dialog != null:
+		prestige_dialog.apply_view_metrics(metrics)
 	if tutorial != null:
 		tutorial.apply_view_metrics(metrics)
 	var offline := get_node_or_null(^"OfflinePopup")
@@ -133,12 +189,71 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 func _on_overlay_changed(opened: bool, source: String) -> void:
 	_overlay_state[source] = opened
 	shell.set_world_input_blocked(
-		bool(_overlay_state.shop) or bool(_overlay_state.settings))
+		bool(_overlay_state.shop) or bool(_overlay_state.settings)
+			or bool(_overlay_state.journal) or bool(_overlay_state.prestige))
 
 
 func _on_world_input_blocked(blocked: bool) -> void:
 	world.set_input_enabled(not blocked)
 	cam.set_input_enabled(not blocked)
+
+
+func _prestige_quote() -> Dictionary:
+	return GameState.get_prestige_quote()
+
+
+func _journal_contract() -> Dictionary:
+	var active := Progression.get_active_contract()
+	if not active.is_empty():
+		return active
+	return Progression.materialize_contract_offer(Progression.career_seed, TimeManager.day, {
+		"projected_rate": GameState.cps,
+	})
+
+
+func _commit_prestige() -> Variant:
+	var quote := GameState.get_prestige_quote()
+	if not GameState.do_prestige():
+		return false
+	AudioManager.play_sfx("prestige")
+	EventBus.notification_requested.emit({
+		"kind": &"prestige", "priority": 2,
+		"text": "+%d ações douradas. Reconstrução com 75%% de desconto." % int(quote.gain),
+	})
+	return quote
+
+
+func _tutorial_target_rect(target: String) -> Rect2:
+	match target:
+		"ship":
+			if world != null and world.ship != null:
+				var point := world.ship.get_global_transform_with_canvas().origin
+				return Rect2(point - Vector2(20, 12), Vector2(100, 76))
+		"teu":
+			return hud._plate.get_global_rect() if hud != null else Rect2()
+		"objective", "journal":
+			return objective._panel.get_global_rect() if objective != null else Rect2()
+		"shop":
+			return shop._launcher.get_global_rect() if shop != null else Rect2()
+		"prestige":
+			return hud._prestige.get_global_rect() if hud != null else Rect2()
+	return Rect2()
+
+
+func _on_tutorial_finished(skipped: bool) -> void:
+	GameState.flags["tutorial_done"] = true
+	Progression.ingest_event(&"tutorial_completed", {"skipped": skipped})
+	SaveManager.request_save(&"tutorial")
+
+
+func _replay_tutorial() -> void:
+	settings.close()
+	if tutorial != null:
+		tutorial.replay()
+
+
+func _tutorial_reduced_motion() -> bool:
+	return not UserPreferences.can_animate()
 
 
 func _save_screenshot(shot_name: String = "shot") -> void:

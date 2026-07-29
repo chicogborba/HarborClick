@@ -4,6 +4,7 @@ extends CanvasLayer
 ## plus the settings and prestige keys.
 
 signal settings_pressed
+signal prestige_pressed
 signal job_tick
 
 var _teus_label: Label
@@ -232,11 +233,8 @@ func _refresh_prestige() -> void:
 	var can := GameState.can_prestige()
 	_prestige.visible = can
 	if can:
-		_prestige.text = " +%d ações" % (GameState.prestige_gain() - GameState.shares)
+		_prestige.text = " +%d ações" % GameState.prestige_gain()
 
 
 func _on_prestige() -> void:
-	if GameState.do_prestige():
-		AudioManager.play_sfx("prestige")
-		EventBus.toast.emit("Porto aberto na bolsa! Bônus permanente aplicado.")
-		_refresh_prestige()
+	prestige_pressed.emit()

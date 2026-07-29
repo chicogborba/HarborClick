@@ -4,6 +4,7 @@ extends Node
 var teus: float = 0.0
 var run_teus: float = 0.0
 var all_time_teus: float = 0.0
+var all_time_productive_teus: float = 0.0
 # `lifetime_teus` is retained for world/UI compatibility, including direct
 # reads/writes made by older scripts. It is an alias of the all-time total.
 var lifetime_teus: float:
@@ -16,7 +17,13 @@ var upgrades: Dictionary = {}   # upgrade id -> true
 var land: Dictionary = {}       # parcel id -> true
 var cps: float = 0.0
 var click_power: float = 1.0
-var shares: int = 0              # prestige currency
+var shares: int = 0              # golden-share wallet
+var prestige_level_earned: int = 0
+var prestige_count: int = 0
+var purchased_tree_nodes: Dictionary = {}
+var best_owned_by_structure: Dictionary = {}
+var rebuild_targets: Dictionary = {}
+var last_run_summary: Dictionary = {}
 var boost_time: float = 0.0      # remaining seconds of the cat boost
 var flags: Dictionary = {}       # tutorial_done, seen milestones, ...
 
@@ -33,9 +40,6 @@ const CRIT_CHANCE := 0.03
 const CRIT_MULT := 7.0
 const CAT_BOOST_MULT := 7.0
 const CAT_BOOST_TIME := 25.0
-const PRESTIGE_DIVISOR := 1e12   # lifetime TEUs per golden share
-const SHARE_BONUS := 0.02        # +2% to everything per share
-
 const SUFFIXES := ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"]
 const MANUAL_LEDGER_LIMIT := 512
 
@@ -66,19 +70,31 @@ func grant_cat_boost() -> bool:
 
 
 func prestige_gain() -> int:
-	## Shares the player would earn by resetting right now.
-	return int(sqrt(maxf(0.0, all_time_teus) / PRESTIGE_DIVISOR))
+	## Unclaimed golden shares from productive throughput only.
+	return maxi(0, EconomyMath.prestige_potential(all_time_productive_teus) \
+		- prestige_level_earned)
 
 
 func can_prestige() -> bool:
-	return prestige_gain() > shares
+	return prestige_gain() > 0
 
 
 func do_prestige() -> bool:
 	var gain := prestige_gain()
-	if gain <= shares:
+	if gain <= 0:
 		return false
-	shares = gain
+	last_run_summary = {
+		"run_teus": run_teus,
+		"owned": owned.duplicate(true),
+		"peak_owned": best_owned_by_structure.duplicate(true),
+	}
+	for id: String in owned:
+		var peak := maxi(int(best_owned_by_structure.get(id, 0)), structure_count(id))
+		best_owned_by_structure[id] = peak
+		rebuild_targets[id] = peak
+	shares += gain
+	prestige_level_earned += gain
+	prestige_count += 1
 	teus = 0.0
 	run_teus = 0.0
 	owned.clear()
@@ -87,7 +103,19 @@ func do_prestige() -> bool:
 	recompute()
 	EventBus.teus_changed.emit(teus)
 	EventBus.prestiged.emit(shares)
+	EventBus.prestige_committed.emit(get_prestige_quote())
 	return true
+
+
+func get_prestige_quote() -> Dictionary:
+	return {
+		"gain": prestige_gain(),
+		"level": prestige_level_earned,
+		"wallet": shares,
+		"peak": best_owned_by_structure.duplicate(true),
+		"rebuild_discount": "75%",
+		"productive_total": all_time_productive_teus,
+	}
 
 
 func do_click(world_pos: Vector2) -> void:
@@ -146,15 +174,27 @@ func commit_manual_reward(tx_id: String, quote: Dictionary = {}, pos: Vector2 = 
 func grant_offline_earnings(amount: float) -> void:
 	## Applies offline income through the normal accounting/milestone path once.
 	if is_finite(amount) and amount > 0.0:
-		_earn(amount)
+		_earn(amount, true)
 
 
-func _earn(amount: float) -> void:
+func grant_nonproductive_reward(amount: float) -> void:
+	## Career rewards are currency, but deliberately do not accelerate prestige.
+	if is_finite(amount) and amount > 0.0:
+		_earn(amount, false)
+
+
+func _earn(amount: float, productive: bool = true) -> void:
 	teus += amount
 	run_teus += amount
 	all_time_teus += amount
+	if productive:
+		all_time_productive_teus += amount
 	lifetime_teus = all_time_teus
 	EventBus.teus_changed.emit(teus)
+	EventBus.teu_credited.emit({
+		"amount": amount, "productive": productive,
+		"all_time_productive": all_time_productive_teus,
+	})
 	_check_milestones()
 
 
@@ -221,18 +261,51 @@ func structure_count(id: String) -> int:
 
 
 func structure_cost(id: String) -> float:
-	return StructureDB.cost_for(id, structure_count(id))
+	var quote := structure_purchase_quote(id, &"x1")
+	return float(quote.get("total_cost", INF))
 
 
 func buy_structure(id: String) -> bool:
-	if StructureDB.get_item(id).is_empty():
-		return false
-	if not spend(structure_cost(id)):
-		return false
-	owned[id] = structure_count(id) + 1
+	return bool(buy_structure_bulk(id, &"x1").get("ok", false))
+
+
+func structure_purchase_quote(id: String, mode: StringName = &"x1") -> Dictionary:
+	var item := StructureDB.get_item(id)
+	if item.is_empty():
+		return EconomyMath.purchase_quote(-1.0, 0.0, 0, mode, teus)
+	var count := structure_count(id)
+	var quote := EconomyMath.purchase_quote(
+		float(item.cost), structure_cps(id), count, mode, teus,
+		int(rebuild_targets.get(id, 0)))
+	quote["id"] = id
+	quote["name"] = str(item.get("name", id))
+	quote["nominal_cps_before"] = nominal_cps()
+	quote["nominal_cps_after"] = nominal_cps(id, int(quote.get("to_count", count)))
+	quote["nominal_cps_gain"] = float(quote.nominal_cps_after) \
+		- float(quote.nominal_cps_before)
+	return quote
+
+
+func buy_structure_bulk(id: String, mode: StringName = &"x1") -> Dictionary:
+	## One quote, one debit, one event — fixed bulk modes never partially buy.
+	var quote := structure_purchase_quote(id, mode)
+	if not bool(quote.get("ok", false)):
+		return quote
+	var cost := float(quote.get("total_cost", INF))
+	if not spend(cost):
+		quote["ok"] = false
+		quote["reason"] = &"insufficient_funds"
+		return quote
+	owned[id] = int(quote.get("to_count", structure_count(id)))
+	best_owned_by_structure[id] = maxi(
+		int(best_owned_by_structure.get(id, 0)), structure_count(id))
 	recompute()
-	EventBus.structure_bought.emit(id, owned[id])
-	return true
+	quote["nominal_cps_after"] = nominal_cps()
+	quote["nominal_cps_gain"] = float(quote.nominal_cps_after) \
+		- float(quote.nominal_cps_before)
+	EventBus.structure_bought.emit(id, structure_count(id))
+	EventBus.structure_purchase_committed.emit(quote.duplicate(true))
+	return quote
 
 
 func has_upgrade(id: String) -> bool:
@@ -277,10 +350,23 @@ func structure_cps(id: String) -> float:
 	return value
 
 
-func recompute() -> void:
+func structure_total_cps(id: String, count: int = -1) -> float:
+	var amount := structure_count(id) if count < 0 else maxi(0, count)
+	return EconomyMath.total_cps(structure_cps(id), amount)
+
+
+func nominal_cps(override_id: String = "", override_count: int = -1) -> float:
 	var total := 0.0
 	for id: String in owned:
-		total += structure_cps(id) * owned[id]
+		var count := override_count if id == override_id else structure_count(id)
+		total += structure_total_cps(id, count)
+	if not override_id.is_empty() and not owned.has(override_id):
+		total += structure_total_cps(override_id, override_count)
+	return total * _global_cps_multiplier()
+
+
+func recompute() -> void:
+	var total := nominal_cps()
 	var global_mult := 1.0
 	var click_mult := 1.0
 	var click_cps_pct := 0.0
@@ -293,12 +379,86 @@ func recompute() -> void:
 				click_mult *= up.value
 			"click_cps_pct":
 				click_cps_pct += up.value
-	var share_mult := 1.0 + shares * SHARE_BONUS
-	cps = total * global_mult * share_mult * TimeManager.weather_cps_mult()
-	click_power = ((1.0 * click_mult) + cps * click_cps_pct) * share_mult
+	cps = total * global_mult * TimeManager.weather_cps_mult()
+	var manual_meta := _tree_scope_multiplier(&"manual", &"click_multiplier")
+	var tree_cps_per_tap := _tree_scope_additive(&"manual", &"cps_per_tap")
+	click_power = (1.0 * click_mult * manual_meta) \
+		+ cps * (click_cps_pct + tree_cps_per_tap)
 	if boost_time > 0.0:
 		click_power *= CAT_BOOST_MULT
 	EventBus.cps_changed.emit(cps)
+
+
+func _global_cps_multiplier() -> float:
+	return EconomyMath.prestige_multiplier(prestige_level_earned) \
+		* _tree_scope_multiplier(&"structures", &"cps_multiplier") \
+		* _tree_scope_multiplier(&"global", &"cps_multiplier")
+
+
+func _tree_scope_multiplier(scope: StringName, stat: StringName) -> float:
+	var multiplier := 1.0
+	for node_id: String in purchased_tree_nodes:
+		var node := PrestigeDB.get_node(node_id)
+		var effect: Dictionary = node.get("effect", {})
+		if StringName(effect.get("scope", "")) != scope \
+				or StringName(effect.get("stat", "")) != stat:
+			continue
+		if effect.get("operation", "") == "add_pct":
+			multiplier += float(effect.get("value", 0.0))
+	return multiplier
+
+
+func _tree_scope_additive(scope: StringName, stat: StringName) -> float:
+	var value := 0.0
+	for node_id: String in purchased_tree_nodes:
+		var node := PrestigeDB.get_node(node_id)
+		var effect: Dictionary = node.get("effect", {})
+		if StringName(effect.get("scope", "")) == scope \
+				and StringName(effect.get("stat", "")) == stat \
+				and effect.get("operation", "") == "add_pct":
+			value += float(effect.get("value", 0.0))
+	return value
+
+
+func buy_prestige_node(id: StringName) -> bool:
+	var node := PrestigeDB.get_node(id)
+	if node.is_empty() or purchased_tree_nodes.has(id):
+		return false
+	if not String(node.get("requires_feature", "")).is_empty():
+		return false
+	for required in node.get("requires", []):
+		if not purchased_tree_nodes.has(StringName(required)):
+			return false
+	var cost := int(node.get("cost", 0))
+	if cost <= 0 or shares < cost:
+		return false
+	shares -= cost
+	purchased_tree_nodes[id] = true
+	recompute()
+	EventBus.prestige_tree_changed.emit(id)
+	return true
+
+
+func offline_efficiency() -> float:
+	var value := 0.5
+	for node_id: String in purchased_tree_nodes:
+		var effect: Dictionary = PrestigeDB.get_node(node_id).get("effect", {})
+		if effect.get("scope", "") == "offline" \
+				and effect.get("stat", "") == "offline_efficiency" \
+				and effect.get("operation", "") == "set":
+			value = float(effect.get("value", value))
+	return value
+
+
+func offline_cap_seconds() -> float:
+	var value := 8.0 * 3600.0
+	for node_id: String in purchased_tree_nodes:
+		var effect: Dictionary = PrestigeDB.get_node(node_id).get("effect", {})
+		if effect.get("scope", "") == "offline" \
+				and effect.get("stat", "") == "offline_cap_seconds" \
+				and effect.get("operation", "") == "set":
+			value = float(effect.get("value", value))
+	return value
 
 
 func fmt(n: float) -> String:
@@ -319,7 +479,14 @@ func fmt(n: float) -> String:
 func to_save() -> Dictionary:
 	return {
 		"teus": teus, "lifetime": lifetime_teus, "run_teus": run_teus,
-		"all_time_teus": all_time_teus, "shares": shares,
+		"all_time_teus": all_time_teus,
+		"all_time_productive_teus": all_time_productive_teus,
+		"shares": shares, "prestige_level_earned": prestige_level_earned,
+		"prestige_count": prestige_count,
+		"purchased_tree_nodes": purchased_tree_nodes.keys(),
+		"best_owned_by_structure": best_owned_by_structure,
+		"rebuild_targets": rebuild_targets,
+		"last_run_summary": last_run_summary,
 		"owned": owned, "upgrades": upgrades.keys(), "land": land.keys(),
 		"flags": flags, "manual_quotes": _manual_quotes,
 		"manual_commits": _manual_commits.keys(),
@@ -334,8 +501,17 @@ func from_save(data: Dictionary) -> void:
 	var legacy_lifetime := float(data.get("lifetime", data.get("lifetime_teus", 0.0)))
 	run_teus = float(data.get("run_teus", legacy_lifetime))
 	all_time_teus = float(data.get("all_time_teus", legacy_lifetime))
+	all_time_productive_teus = float(data.get("all_time_productive_teus", all_time_teus))
 	lifetime_teus = all_time_teus
 	shares = int(data.get("shares", 0))
+	prestige_level_earned = int(data.get("prestige_level_earned", shares))
+	prestige_count = int(data.get("prestige_count", 0))
+	purchased_tree_nodes.clear()
+	for node_id in data.get("purchased_tree_nodes", []):
+		purchased_tree_nodes[StringName(node_id)] = true
+	best_owned_by_structure = data.get("best_owned_by_structure", {}).duplicate(true)
+	rebuild_targets = data.get("rebuild_targets", {}).duplicate(true)
+	last_run_summary = data.get("last_run_summary", {}).duplicate(true)
 	flags = data.get("flags", {})
 	flags["milestones"] = _normalized_milestones(flags.get("milestones", []))
 	owned = data.get("owned", {})

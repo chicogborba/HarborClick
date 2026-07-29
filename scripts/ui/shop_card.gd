@@ -11,6 +11,7 @@ var _name_label: Label
 var _desc_label: Label
 var _cost_label: Label
 var _count_label: Label
+var _impact_label: Label
 var _icon: TextureRect
 var _affordable := false
 var _press_start := Vector2.ZERO
@@ -81,12 +82,20 @@ func setup(item_id: String, item_kind: String, icon_path: String,
 	_count_label = UiTheme.label("", UiTheme.SIZE_TITLE, UiTheme.CREAM)
 	_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	price_col.add_child(_count_label)
+	_impact_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL)
+	_impact_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	price_col.add_child(_impact_label)
 
 
-func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false) -> void:
+func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false,
+		quantity: int = 1, cps_gain: float = 0.0) -> void:
 	_affordable = affordable
 	_cost_label.text = "PRONTO" if sold_out else GameState.fmt(cost)
 	_count_label.text = str(count) if count > 0 else ""
+	_impact_label.text = "" if sold_out or cps_gain <= 0.0 \
+		else "+%s/s%s" % [GameState.fmt(cps_gain), " ×%d" % quantity if quantity > 1 else ""]
+	tooltip_text = "Compra ×%d • +%s TEU/s" % [quantity, GameState.fmt(cps_gain)] \
+		if cps_gain > 0.0 else "Compra ×%d" % quantity
 	_cost_label.label_settings.font_color = \
 		UiTheme.AMBER if affordable else Color8(150, 136, 128)
 	UiTheme.apply_panel(self, UiTheme.dark_panel(6,

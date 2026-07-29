@@ -204,6 +204,8 @@ func _on_prestiged(_shares: int) -> void:
 	## duplicate props after a prestige reset.
 	yard.resize()
 	_rebake_ground()
+	if structures != null:
+		structures.rebuild()
 	_rebuild_decals()
 	structures.rebuild()
 	atmosphere.rebuild_lamps()

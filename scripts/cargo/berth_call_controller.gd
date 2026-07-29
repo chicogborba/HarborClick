@@ -145,8 +145,19 @@ func _begin_flight(color: int, from: Vector2, to: Vector2, transfer: CargoTransf
 		_in_flight = maxi(0, _in_flight - 1)
 		ship.set_flights_in_progress(_in_flight)
 		if committed:
-			transfer_committed.emit({"id": transfer.id, "unit": transfer.unit.snapshot(), "call_id": call_id})
-			_commit_reward(reward_pos)
+			var reward := _commit_reward(reward_pos)
+			var direction: StringName = CargoUnit.IMPORT \
+				if record.get("origin", "") == "ship" else CargoUnit.EXPORT
+			var payload := {
+				"id": transfer.id, "transfer_id": transfer.id,
+				"unit": transfer.unit.snapshot(), "unit_uid": transfer.unit.uid,
+				"call_id": call_id, "direction": direction,
+				"reward_teu": float(reward.get("value", 0.0)),
+				"crit": bool(reward.get("crit", false)),
+				"tx_id": str(reward.get("tx_id", "")),
+			}
+			transfer_committed.emit(payload)
+			EventBus.cargo_transfer_committed.emit(payload)
 			ship.nudge()
 		else:
 			_notice("transfer_reverted", "Movimento cancelado; o contêiner voltou à origem.")
@@ -172,19 +183,26 @@ func _maybe_depart() -> void:
 	_emit_status()
 
 
-func _commit_reward(pos: Vector2) -> void:
+func _commit_reward(pos: Vector2) -> Dictionary:
 	var tx_id := CargoUnit.new_uid("reward")
 	if GameState.has_method("make_manual_reward_quote") and GameState.has_method("commit_manual_reward"):
 		var quote: Variant = GameState.call("make_manual_reward_quote", tx_id)
 		if GameState.call("commit_manual_reward", tx_id, quote, pos):
 			var data: Dictionary = quote if quote is Dictionary else {}
 			world.show_cargo_reward(pos, float(data.get("value", GameState.click_power)), bool(data.get("crit", false)))
+			data["tx_id"] = tx_id
+			return data
 	else:
 		GameState.do_click(pos)
+	return {"tx_id": tx_id, "value": GameState.click_power, "crit": false}
 
 
 func _on_ship_departed() -> void:
-	call_completed.emit({"call_id": call_id, "exports": _exported.map(func(u: CargoUnit) -> Dictionary: return u.snapshot())})
+	var summary := {"call_id": call_id,
+		"exports": _exported.map(func(u: CargoUnit) -> Dictionary: return u.snapshot()),
+		"perfect": _exported.size() == PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS}
+	call_completed.emit(summary)
+	EventBus.berth_call_completed.emit(summary)
 	_emit_status()
 
 

@@ -37,8 +37,21 @@ func _ready() -> void:
 		update_music.call_deferred()
 
 
+func _exit_tree() -> void:
+	## Tests can close the SceneTree on the same frame as a click sound. Stop and
+	## release the streams explicitly so AudioStreamPlayback objects cannot outlive
+	## their pool during shutdown.
+	for player in _pool:
+		player.stop()
+		player.stream = null
+	for player in _music:
+		player.stop()
+		player.stream = null
+	_cache.clear()
+
+
 func play_sfx(sfx_name: String, pitch_jitter: float = 0.06, volume_db: float = 0.0) -> void:
-	if not sfx_on:
+	if not sfx_on or DisplayServer.get_name() == "headless":
 		return
 	var stream := _load(sfx_name)
 	if stream == null:

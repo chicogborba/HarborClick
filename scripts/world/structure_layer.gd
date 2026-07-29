@@ -41,8 +41,11 @@ func rebuild() -> void:
 
 
 func _on_structure_bought(id: String, count: int) -> void:
-	if count <= CAPS.get(id, 2):
-		_spawn(id, count - 1, true)
+	var target := mini(count, CAPS.get(id, 2))
+	var current := (_actors.get(id, []) as Array).size()
+	while current < target:
+		_spawn(id, current, true)
+		current += 1
 	_relayout(id)
 
 

@@ -56,6 +56,12 @@ As suítes determinísticas também podem ser executadas sem janela:
 godot --headless --path . res://tests/core_test_runner.tscn
 godot --headless --path . res://tests/cargo_test_runner.tscn
 godot --headless --path . res://tests/ui_p0_test_runner.tscn
+godot --headless --path . res://tests/phase3_economy_test_runner.tscn
+godot --headless --path . --script res://tests/phase3_progression_test_runner.gd
+godot --headless --path . res://tests/phase3_progression_ui_test_runner.tscn
+
+# cenários de balanceamento (ativo, híbrido, casual, offline e recuperação)
+godot --headless --path . --script res://tools/balance/run_balance.gd -- all
 ```
 
 ## O ciclo de uma escala
@@ -87,14 +93,18 @@ assets/
   audio/       WAVs gerados (tools/audio)
   shaders/     água top-down, névoa
 scripts/
-  autoload/    EventBus, GameState, TimeManager, SaveManager, AudioManager
+  autoload/    EventBus, GameState, TimeManager, Progression, SaveManager,
+               AudioManager
   cargo/       CargoUnit, transações, controlador de escala e tráfego
   core/        schema e contratos puros de persistência
-  data/        structure_db, upgrade_db, land_db (dados puros)
+  data/        structure_db, upgrade_db, land_db, achievements, contratos e
+               árvore de capital (dados puros)
+  economy/     fórmula geométrica, catálogo canônico e simulador determinístico
+  progression/ carreira, conquistas, contratos, Diário e persistência
   world/       port_layout, port_world, ship, container_yard, structure_*,
                ground_baker, atmosphere, critters, port_camera
-  ui/          ui_theme, hud, shop, shop_card, tutorial, toast_layer,
-               settings_panel, offline_popup
+  ui/          ui_theme, hud, shop, shop_card, tutorial, Diário, capital,
+               toast_layer, settings_panel, offline_popup
 tools/
   venv/        Python + Pillow
   sprites/     geradores de pixel art, fonte e UI
@@ -540,21 +550,21 @@ Aceite da fase:
 
 #### Fase 3 — primeira hora, economia e carreira — P1
 
-- [ ] Criar simulador de balanceamento com cenários ativo, híbrido e offline.
-- [ ] Rebalancear custos/CPS para cumprir as metas de progressão.
-- [ ] Criar upgrades específicos para as 15 estruturas.
-- [ ] Adicionar milestones de quantidade 10/25/50/100.
-- [ ] Adicionar compra x1/x10/x25/MAX com preço e ganho total claros.
-- [ ] Mostrar impacto de compra e próximo objetivo, sem poluir a tela.
-- [ ] Refazer tutorial com spotlight nos alvos, termos consistentes e replay.
-- [ ] Criar 30–40 conquistas iniciais: TEU, escalas, estruturas, carga,
+- [x] Criar simulador de balanceamento com cenários ativo, híbrido e offline.
+- [x] Rebalancear custos/CPS para cumprir as metas de progressão.
+- [x] Criar upgrades específicos para as 15 estruturas.
+- [x] Adicionar milestones de quantidade 10/25/50/100.
+- [x] Adicionar compra x1/x10/x25/MAX com preço e ganho total claros.
+- [x] Mostrar impacto de compra e próximo objetivo, sem poluir a tela.
+- [x] Refazer tutorial com spotlight nos alvos, termos consistentes e replay.
+- [x] Criar 30–40 conquistas iniciais: TEU, escalas, estruturas, carga,
       críticos, eventos, rotas, terrenos e coleção.
-- [ ] Criar Diário do Porto, progresso fixável e estatísticas de carreira.
-- [ ] Agrupar progresso offline numa única tela.
-- [ ] Refazer prestígio com confirmação, ganho perceptível e árvore de escolhas
+- [x] Criar Diário do Porto, progresso fixável e estatísticas de carreira.
+- [x] Agrupar progresso offline numa única tela.
+- [x] Refazer prestígio com confirmação, ganho perceptível e árvore de escolhas
       para throughput, clique, offline, rotas e eventos.
-- [ ] Garantir reconstrução visual e save imediato no prestígio.
-- [ ] Adicionar contratos curtos de sessão depois que a curva-base estiver
+- [x] Garantir reconstrução visual e save imediato no prestígio.
+- [x] Adicionar contratos curtos de sessão depois que a curva-base estiver
       estável.
 
 Aceite da fase:

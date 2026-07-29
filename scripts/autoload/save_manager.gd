@@ -41,7 +41,10 @@ func _connect_save_events() -> void:
 	EventBus.structure_bought.connect(func(_id: String, _count: int) -> void: save_game(&"structure_bought"))
 	EventBus.upgrade_bought.connect(func(_id: String) -> void: save_game(&"upgrade_bought"))
 	EventBus.land_bought.connect(func(_id: String) -> void: save_game(&"land_bought"))
-	EventBus.prestiged.connect(func(_shares: int) -> void: save_game(&"prestige"))
+	# `prestige_committed` is emitted after the career tracker has observed the
+	# reset, so the immediate snapshot contains both economy and journal state.
+	EventBus.prestige_committed.connect(func(_quote: Dictionary) -> void: save_game(&"prestige"))
+	EventBus.prestige_tree_changed.connect(func(_id: StringName) -> void: save_game(&"prestige_tree"))
 	EventBus.new_day.connect(func(_day: int) -> void: request_save(&"new_day"))
 
 
@@ -177,9 +180,13 @@ func _apply_offline_progress(saved_at: float) -> void:
 	offline_earnings = 0.0
 	if saved_at <= 0.0 or GameState.cps <= 0.0:
 		return
-	var elapsed := minf(maxf(0.0, Time.get_unix_time_from_system() - saved_at), OFFLINE_CAP_HOURS * 3600.0)
+	var cap_seconds := GameState.offline_cap_seconds() if GameState.has_method("offline_cap_seconds") \
+		else OFFLINE_CAP_HOURS * 3600.0
+	var efficiency := GameState.offline_efficiency() if GameState.has_method("offline_efficiency") \
+		else OFFLINE_EFFICIENCY
+	var elapsed := minf(maxf(0.0, Time.get_unix_time_from_system() - saved_at), cap_seconds)
 	if elapsed > 10.0:
-		offline_earnings = GameState.cps * elapsed * OFFLINE_EFFICIENCY
+		offline_earnings = GameState.cps * elapsed * efficiency
 		GameState.grant_offline_earnings(offline_earnings)
 		# Advance saved_at before the popup is shown. A reload during the popup
 		# can no longer credit the same offline interval twice.

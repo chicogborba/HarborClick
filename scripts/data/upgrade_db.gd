@@ -63,12 +63,20 @@ const ITEMS: Array[Dictionary] = [
 		"desc": "Menos tombos. O seguro mandou flores.",
 		"kind": "structure_mult", "target": "reach_stacker", "value": 2.0,
 		"cost": 480000.0, "unlock": {"owned": {"reach_stacker": 5}}},
+	{"id": "telemetria_lanca", "name": "Telemetria de Lança",
+		"desc": "A lança avisa antes de fazer drama.",
+		"kind": "structure_mult", "target": "reach_stacker", "value": 2.0,
+		"cost": 4.8e6, "unlock": {"owned": {"reach_stacker": 15}}},
 
 	# --- rtg ---
 	{"id": "gps_rtg", "name": "GPS Milimétrico",
 		"desc": "Empilha container como quem joga Tetris profissional.",
 		"kind": "structure_mult", "target": "rtg", "value": 2.0,
 		"cost": 5.2e6, "unlock": {"owned": {"rtg": 5}}},
+	{"id": "operacao_remota_rtg", "name": "Operação Remota",
+		"desc": "Controle da sala, pátio obediente.",
+		"kind": "structure_mult", "target": "rtg", "value": 2.0,
+		"cost": 52e6, "unlock": {"owned": {"rtg": 15}}},
 
 	# --- sts ---
 	{"id": "operador_descansado", "name": "Operador Com Sono em Dia",
@@ -79,6 +87,96 @@ const ITEMS: Array[Dictionary] = [
 		"desc": "Dois containers por içada. Matemática de gente grande.",
 		"kind": "structure_mult", "target": "sts", "value": 2.0,
 		"cost": 560e6, "unlock": {"owned": {"sts": 15}}},
+
+	# --- armazém ---
+	{"id": "wms_alfandegado", "name": "WMS Alfandegado",
+		"desc": "Cada caixa sabe onde espera a fiscalização.",
+		"kind": "structure_mult", "target": "armazem", "value": 2.0,
+		"cost": 800e6, "unlock": {"owned": {"armazem": 5}}},
+	{"id": "docas_automatizadas", "name": "Docas Automatizadas",
+		"desc": "A doca trabalha até quando o café acaba.",
+		"kind": "structure_mult", "target": "armazem", "value": 2.0,
+		"cost": 8e9, "unlock": {"owned": {"armazem": 15}}},
+
+	# --- rebocador ---
+	{"id": "propulsao_azimutal", "name": "Propulsão Azimutal",
+		"desc": "Vira no lugar e intimida navio grande.",
+		"kind": "structure_mult", "target": "rebocador", "value": 2.0,
+		"cost": 13.2e9, "unlock": {"owned": {"rebocador": 5}}},
+	{"id": "despacho_rebocadores", "name": "Despacho de Rebocadores",
+		"desc": "Todo empurrão chega na hora certa.",
+		"kind": "structure_mult", "target": "rebocador", "value": 2.0,
+		"cost": 132e9, "unlock": {"owned": {"rebocador": 15}}},
+
+	# --- trem ---
+	{"id": "sinalizacao_ctc", "name": "Sinalização CTC",
+		"desc": "Trilho livre, fila andando.",
+		"kind": "structure_mult", "target": "trem", "value": 2.0,
+		"cost": 204e9, "unlock": {"owned": {"trem": 5}}},
+	{"id": "composicao_dupla", "name": "Composição Dupla",
+		"desc": "Dois trens, uma pressa só.",
+		"kind": "structure_mult", "target": "trem", "value": 2.0,
+		"cost": 2.04e12, "unlock": {"owned": {"trem": 15}}},
+
+	# --- flutuante ---
+	{"id": "estabilizacao_dinamica", "name": "Estabilização Dinâmica",
+		"desc": "O mar balança; a carga não.",
+		"kind": "structure_mult", "target": "flutuante", "value": 2.0,
+		"cost": 3e12, "unlock": {"owned": {"flutuante": 5}}},
+	{"id": "spreader_pesado", "name": "Spreader Pesado",
+		"desc": "Peso bruto tratado com delicadeza.",
+		"kind": "structure_mult", "target": "flutuante", "value": 2.0,
+		"cost": 30e12, "unlock": {"owned": {"flutuante": 15}}},
+
+	# --- alfândega ---
+	{"id": "ocr_gate", "name": "OCR de Gate",
+		"desc": "Lê placa antes do motorista piscar.",
+		"kind": "structure_mult", "target": "alfandega", "value": 2.0,
+		"cost": 40e12, "unlock": {"owned": {"alfandega": 5}}},
+	{"id": "canal_verde", "name": "Canal Verde",
+		"desc": "Carga regular passa sem novela.",
+		"kind": "structure_mult", "target": "alfandega", "value": 2.0,
+		"cost": 400e12, "unlock": {"owned": {"alfandega": 15}}},
+
+	# --- torre ---
+	{"id": "gemeo_digital", "name": "Gêmeo Digital",
+		"desc": "O porto testa no virtual antes de virar caos.",
+		"kind": "structure_mult", "target": "torre", "value": 2.0,
+		"cost": 560e12, "unlock": {"owned": {"torre": 5}}},
+	{"id": "janela_berco_ia", "name": "Janela de Berço IA",
+		"desc": "O berço sabe quem chega antes de atracar.",
+		"kind": "structure_mult", "target": "torre", "value": 2.0,
+		"cost": 5.6e15, "unlock": {"owned": {"torre": 15}}},
+
+	# --- drone ---
+	{"id": "visao_termica", "name": "Visão Térmica",
+		"desc": "Enxerga calor, atraso e gambiarra.",
+		"kind": "structure_mult", "target": "drone", "value": 2.0,
+		"cost": 6.8e15, "unlock": {"owned": {"drone": 5}}},
+	{"id": "enxame_coordenado", "name": "Enxame Coordenado",
+		"desc": "Um vê, todos cercam.",
+		"kind": "structure_mult", "target": "drone", "value": 2.0,
+		"cost": 68e15, "unlock": {"owned": {"drone": 15}}},
+
+	# --- porto ia ---
+	{"id": "despacho_preditivo", "name": "Despacho Preditivo",
+		"desc": "A IA já sabia da fila de amanhã.",
+		"kind": "structure_mult", "target": "porto_ia", "value": 2.0,
+		"cost": 84e15, "unlock": {"owned": {"porto_ia": 5}}},
+	{"id": "aprendizado_federado", "name": "Aprendizado Federado",
+		"desc": "Aprende com cada terminal sem fofocar dados.",
+		"kind": "structure_mult", "target": "porto_ia", "value": 2.0,
+		"cost": 840e15, "unlock": {"owned": {"porto_ia": 15}}},
+
+	# --- portal ---
+	{"id": "calibracao_quantica", "name": "Calibração Quântica",
+		"desc": "Ajusta o impossível em nanosegundos.",
+		"kind": "structure_mult", "target": "portal", "value": 2.0,
+		"cost": 1.04e18, "unlock": {"owned": {"portal": 5}}},
+	{"id": "corredor_instantaneo", "name": "Corredor Instantâneo",
+		"desc": "Do cais ao destino sem escala.",
+		"kind": "structure_mult", "target": "portal", "value": 2.0,
+		"cost": 1.04e19, "unlock": {"owned": {"portal": 15}}},
 
 	# --- global ---
 	{"id": "colete_novo", "name": "Coletes Novos",

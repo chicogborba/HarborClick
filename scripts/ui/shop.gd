@@ -14,6 +14,7 @@ const DESKTOP_TAB_LABELS := {
 	"upgrades": "MELH.",
 	"land": "TERRA",
 }
+const BUY_MODES: Array[StringName] = [&"x1", &"x10", &"x25", &"max"]
 
 const ICONS := {
 	"estivador": "worker_sheet", "empilhadeira": "veh_forklift", "tt": "veh_tt",
@@ -31,6 +32,7 @@ var _lists: Dictionary = {}
 var _scrolls: Dictionary = {}
 var _cards: Dictionary = {}
 var _tab_buttons: Dictionary = {}
+var _buy_buttons: Dictionary = {}
 var _open := false
 var _active := "structures"
 var _refresh_timer := 0.0
@@ -38,11 +40,17 @@ var _dirty := true
 var _desktop := false
 var _safe_rect := Rect2()
 var _profile := ""
+var _buy_mode: StringName = &"x1"
 
 
 func _ready() -> void:
 	layer = 8
 	_build()
+	if Progression != null:
+		var saved_mode := StringName(Progression.ui.get("buy_mode", "x1"))
+		_buy_mode = saved_mode if BUY_MODES.has(saved_mode) else &"x1"
+		for mode: StringName in _buy_buttons:
+			_style_tab(_buy_buttons[mode], mode == _buy_mode)
 	_populate()
 	get_viewport().size_changed.connect(_layout)
 	EventBus.teus_changed.connect(func(_t: float) -> void: _dirty = true)
@@ -104,6 +112,17 @@ func _build() -> void:
 	close_btn.pressed.connect(_close)
 	header.add_child(close_btn)
 
+	var bulk := HBoxContainer.new()
+	bulk.add_theme_constant_override(&"separation", 3)
+	col.add_child(bulk)
+	for mode in BUY_MODES:
+		var button := UiTheme.button(_buy_mode_label(mode), "alt", UiTheme.SIZE_SMALL)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.pressed.connect(_set_buy_mode.bind(mode))
+		bulk.add_child(button)
+		_buy_buttons[mode] = button
+		_style_tab(button, mode == _buy_mode)
+
 	_tabs = HBoxContainer.new()
 	_tabs.add_theme_constant_override(&"separation", 3)
 	col.add_child(_tabs)
@@ -139,6 +158,22 @@ func _make_tab(text: String, icon: UiTheme.Icon) -> Button:
 func _style_tab(button: Button, active: bool) -> void:
 	button.modulate = Color.WHITE if active else Color(0.7, 0.67, 0.78)
 	button.add_theme_color_override(&"font_color", UiTheme.CREAM if active else UiTheme.PLATE_TEXT)
+
+
+func _buy_mode_label(mode: StringName) -> String:
+	return "MAX" if mode == &"max" else String(mode).to_upper()
+
+
+func _set_buy_mode(mode: StringName) -> void:
+	if not BUY_MODES.has(mode):
+		return
+	_buy_mode = mode
+	if Progression != null:
+		Progression.set_buy_mode(mode)
+	for key: StringName in _buy_buttons:
+		_style_tab(_buy_buttons[key], key == _buy_mode)
+	_refresh()
+	AudioManager.play_sfx("tap")
 
 
 func _on_backdrop_input(event: InputEvent) -> void:
@@ -301,7 +336,8 @@ func is_open() -> bool:
 
 func _on_buy_structure(id: String) -> void:
 	var card: ShopCard = _cards.get(id)
-	if GameState.buy_structure(id):
+	var result := GameState.buy_structure_bulk(id, _buy_mode)
+	if bool(result.get("ok", false)):
 		card.flash_ok()
 		AudioManager.play_sfx("buy")
 	else:
@@ -344,9 +380,12 @@ func _refresh() -> void:
 		if card == null:
 			continue
 		var count := GameState.structure_count(item.id)
-		var cost := GameState.structure_cost(item.id)
-		card.visible = count > 0 or GameState.lifetime_teus >= float(item.cost) * 0.35
-		card.refresh(cost, count, GameState.can_afford(cost))
+		var quote := GameState.structure_purchase_quote(item.id, _buy_mode)
+		var cost := float(quote.get("total_cost", INF))
+		var quantity := int(quote.get("quantity", 0))
+		card.visible = count > 0 or GameState.lifetime_teus >= float(item.cost) * 0.25
+		card.refresh(cost, count, bool(quote.get("ok", false)), false,
+			quantity, float(quote.get("nominal_cps_gain", 0.0)))
 	for item in UpgradeDB.ITEMS:
 		var card: ShopCard = _cards.get(item.id)
 		if card != null:

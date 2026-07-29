@@ -3,6 +3,7 @@ extends CanvasLayer
 ## Options board: audio toggles, day-length readout and a save wipe.
 
 signal open_changed(opened: bool)
+signal tutorial_replay_requested
 
 var _dim: ColorRect
 var _panel: PanelContainer
@@ -17,6 +18,7 @@ var _ui_scale_btn: Button
 var _fullscreen_btn: Button
 var _confirm_wipe := false
 var _wipe_btn: Button
+var _tutorial_btn: Button
 var _safe_rect := Rect2()
 
 
@@ -93,6 +95,10 @@ func _build() -> void:
 		UserPreferences.set_fullscreen(not UserPreferences.fullscreen)
 		_refresh())
 	_content.add_child(_fullscreen_btn)
+
+	_tutorial_btn = _compact_button("REVER TUTORIAL")
+	_tutorial_btn.pressed.connect(func() -> void: tutorial_replay_requested.emit())
+	_content.add_child(_tutorial_btn)
 
 	var sep := UiTheme.label(
 		"Um dia no porto dura 12 minutos.\nDias de neblina rendem menos.",
