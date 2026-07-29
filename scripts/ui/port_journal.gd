@@ -161,14 +161,11 @@ func _refresh() -> void:
 		var contract := _contract()
 		if not contract.is_empty():
 			_list.add_child(_make_contract_card(contract))
-	var objectives := _objectives()
-	var shown := 0
-	for objective: Dictionary in objectives:
+	for objective: Dictionary in _objectives():
 		var done := bool(objective.get("complete", false))
 		if (_active_tab == "done" and not done) or (_active_tab == "next" and done):
 			continue
 		_list.add_child(_make_card(objective))
-		shown += 1
 	if _list.get_child_count() == 0:
 		var empty := UiTheme.label("Nenhuma meta nesta página.",
 			UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)

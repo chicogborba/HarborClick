@@ -120,20 +120,20 @@ func clear() -> void:
 func _live_vehicles() -> Array[Node2D]:
 	var alive: Array[Node2D] = []
 	var kept: Array = []
-	for reference: WeakRef in _vehicles:
-		var node := reference.get_ref() as Node2D
+	for weak: WeakRef in _vehicles:
+		var node := weak.get_ref() as Node2D
 		if node != null and node.is_inside_tree():
 			alive.append(node)
-			kept.append(reference)
+			kept.append(weak)
 	_vehicles = kept
 	return alive
 
 
 func _lane_holder(lane_key: String) -> Node2D:
-	var reference: Variant = _lanes.get(lane_key)
-	if not reference is WeakRef:
+	var held: Variant = _lanes.get(lane_key)
+	if not held is WeakRef:
 		return null
-	return (reference as WeakRef).get_ref() as Node2D
+	return (held as WeakRef).get_ref() as Node2D
 
 
 func _index_of(actor: Node2D) -> int:

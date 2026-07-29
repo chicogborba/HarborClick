@@ -77,7 +77,9 @@ static func bake(world_h: int) -> ImageTexture:
 		var head_y := int(origin.y) - 4
 		for bx in range(int(origin.x), int(origin.x + PortLayout.BLOCK_W)):
 			# dashed, so it reads as paint rather than as a solid barrier
-			if (bx / 3) % 2 == 0:
+			@warning_ignore("integer_division")
+			var dash_cell: int = bx / 3
+			if dash_cell % 2 == 0:
 				_pixel(img, bx, head_y, head)
 				_pixel(img, bx, head_y + 1, head.darkened(0.35))
 

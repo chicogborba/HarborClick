@@ -49,7 +49,6 @@ var _world: PortWorld
 # walker state
 var _stroll_target := Vector2.ZERO
 var _stroll_pause := 0.0
-var _facing := "side"
 
 # gantry state
 var _gantry_cycle := 0.0
