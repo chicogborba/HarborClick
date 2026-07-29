@@ -22,7 +22,7 @@ func setup(manager_or_callbacks: Variant, callbacks: Dictionary = {}) -> void:
 func _ready() -> void:
 	layer = 7
 	_panel = PanelContainer.new()
-	UiTheme.apply_panel(_panel, UiTheme.dark_panel(6, UiTheme.TEAL))
+	UiTheme.apply_panel(_panel, UiTheme.slate_style(true, 5))
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 	var button := Button.new()
@@ -40,12 +40,17 @@ func _ready() -> void:
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(text)
-	_title = UiTheme.label("PRÓXIMA META", UiTheme.SIZE_SMALL, UiTheme.CREAM)
+	_title = UiTheme.label("PRÓXIMA META", UiTheme.SIZE_SMALL, UiTheme.SLATE_TEXT)
 	_title.clip_text = true
+	_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	text.add_child(_title)
 	_progress = UiTheme.label("Abra o diário", UiTheme.SIZE_SMALL, UiTheme.AMBER)
 	_progress.clip_text = true
 	text.add_child(_progress)
+	var chevron := UiTheme.icon(UiTheme.Icon.CHEVRON)
+	chevron.modulate = UiTheme.SLATE_DIM
+	chevron.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(chevron)
 	_layout()
 	_refresh()
 
@@ -94,9 +99,13 @@ func _layout() -> void:
 	var safe := _safe_rect
 	if safe.size == Vector2.ZERO:
 		safe = Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
-	_panel.size = Vector2(minf(220.0, safe.size.x - 16.0), 42.0)
-	_panel.position = Vector2(safe.position.x + 8.0, safe.position.y + 108.0)
+	_panel.size = Vector2(minf(220.0, safe.size.x - 16.0), 34.0)
+	_panel.position = Vector2(safe.position.x + 8.0, safe.position.y + 70.0)
 
 
 func _fmt(value: float) -> String:
+	## Career targets reach the billions; the chip is 220px wide. Raw digits
+	## ("3180843 / 100000000") never fit and cannot be read at a glance.
+	if Engine.has_singleton("GameState") or GameState != null:
+		return GameState.fmt(value)
 	return str(int(value)) if is_equal_approx(value, roundf(value)) else "%.1f" % value

@@ -48,45 +48,47 @@ func _test_hud_fixed_tally_geometry() -> void:
 	hud._process(0.06)
 	var tally := hud._teus_label.get_parent() as HBoxContainer
 	var icon := tally.get_child(0) as Control
-	var unit := tally.get_child(2) as Control
-	var plate_before := hud._plate.get_global_rect()
 	var icon_before := icon.get_global_rect()
 	var slot_before := hud._teus_label.get_global_rect()
-	var unit_before := unit.get_global_rect()
+	var rate_before := hud._rate_label.get_global_rect()
 
 	hud._on_teus(1e15)
 	hud._process(0.06)
 	await get_tree().process_frame
 	_expect(hud._teus_label.text == GameState.fmt(1e15),
 		"HUD renders the 1e15 tally through the normal formatter")
-	_expect(_same_rect(hud._plate.get_global_rect(), plate_before),
-		"HUD tally border does not move from 0 to 1e15")
 	_expect(_same_rect(icon.get_global_rect(), icon_before),
 		"HUD tally icon does not move from 0 to 1e15")
-	_expect(_same_rect(hud._teus_label.get_global_rect(), slot_before),
-		"HUD numeric slot does not resize from 0 to 1e15")
-	_expect(_same_rect(unit.get_global_rect(), unit_before),
-		"HUD TEU unit does not move from 0 to 1e15")
+	# The digits are left-aligned with no panel around them, so the number's
+	# origin is invariant and only its unused right edge extends into air.
+	_expect(is_equal_approx(hud._teus_label.get_global_rect().position.x,
+			slot_before.position.x)
+		and is_equal_approx(hud._teus_label.get_global_rect().position.y,
+			slot_before.position.y),
+		"HUD numeric slot keeps its origin from 0 to 1e15")
+	_expect(_same_rect(hud._rate_label.get_global_rect(), rate_before),
+		"HUD rate line with the TEU unit does not move from 0 to 1e15")
 
 	# set_job_hint is the public text-only berth update entry point. Its chip is
-	# deliberately independent from the fixed tally plate, so long text may not
-	# resize either surface.
+	# deliberately independent from the tally, so text of any length may resize
+	# the chip but must never move the readout.
 	hud.set_job_hint("Descarga 0/24")
 	await get_tree().process_frame
-	var chip_before := hud._berth_chip.get_global_rect()
-	var plate_before_hint := hud._plate.get_global_rect()
+	var short_chip := hud._berth_chip.get_global_rect()
+	var readout_before_hint := hud.readout_rect()
 	hud.set_job_hint("Carregamento em andamento 24/24 — manifesto conferido")
 	await get_tree().process_frame
+	var long_chip := hud._berth_chip.get_global_rect()
 	_expect(hud._job_label.text == "Carregamento em andamento 24/24 — manifesto conferido",
 		"HUD public text update replaces berth text")
 	_expect(hud._job_label.clip_text,
 		"HUD berth label clips long status text")
-	_expect(hud._job_label.get_global_rect().size.x <= hud._berth_chip.get_global_rect().size.x,
+	_expect(hud._job_label.get_global_rect().size.x <= long_chip.size.x,
 		"HUD berth text viewport remains within its chip")
-	_expect(_same_rect(hud._berth_chip.get_global_rect(), chip_before),
-		"HUD berth text update does not resize its chip")
-	_expect(_same_rect(hud._plate.get_global_rect(), plate_before_hint),
-		"HUD berth text update does not resize the tally plate")
+	_expect(long_chip.size.x > short_chip.size.x and long_chip.end.x <= 360.0,
+		"HUD berth chip grows with its text but stays inside the viewport")
+	_expect(_same_rect(hud.readout_rect(), readout_before_hint),
+		"HUD berth text update does not move the tally")
 
 	viewport.queue_free()
 	await get_tree().process_frame
@@ -138,13 +140,13 @@ func _test_shop_backdrop_and_escape_contract() -> void:
 	# nearest public-facing units that can be exercised without a window-backed
 	# GUI input router in headless mode.
 	shop._launcher.emit_signal("pressed")
-	_expect(shop.is_open() and shop._backdrop.visible and shop._sheet.visible,
+	_expect(shop.is_open() and shop._backdrop.visible and shop._board.visible,
 		"Shop opens from its launcher")
 	var backdrop_press := InputEventMouseButton.new()
 	backdrop_press.button_index = MOUSE_BUTTON_LEFT
 	backdrop_press.pressed = true
 	shop._on_backdrop_input(backdrop_press)
-	_expect(not shop.is_open() and not shop._backdrop.visible and not shop._sheet.visible,
+	_expect(not shop.is_open() and not shop._backdrop.visible and not shop._board.visible,
 		"Shop closes from its backdrop handler")
 
 	shop._launcher.emit_signal("pressed")
@@ -213,7 +215,7 @@ func _test_safe_area_reaches_primary_ui() -> void:
 	await get_tree().process_frame
 
 	var gear := hud.get_node(^"SettingsGear") as Button
-	_expect(_rect_inside(safe, hud._plate.get_global_rect()),
+	_expect(_rect_inside(safe, hud.readout_rect()),
 		"HUD plate stays inside an injected mobile safe area")
 	_expect(_rect_inside(safe, gear.get_global_rect()),
 		"HUD gear stays inside an injected mobile safe area")
@@ -223,7 +225,7 @@ func _test_safe_area_reaches_primary_ui() -> void:
 	shop._launcher.emit_signal("pressed")
 	settings.open()
 	await get_tree().process_frame
-	_expect(_rect_inside(safe, shop._sheet.get_global_rect()),
+	_expect(_rect_inside(safe, shop._board.get_global_rect()),
 		"Shop sheet stays inside an injected mobile safe area")
 	_expect(_rect_inside(safe, settings._panel.get_global_rect()),
 		"Settings panel stays inside an injected mobile safe area")

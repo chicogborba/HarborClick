@@ -55,9 +55,7 @@ func _try_show_next() -> void:
 	_last_started_at = Time.get_ticks_msec() * 0.001
 	var text := str(entry.text)
 
-	var panel := PanelContainer.new()
-	UiTheme.apply_panel(panel, UiTheme.dark_panel(6, UiTheme.TEAL))
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var panel := UiTheme.panel(UiTheme.slate_style(true, 5))
 	panel.modulate.a = 0.0
 
 	var row := HBoxContainer.new()
@@ -66,7 +64,7 @@ func _try_show_next() -> void:
 	panel.add_child(row)
 	row.add_child(UiTheme.icon(UiTheme.Icon.TEU))
 
-	var label := UiTheme.label(text, UiTheme.SIZE_SMALL, UiTheme.PLATE_TEXT)
+	var label := UiTheme.label(text, UiTheme.SIZE_SMALL, UiTheme.SLATE_TEXT)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.custom_minimum_size.x = maxf(80.0, _stack.custom_minimum_size.x - 40.0)
 	row.add_child(label)
@@ -93,9 +91,11 @@ func _layout() -> void:
 	var view := get_viewport().get_visible_rect().size
 	var safe := _resolved_safe_rect(view)
 	var width := minf(300.0, maxf(120.0, safe.size.x - 20.0))
+	# Below the readout and the objective chip, so a notice never buries the
+	# two things that are always true.
 	_stack.position = Vector2(
 		safe.position.x + (safe.size.x - width) * 0.5,
-		safe.position.y + 60.0)
+		safe.position.y + 112.0)
 	_stack.custom_minimum_size.x = width
 
 

@@ -230,7 +230,7 @@ func _tutorial_target_rect(target: String) -> Rect2:
 				var point := world.ship.get_global_transform_with_canvas().origin
 				return Rect2(point - Vector2(20, 12), Vector2(100, 76))
 		"teu":
-			return hud._plate.get_global_rect() if hud != null else Rect2()
+			return hud.readout_rect() if hud != null else Rect2()
 		"objective", "journal":
 			return objective._panel.get_global_rect() if objective != null else Rect2()
 		"shop":

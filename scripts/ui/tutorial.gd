@@ -64,7 +64,8 @@ func start() -> void:
 
 func _build() -> void:
 	_panel = PanelContainer.new()
-	UiTheme.apply_panel(_panel, UiTheme.dark_panel())
+	UiTheme.apply_panel(_panel, UiTheme.board_style(8))
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 
 	var row := HBoxContainer.new()
@@ -73,7 +74,7 @@ func _build() -> void:
 	_panel.add_child(row)
 
 	var portrait_box := PanelContainer.new()
-	UiTheme.apply_panel(portrait_box, UiTheme.dark_panel(5, UiTheme.TEAL))
+	UiTheme.apply_panel(portrait_box, UiTheme.well_style(2))
 	portrait_box.custom_minimum_size = Vector2(32, 40)
 	portrait_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(portrait_box)
@@ -100,7 +101,7 @@ func _build() -> void:
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(col)
 
-	_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.CREAM)
+	_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK)
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_label.custom_minimum_size.x = 230
 	col.add_child(_label)
@@ -113,7 +114,7 @@ func _build() -> void:
 	_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	footer.add_child(_hint)
 
-	var skip := UiTheme.button("PULAR", "off")
+	var skip := UiTheme.button("PULAR", &"ghost")
 	skip.pressed.connect(_finish)
 	footer.add_child(skip)
 	_layout()

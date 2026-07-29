@@ -1,9 +1,19 @@
 class_name SettingsPanel
 extends CanvasLayer
-## Options board: audio toggles, day-length readout and a save wipe.
+## Options board: audio, presentation, and the destructive save wipe.
+##
+## The previous version was eight identical full-width keys stacked in a
+## column, so nothing was findable — every option had the same weight and the
+## wipe button looked exactly like the music toggle. Options are grouped under
+## captions now, each row reads "name ... current value", and the only two
+## buttons that are not toggles (replay the tutorial, wipe the save) sit apart
+## from them with their own colour.
 
 signal open_changed(opened: bool)
 signal tutorial_replay_requested
+
+const ROW_HEIGHT := 24.0
+const VALUE_WIDTH := 116.0
 
 var _dim: ColorRect
 var _panel: PanelContainer
@@ -29,10 +39,7 @@ func _ready() -> void:
 
 
 func _build() -> void:
-	_dim = ColorRect.new()
-	_dim.color = Color(0.06, 0.05, 0.09, 0.6)
-	_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_dim = UiTheme.scrim(0.62)
 	_dim.gui_input.connect(func(event: InputEvent) -> void:
 		if (event is InputEventScreenTouch and event.pressed) \
 				or (event is InputEventMouseButton and event.pressed):
@@ -40,75 +47,98 @@ func _build() -> void:
 	add_child(_dim)
 
 	_panel = PanelContainer.new()
-	UiTheme.apply_panel(_panel, UiTheme.dark_panel())
+	UiTheme.apply_panel(_panel, UiTheme.board_style(9))
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	UiTheme.style_scroll(_scroll)
 	_panel.add_child(_scroll)
 
 	_content = VBoxContainer.new()
-	_content.add_theme_constant_override(&"separation", 6)
+	_content.add_theme_constant_override(&"separation", 3)
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(_content)
 
-	var title := UiTheme.label("AJUSTES", UiTheme.SIZE_TITLE, UiTheme.CREAM)
+	var title := UiTheme.label("AJUSTES", UiTheme.SIZE_TITLE, UiTheme.INK)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content.add_child(title)
 
-	_music_btn = _compact_button()
-	_music_btn.pressed.connect(_toggle_music)
-	_content.add_child(_music_btn)
+	_content.add_child(_caption("SOM"))
+	_music_btn = _option_row("Música", _toggle_music)
+	_sfx_btn = _option_row("Efeitos", _toggle_sfx)
 
-	_sfx_btn = _compact_button()
-	_sfx_btn.pressed.connect(_toggle_sfx)
-	_content.add_child(_sfx_btn)
-
-	_motion_btn = _compact_button()
-	_motion_btn.pressed.connect(func() -> void:
+	_content.add_child(_caption("APRESENTAÇÃO"))
+	_motion_btn = _option_row("Movimento", func() -> void:
 		UserPreferences.set_reduce_motion(not UserPreferences.reduce_motion)
 		_refresh())
-	_content.add_child(_motion_btn)
-
-	_numbers_btn = _compact_button()
-	_numbers_btn.pressed.connect(func() -> void:
+	_numbers_btn = _option_row("Números flutuantes", func() -> void:
 		UserPreferences.set_floating_numbers(not UserPreferences.floating_numbers)
 		_refresh())
-	_content.add_child(_numbers_btn)
-
-	_ui_scale_btn = _compact_button()
-	_ui_scale_btn.pressed.connect(func() -> void:
+	_ui_scale_btn = _option_row("Escala da interface", func() -> void:
 		UserPreferences.cycle_ui_scale()
 		_refresh())
-	_content.add_child(_ui_scale_btn)
-
-	_fullscreen_btn = _compact_button()
-	_fullscreen_btn.pressed.connect(func() -> void:
+	_fullscreen_btn = _option_row("Tela cheia", func() -> void:
 		UserPreferences.set_fullscreen(not UserPreferences.fullscreen)
 		_refresh())
-	_content.add_child(_fullscreen_btn)
 
-	_tutorial_btn = _compact_button("REVER TUTORIAL")
+	_content.add_child(_caption("PORTO"))
+	_tutorial_btn = _wide_button("REVER TUTORIAL", &"ghost")
 	_tutorial_btn.pressed.connect(func() -> void: tutorial_replay_requested.emit())
 	_content.add_child(_tutorial_btn)
-
-	var sep := UiTheme.label(
+	var note := UiTheme.label(
 		"Um dia no porto dura 12 minutos.\nDias de neblina rendem menos.",
-		UiTheme.SIZE_SMALL, UiTheme.PLATE_TEXT)
-	sep.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_content.add_child(sep)
+		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_content.add_child(note)
 
-	_wipe_btn = _compact_button("APAGAR PROGRESSO", "off")
+	_content.add_child(UiTheme.spacer(4.0))
+	_content.add_child(UiTheme.divider())
+	_content.add_child(UiTheme.spacer(2.0))
+
+	# The only irreversible action on the board carries the only warning colour
+	# and needs a second press to arm.
+	_wipe_btn = _wide_button("APAGAR PROGRESSO", &"danger")
 	_wipe_btn.pressed.connect(_on_wipe)
 	_content.add_child(_wipe_btn)
 
-	var close_btn := _compact_button("FECHAR")
+	var close_btn := _wide_button("FECHAR", &"amber")
 	close_btn.pressed.connect(close)
 	_content.add_child(close_btn)
 
 
-func _compact_button(text: String = "", kind: String = "alt") -> Button:
+func _caption(text: String) -> Control:
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 1)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(UiTheme.spacer(3.0))
+	row.add_child(UiTheme.label(text, UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP))
+	row.add_child(UiTheme.divider())
+	return row
+
+
+func _option_row(name_text: String, on_press: Callable) -> Button:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 6)
+	row.custom_minimum_size.y = ROW_HEIGHT
+	_content.add_child(row)
+
+	var label := UiTheme.label(name_text, UiTheme.SIZE_SMALL, UiTheme.INK)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(label)
+
+	var value := UiTheme.button("", &"alt", UiTheme.SIZE_SMALL)
+	value.custom_minimum_size = Vector2(VALUE_WIDTH, ROW_HEIGHT)
+	value.tooltip_text = name_text
+	value.pressed.connect(on_press)
+	row.add_child(value)
+	return value
+
+
+func _wide_button(text: String, kind: StringName) -> Button:
 	var button := UiTheme.button(text, kind, UiTheme.SIZE_SMALL)
 	button.custom_minimum_size.y = 28.0
 	return button
@@ -117,6 +147,7 @@ func _compact_button(text: String = "", kind: String = "alt") -> Button:
 func open() -> void:
 	_confirm_wipe = false
 	_wipe_btn.text = "APAGAR PROGRESSO"
+	UiTheme.style_button(_wipe_btn, &"danger")
 	_refresh()
 	visible = true
 	open_changed.emit(true)
@@ -127,10 +158,10 @@ func open() -> void:
 		return
 	_panel.modulate.a = 0.0
 	_panel.pivot_offset = _panel.size / 2.0
-	_panel.scale = Vector2(0.92, 0.92)
+	_panel.scale = Vector2(0.94, 0.94)
 	var tween := create_tween().set_parallel()
 	tween.tween_property(_panel, "modulate:a", 1.0, 0.16)
-	tween.tween_property(_panel, "scale", Vector2.ONE, 0.26) \
+	tween.tween_property(_panel, "scale", Vector2.ONE, 0.24) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
@@ -152,11 +183,11 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _layout() -> void:
 	var view := get_viewport().get_visible_rect().size
 	var safe := _resolved_safe_rect(view)
-	var width := minf(safe.size.x - 24.0, 360.0)
-	_content.custom_minimum_size.x = width - 16.0
-	var desired_height := _content.get_combined_minimum_size().y + 16.0
+	var width := minf(safe.size.x - 24.0, 344.0)
+	_content.custom_minimum_size.x = width - 22.0
+	var desired_height := _content.get_combined_minimum_size().y + 22.0
 	var height := minf(desired_height, maxf(180.0, safe.size.y - 24.0))
-	_scroll.custom_minimum_size = Vector2(width - 16.0, height - 16.0)
+	_scroll.custom_minimum_size = Vector2(width - 22.0, height - 22.0)
 	_panel.custom_minimum_size = Vector2(width, height)
 	_panel.size = Vector2(width, height)
 	_panel.position = safe.position + Vector2(
@@ -166,8 +197,7 @@ func _layout() -> void:
 
 func apply_view_metrics(metrics: Dictionary) -> void:
 	var view := get_viewport().get_visible_rect().size
-	_safe_rect = metrics.get(
-		"safe_rect", Rect2(Vector2.ZERO, view))
+	_safe_rect = metrics.get("safe_rect", Rect2(Vector2.ZERO, view))
 	_layout()
 
 
@@ -181,12 +211,18 @@ func _resolved_safe_rect(view: Vector2) -> Rect2:
 
 
 func _refresh() -> void:
-	_music_btn.text = "MÚSICA: %s" % ("LIGADA" if AudioManager.music_on else "DESLIGADA")
-	_sfx_btn.text = "EFEITOS: %s" % ("LIGADOS" if AudioManager.sfx_on else "DESLIGADOS")
-	_motion_btn.text = "MOVIMENTO: %s" % ("REDUZIDO" if UserPreferences.reduce_motion else "NORMAL")
-	_numbers_btn.text = "NÚMEROS FLUTUANTES: %s" % ("LIGADOS" if UserPreferences.floating_numbers else "DESLIGADOS")
-	_ui_scale_btn.text = "ESCALA DA UI: %d%%" % roundi(UserPreferences.ui_scale * 100.0)
-	_fullscreen_btn.text = "TELA CHEIA: %s" % ("LIGADA" if UserPreferences.fullscreen else "DESLIGADA")
+	_music_btn.text = "LIGADA" if AudioManager.music_on else "DESLIGADA"
+	_sfx_btn.text = "LIGADOS" if AudioManager.sfx_on else "DESLIGADOS"
+	_motion_btn.text = "REDUZIDO" if UserPreferences.reduce_motion else "NORMAL"
+	_numbers_btn.text = "LIGADOS" if UserPreferences.floating_numbers else "DESLIGADOS"
+	_ui_scale_btn.text = "%d%%" % roundi(UserPreferences.ui_scale * 100.0)
+	_fullscreen_btn.text = "LIGADA" if UserPreferences.fullscreen else "DESLIGADA"
+	# An "off" state must not be signalled by colour alone; the word already
+	# says it, and the key drops to the muted style so it also reads by shape.
+	for pair in [[_music_btn, AudioManager.music_on], [_sfx_btn, AudioManager.sfx_on],
+			[_numbers_btn, UserPreferences.floating_numbers],
+			[_fullscreen_btn, UserPreferences.fullscreen]]:
+		UiTheme.style_button(pair[0], &"alt" if bool(pair[1]) else &"off")
 
 
 func _toggle_music() -> void:
@@ -203,7 +239,7 @@ func _toggle_sfx() -> void:
 func _on_wipe() -> void:
 	if not _confirm_wipe:
 		_confirm_wipe = true
-		_wipe_btn.text = "TEM CERTEZA?"
+		_wipe_btn.text = "TEM CERTEZA? TOQUE DE NOVO"
 		AudioManager.play_sfx("deny")
 		return
 	SaveManager.wipe()

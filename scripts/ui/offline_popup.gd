@@ -16,36 +16,37 @@ func _ready() -> void:
 
 
 func _build(amount: float) -> void:
-	_dim = ColorRect.new()
-	_dim.color = Color(0.06, 0.05, 0.09, 0.6)
-	_dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_dim = UiTheme.scrim(0.62)
 	add_child(_dim)
 
 	_panel = PanelContainer.new()
-	UiTheme.apply_panel(_panel, UiTheme.dark_panel())
+	UiTheme.apply_panel(_panel, UiTheme.board_style(10))
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override(&"separation", 6)
 	_panel.add_child(col)
 
-	var title := UiTheme.label("O PORTO NÃO DORMIU", UiTheme.SIZE_BODY, UiTheme.CREAM)
+	var title := UiTheme.label("O PORTO NÃO DORMIU", UiTheme.SIZE_BODY, UiTheme.INK)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
 
 	var body := UiTheme.label("Os guindastes trabalharam sem você:",
-		UiTheme.SIZE_SMALL, UiTheme.PLATE_TEXT)
+		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(body)
 
+	var readout := UiTheme.panel(UiTheme.slate_style(true, 6))
+	col.add_child(readout)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override(&"separation", 5)
-	col.add_child(row)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	readout.add_child(row)
 	row.add_child(UiTheme.icon(UiTheme.Icon.TEU, 2))
 	row.add_child(UiTheme.label(GameState.fmt(amount) + " TEU",
-		UiTheme.SIZE_TITLE, UiTheme.CREAM))
+		UiTheme.SIZE_TITLE, UiTheme.AMBER))
 
 	var button := UiTheme.button("BELEZA")
 	button.pressed.connect(func() -> void:

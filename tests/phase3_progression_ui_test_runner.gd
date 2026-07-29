@@ -90,7 +90,11 @@ func _test_prestige_requires_explicit_confirmation() -> void:
 	_expect(commits[0] == 0 and dialog._quoted, "prestige first action only displays a quote")
 	dialog._confirm_or_quote()
 	_expect(commits[0] == 1 and not dialog.is_open(), "prestige commits only after explicit second confirmation")
-	_expect(dialog._tree.get_child_count() == 5, "prestige dialog renders the five capital branches")
+	# One caption plus one row per node, so the whole tree fits a phone column
+	# instead of running off the side of the dialog.
+	_expect(dialog._tree.get_child_count()
+			== PrestigeDB.BRANCHES.size() + PrestigeDB.all_nodes().size(),
+		"prestige dialog renders every capital branch and node as its own row")
 	viewport.queue_free()
 	await get_tree().process_frame
 

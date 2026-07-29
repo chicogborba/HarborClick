@@ -37,13 +37,15 @@ func _ready() -> void:
 	_veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_veil)
 	_panel = PanelContainer.new()
-	UiTheme.apply_panel(_panel, UiTheme.dark_panel(8, UiTheme.TEAL))
+	UiTheme.apply_panel(_panel, UiTheme.board_style(8))
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 	var col := VBoxContainer.new()
+	col.add_theme_constant_override(&"separation", 3)
 	_panel.add_child(col)
-	_title = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.CREAM)
+	_title = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK)
 	col.add_child(_title)
-	_body = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.PLATE_TEXT)
+	_body = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	# Autowrap needs a real width before PanelContainer computes its minimum
 	# height; otherwise a zero-width first pass wraps one glyph per line and can
@@ -52,11 +54,14 @@ func _ready() -> void:
 	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_child(_body)
 	var actions := HBoxContainer.new()
+	actions.add_theme_constant_override(&"separation", 4)
 	col.add_child(actions)
-	var skip := UiTheme.button("PULAR", "off", UiTheme.SIZE_SMALL)
+	var skip := UiTheme.button("PULAR", &"ghost", UiTheme.SIZE_SMALL)
+	skip.custom_minimum_size = Vector2(60, 26)
 	skip.pressed.connect(func() -> void: _finish(true))
 	actions.add_child(skip)
-	var next_button := UiTheme.button("PRÓXIMO", "amber", UiTheme.SIZE_SMALL)
+	var next_button := UiTheme.button("PRÓXIMO", &"amber", UiTheme.SIZE_SMALL)
+	next_button.custom_minimum_size.y = 26.0
 	next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	next_button.pressed.connect(next)
 	actions.add_child(next_button)
