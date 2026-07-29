@@ -383,16 +383,24 @@ static func style_tab(node: Button, active: bool) -> void:
 	node.add_theme_color_override(&"font_focus_color", color)
 
 
+const SCROLL_WIDTH := 8.0
+
+
 static func style_scroll(scroll: ScrollContainer) -> void:
-	## Godot's default scrollbar is a flat grey slab; this one is the same wood
-	## as the board so the sheet looks like it slides inside the clip.
+	## Godot's default scrollbar is a flat grey slab; this one is a sunk trough
+	## with a wooden grip, and it is always reserved rather than overlaid.
+	##
+	## `SCROLL_MODE_RESERVE` is the point: on AUTO the bar appears only when the
+	## content overflows and is drawn over the last few pixels of every card,
+	## which is exactly the "scroll in front, half broken" the playtest saw.
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_RESERVE
 	var bar := scroll.get_v_scroll_bar()
 	if bar == null:
 		return
-	bar.add_theme_stylebox_override(&"scroll", nine("ui_scroll_bg", 2, 0))
+	bar.add_theme_stylebox_override(&"scroll", nine("ui_scroll_bg", 3, 0))
 	for state in [&"grabber", &"grabber_highlight", &"grabber_pressed"]:
-		bar.add_theme_stylebox_override(state, nine("ui_scroll_grab", 2, 0))
-	bar.custom_minimum_size.x = 5
+		bar.add_theme_stylebox_override(state, nine("ui_scroll_grab", 3, 0))
+	bar.custom_minimum_size.x = SCROLL_WIDTH
 
 
 # ----------------------------------------------------------------- fragments

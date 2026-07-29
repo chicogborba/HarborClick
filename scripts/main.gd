@@ -5,6 +5,7 @@ var world: PortWorld
 var cam: PortCamera
 var shop: Shop
 var hud: Hud
+var rail: CommandRail
 var shell: ResponsiveShell
 var toasts: ToastLayer
 var notifications: NotificationCoordinator
@@ -35,6 +36,10 @@ func _ready() -> void:
 	hud.name = "Hud"
 	add_child(hud)
 
+	rail = CommandRail.new()
+	rail.name = "CommandRail"
+	add_child(rail)
+
 	shop = Shop.new()
 	shop.name = "Shop"
 	add_child(shop)
@@ -51,8 +56,9 @@ func _ready() -> void:
 	settings = SettingsPanel.new()
 	settings.name = "Settings"
 	add_child(settings)
-	hud.settings_pressed.connect(settings.open)
 	settings.tutorial_replay_requested.connect(_replay_tutorial)
+	rail.settings_requested.connect(settings.open)
+	rail.shop_requested.connect(func() -> void: shop.toggle())
 
 	objective = ObjectiveChip.new()
 	objective.name = "ObjectiveChip"
@@ -71,6 +77,11 @@ func _ready() -> void:
 	})
 	add_child(journal)
 	objective.journal_requested.connect(journal.open)
+	rail.journal_requested.connect(func() -> void: journal.open())
+	# The rail asks for the objective on its own slow tick instead of once per
+	# progression event: recomputing the recommendation on every credited box
+	# made a burst of purchases visibly stall the frame.
+	rail.set_objective_source(Callable(objective, "_objective"))
 	Progression.objective_pinned.connect(func(_id: StringName, _item: Dictionary) -> void: objective.refresh())
 	Progression.objective_progressed.connect(func(_id: StringName, _progress: float, _target: float) -> void:
 		objective.refresh()
@@ -89,7 +100,7 @@ func _ready() -> void:
 		"purchase_node": Callable(GameState, "buy_prestige_node"),
 	})
 	add_child(prestige_dialog)
-	hud.prestige_pressed.connect(prestige_dialog.open)
+	rail.prestige_requested.connect(prestige_dialog.open)
 
 	shop.open_changed.connect(_on_overlay_changed.bind("shop"))
 	settings.open_changed.connect(_on_overlay_changed.bind("settings"))
@@ -121,6 +132,9 @@ func _ready() -> void:
 		cam.focus_on(PortLayout.yard_bottom() - 120.0, 0.9))
 
 	world.berth.status_changed.connect(hud.set_berth_status)
+	world.berth.status_changed.connect(
+		func(status: Dictionary) -> void:
+			rail.set_berth_status(str(status.get("text", ""))))
 	world.berth.notice_requested.connect(
 		func(notice: Dictionary) -> void:
 			# Berth notices are refusals — full yard, invalid box, reverted
@@ -166,26 +180,39 @@ func _on_ship_phase(phase: int) -> void:
 		world.atmosphere.set_berth_active(world.ship.is_working())
 	match phase:
 		Ship.Phase.DISCHARGING:
-			hud.set_job_hint("Descarga: toque no navio")
+			_set_berth_hint("Descarga: toque no navio")
 		Ship.Phase.WAITING_EXPORT:
-			hud.set_job_hint("Aguardando exportação")
+			_set_berth_hint("Aguardando exportação")
 		Ship.Phase.LOADING:
 			var progress := world.ship.export_progress()
-			hud.set_job_hint("Embarque %d/%d: toque no navio"
+			_set_berth_hint("Embarque %d/%d: toque no navio"
 				% [progress.x, progress.y])
 		Ship.Phase.ARRIVING:
-			hud.set_job_hint("Navio se aproximando")
+			_set_berth_hint("Navio se aproximando")
 		Ship.Phase.DEPARTING:
-			hud.set_job_hint("Navio partindo")
+			_set_berth_hint("Navio partindo")
 		_:
-			hud.set_job_hint("Aguardando próximo navio")
+			_set_berth_hint("Aguardando próximo navio")
+
+
+func _set_berth_hint(text: String) -> void:
+	## Portrait reads it over the port, desktop reads it in the rail. One call
+	## site so the two can never drift apart.
+	hud.set_job_hint(text)
+	if rail != null:
+		rail.set_berth_status(text)
 
 
 func _apply_view_metrics(metrics: Dictionary) -> void:
 	world.apply_view_metrics(metrics)
 	cam.apply_view_metrics(metrics)
 	hud.apply_view_metrics(metrics)
+	rail.apply_view_metrics(metrics)
+	rail.set_yard_source(Callable(world.yard, "fill_ratio"))
+	shop.set_rail(rail)
 	shop.apply_view_metrics(metrics)
+	journal.set_rail(rail)
+
 	toasts.apply_view_metrics(metrics)
 	settings.apply_view_metrics(metrics)
 	if objective != null:
@@ -203,6 +230,11 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 
 func _on_overlay_changed(opened: bool, source: String) -> void:
 	_overlay_state[source] = opened
+	if rail != null:
+		# Anything that draws in the rail's place hides the rail's own keys,
+		# so they are never stacked underneath a board.
+		rail.set_overlay_open(bool(_overlay_state.shop)
+			or bool(_overlay_state.journal))
 	shell.set_world_input_blocked(
 		bool(_overlay_state.shop) or bool(_overlay_state.settings)
 			or bool(_overlay_state.journal) or bool(_overlay_state.prestige))
@@ -246,12 +278,14 @@ func _tutorial_target_rect(target: String) -> Rect2:
 				return Rect2(point - Vector2(20, 12), Vector2(100, 76))
 		"teu":
 			return hud.readout_rect() if hud != null else Rect2()
+		"rail":
+			return rail.content_rect if rail != null else Rect2()
 		"objective", "journal":
 			return objective._panel.get_global_rect() if objective != null else Rect2()
 		"shop":
-			return shop._launcher.get_global_rect() if shop != null else Rect2()
+			return shop.launcher_rect() if shop != null else Rect2()
 		"prestige":
-			return hud._prestige.get_global_rect() if hud != null else Rect2()
+			return shop.launcher_rect() if shop != null else Rect2()
 	return Rect2()
 
 

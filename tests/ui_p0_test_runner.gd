@@ -44,29 +44,33 @@ func _test_hud_fixed_tally_geometry() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	hud._on_teus(0.0)
-	hud._process(0.06)
-	var tally := hud._teus_label.get_parent() as HBoxContainer
+	# The tally is a shared Readout: the same control renders over the port in
+	# portrait and inside the command rail on a wide screen, so this contract
+	# is proved once for both.
+	var readout: Readout = hud._readout
+	readout._on_teus(0.0)
+	readout._process(0.06)
+	var tally := readout._teus_label.get_parent() as HBoxContainer
 	var icon := tally.get_child(0) as Control
 	var icon_before := icon.get_global_rect()
-	var slot_before := hud._teus_label.get_global_rect()
-	var rate_before := hud._rate_label.get_global_rect()
+	var slot_before := readout._teus_label.get_global_rect()
+	var rate_before := readout._rate_label.get_global_rect()
 
-	hud._on_teus(1e15)
-	hud._process(0.06)
+	readout._on_teus(1e15)
+	readout._process(0.06)
 	await get_tree().process_frame
-	_expect(hud._teus_label.text == GameState.fmt(1e15),
+	_expect(readout._teus_label.text == GameState.fmt(1e15),
 		"HUD renders the 1e15 tally through the normal formatter")
 	_expect(_same_rect(icon.get_global_rect(), icon_before),
 		"HUD tally icon does not move from 0 to 1e15")
 	# The digits are left-aligned with no panel around them, so the number's
 	# origin is invariant and only its unused right edge extends into air.
-	_expect(is_equal_approx(hud._teus_label.get_global_rect().position.x,
+	_expect(is_equal_approx(readout._teus_label.get_global_rect().position.x,
 			slot_before.position.x)
-		and is_equal_approx(hud._teus_label.get_global_rect().position.y,
+		and is_equal_approx(readout._teus_label.get_global_rect().position.y,
 			slot_before.position.y),
 		"HUD numeric slot keeps its origin from 0 to 1e15")
-	_expect(_same_rect(hud._rate_label.get_global_rect(), rate_before),
+	_expect(_same_rect(readout._rate_label.get_global_rect(), rate_before),
 		"HUD rate line with the TEU unit does not move from 0 to 1e15")
 
 	# set_job_hint is the public text-only berth update entry point. Its chip is
@@ -214,15 +218,21 @@ func _test_safe_area_reaches_primary_ui() -> void:
 	toasts.apply_view_metrics(metrics)
 	await get_tree().process_frame
 
-	var gear := hud.get_node(^"SettingsGear") as Button
+	# The keys live on the command rail now, in both profiles, so that is what
+	# has to respect the gesture-safe inset.
+	var rail := CommandRail.new()
+	viewport.add_child(rail)
+	await get_tree().process_frame
+	rail.apply_view_metrics(metrics)
+	await get_tree().process_frame
 	_expect(_rect_inside(safe, hud.readout_rect()),
-		"HUD plate stays inside an injected mobile safe area")
-	_expect(_rect_inside(safe, gear.get_global_rect()),
-		"HUD gear stays inside an injected mobile safe area")
-	_expect(_rect_inside(safe, shop._launcher.get_global_rect()),
-		"Shop launcher stays above the gesture-safe inset")
+		"HUD tally stays inside an injected mobile safe area")
+	_expect(_rect_inside(safe, rail._bar.get_global_rect()),
+		"the portrait key bar stays above the gesture-safe inset")
+	_expect(rail._bar.visible and not rail._board.visible,
+		"portrait shows the key bar, not the desktop board")
 
-	shop._launcher.emit_signal("pressed")
+	shop.toggle()
 	settings.open()
 	await get_tree().process_frame
 	_expect(_rect_inside(safe, shop._board.get_global_rect()),

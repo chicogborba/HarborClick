@@ -11,6 +11,7 @@ var _safe_rect := Rect2()
 var _panel: PanelContainer
 var _title: Label
 var _progress: Label
+var _desktop := false
 
 
 func setup(manager_or_callbacks: Variant, callbacks: Dictionary = {}) -> void:
@@ -61,6 +62,9 @@ func refresh() -> void:
 
 func apply_view_metrics(metrics: Dictionary) -> void:
 	_safe_rect = metrics.get("safe_rect", Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size))
+	# On a wide screen the command rail carries the objective; a second copy
+	# floating over the port would just be clutter beside it.
+	_desktop = str(metrics.get("profile", "")) == "desktop"
 	_layout()
 
 
@@ -99,8 +103,9 @@ func _layout() -> void:
 	var safe := _safe_rect
 	if safe.size == Vector2.ZERO:
 		safe = Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
+	_panel.visible = not _desktop
 	_panel.size = Vector2(minf(220.0, safe.size.x - 16.0), 34.0)
-	_panel.position = Vector2(safe.position.x + 8.0, safe.position.y + 70.0)
+	_panel.position = Vector2(safe.position.x + 8.0, safe.position.y + 72.0)
 
 
 func _fmt(value: float) -> String:

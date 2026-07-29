@@ -27,6 +27,7 @@ var _clip: TextureRect
 var _list: VBoxContainer
 var _tab_buttons: Dictionary = {}
 var _focus_return: Control
+var _rail: CommandRail
 
 
 func setup(manager_or_callbacks: Variant, callbacks: Dictionary = {}) -> void:
@@ -77,6 +78,9 @@ func _ready() -> void:
 	for tab: Array in TABS:
 		var button := Button.new()
 		button.text = str(tab[1])
+		# Without this the three labels set a 314px floor on the board, which is
+		# wider than the command rail it now lives in.
+		button.clip_text = true
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		UiTheme.apply_font(button, UiTheme.SIZE_SMALL)
 		UiTheme.style_tab(button, tab[0] == _active_tab)
@@ -126,6 +130,10 @@ func is_open() -> bool:
 
 func refresh() -> void:
 	_refresh()
+
+
+func set_rail(rail: CommandRail) -> void:
+	_rail = rail
 
 
 func apply_view_metrics(metrics: Dictionary) -> void:
@@ -202,7 +210,9 @@ func _progress_bar(progress: float, target: float) -> ProgressBar:
 	bar.add_theme_stylebox_override(&"background", styles[0])
 	bar.add_theme_stylebox_override(&"fill", styles[1])
 	bar.show_percentage = false
-	bar.custom_minimum_size.y = 5.0
+	# Tall enough to read as a bar. At 5px it looked like an underline under
+	# the title rather than a measure of anything.
+	bar.custom_minimum_size.y = 9.0
 	bar.max_value = maxf(target, 1.0)
 	bar.value = clampf(progress, 0.0, bar.max_value)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -241,9 +251,12 @@ func _make_card(objective: Dictionary) -> PanelContainer:
 	var target := float(objective.get("target", 0.0))
 	if not done:
 		text.add_child(_progress_bar(progress, target))
-	text.add_child(UiTheme.label("%s / %s  -  %s" % [GameState.fmt(progress),
+	var detail := UiTheme.label("%s / %s  -  %s" % [GameState.fmt(progress),
 		GameState.fmt(target), _reward_text(objective.get("reward", {}))],
-		UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP if done else UiTheme.INK_SOFT))
+		UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP if done else UiTheme.INK_SOFT)
+	detail.clip_text = true
+	detail.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	text.add_child(detail)
 
 	if not done:
 		var pin := UiTheme.icon_button(UiTheme.Icon.STAR,
@@ -276,8 +289,12 @@ func _make_contract_card(contract: Dictionary) -> PanelContainer:
 	text.add_theme_constant_override(&"separation", 2)
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(text)
-	text.add_child(UiTheme.label("CONTRATO: " + str(contract.get("title", "Turno")),
-		UiTheme.SIZE_SMALL, UiTheme.INK))
+	var contract_title := UiTheme.label(
+		"CONTRATO: " + str(contract.get("title", "Turno")),
+		UiTheme.SIZE_SMALL, UiTheme.INK)
+	contract_title.clip_text = true
+	contract_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	text.add_child(contract_title)
 
 	var active := StringName(contract.get("status", &"offered")) == &"active"
 	var progress := float(contract.get("progress", 0.0))
@@ -292,7 +309,9 @@ func _make_contract_card(contract: Dictionary) -> PanelContainer:
 		var duration := float(contract.get("active_duration", 0.0))
 		var remaining_seconds := int(maxf(0.0, duration - elapsed))
 		detail += "  -  %d:%02d" % [int(remaining_seconds / 60.0), remaining_seconds % 60]
-	text.add_child(UiTheme.label(detail, UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP))
+	var detail_label := UiTheme.label(detail, UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP)
+	detail_label.clip_text = true
+	text.add_child(detail_label)
 
 	var action := UiTheme.button("ATIVO" if active else "ACEITAR",
 		&"off" if active else &"amber", UiTheme.SIZE_SMALL)
@@ -350,8 +369,15 @@ func _layout() -> void:
 	var safe := _safe_rect if _safe_rect.size != Vector2.ZERO else Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
 	var desktop := _profile == "desktop" or (_profile.is_empty() and safe.size.x >= 700.0)
 	if desktop:
-		_sheet.size = Vector2(clampf(safe.size.x * 0.34, 280.0, 390.0), safe.size.y - 16.0)
-		_sheet.position = Vector2(safe.end.x - _sheet.size.x - 8.0, safe.position.y + 8.0)
+		# Same slot as the shop: the rail is the one place commands live.
+		var slot := _rail.content_rect if _rail != null \
+			and _rail.content_rect.size != Vector2.ZERO else Rect2()
+		if slot.size == Vector2.ZERO:
+			var width := clampf(safe.size.x * 0.34, 280.0, 390.0)
+			slot = Rect2(Vector2(safe.end.x - width - 8.0, safe.position.y + 8.0),
+				Vector2(width, safe.size.y - 16.0))
+		_sheet.size = slot.size
+		_sheet.position = slot.position
 	else:
 		_sheet.size = Vector2(safe.size.x - 12.0, maxf(220.0, safe.size.y - 24.0))
 		_sheet.position = Vector2(safe.position.x + 6.0, safe.end.y - _sheet.size.y - 6.0)

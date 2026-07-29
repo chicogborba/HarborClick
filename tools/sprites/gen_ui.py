@@ -312,15 +312,28 @@ def gen_bar():
 
 
 def gen_scroll():
-    bg = new_img(6, 6)
-    rect(bg, 0, 0, 6, 6, PAPER_D)
-    rect(bg, 1, 1, 4, 4, (216, 200, 172, 255))
+    """8x8 nine-patches, margin 3: a sunk trough and a rounded wooden grip.
+
+    The first version was a flat wood slab running the full height of the
+    list, which read as a broken strip sitting on top of the cards rather than
+    as something you could drag.
+    """
+    bg = new_img(8, 8)
+    rect(bg, 0, 0, 8, 8, (0, 0, 0, 0))
+    rect(bg, 2, 0, 4, 8, (176, 158, 130, 255))
+    vline(bg, 2, 0, 8, (150, 132, 108, 255))
+    vline(bg, 5, 0, 8, PAPER_D)
     save(bg, "ui_scroll_bg")
 
-    grab = new_img(6, 6)
-    rect(grab, 0, 0, 6, 6, WOOD_D)
-    rect(grab, 1, 1, 4, 4, WOOD_L)
-    hline(grab, 1, 1, 4, WOOD_XL)
+    grab = new_img(8, 8)
+    rect(grab, 0, 0, 8, 8, (0, 0, 0, 0))
+    rect(grab, 1, 0, 6, 8, WOOD_D)
+    rect(grab, 2, 1, 4, 6, WOOD)
+    vline(grab, 2, 1, 6, WOOD_L)
+    hline(grab, 2, 1, 4, WOOD_L)
+    # clipped ends so the grip reads as a rounded grip, not a bar
+    for cx, cy in ((1, 0), (6, 0), (1, 7), (6, 7)):
+        px(grab, cx, cy, (0, 0, 0, 0))
     save(grab, "ui_scroll_grab")
 
 

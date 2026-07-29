@@ -111,9 +111,9 @@ scripts/
   world/       port_layout, port_world, ship, água/espuma por qualidade,
                container_yard, structure_*, ground_baker, atmosphere,
                skyscape, critters, port_camera
-  ui/          ui_theme, port_icon, hud, shop, shop_card, tutorial, Diário,
-               capital, notification_coordinator, toast_layer, settings_panel,
-               offline_popup
+  ui/          ui_theme, port_icon, readout, command_rail, hud, shop,
+               shop_card, tutorial, Diário, capital, notification_coordinator,
+               toast_layer, settings_panel, offline_popup
 tools/
   venv/        Python + Pillow
   sprites/     geradores de pixel art, fonte e UI
@@ -524,15 +524,18 @@ O que segue é o que **falta**, reordenado depois do playtest de 30/07/2026.
 
 O desktop é o pior estado do jogo hoje: um terço da tela é cinza vazio.
 
-- [ ] Criar `CommandRail`: uma prancheta fixa na lateral direita em paisagem,
-      com o contador, o objetivo fixado e as teclas (LOJA, DIÁRIO, AJUSTES,
-      CAPITAL). Nada de botão solto sobre o vazio.
-- [ ] Em retrato, as mesmas teclas viram uma barra inferior no mesmo material.
-- [ ] A loja abre **dentro** do rail no desktop, não como gaveta que cobre.
-- [ ] Reservar a largura da barra de rolagem em vez de desenhá-la por cima do
-      conteúdo, em toda lista.
-- [ ] Corrigir a sobreposição entre a taxa do contador e o chip do berço.
-- [ ] Barra de progresso do Diário com altura de barra, não de sublinhado.
+- [x] Criar `CommandRail`: prancheta fixa na lateral direita em paisagem, com
+      contador, chip do berço, objetivo fixado, teclas e um resumo (dia,
+      escalas, ocupação do pátio) preenchendo o pé do quadro.
+- [x] Em retrato, as mesmas teclas viram uma barra inferior no mesmo material.
+- [x] A loja e o Diário abrem **dentro** do rail no desktop, no mesmo
+      retângulo, então parece o rail virando página e não uma gaveta chegando
+      de fora.
+- [x] Reservar a largura da barra de rolagem (`SCROLL_MODE_RESERVE`) em vez de
+      desenhá-la por cima do conteúdo, e trocar a tábua de madeira chapada por
+      calha funda com pega arredondada.
+- [x] Corrigir a sobreposição entre a taxa do contador e o chip do berço.
+- [x] Barra de progresso do Diário com altura de barra, não de sublinhado.
 
 Aceite: em 1280×720 e 1920×1080 não sobra nenhuma área sem função; nenhuma
 lista desenha a barra de rolagem sobre um card; a matriz de captura continua

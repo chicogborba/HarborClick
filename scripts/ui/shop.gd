@@ -52,6 +52,7 @@ var _safe_rect := Rect2()
 var _profile := ""
 var _buy_mode: StringName = &"x1"
 var _focus_return: Control
+var _rail: CommandRail
 
 
 func _ready() -> void:
@@ -370,9 +371,14 @@ func _layout() -> void:
 	_desktop = _profile == "desktop" if not _profile.is_empty() \
 		else view.x >= 700.0 and view.x / maxf(view.y, 1.0) >= 1.25
 	if _desktop:
-		var width := clampf(safe.size.x * 0.30, DESKTOP_WIDTH.x, DESKTOP_WIDTH.y)
-		_board.size = Vector2(width, safe.size.y - 16.0)
-		_board.position = Vector2(safe.end.x - width - 8.0, safe.position.y + 8.0)
+		var slot := _rail.content_rect if _rail != null \
+			and _rail.content_rect.size != Vector2.ZERO else Rect2()
+		if slot.size == Vector2.ZERO:
+			var width := clampf(safe.size.x * 0.30, DESKTOP_WIDTH.x, DESKTOP_WIDTH.y)
+			slot = Rect2(Vector2(safe.end.x - width - 8.0, safe.position.y + 8.0),
+				Vector2(width, safe.size.y - 16.0))
+		_board.size = slot.size
+		_board.position = slot.position
 	else:
 		var height := minf(safe.size.y * 0.70, 430.0)
 		_board.size = Vector2(safe.size.x - 12.0, height)
@@ -391,7 +397,9 @@ func _layout() -> void:
 	_backdrop.visible = _open and not _desktop
 	_board.visible = _open
 	UiTheme.place_clip(_clip, _board, safe)
-	_launcher.visible = not _open
+	# The rail owns the LOJA key in both profiles; the standalone launcher is
+	# only a fallback for a shop hosted without one (previews and tests).
+	_launcher.visible = not _open and _rail == null
 	if _desktop:
 		_launcher.size = Vector2(154.0, 40.0)
 		_launcher.position = Vector2(safe.end.x - 162.0, safe.end.y - 48.0)
@@ -400,6 +408,27 @@ func _layout() -> void:
 		_launcher.position = Vector2(
 			safe.position.x + (safe.size.x - _launcher.size.x) * 0.5,
 			safe.end.y - 46.0)
+
+
+func set_rail(rail: CommandRail) -> void:
+	## On a wide screen the board draws exactly where the rail is, so opening
+	## the shop reads as the rail turning a page rather than a drawer arriving
+	## from off screen — and the LOJA key belongs to the rail, not to a button
+	## floating on the grey.
+	_rail = rail
+
+
+func toggle() -> void:
+	if _open:
+		_close()
+	else:
+		_on_tab(_active)
+
+
+func launcher_rect() -> Rect2:
+	if _rail != null and _rail.content_rect.size != Vector2.ZERO:
+		return _rail.content_rect
+	return _launcher.get_global_rect()
 
 
 func apply_view_metrics(metrics: Dictionary) -> void:

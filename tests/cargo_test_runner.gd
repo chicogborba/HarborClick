@@ -115,8 +115,11 @@ func _test_capacity_and_hud_format() -> void:
 	var hud := Hud.new()
 	add_child(hud)
 	await get_tree().process_frame
-	_expect(hud.get_node_or_null(^"SettingsGear") != null,
-		"HUD initializes all controls before berth-slot validation")
+	# The keys moved to the command rail; what the HUD still owns is the tally
+	# and the berth chip, so that is what has to exist before the berth is
+	# allowed to report into it.
+	_expect(hud.readout_rect().size != Vector2.ZERO and hud._berth_chip != null,
+		"HUD initializes its readout before berth-slot validation")
 	_last_status = {}
 	var on_status := func(status: Dictionary) -> void:
 		_last_status = status.duplicate(true)
