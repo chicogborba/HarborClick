@@ -58,7 +58,9 @@ func _present(notice: Dictionary) -> void:
 	if _active != null and is_instance_valid(_active):
 		_active.queue_free()
 
-	var panel := UiTheme.panel(UiTheme.slate_style(true, 5))
+	# Deliberately small: it is an interruption, and the previous one covered a
+	# third of the port for three seconds at a time.
+	var panel := UiTheme.panel(UiTheme.slate_style(true, 3))
 	panel.modulate.a = 0.0
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 5)
@@ -70,7 +72,7 @@ func _present(notice: Dictionary) -> void:
 	var label := UiTheme.label(text if count <= 1 else "%s  x%d" % [text, count],
 		UiTheme.SIZE_SMALL, UiTheme.SLATE_TEXT)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.custom_minimum_size.x = maxf(80.0, _stack.custom_minimum_size.x - 40.0)
+	label.custom_minimum_size.x = maxf(70.0, _stack.custom_minimum_size.x - 34.0)
 	row.add_child(label)
 	_stack.add_child(panel)
 	_active = panel
@@ -99,12 +101,13 @@ func _finish(panel: Variant) -> void:
 func _layout() -> void:
 	var view := get_viewport().get_visible_rect().size
 	var safe := _resolved_safe_rect(view)
-	var width := minf(300.0, maxf(120.0, safe.size.x - 20.0))
+	var width := minf(224.0, maxf(120.0, safe.size.x - 40.0))
 	# Below the readout and the objective chip, so a notice never buries the
 	# two things that are always true.
+	# Under the readout, not over the middle of the quay.
 	_stack.position = Vector2(
 		safe.position.x + (safe.size.x - width) * 0.5,
-		safe.position.y + 112.0)
+		safe.position.y + 76.0)
 	_stack.custom_minimum_size.x = width
 
 

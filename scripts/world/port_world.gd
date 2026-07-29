@@ -24,6 +24,7 @@ var _water: ColorRect
 var _water_foam: WaterFoam
 var _water_quality: WaterQuality.Level = WaterQuality.Level.MEDIUM
 var _decals: Node2D
+var _marks: Node2D
 var _props: Node2D
 var _pressed := false
 var _drag_accum := 0.0
@@ -42,6 +43,14 @@ func _ready() -> void:
 	_decals.z_index = -7
 	_decals.z_as_relative = false
 	add_child(_decals)
+	# Channel marks stand off the starboard side of the fairway and draw *over*
+	# the hull, so a ship passes behind them the way it passes a real mark.
+	# Underneath, they were simply run over.
+	_marks = Node2D.new()
+	_marks.name = "ChannelMarks"
+	_marks.z_index = 9
+	_marks.z_as_relative = false
+	add_child(_marks)
 	_props = Node2D.new()
 	_props.name = "Props"
 	_props.z_index = -1
@@ -155,6 +164,9 @@ func _spawn_ship() -> void:
 func _rebuild_decals() -> void:
 	for child in _decals.get_children():
 		child.queue_free()
+	for child in _marks.get_children():
+		child.queue_free()
+	_build_channel_marks()
 	for child in _props.get_children():
 		child.queue_free()
 	var rng := RandomNumberGenerator.new()
@@ -170,25 +182,6 @@ func _rebuild_decals() -> void:
 		_decals.add_child(b)
 		y += 46.0
 
-	# channel marks in the open water south of the berth, on the line the ship
-	# comes down. They stay clear of the hull's footprint so the berth stays
-	# the most legible thing on the water.
-	var buoy_sheet: Texture2D = preload("res://assets/sprites/prop_buoy.png")
-	var channel_top := PortLayout.SHIP_Y + PortLayout.SHIP_H + 34.0
-	var channel_x := PortLayout.WATER_X0 + 46.0
-	var buoy_y := channel_top
-	var buoy_index := 0
-	while buoy_y < PortLayout.world_bottom() + 60.0:
-		var buoy := Sprite2D.new()
-		var frame := AtlasTexture.new()
-		frame.atlas = buoy_sheet
-		frame.region = Rect2((buoy_index % 2) * 12, 0, 12, 14)
-		buoy.texture = frame
-		buoy.centered = true
-		buoy.position = Vector2(channel_x + rng.randf_range(-6.0, 6.0), buoy_y)
-		_decals.add_child(buoy)
-		buoy_y += 96.0
-		buoy_index += 1
 
 	# puddles and oil marks on the pavement
 	for i in 18:
@@ -220,6 +213,26 @@ func _rebuild_decals() -> void:
 		c.position = Vector2(rng.randf_range(PortLayout.GATE_ROAD_X, PortLayout.QUAY_X1 - 16.0),
 			rng.randf_range(PortLayout.YARD_Y0, PortLayout.world_bottom() - 70.0))
 		_props.add_child(c)
+
+
+func _build_channel_marks() -> void:
+	## A line of port-hand marks down the edge of the fairway, from the open
+	## water south of the berth to the exit past the top of the quay.
+	var sheet: Texture2D = preload("res://assets/sprites/prop_buoy.png")
+	var lane_x := PortLayout.WORLD_W - 9.0
+	var y := PortLayout.TOP_MARGIN - 10.0
+	var index := 0
+	while y < PortLayout.world_bottom() + 60.0:
+		var buoy := Sprite2D.new()
+		var frame := AtlasTexture.new()
+		frame.atlas = sheet
+		frame.region = Rect2((index % 2) * 12, 0, 12, 14)
+		buoy.texture = frame
+		buoy.centered = true
+		buoy.position = Vector2(lane_x, y)
+		_marks.add_child(buoy)
+		y += 104.0
+		index += 1
 
 
 # ---------- land ----------
@@ -313,6 +326,8 @@ func _try_tap(world_pos: Vector2) -> void:
 			AudioManager.play_sfx("click", 0.12)
 	elif critters != null and critters.tap_cat(world_pos):
 		AudioManager.play_sfx("meow", 0.10)
+	elif atmosphere != null and atmosphere.tap_lamp(world_pos):
+		pass
 
 
 # ---------- cargo flow ----------

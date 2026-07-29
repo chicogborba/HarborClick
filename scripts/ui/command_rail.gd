@@ -201,27 +201,44 @@ func _build_bar() -> void:
 	_bar_keys = HBoxContainer.new()
 	_bar_keys.add_theme_constant_override(&"separation", 4)
 	_bar.add_child(_bar_keys)
+	# Three keys of equal weight. The old bar gave two of them a full-width
+	# slab and squeezed the third into a 44px square with a 12px glyph in it,
+	# which is the "settings icon is rubbish" from the playtest.
 	for spec in [["LOJA", UiTheme.Icon.CRANE, &"amber", "Abrir a loja do terminal", shop_requested],
 			["DIÁRIO", UiTheme.Icon.TROPHY, &"ghost", "Abrir o Diário do Porto", journal_requested],
-			["", UiTheme.Icon.GEAR, &"ghost", "Abrir os ajustes", settings_requested]]:
+			["AJUSTES", UiTheme.Icon.GEAR, &"ghost", "Abrir os ajustes", settings_requested]]:
 		var key := _make_key(str(spec[0]), spec[1], spec[2], str(spec[3]), spec[4])
-		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL if not str(spec[0]).is_empty() \
-			else Control.SIZE_SHRINK_END
-		key.custom_minimum_size = Vector2(
-			0.0 if not str(spec[0]).is_empty() else 44.0, 40.0)
+		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		key.custom_minimum_size = Vector2(0.0, 34.0)
 		_bar_keys.add_child(key)
 
 
 func _make_key(text: String, icon: UiTheme.Icon, kind: StringName,
 		control_name: String, target: Signal) -> Button:
-	var key := UiTheme.button(text, kind, UiTheme.SIZE_SMALL)
-	key.icon = UiTheme.icon_texture(icon)
+	## Button draws its icon hard against the left edge and only centres the
+	## text, which left a hand-sized hole between the two on a wide key. The
+	## glyph and the word are laid out as one group instead, centred together.
+	var key := UiTheme.button("", kind, UiTheme.SIZE_SMALL)
 	key.custom_minimum_size.y = 34.0
-	key.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UiTheme.describe(key, control_name)
 	key.pressed.connect(func() -> void:
 		AudioManager.play_sfx("tap")
 		target.emit())
+
+	var group := HBoxContainer.new()
+	group.add_theme_constant_override(&"separation", 5)
+	group.alignment = BoxContainer.ALIGNMENT_CENTER
+	group.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	group.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	key.add_child(group)
+	var glyph := UiTheme.icon(icon)
+	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	group.add_child(glyph)
+	if not text.is_empty():
+		var label := UiTheme.label(text, UiTheme.SIZE_SMALL,
+			UiTheme.INK if kind != &"alt" and kind != &"danger" else UiTheme.CREAM)
+		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		group.add_child(label)
 	return key
 
 
@@ -336,7 +353,7 @@ func _layout() -> void:
 		# turning a page instead of a panel arriving from off screen.
 		content_rect = Rect2(_board.position, _board.size)
 	else:
-		var height := 52.0
+		var height := 46.0
 		_bar.size = Vector2(safe.size.x - 12.0, height)
 		_bar.position = Vector2(safe.position.x + 6.0,
 			safe.end.y - height - 6.0)

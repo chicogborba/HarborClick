@@ -103,7 +103,10 @@ func _layout() -> void:
 	var safe := _safe_rect
 	if safe.size == Vector2.ZERO:
 		safe = Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
-	_panel.visible = not _desktop
+	# Nothing permanent floats over the port any more. The rail carries the
+	# objective on a wide screen; in portrait the DIÁRIO key is right there and
+	# a banner sitting on the quay all session was covering the game.
+	_panel.visible = false
 	_panel.size = Vector2(minf(220.0, safe.size.x - 16.0), 34.0)
 	_panel.position = Vector2(safe.position.x + 8.0, safe.position.y + 72.0)
 

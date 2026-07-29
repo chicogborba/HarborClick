@@ -172,10 +172,12 @@ func _load(pos: Vector2) -> bool:
 		yard.restore_taken(candidate)
 		return false
 	var unit: CargoUnit = candidate.unit
-	if unit.sector != CargoUnit.EXPORT or ship.import_manifest_uids().has(unit.uid):
+	# The only box that may not go out is one this same hull just landed.
+	# Anything else in the yard is fair cargo — that is what transhipment is.
+	if ship.import_manifest_uids().has(unit.uid):
 		ship.release_bay(bay)
 		yard.restore_taken(candidate)
-		_notice("invalid_export", "Contêiner de exportação inválido.")
+		_notice("invalid_export", "Esse contêiner acabou de sair deste navio.")
 		return false
 	var transfer := CargoTransfer.new(unit,
 		func(u: CargoUnit) -> bool:

@@ -245,9 +245,15 @@ func arrive() -> void:
 		set_manifest(generated, generated.size())
 	_set_phase(Phase.ARRIVING)
 	visible = true
-	position = Vector2(PortLayout.SHIP_X, -PortLayout.SHIP_H - 20.0)
+	# The hull is drawn bow-up, so a ship can only travel north bow-first. The
+	# channel therefore runs south to north past the quay: in from the open
+	# water below, out past the top. It used to be tweened downward at both
+	# ends, which is a ship reversing into its berth and then reversing out to
+	# sea.
+	position = Vector2(PortLayout.SHIP_X,
+		PortLayout.world_bottom() + PortLayout.SHIP_H * 0.5)
 	var tween := create_tween()
-	tween.tween_property(self, "position:y", PortLayout.SHIP_Y, 4.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, "position:y", PortLayout.SHIP_Y, 5.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tween.tween_callback(func() -> void:
 		_set_phase(Phase.DISCHARGING)
 		EventBus.ship_arrived.emit()
@@ -258,7 +264,7 @@ func depart() -> void:
 	AudioManager.play_sfx("horn", 0.04, -6.0)
 	var tween := create_tween()
 	tween.tween_interval(0.9)
-	tween.tween_property(self, "position:y", PortLayout.world_bottom() + 80.0, 5.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tween.tween_property(self, "position:y", -PortLayout.SHIP_H - 40.0, 5.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tween.tween_callback(func() -> void: visible = false; _set_phase(Phase.AWAY); departed.emit())
 
 func snapshot() -> Dictionary:

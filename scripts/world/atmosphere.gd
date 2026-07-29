@@ -75,6 +75,33 @@ func rebuild_lamps() -> void:
 		y += 150.0
 
 
+func tap_lamp(world_pos: Vector2) -> bool:
+	## Tapping a mast forces it on or off. The override is deliberately not
+	## permanent: it is cleared the next time the natural curve agrees with it,
+	## so the yard always drifts back to lighting up at dusk on its own instead
+	## of leaving the player with a checklist of lamps to reset.
+	for lamp: Dictionary in _lamps:
+		var root: Node2D = lamp.root
+		if root == null or not is_instance_valid(root):
+			continue
+		if not Rect2(root.position - Vector2(6, 6), Vector2(24, 30)).has_point(world_pos):
+			continue
+		var natural_on := _lamp_natural_target() > 0.5
+		lamp["override"] = -1 if (lamp.lit.modulate.a > 0.5) else 1
+		if (lamp.override > 0) == natural_on:
+			lamp["override"] = 0
+		AudioManager.play_sfx("tap", 0.08)
+		return true
+	return false
+
+
+func _lamp_natural_target() -> float:
+	var target := clampf(_night_factor(TimeManager.time_of_day) * 1.25, 0.0, 1.0)
+	if _fog_amount > 0.0:
+		target = maxf(target, _fog_amount * 0.5)
+	return target
+
+
 func set_berth_active(active: bool) -> void:
 	## A working berth is lit whatever the clock says — that is what a real
 	## terminal does, and it makes the one place the player should be tapping
@@ -107,7 +134,7 @@ func _add_lamp(pos: Vector2, quay: bool) -> void:
 	root.add_child(light)
 
 	_lamps.append({"lit": lit, "light": light, "phase": randf() * 10.0,
-		"quay": quay})
+		"quay": quay, "root": root, "override": 0})
 
 
 func _build_fog() -> void:
@@ -150,6 +177,13 @@ func _process(delta: float) -> void:
 		var lamp_target := target
 		if bool(lamp.quay) and _berth_active:
 			lamp_target = maxf(lamp_target, BERTH_WORK_ENERGY)
+		var override := int(lamp.override)
+		if override != 0:
+			# The moment the clock agrees with the switch, the switch is spent.
+			if (override > 0) == (lamp_target > 0.5):
+				lamp["override"] = 0
+			else:
+				lamp_target = 1.0 if override > 0 else 0.0
 		var flicker := 1.0
 		if lamp_target > 0.05 and lit.modulate.a < 0.85:
 			flicker = 0.4 + 0.6 * absf(sin(lamp.phase + Time.get_ticks_msec() * 0.02))

@@ -154,7 +154,16 @@ func take_import(preferred_slot: int = -1) -> Dictionary:
 
 
 func take_exportable(import_uids: PackedStringArray = PackedStringArray()) -> Dictionary:
-	return _take_top(-1, CargoUnit.EXPORT, import_uids)
+	## Anything standing in the yard can be shipped out, except the boxes this
+	## same call just landed.
+	##
+	## Sectors used to gate this, so a box that arrived by sea was stuck in the
+	## import area forever and the export area could run dry while the yard was
+	## full — the berth would then sit waiting for cargo that was ten metres
+	## away. A real terminal tranships: what came in on one hull leaves on the
+	## next. The sectors survive as a landing preference, which is what they
+	## were actually good for.
+	return _take_top(-1, &"", import_uids)
 
 
 func _take_top(preferred_slot: int, required_sector: StringName, import_uids: PackedStringArray) -> Dictionary:

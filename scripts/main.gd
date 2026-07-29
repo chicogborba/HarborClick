@@ -92,9 +92,15 @@ func _ready() -> void:
 	Progression.objective_progressed.connect(func(_id: StringName, _progress: float, _target: float) -> void:
 		objective.refresh()
 		journal.refresh())
-	Progression.achievement_unlocked.connect(func(_id: StringName, _item: Dictionary) -> void:
+	Progression.achievement_unlocked.connect(func(id: StringName, item: Dictionary) -> void:
 		objective.refresh()
-		journal.refresh())
+		journal.refresh()
+		# Nothing sits over the port permanently any more, so this is the one
+		# moment that earns a banner: a goal actually completed.
+		EventBus.notification_requested.emit({
+			"id": "achievement_%s" % id, "kind": &"milestone", "priority": 2,
+			"text": "Conquista: %s" % str(item.get("title", "meta cumprida")),
+		}))
 	Progression.contract_updated.connect(func(_contract: Dictionary) -> void: journal.refresh())
 	Progression.contract_finished.connect(func(_contract: Dictionary, _completed: bool) -> void: journal.refresh())
 
