@@ -377,7 +377,7 @@ func _try_take_job() -> void:
 	if _world == null:
 		_cooldown = 1.0
 		return
-	var entry := Vector2(PortLayout.ROAD_IN_X, PortLayout.TOP_MARGIN - 24.0)
+	var entry := PortLayout.gate_entry()
 	# Check the shared gate before request_job reserves an EXPORT landing.
 	if _world.traffic != null and not _world.traffic.gate_clear(self, entry):
 		_cooldown = 0.4
@@ -460,11 +460,17 @@ func _face(dir: Vector2, delta: float = 0.0) -> void:
 	## The target heading is still one of four, because the sprites only have
 	## four sides. Turning *into* it takes time, though — snapping through 90
 	## degrees in one frame is why the yard looked like sliding boxes.
+	##
+	## Every vehicle here is drawn nose-up — the tractor's windscreen, the
+	## forklift's forks and the stacker's boom are all at the top of their
+	## sprite — so north is rotation zero. The vertical case used to be the
+	## other way round, which drove the whole fleet up and down the yard in
+	## reverse.
 	var wanted: float
 	if absf(dir.x) > absf(dir.y):
 		wanted = PI / 2.0 if dir.x > 0.0 else -PI / 2.0
 	else:
-		wanted = 0.0 if dir.y > 0.0 else PI
+		wanted = PI if dir.y > 0.0 else 0.0
 	if delta <= 0.0:
 		_facing = wanted
 	else:
@@ -487,7 +493,7 @@ func _on_waypoints_done() -> void:
 			if _world != null:
 				_world.spawn_dust(position + Vector2(-6, 4))
 		Job.TO_ROAD:
-			_waypoints = [Vector2(PortLayout.ROAD_OUT_X, PortLayout.TOP_MARGIN - 30.0)]
+			_waypoints = [PortLayout.gate_exit()]
 			_job = Job.LEAVING
 		Job.LEAVING:
 			_end_job()
@@ -594,7 +600,8 @@ func _patrol_water(delta: float) -> void:
 		_dir = 1.0
 	elif position.y > PortLayout.world_bottom() - 50.0:
 		_dir = -1.0
-	_sprite.rotation = 0.0 if _dir > 0.0 else PI
+	# Bow first: the tug's hull tapers to the top of its sprite.
+	_sprite.rotation = PI if _dir > 0.0 else 0.0
 	position.x = _lane_x + sin(_t * 0.6 + _phase) * 3.0
 
 

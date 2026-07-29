@@ -51,28 +51,12 @@ func rebuild_lamps() -> void:
 	for child in _lamps_root.get_children():
 		child.queue_free()
 	_lamps.clear()
-	## Masts only ever stand on paved gaps — never on top of a stacking block.
-	var spots: Array[Vector2] = []
-	# along the service road at the gate side
-	var y := PortLayout.YARD_Y0 - 10.0
-	while y < PortLayout.world_bottom() - 40.0:
-		spots.append(Vector2(PortLayout.GATE_ROAD_X - 4.0, y))
-		y += 150.0
-	# in the runways between block columns, staggered down the yard
-	var runways := PortLayout.runway_xs()
-	for row in PortLayout.block_rows():
-		var lane_y: float = PortLayout.YARD_Y0 \
-			+ row * (PortLayout.BLOCK_H + PortLayout.BLOCK_GAP_Y) \
-			+ PortLayout.BLOCK_H + 3.0
-		var rx: float = runways[row % runways.size()]
-		spots.append(Vector2(rx - 5.0, lane_y))
-	for spot in spots:
-		_add_lamp(spot, false)
-	# on the quay, clear of the crane rails
-	y = PortLayout.TOP_MARGIN + 40.0
-	while y < PortLayout.world_bottom() - 20.0:
-		_add_lamp(Vector2(PortLayout.QUAY_X0 - 12.0, y), true)
-		y += 150.0
+	## Where the masts stand is geometry, so `PortLayout` decides it. The old
+	## version walked down the yard on a 150px stride that agreed with nothing
+	## and picked a runway per row by modulo, which put masts in the middle of
+	## the road and left the pattern looking like spilt change.
+	for spot: Dictionary in PortLayout.lamp_spots():
+		_add_lamp(spot.pos, bool(spot.quay))
 
 
 func tap_lamp(world_pos: Vector2) -> bool:

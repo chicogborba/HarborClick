@@ -198,8 +198,7 @@ func _test_full_yard_preserves_ship_and_reward() -> void:
 func _test_traffic_denial_and_actor_teardown_release_delivery() -> void:
 	_world.yard.restore({"version": 2, "slots": []})
 	_world.traffic.clear()
-	var entry := Vector2(
-		PortLayout.ROAD_IN_X, PortLayout.TOP_MARGIN - 24.0)
+	var entry := PortLayout.gate_entry()
 	var blocker := Node2D.new()
 	blocker.position = entry
 	_world.entities.add_child(blocker)

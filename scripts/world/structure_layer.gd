@@ -93,8 +93,7 @@ func _place(actor: StructureActor, id: String, index: int) -> void:
 				PortLayout.BLOCK_X0 + (index * 47) % 120, lane + 3.0)
 		"tt", "empilhadeira", "reach_stacker":
 			# haulers park off-site; their route is decided per job
-			actor.position = Vector2(PortLayout.GATE_ROAD_X,
-				PortLayout.TOP_MARGIN - 30.0)
+			actor.position = PortLayout.gate_entry()
 		"trem":
 			actor.position = Vector2(-200.0, PortLayout.rail_y())
 		"drone":

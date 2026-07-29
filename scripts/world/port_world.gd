@@ -7,6 +7,10 @@ extends Node2D
 ## genuinely flies above the terminal (gantry booms, drones, boxes in transit)
 ## lives in `Overhead` instead.
 
+## The gate barrier, across the road and swung back alongside it.
+const ARM_CLOSED := PI
+const ARM_OPEN := PI * 1.5
+
 var ship: Ship
 var yard: ContainerYard
 var structures: StructureLayer
@@ -17,6 +21,8 @@ var berth: BerthCallController
 var gate: GateDock
 var traffic: TrafficCoordinator
 var _gate_view: Node2D
+var _gate_trucks: Dictionary = {}     # bay index -> RoadTruck
+var _gate_arm: Sprite2D
 
 var entities: Node2D          # y-sorted ground level
 var overhead: Node2D          # gantries, drones, boxes in flight
@@ -81,6 +87,7 @@ func _ready() -> void:
 	add_child(structures)
 
 	_spawn_ship()
+	_build_gate()
 	_rebuild_decals()
 	structures.rebuild()
 
@@ -163,7 +170,7 @@ func _spawn_ship() -> void:
 		&"traffic_cargo", _traffic_snapshot, _traffic_restore, _traffic_seed)
 	gate = GateDock.new()
 	gate.setup(self, yard)
-	gate.changed.connect(_rebuild_gate_view)
+	gate.changed.connect(_sync_gate_view)
 	gate.notice_requested.connect(
 		func(notice: Dictionary) -> void:
 			EventBus.notification_requested.emit({
@@ -225,7 +232,9 @@ func _rebuild_decals() -> void:
 		var c := Sprite2D.new()
 		c.texture = preload("res://assets/sprites/prop_cone.png")
 		c.centered = false
-		c.position = Vector2(rng.randf_range(PortLayout.GATE_ROAD_X, PortLayout.QUAY_X1 - 16.0),
+		# Clear of the carriageway: a cone in a live traffic lane is litter,
+		# not detail.
+		c.position = Vector2(rng.randf_range(PortLayout.BLOCK_X0, PortLayout.QUAY_X1 - 16.0),
 			rng.randf_range(PortLayout.YARD_Y0, PortLayout.world_bottom() - 70.0))
 		_props.add_child(c)
 
@@ -317,41 +326,109 @@ func _process(delta: float) -> void:
 		berth.tick(delta)
 	if gate != null:
 		gate.tick(delta)
+	_drive_gate_arm(delta)
 
 
-func _rebuild_gate_view() -> void:
-	## One sprite per parked truck, plus the boxes still on its bed, so the
-	## player can see at a glance which way this one is running.
+func _build_gate() -> void:
+	## The perimeter, and the one hole in it. A fence across the top of the
+	## terminal is what makes the road mean anything: everything the player
+	## sees inside came through this gap, past this guard house, under this
+	## barrier.
+	var furniture := Node2D.new()
+	furniture.name = "Gate"
+	entities.add_child(furniture)
+
+	var fence: Texture2D = preload("res://assets/sprites/fence.png")
+	var x := PortLayout.YARD_X0 - 10.0
+	while x < PortLayout.QUAY_X1:
+		# leave the carriageway clear, kerb to kerb
+		if x + fence.get_width() > PortLayout.ROAD_X0 - 2.0 \
+				and x < PortLayout.ROAD_X1 + 2.0:
+			x += fence.get_width()
+			continue
+		var post := Sprite2D.new()
+		post.texture = fence
+		post.centered = false
+		post.position = Vector2(x, PortLayout.FENCE_Y)
+		furniture.add_child(post)
+		x += fence.get_width()
+
+	var hut := Sprite2D.new()
+	hut.texture = preload("res://assets/sprites/bld_customs.png")
+	hut.centered = false
+	hut.position = Vector2(PortLayout.ROAD_X1 + 2.0, PortLayout.FENCE_Y - 8.0)
+	furniture.add_child(hut)
+
+	# The arm pivots on its own corner against the hut, so it sweeps across the
+	# carriageway and parks alongside it rather than shrinking into nothing.
+	_gate_arm = Sprite2D.new()
+	_gate_arm.texture = preload("res://assets/sprites/bld_customs_arm.png")
+	_gate_arm.centered = false
+	_gate_arm.position = Vector2(PortLayout.ROAD_X1 + 2.0, PortLayout.GATE_ARM_Y)
+	_gate_arm.rotation = ARM_CLOSED
+	furniture.add_child(_gate_arm)
+
+
+func _sync_gate_view() -> void:
+	## One truck per occupied bay, kept alive across updates. Rebuilding the
+	## whole apron on every change — which is what this used to do — restarted
+	## the drive each time a box moved, so a truck could never actually go
+	## anywhere.
 	if _gate_view == null:
 		_gate_view = Node2D.new()
 		_gate_view.name = "GateDock"
+		_gate_view.y_sort_enabled = true
 		entities.add_child(_gate_view)
-	for child in _gate_view.get_children():
-		child.queue_free()
 	if gate == null:
 		return
 	for bay: int in gate.bays.keys():
-		var truck: Dictionary = gate.bays[bay]
-		var root := Node2D.new()
-		root.position = PortLayout.gate_bay_position(bay)
-		_gate_view.add_child(root)
-		var body := Sprite2D.new()
-		body.texture = preload("res://assets/sprites/veh_tt.png")
-		body.centered = false
-		body.scale = Vector2(0.7, 0.7)
-		root.add_child(body)
-		var carried: Array = truck.cargo
-		for index in carried.size():
-			var box := Sprite2D.new()
-			var atlas := AtlasTexture.new()
-			atlas.atlas = _containers
-			atlas.region = Rect2(
-				posmod((carried[index] as CargoUnit).color, 8) * 24, 0, 24, 13)
-			box.texture = atlas
-			box.centered = false
-			box.scale = Vector2(0.62, 0.62)
-			box.position = Vector2(-1, 12.0 + index * 8.0)
-			root.add_child(box)
+		var record: Dictionary = gate.bays[bay]
+		var truck: RoadTruck = _gate_trucks.get(bay)
+		if truck == null or not is_instance_valid(truck):
+			truck = RoadTruck.new()
+			truck.setup(self, bay, _bed_colors(record),
+				int(record.get("stage", GateDock.Stage.DOCKED))
+					!= int(GateDock.Stage.ARRIVING))
+			_gate_trucks[bay] = truck
+			_gate_view.add_child(truck)
+			truck.arrived.connect(gate.notify_docked.bind(bay))
+			truck.departed.connect(_on_truck_departed.bind(bay))
+		truck.set_colors(_bed_colors(record))
+		if int(record.get("stage", GateDock.Stage.DOCKED)) \
+				== int(GateDock.Stage.LEAVING):
+			truck.depart()
+	for bay: int in _gate_trucks.keys():
+		if gate.bays.has(bay):
+			continue
+		var stale: RoadTruck = _gate_trucks[bay]
+		_gate_trucks.erase(bay)
+		if is_instance_valid(stale):
+			stale.queue_free()
+
+
+func _bed_colors(record: Dictionary) -> Array[int]:
+	var colors: Array[int] = []
+	for unit: CargoUnit in record.get("cargo", []) as Array:
+		colors.append(unit.color)
+	return colors
+
+
+func _on_truck_departed(bay: int) -> void:
+	_gate_trucks.erase(bay)
+	if gate != null:
+		gate.notify_departed(bay)
+
+
+func _drive_gate_arm(delta: float) -> void:
+	## Up for anything on the gate stretch of road, down the rest of the time.
+	## A barrier that never moves is scenery; one that lifts is the reason the
+	## road exists.
+	if _gate_arm == null or traffic == null:
+		return
+	var open := traffic.any_within(
+		Vector2(PortLayout.GATE_ROAD_X, PortLayout.GATE_ARM_Y), 32.0)
+	_gate_arm.rotation = move_toward(_gate_arm.rotation,
+		ARM_OPEN if open else ARM_CLOSED, delta * 2.6)
 
 
 func _feed_water_shader() -> void:

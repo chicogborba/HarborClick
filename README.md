@@ -95,6 +95,10 @@ via de serviço, encostam no bloco pela faixa de rolamento e levam contêineres
 pra fora do terminal — ou trazem carga de importação. Quanto mais throughput,
 mais cheio o pátio fica (`PortWorld.target_fill()`).
 
+Todo veículo é desenhado de nariz pra cima, então norte é rotação zero — o eixo
+vertical estava invertido e a frota inteira subia e descia o pátio de ré, o
+rebocador incluso.
+
 ## Estrutura
 
 ```
@@ -138,7 +142,9 @@ Dois arquivos concentram as decisões:
   partir dele, então a interface inteira muda de uma vez só.
 - **`TrafficCoordinator`** — quem pode andar e para onde. A via de serviço tem
   duas mãos separadas e cada faixa de rolamento pertence a um veículo por vez;
-  sem isso dois caminhões se atravessam ou travam de frente um pro outro.
+  sem isso dois caminhões se atravessam ou travam de frente um pro outro. Num
+  cruzamento os dois veem o outro pela frente e travariam juntos pra sempre,
+  então o desempate é fixo: passa quem tem o menor id de instância.
 
 Profundidade é resolvida por um único nó `Entities` com `y_sort_enabled`:
 máquinas, pessoas, postes e pilhas nunca se atravessam. O que de fato voa por
@@ -233,6 +239,10 @@ de deixar o jogador construir uma run que evapora no reload.
 - **Dia/noite** — ciclo de 12 min. `Atmosphere` interpola o tint global, acende
   os postes com flicker ao anoitecer e roda a névoa (15% dos dias) com foghorn.
   Os mastros do cais também acendem enquanto o berço está sendo trabalhado.
+  Onde cada mastro fica é geometria, não sorteio: `PortLayout.lamp_spots()` põe
+  dois no portão, um em cada vão entre vagas, e daí uma grade — cada runway de
+  transtêiner e a costura do cais, em faixa sim, faixa não. Nenhum cai em cima
+  de bloco, de vaga ou no meio da pista.
 - **Água** — o rastro do navio é calculado no shader a partir do casco (centro,
   meia-medida e velocidade), não é sprite arrastado atrás do barco: abre em V
   com a distância à popa, rola, e morre quando as máquinas param. Mais uma
@@ -257,11 +267,16 @@ de deixar o jogador construir uma run que evapora no reload.
   curto com a mesma boca lê como barco achatado, não como barco menor.
   Qual delas pode atracar depende de quanto pátio existe pra trabalhá-la, então
   o porto cresce em tamanho de navio, não só em número.
-- **Portão** — caminhões da cidade estacionam na praça ao lado do gate e são
-  clicáveis como o navio. Caminhão carregado é porta de **entrada** com o pátio
-  vazio; caminhão vazio é porta de **saída** com o pátio cheio. Sem isso o
-  terminal é um ciclo fechado (entra por mar, sai por mar) e um ciclo fechado
-  trava.
+- **Portão** — uma via sai do topo do mapa pra cidade, atravessa a cerca do
+  perímetro na guarita e alimenta três vagas na praça. O caminhão **dirige**:
+  entra pela faixa sul, contorna as vagas pela aproximação, encosta de nariz
+  pro portão, é trabalhado com toque como o navio, e sai pela faixa de saída e
+  pela pista norte. Carga nunca aparece na vaga — chega e sai em cima de uma
+  carreta, que leva no máximo `GateDock.TRUCK_CAPACITY` caixas porque uma
+  carreta de rua leva um contêiner de 40 pés ou dois de 20. Caminhão carregado
+  é porta de **entrada** com o pátio vazio; caminhão vazio é porta de **saída**
+  com o pátio cheio. Sem isso o terminal é um ciclo fechado (entra por mar, sai
+  por mar) e um ciclo fechado trava.
 - **Automação** — portêiner, transtêiner e flutuante movem carga sozinhos no
   berço, pela mesma transação do toque. Uma escala inteira acontece sem um
   toque quando há equipamento; o toque vira empurrão. A partida paga um bônus

@@ -133,6 +133,29 @@ func _run(size: Vector2i) -> void:
 			_main.world._feed_water_shader()
 			await get_tree().process_frame
 		await _shot("wake")
+	if _wants("gate") and world_pass:
+		# The road is only worth anything if a truck is seen using it, so this
+		# drives the whole cycle — in through the gate, parked on a bay, back
+		# out to the city — rather than photographing an empty apron and
+		# calling it a road.
+		var gate: GateDock = _main.world.gate
+		gate.seed_new()
+		for bay in PortLayout.GATE_BAY_COUNT:
+			gate._call_a_truck()
+		await get_tree().create_timer(1.4).timeout
+		await _shot("gate_arriving")
+		# Shot the frame the first truck parks: with every machine bought, the
+		# auto-movers strip its bed within a second and send it away again.
+		# Timed off the wall clock, because a frame delta that comes back zero
+		# turns a bounded wait into a hang.
+		var deadline := Time.get_ticks_msec() + 16000
+		while Time.get_ticks_msec() < deadline and _docked(gate) < 1:
+			await get_tree().process_frame
+		await _shot("gate_docked")
+		for bay: int in gate.bays.keys():
+			gate.send_away(bay)
+		await get_tree().create_timer(1.5).timeout
+		await _shot("gate_leaving")
 	if _wants("shop"):
 		_main.shop._on_tab("structures")
 		await get_tree().create_timer(0.4).timeout
@@ -176,6 +199,14 @@ func _run(size: Vector2i) -> void:
 		await _shot("prestige")
 		_main.prestige_dialog.close()
 		await get_tree().create_timer(0.2).timeout
+
+
+func _docked(gate: GateDock) -> int:
+	var count := 0
+	for bay: int in gate.bays.keys():
+		if int(gate.bays[bay].stage) == int(GateDock.Stage.DOCKED):
+			count += 1
+	return count
 
 
 func _check(what: String, panel: Control, size: Vector2i) -> void:

@@ -97,9 +97,28 @@ func can_advance(actor: Node2D, to: Vector2, gap: float = MIN_GAP) -> bool:
 			continue                              # behind us; not our problem
 		var other_heading: Vector2 = _headings.get(other.get_instance_id(), heading)
 		var same_way := other_heading.dot(heading) > SAME_WAY
-		if other.global_position.distance_to(to) < (gap if same_way else CROSS_GAP):
+		if other.global_position.distance_to(to) >= (gap if same_way else CROSS_GAP):
+			continue
+		if same_way:
 			return false
+		# Two vehicles converging on a junction each have the other in front of
+		# them, so a plain "yield to whatever is ahead" freezes both for ever.
+		# One of them has to take the junction, and which one has to be decided
+		# the same way by both: the lower instance id goes, the other waits.
+		var mutual := offset.dot(other_heading) < 0.0
+		if mutual and actor.get_instance_id() < other.get_instance_id():
+			continue
+		return false
 	return true
+
+
+func any_within(point: Vector2, radius: float) -> bool:
+	## Is anything on this piece of road? Used by the gate barrier, which has
+	## to lift for a hauler exactly as readily as for a city truck.
+	for other in _live_vehicles():
+		if other.global_position.distance_to(point) < radius:
+			return true
+	return false
 
 
 func gate_clear(actor: Node2D, entry: Vector2, gap: float = GATE_GAP) -> bool:
