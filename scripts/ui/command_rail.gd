@@ -265,8 +265,9 @@ func set_berth(status: Dictionary) -> void:
 	if total > 0.0:
 		parts.append("%d / %d" % [int(current), int(total)])
 	if rate > 0.0:
-		parts.append("%.1f/s automático" % rate)
-	_berth_detail.text = "  -  ".join(parts)
+		parts.append("%.1f/s auto" % rate)
+	# The card is a rail's width; a truncated line says nothing.
+	_berth_detail.text = " - ".join(parts)
 	_berth_detail.visible = not _berth_detail.text.is_empty()
 	_berth_chip.visible = _desktop and not text.is_empty()
 
