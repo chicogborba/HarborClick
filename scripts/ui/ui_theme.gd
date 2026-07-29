@@ -22,19 +22,40 @@ const SIZE_TITLE := 20
 const SIZE_HUGE := 30
 
 # --- ink on paper ---
+# Every colour used for functional text is chosen so it clears WCAG AA (4.5:1)
+# against every surface it can land on. `tests/contrast_test_runner.gd` fails
+# the build if that stops being true.
 const INK := Color8(58, 44, 46)
-const INK_SOFT := Color8(116, 98, 92)
+const INK_SOFT := Color8(84, 68, 64)
 const PAPER := Color8(238, 224, 198)
 const PAPER_DEEP := Color8(206, 188, 156)
 const CREAM := Color8(250, 240, 218)
 
 # --- accents (same two the yard machines wear) ---
 const AMBER := Color8(252, 202, 96)
-const AMBER_DEEP := Color8(176, 112, 30)
-const TEAL := Color8(60, 148, 140)
-const TEAL_DEEP := Color8(34, 96, 96)
+const AMBER_DEEP := Color8(128, 78, 18)
+const TEAL := Color8(44, 116, 110)
+const TEAL_DEEP := Color8(28, 80, 80)
 const TEAL_LIGHT := Color8(104, 194, 176)
-const DANGER := Color8(186, 92, 62)
+const DANGER := Color8(150, 60, 48)
+
+## Surfaces text is allowed to land on, keyed by the sprite that draws them.
+## Kept next to the ink so a palette change and its contrast proof stay in one
+## place.
+const SURFACE := {
+	&"card": Color8(238, 224, 198),
+	&"card_ready": Color8(250, 240, 218),
+	&"card_locked": Color8(200, 190, 176),
+	&"sheet": Color8(206, 188, 156),
+	&"slate": Color8(34, 30, 44),
+	&"btn_amber": Color8(232, 160, 48),
+	&"btn_alt": Color8(44, 116, 110),
+	&"btn_danger": Color8(150, 60, 48),
+	&"btn_ghost": Color8(238, 224, 198),
+	&"btn_off": Color8(176, 166, 154),
+	&"seg_off": Color8(224, 210, 184),
+	&"tab_off": Color8(196, 178, 150),
+}
 
 # --- the slate a number is stamped on ---
 const SLATE := Color8(34, 30, 44)
@@ -221,7 +242,7 @@ const _BUTTON_SPRITES := {
 }
 const _BUTTON_TEXT := {
 	&"amber": INK, &"alt": CREAM, &"ghost": INK,
-	&"off": Color8(96, 88, 84), &"danger": CREAM,
+	&"off": INK, &"danger": CREAM,
 }
 
 
@@ -230,9 +251,44 @@ static func button(text: String, kind: StringName = &"amber",
 	var node := Button.new()
 	node.text = text
 	node.focus_mode = Control.FOCUS_ALL
+	node.accessibility_name = text
 	apply_font(node, size)
 	style_button(node, kind)
 	return node
+
+
+static func describe(control: Control, control_name: String,
+		description: String = "") -> void:
+	## A screen reader has no icon to look at, and a tooltip only exists for a
+	## mouse. Anything whose label is a picture needs to say what it is here.
+	control.accessibility_name = control_name
+	if not description.is_empty():
+		control.accessibility_description = description
+	if control.tooltip_text.is_empty():
+		control.tooltip_text = control_name
+
+
+static func focus_first(root: Node) -> Control:
+	## Depth-first, so opening an overlay lands the caret on its first real
+	## control rather than leaving focus behind on the button that opened it.
+	for child in root.get_children():
+		var control := child as Control
+		if control != null and control.focus_mode == Control.FOCUS_ALL \
+				and control.is_visible_in_tree() and not control.is_queued_for_deletion():
+			control.grab_focus()
+			return control
+		var found := focus_first(child)
+		if found != null:
+			return found
+	return null
+
+
+static func restore_focus(control: Control) -> void:
+	## Closing an overlay must hand the caret back where it came from, or
+	## keyboard users are dumped at the top of the tree every time.
+	if control != null and is_instance_valid(control) \
+			and control.is_visible_in_tree() and control.focus_mode == Control.FOCUS_ALL:
+		control.grab_focus()
 
 
 static func style_button(node: Button, kind: StringName) -> void:
@@ -248,16 +304,27 @@ static func style_button(node: Button, kind: StringName) -> void:
 	node.add_theme_color_override(&"font_hover_color", text_color)
 	node.add_theme_color_override(&"font_pressed_color", CREAM)
 	node.add_theme_color_override(&"font_focus_color", text_color)
-	node.add_theme_color_override(&"font_disabled_color", Color8(132, 122, 112))
+	# WCAG 1.4.3 exempts inactive controls from the contrast floor, but a key
+	# nobody can read is still a bad key, so it stays as legible as a disabled
+	# state is allowed to look.
+	node.add_theme_color_override(&"font_disabled_color", Color8(86, 78, 74))
 
 
-static func _focus_style() -> StyleBoxFlat:
-	## Keyboard focus must not depend on colour alone, so it is a visible ring
-	## drawn outside the key rather than a tint.
-	var box := StyleBoxFlat.new()
-	box.draw_center = false
-	box.border_color = TEAL_LIGHT
-	box.set_border_width_all(2)
+## The two tones of the focus ring. A single colour cannot be visible on both
+## cream paper and near-black slate, so the ring carries one of each and
+## whichever surface it lands on, one of them reads.
+const FOCUS_OUTER := INK
+const FOCUS_INNER := CREAM
+
+
+static func focus_ring() -> StyleBoxTexture:
+	return _focus_style()
+
+
+static func _focus_style() -> StyleBoxTexture:
+	## Keyboard focus must not depend on colour alone, so it is a hollow ring
+	## drawn outside the key rather than a tint of it.
+	var box := nine("ui_focus", 4, 0)
 	box.expand_margin_left = 2
 	box.expand_margin_right = 2
 	box.expand_margin_top = 2
@@ -266,7 +333,7 @@ static func _focus_style() -> StyleBoxFlat:
 
 
 static func icon_button(kind: Icon, style: StringName = &"alt",
-		size: float = TOUCH_MIN) -> Button:
+		size: float = TOUCH_MIN, control_name: String = "") -> Button:
 	var node := button("", style)
 	node.custom_minimum_size = Vector2(size, size)
 	node.size = node.custom_minimum_size
@@ -274,6 +341,8 @@ static func icon_button(kind: Icon, style: StringName = &"alt",
 	node.expand_icon = false
 	node.add_theme_constant_override(&"icon_max_width", 20)
 	node.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if not control_name.is_empty():
+		describe(node, control_name)
 	return node
 
 
@@ -281,6 +350,7 @@ static func segment(text: String, active: bool) -> Button:
 	var node := Button.new()
 	node.text = text
 	node.focus_mode = Control.FOCUS_ALL
+	node.accessibility_name = text
 	apply_font(node, SIZE_SMALL)
 	style_segment(node, active)
 	return node
@@ -306,7 +376,7 @@ static func style_tab(node: Button, active: bool) -> void:
 	node.add_theme_stylebox_override(&"hover", box)
 	node.add_theme_stylebox_override(&"pressed", tab_style(true))
 	node.add_theme_stylebox_override(&"focus", _focus_style())
-	var color := INK if active else Color8(96, 84, 70)
+	var color := INK if active else Color8(66, 52, 44)
 	node.add_theme_color_override(&"font_color", color)
 	node.add_theme_color_override(&"font_hover_color", INK)
 	node.add_theme_color_override(&"font_pressed_color", INK)

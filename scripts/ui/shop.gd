@@ -51,6 +51,7 @@ var _desktop := false
 var _safe_rect := Rect2()
 var _profile := ""
 var _buy_mode: StringName = &"x1"
+var _focus_return: Control
 
 
 func _ready() -> void:
@@ -162,7 +163,8 @@ func _build_header() -> Control:
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header.add_child(gap)
 
-	var close_btn := UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0)
+	var close_btn := UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0,
+		"Fechar a loja")
 	close_btn.custom_minimum_size = Vector2(30, 24)
 	close_btn.tooltip_text = "Fechar (Esc)"
 	close_btn.pressed.connect(_close)
@@ -333,7 +335,11 @@ func _on_backdrop_input(event: InputEvent) -> void:
 
 func _open_sheet() -> void:
 	_open = true
+	# Remember who opened us so the caret can go home on close; a keyboard
+	# user dumped at the top of the tree every time cannot navigate.
+	_focus_return = get_viewport().gui_get_focus_owner()
 	_layout()
+	UiTheme.focus_first(_board)
 	open_changed.emit(true)
 	if not UserPreferences.can_animate():
 		_board.modulate.a = 1.0
@@ -347,6 +353,8 @@ func _close() -> void:
 		return
 	_open = false
 	_layout()
+	UiTheme.restore_focus(_focus_return if _focus_return != null else _launcher)
+	_focus_return = null
 	open_changed.emit(false)
 
 

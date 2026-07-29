@@ -16,6 +16,7 @@ var _panel: PanelContainer
 var _summary: Label
 var _confirm: Button
 var _tree: VBoxContainer
+var _focus_return: Control
 var _scroll: ScrollContainer
 var _viewport_clip: Control
 
@@ -48,7 +49,8 @@ func _ready() -> void:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header.add_child(title)
-	var close_button := UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0)
+	var close_button := UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0,
+		"Fechar a proposta")
 	close_button.custom_minimum_size = Vector2(30, 24)
 	close_button.tooltip_text = "Fechar (Esc)"
 	close_button.pressed.connect(close)
@@ -92,7 +94,9 @@ func open() -> void:
 	_quoted = false
 	_summary.text = "Consulte a proposta antes de confirmar a reconstrução."
 	_confirm.text = "VER PROPOSTA"
+	_focus_return = get_viewport().gui_get_focus_owner()
 	_layout()
+	_confirm.grab_focus()
 	open_changed.emit(true)
 
 
@@ -100,6 +104,8 @@ func close() -> void:
 	if not _open: return
 	_open = false
 	_layout()
+	UiTheme.restore_focus(_focus_return)
+	_focus_return = null
 	open_changed.emit(false)
 
 

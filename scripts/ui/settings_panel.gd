@@ -29,6 +29,7 @@ var _confirm_wipe := false
 var _wipe_btn: Button
 var _tutorial_btn: Button
 var _safe_rect := Rect2()
+var _focus_return: Control
 
 
 func _ready() -> void:
@@ -133,6 +134,10 @@ func _option_row(name_text: String, on_press: Callable) -> Button:
 	var value := UiTheme.button("", &"alt", UiTheme.SIZE_SMALL)
 	value.custom_minimum_size = Vector2(VALUE_WIDTH, ROW_HEIGHT)
 	value.tooltip_text = name_text
+	# The key's own text is only the value ("LIGADA"); on its own that says
+	# nothing, so the accessible name carries the row it belongs to.
+	value.set_meta("row_name", name_text)
+	UiTheme.describe(value, name_text)
 	value.pressed.connect(on_press)
 	row.add_child(value)
 	return value
@@ -149,9 +154,11 @@ func open() -> void:
 	_wipe_btn.text = "APAGAR PROGRESSO"
 	UiTheme.style_button(_wipe_btn, &"danger")
 	_refresh()
+	_focus_return = get_viewport().gui_get_focus_owner()
 	visible = true
 	open_changed.emit(true)
 	_layout()
+	UiTheme.focus_first(_panel)
 	if not UserPreferences.can_animate():
 		_panel.modulate.a = 1.0
 		_panel.scale = Vector2.ONE
@@ -170,6 +177,8 @@ func close() -> void:
 		return
 	AudioManager.play_sfx("tap")
 	visible = false
+	UiTheme.restore_focus(_focus_return)
+	_focus_return = null
 	open_changed.emit(false)
 
 
@@ -223,6 +232,10 @@ func _refresh() -> void:
 			[_numbers_btn, UserPreferences.floating_numbers],
 			[_fullscreen_btn, UserPreferences.fullscreen]]:
 		UiTheme.style_button(pair[0], &"alt" if bool(pair[1]) else &"off")
+	for button in [_music_btn, _sfx_btn, _motion_btn, _numbers_btn,
+			_ui_scale_btn, _fullscreen_btn]:
+		button.accessibility_name = "%s: %s" % [
+			str(button.get_meta("row_name", "")), button.text]
 
 
 func _toggle_music() -> void:

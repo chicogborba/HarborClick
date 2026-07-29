@@ -48,6 +48,11 @@ func setup(item_id: String, item_kind: String, art_key: String,
 	_blurb = description
 	custom_minimum_size.y = 46.0
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	# A card is a button in everything but class, so it has to be reachable and
+	# activatable from the keyboard like one.
+	focus_mode = Control.FOCUS_ALL
+	add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
+	UiTheme.describe(self, title, description)
 	_apply_state(&"normal")
 
 	var row := HBoxContainer.new()
@@ -176,6 +181,10 @@ func _apply_state(state: StringName) -> void:
 # --------------------------------------------------------------------- input
 
 func _gui_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"ui_accept"):
+		accept_event()
+		_activate()
+		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			_begin_press(event.position)
@@ -202,10 +211,18 @@ func _begin_press(at: Vector2) -> void:
 func _finish_press(at: Vector2) -> void:
 	var should_buy := _press_start.distance_to(at) < DRAG_CANCEL_DISTANCE
 	_tracking_press = false
+	if should_buy:
+		_activate()
+
+
+func _activate() -> void:
+	## One dedupe window for every input route, so an emulated mouse click that
+	## follows a touch — or a key repeat — cannot buy twice.
 	var now := Time.get_ticks_msec()
-	if should_buy and now - _last_activation_msec >= EMULATED_INPUT_DEDUPE_MSEC:
-		_last_activation_msec = now
-		pressed_card.emit(id)
+	if now - _last_activation_msec < EMULATED_INPUT_DEDUPE_MSEC:
+		return
+	_last_activation_msec = now
+	pressed_card.emit(id)
 
 
 # ------------------------------------------------------------------ feedback

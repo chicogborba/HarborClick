@@ -35,13 +35,15 @@ SLATE_L = (78, 70, 96, 255)
 AMBER_D = (176, 112, 30, 255)
 AMBER = (232, 160, 48, 255)
 AMBER_L = (252, 202, 96, 255)
-TEAL_D = (34, 96, 96, 255)
-TEAL = (60, 148, 140, 255)
-TEAL_L = (104, 194, 176, 255)
-RUST_D = (140, 64, 46, 255)
-RUST = (186, 92, 62, 255)
+# The teal and rust keys carry cream text, so their bases are darkened until
+# that text clears 4.5:1 — see tests/contrast_test_runner.gd.
+TEAL_D = (26, 74, 74, 255)
+TEAL = (44, 116, 110, 255)
+TEAL_L = (92, 178, 166, 255)
+RUST_D = (112, 42, 34, 255)
+RUST = (150, 60, 48, 255)
 INK = (58, 44, 46, 255)
-INK_SOFT = (116, 98, 92, 255)
+INK_SOFT = (84, 68, 64, 255)
 
 # Legacy names still generated so an older save/scene never loads a hole.
 FRAME_D, FRAME, FRAME_L = WOOD_D, WOOD, WOOD_L
@@ -250,10 +252,11 @@ def gen_tabs():
     save(on, "ui_tab_on")
 
     # inactive tab: pushed back into the shade of the wooden board
+    # Light enough that the dimmed tab label still clears 4.5:1 against it.
     off = new_img(s, s)
     rect(off, 0, 0, s, s, WOOD_D)
-    rect(off, 1, 1, s - 2, s - 1, (150, 134, 112, 255))
-    hline(off, 2, 1, s - 4, (172, 156, 132, 255))
+    rect(off, 1, 1, s - 2, s - 1, (196, 178, 150, 255))
+    hline(off, 2, 1, s - 4, (214, 198, 172, 255))
     hline(off, 1, s - 1, s - 2, WOOD_D)
     for cx in (0, s - 1):
         px(off, cx, 0, (0, 0, 0, 0))
@@ -275,6 +278,22 @@ def gen_segments():
     rect(off, 1, 1, s - 2, s - 2, (224, 210, 184, 255))
     hline(off, 1, 1, s - 2, PAPER_L)
     save(off, "ui_seg_off")
+
+
+def gen_focus():
+    """12x12 nine-patch, margin 4: the keyboard focus ring, hollow centre.
+
+    Two tones on purpose. A single-colour ring cannot be visible on both the
+    cream paper of the board and the near-black slate of a readout, so the
+    outer pixel is ink and the inner one is cream: whichever surface it lands
+    on, one of the two reads.
+    """
+    s = 12
+    img = new_img(s, s)
+    rect(img, 0, 0, s, s, INK)
+    rect(img, 1, 1, s - 2, s - 2, PAPER_L)
+    rect(img, 2, 2, s - 4, s - 4, (0, 0, 0, 0))
+    save(img, "ui_focus")
 
 
 def gen_bar():
@@ -499,6 +518,7 @@ if __name__ == "__main__":
     gen_buttons()
     gen_tabs()
     gen_segments()
+    gen_focus()
     gen_bar()
     gen_scroll()
     gen_scrims()

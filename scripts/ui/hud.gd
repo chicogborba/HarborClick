@@ -126,9 +126,9 @@ func _build_header() -> void:
 
 
 func _build_keys() -> void:
-	var gear := UiTheme.icon_button(UiTheme.Icon.GEAR, &"alt")
+	var gear := UiTheme.icon_button(UiTheme.Icon.GEAR, &"alt",
+		UiTheme.TOUCH_MIN, "Ajustes")
 	gear.name = "SettingsGear"
-	gear.tooltip_text = "Ajustes"
 	gear.pressed.connect(func() -> void:
 		AudioManager.play_sfx("tap")
 		settings_pressed.emit())

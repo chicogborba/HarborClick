@@ -26,6 +26,7 @@ var _sheet: PanelContainer
 var _clip: TextureRect
 var _list: VBoxContainer
 var _tab_buttons: Dictionary = {}
+var _focus_return: Control
 
 
 func setup(manager_or_callbacks: Variant, callbacks: Dictionary = {}) -> void:
@@ -62,7 +63,8 @@ func _ready() -> void:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header.add_child(title)
-	var close_button := UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0)
+	var close_button := UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0,
+		"Fechar o diário")
 	close_button.custom_minimum_size = Vector2(30, 24)
 	close_button.tooltip_text = "Fechar (Esc)"
 	close_button.pressed.connect(close)
@@ -101,8 +103,10 @@ func _ready() -> void:
 func open(tab := "next") -> void:
 	_active_tab = tab if TABS.any(func(entry: Array) -> bool: return entry[0] == tab) else "next"
 	_open = true
+	_focus_return = get_viewport().gui_get_focus_owner()
 	_refresh()
 	_layout()
+	UiTheme.focus_first(_sheet)
 	open_changed.emit(true)
 
 
@@ -111,6 +115,8 @@ func close() -> void:
 		return
 	_open = false
 	_layout()
+	UiTheme.restore_focus(_focus_return)
+	_focus_return = null
 	open_changed.emit(false)
 
 
@@ -247,6 +253,8 @@ func _make_card(objective: Dictionary) -> PanelContainer:
 			&"amber" if pinned else &"ghost", 28.0)
 		pin.custom_minimum_size = Vector2(30, 28)
 		pin.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		UiTheme.describe(pin, "Fixar \"%s\" no HUD"
+			% str(objective.get("title", "meta")))
 		pin.tooltip_text = "Fixada no HUD" if pinned else "Fixar no HUD"
 		pin.disabled = pinned
 		pin.pressed.connect(_pin.bind(StringName(objective.get("id", ""))))
