@@ -7,6 +7,7 @@ var shop: Shop
 var hud: Hud
 var shell: ResponsiveShell
 var toasts: ToastLayer
+var notifications: NotificationCoordinator
 var settings: SettingsPanel
 var objective: ObjectiveChip
 var journal: PortJournal
@@ -38,9 +39,14 @@ func _ready() -> void:
 	shop.name = "Shop"
 	add_child(shop)
 
+	notifications = NotificationCoordinator.new()
+	notifications.name = "Notifications"
+	add_child(notifications)
+
 	toasts = ToastLayer.new()
 	toasts.name = "Toasts"
 	add_child(toasts)
+	toasts.setup(notifications)
 
 	settings = SettingsPanel.new()
 	settings.name = "Settings"
@@ -117,7 +123,14 @@ func _ready() -> void:
 	world.berth.status_changed.connect(hud.set_berth_status)
 	world.berth.notice_requested.connect(
 		func(notice: Dictionary) -> void:
-			EventBus.notification_requested.emit(notice))
+			# Berth notices are refusals — full yard, invalid box, reverted
+			# move. They deduplicate on their code, so hammering a blocked
+			# yard says it once with a count, not once per tap.
+			EventBus.notification_requested.emit({
+				"id": "berth_%s" % notice.get("code", "notice"),
+				"kind": &"blocked", "priority": 1,
+				"text": notice.get("text", ""),
+			}))
 	world.ship.phase_changed.connect(_on_ship_phase)
 	_on_ship_phase(world.ship.phase)
 

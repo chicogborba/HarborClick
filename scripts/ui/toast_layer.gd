@@ -1,90 +1,99 @@
 class_name ToastLayer
 extends CanvasLayer
-## Short notices that slide in under the readout board.
+## Renders one notice at a time, below the readout and the objective chip.
+##
+## This layer no longer decides anything: what is worth showing, how repeats
+## collapse and how fast banners may follow each other all belong to
+## NotificationCoordinator. Here there is only a slate chip that fades in,
+## waits, fades out and reports that its slot is free again.
 
 var _stack: VBoxContainer
 var _active: PanelContainer
-var _queue: Array[Dictionary] = []
-var _last_started_at := -1.0
+var _coordinator: NotificationCoordinator
 var _safe_rect := Rect2()
 
 
 func _ready() -> void:
 	layer = 7
 	_stack = VBoxContainer.new()
-	_stack.position = Vector2(10, 60)
 	_stack.add_theme_constant_override(&"separation", 3)
 	_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_stack)
 	get_viewport().size_changed.connect(_layout)
-	EventBus.toast.connect(show_toast)
-	EventBus.notification_requested.connect(show_notification)
 	_layout()
 
 
+func setup(coordinator: NotificationCoordinator) -> void:
+	if _coordinator != null and _coordinator.presented.is_connected(_present):
+		_coordinator.presented.disconnect(_present)
+	_coordinator = coordinator
+	if _coordinator != null:
+		_coordinator.presented.connect(_present)
+
+
 func show_toast(text: String) -> void:
-	_enqueue(text)
+	_submit({"text": text})
 
 
 func show_priority_toast(text: String, priority: int = 0) -> void:
-	_enqueue(text, priority)
+	_submit({"text": text, "priority": priority})
 
 
 func show_notification(payload: Dictionary) -> void:
-	var text := str(payload.get("text", ""))
-	if text.is_empty():
-		return
-	_enqueue(text, int(payload.get("priority", 0)))
+	_submit(payload)
 
 
-func _enqueue(text: String, priority: int = 0) -> void:
-	var entry := {"text": text, "priority": priority}
-	if priority > 0:
-		_queue.push_front(entry)
+func _submit(payload: Dictionary) -> void:
+	if _coordinator != null:
+		_coordinator.submit(payload)
 	else:
-		_queue.append(entry)
-	_try_show_next()
+		EventBus.notification_requested.emit(payload)
 
 
-func _try_show_next() -> void:
+func _present(notice: Dictionary) -> void:
+	var text := str(notice.get("text", ""))
+	if text.is_empty():
+		_finish(null)
+		return
 	if _active != null and is_instance_valid(_active):
-		return
-	if _queue.is_empty() or Time.get_ticks_msec() * 0.001 - _last_started_at < 1.0:
-		return
-	var entry: Dictionary = _queue.pop_front()
-	_last_started_at = Time.get_ticks_msec() * 0.001
-	var text := str(entry.text)
+		_active.queue_free()
 
 	var panel := UiTheme.panel(UiTheme.slate_style(true, 5))
 	panel.modulate.a = 0.0
-
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 5)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(row)
-	row.add_child(UiTheme.icon(UiTheme.Icon.TEU))
+	row.add_child(UiTheme.icon(notice.get("icon", UiTheme.Icon.TEU)))
 
-	var label := UiTheme.label(text, UiTheme.SIZE_SMALL, UiTheme.SLATE_TEXT)
+	var count := int(notice.get("count", 1))
+	var label := UiTheme.label(text if count <= 1 else "%s  x%d" % [text, count],
+		UiTheme.SIZE_SMALL, UiTheme.SLATE_TEXT)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.custom_minimum_size.x = maxf(80.0, _stack.custom_minimum_size.x - 40.0)
 	row.add_child(label)
 	_stack.add_child(panel)
 	_active = panel
 
+	if not UserPreferences.can_animate():
+		panel.modulate.a = 1.0
+		get_tree().create_timer(float(notice.get("duration", 3.2))).timeout.connect(
+			_finish.bind(panel))
+		return
 	var tween := create_tween()
 	tween.tween_property(panel, "modulate:a", 1.0, 0.18)
-	tween.tween_interval(3.2)
-	tween.tween_property(panel, "modulate:a", 0.0, 0.5)
-	tween.tween_callback(func() -> void:
-		if is_instance_valid(panel):
-			panel.queue_free()
+	tween.tween_interval(float(notice.get("duration", 3.2)))
+	tween.tween_property(panel, "modulate:a", 0.0, 0.4)
+	tween.tween_callback(_finish.bind(panel))
+
+
+func _finish(panel: Variant) -> void:
+	if panel is PanelContainer and is_instance_valid(panel):
+		(panel as PanelContainer).queue_free()
 		if _active == panel:
 			_active = null
-		_try_show_next())
-
-
-func _process(_delta: float) -> void:
-	_try_show_next()
+	if _coordinator != null:
+		_coordinator.notify_shown_finished()
 
 
 func _layout() -> void:

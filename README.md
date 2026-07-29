@@ -61,6 +61,8 @@ godot --headless --path . --script res://tests/phase3_progression_test_runner.gd
 godot --headless --path . res://tests/phase3_progression_ui_test_runner.tscn
 godot --headless --path . res://tests/phase4_ship_test_runner.tscn
 godot --headless --path . res://tests/phase4_water_test_runner.tscn
+godot --headless --path . res://tests/traffic_test_runner.tscn
+godot --headless --path . res://tests/notification_test_runner.tscn
 
 # cenários de balanceamento (ativo, híbrido, casual, offline e recuperação)
 godot --headless --path . --script res://tools/balance/run_balance.gd -- all
@@ -106,13 +108,17 @@ scripts/
   world/       port_layout, port_world, ship, água/espuma por qualidade,
                container_yard, structure_*, ground_baker, atmosphere,
                critters, port_camera
-  ui/          ui_theme, hud, shop, shop_card, tutorial, Diário, capital,
-               toast_layer, settings_panel, offline_popup
+  ui/          ui_theme, port_icon, hud, shop, shop_card, tutorial, Diário,
+               capital, notification_coordinator, toast_layer, settings_panel,
+               offline_popup
 tools/
   venv/        Python + Pillow
   sprites/     geradores de pixel art, fonte e UI
   audio/       synth chiptune + geradores de SFX/música
-tests/         regressão headless de core/save, UI e 100 escalas de carga
+  capture/     harness de screenshot: roda o jogo de verdade em toda a matriz
+               de resolução e falha se algum overlay sair do viewport
+tests/         regressão headless de core/save, UI, tráfego, notificações e
+               100 escalas de carga
 ```
 
 Dois arquivos concentram as decisões:
@@ -121,6 +127,9 @@ Dois arquivos concentram as decisões:
   faixa, portão). Qualquer coisa que precise de posição pergunta pra ele.
 - **`UiTheme`** — a fonte, os nine-patches e os ícones. Toda tela monta a
   partir dele, então a interface inteira muda de uma vez só.
+- **`TrafficCoordinator`** — quem pode andar e para onde. A via de serviço tem
+  duas mãos separadas e cada faixa de rolamento pertence a um veículo por vez;
+  sem isso dois caminhões se atravessam ou travam de frente um pro outro.
 
 Profundidade é resolvida por um único nó `Entities` com `y_sort_enabled`:
 máquinas, pessoas, postes e pilhas nunca se atravessam. O que de fato voa por
@@ -167,6 +176,13 @@ separada, em `tools/sprites/gen_ui.py`.
   os postes com flicker ao anoitecer e roda a névoa (15% dos dias) com foghorn.
 - **Áudio** — 13 SFX e 3 trilhas longas e calmas (dia/noite/neblina) com
   crossfade. Liga/desliga em Ajustes, persistido em `user://audio.cfg`.
+- **Tráfego** — via de serviço de mão dupla separada em duas colunas, faixa de
+  rolamento reservada por veículo e distância de seguimento. Um veículo travado
+  devolve o serviço em 12 s em vez de segurar a faixa e matar de fome o resto.
+- **Notificações** — `NotificationCoordinator` decide o que merece atenção:
+  estado rotineiro (fase do berço, chegada) fica só no chip e no histórico,
+  repetições dentro de 8 s viram contagem numa faixa só, um toast por vez e no
+  máximo um por segundo, prioridade fura fila.
 - **Save** — envelope JSON v2 em `user://save.json`, escrita temporária,
   rotação de backup, recuperação, migração da versão-base e autosave a cada
   30s. Progresso offline tem cap de 8h e 50% de eficiência.
@@ -178,6 +194,24 @@ Em build de debug:
 - `F2` — screenshot em `user://shot.png`
 - `F3` — +1M TEUs
 - `F4` — acelera o ciclo dia/noite 40×
+
+Para inspecionar a interface sem ficar clicando: o harness de captura roda a
+cena real, dirige cada overlay e grava PNGs em `user://uishots/`.
+
+```bash
+# uma resolução
+/Applications/Godot.app/Contents/MacOS/Godot --path . tools/capture/capture.tscn -- 390x844
+
+# a matriz inteira de QA, redimensionando a janela em tempo de execução
+/Applications/Godot.app/Contents/MacOS/Godot --path . tools/capture/capture.tscn -- matrix
+
+# só uma tela
+/Applications/Godot.app/Contents/MacOS/Godot --path . tools/capture/capture.tscn -- 1280x720 shop
+```
+
+Ele sai com código 1 se qualquer overlay ficar (parcialmente) fora do viewport
+em qualquer resolução — foi assim que o diálogo de prestígio foi pego saindo
+por cima da tela num telefone de 320×568.
 
 Criar um arquivo vazio `.devprobe` na raiz faz o jogo se auto-jogar no boot:
 trabalha uma escala inteira (descarga + embarque), compra tudo, expande o
@@ -370,27 +404,40 @@ Os padrões comuns que entram no design são:
   visível;
 - redimensionar ou rotacionar recompõe UI e câmera sem reiniciar.
 
-#### Contador TEU
+#### Contador TEU — revisado em 29/07/2026
 
-- slot do valor com largura fixa e alinhamento à direita;
-- ícone, unidade e bordas ficam em coordenadas invariáveis;
+A placa de 188×48 saiu. Numa tela de telefone ela era o objeto mais barulhento
+do jogo e disputava atenção com o próprio porto; um degradê curto no topo do
+viewport compra a mesma legibilidade sem peso visual nenhum.
+
+- sem painel: ícone, número e taxa ficam direto sobre o mundo, com contorno;
+- os dígitos são **alinhados à esquerda**, então a origem do número é
+  invariável por construção e só a borda direita avança para o vazio — mais
+  estável do que reservar um slot largo, e sem desperdiçar 170 px de largura;
+- a unidade `TEU/s` vive na linha de baixo, junto da taxa, e nunca se move;
 - a fonte já possui dígitos monoespaçados; não será trocada só para mascarar
   um problema de layout;
-- valor apresentado atualiza no máximo 10–20 vezes/s ou quando a string
-  formatada mudar, embora a economia continue precisa a cada frame;
-- sufixos usam histerese para não alternar `999,99 M`/`1,00 B` em torno do
-  limite;
-- renda passiva não escala o painel inteiro; clique manual pode gerar `+N`,
-  brilho curto e som com pitch discreto.
+- valor apresentado atualiza no máximo 20 vezes/s, embora a economia continue
+  precisa a cada frame;
+- o chip do berço se ajusta ao próprio texto em vez de pintar uma barra fixa
+  atravessando o porto.
 
-Aceite: ao simular 0→`1e15` e 100 ganhos/s, borda, ícone, unidade e posição do
-HUD não se movem sequer um pixel; só os caracteres dentro do slot mudam.
+Aceite: ao simular 0→`1e15` e 100 ganhos/s, ícone, origem do número e a linha
+de taxa não se movem sequer um pixel (coberto por `ui_p0_test_runner`).
 
-#### Loja, ajustes e overlays
+#### Loja, ajustes e overlays — revisado em 29/07/2026
 
-- superfície roxo-marinho baseada na placa atual:
-  fundo `#221E2C`/`#342E42`, cards `#40384E`, texto creme e teal/âmbar como
-  acentos;
+A superfície roxo-marinho desenhada em tempo de execução foi substituída. Ela
+era `StyleBoxFlat`: cantos com antialiasing fora da grade de pixel, uma única
+cor chapada para todo propósito e nenhuma relação com a arte do jogo — parecia
+um painel web flutuando sobre o porto.
+
+- **tudo é a prancheta do conferente**: madeira gasta, prendedor de aço, papel
+  de manifesto. Só nine-patches na grade de pixel, gerados por
+  `tools/sprites/gen_ui.py`, então a interface inteira muda de um arquivo só;
+- números ficam carimbados em ardósia escura, nunca soltos sobre o papel;
+- os dois únicos acentos saturados são âmbar (ação) e teal (serviço) — os
+  mesmos que as máquinas usam no pátio;
 - no mobile, tocar no scrim, arrastar para baixo, apertar Back/Escape ou X
   fecha a loja;
 - no desktop, a loja vira drawer/rail e não cobre o porto sem necessidade;
@@ -403,7 +450,8 @@ HUD não se movem sequer um pixel; só os caracteres dentro do slot mudam.
 
 #### Notificações e conquistas
 
-- chegada e mudança de fase ficam no chip do berço, não em toast;
+- chegada e mudança de fase ficam no chip do berço, não em toast — implementado
+  em `NotificationCoordinator.ROUTINE_KINDS`;
 - apenas um toast visível no mobile e no máximo um novo por segundo;
 - eventos simultâneos são agrupados, mas cada ocorrência fica no histórico;
 - notificação passa a ter tipo, prioridade, ícone, deduplicação, duração e
@@ -416,15 +464,20 @@ HUD não se movem sequer um pixel; só os caracteres dentro do slot mudam.
 
 #### Matriz mínima de QA visual
 
-- [ ] 320×568 — telefone compacto;
-- [ ] 360×800 — Android alto;
-- [ ] 390×844 — iPhone moderno;
-- [ ] 412×915 — Android largo;
-- [ ] 768×1024 — tablet retrato;
-- [ ] 1280×720 — web/notebook 16:9;
-- [ ] 1920×1080 — desktop 16:9;
-- [ ] rotação e resize em runtime;
-- [ ] mouse, touch, teclado e gesto de drag sem ações atravessando overlays.
+Automatizada em `tools/capture/capture.gd -- matrix`: o harness sobe a cena
+real, redimensiona a janela viva entre as passagens (o que já é o teste de
+resize) e falha se qualquer overlay ficar fora do viewport.
+
+- [x] 320×568 — telefone compacto;
+- [x] 360×800 — Android alto;
+- [x] 390×844 — iPhone moderno;
+- [x] 412×915 — Android largo;
+- [x] 768×1024 — tablet retrato;
+- [x] 1280×720 — web/notebook 16:9;
+- [x] 1920×1080 — desktop 16:9;
+- [x] rotação e resize em runtime;
+- [ ] mouse, touch, teclado e gesto de drag sem ações atravessando overlays —
+      touch e mouse cobertos por `ui_p0_test_runner`; teclado só na Fase 7.
 
 ### Nova verdade logística
 
@@ -497,7 +550,8 @@ O simulador deve testar sessões ativas, híbridas e offline. Comprar a opção
 
 - [x] Criar testes determinísticos para economia, formatação numérica, cargo,
       save e eventos.
-- [ ] Criar cenas/probes de screenshot para toda a matriz de resoluções.
+- [x] Criar cenas/probes de screenshot para toda a matriz de resoluções
+      (`tools/capture`, com asserção de contenção no viewport).
 - [x] Implementar save v2 com `save_version`, migrações, temporário, troca
       atômica, backup e recuperação.
 - [x] Salvar em compra importante, expansão, prestígio, pause/background,
@@ -511,7 +565,7 @@ O simulador deve testar sessões ativas, híbridas e offline. Comprar a opção
 - [x] Refazer gear e Ajustes com foco, safe area e opções de movimento,
       números flutuantes, UI scale e fullscreen.
 - [x] Unificar gesto mouse/touch: tap, drag e compra no release.
-- [ ] Criar `NotificationCoordinator` e remover toasts rotineiros.
+- [x] Criar `NotificationCoordinator` e remover toasts rotineiros.
 - [x] Corrigir todos os bugs/dívidas listados antes desta fase ser encerrada.
 
 Aceite da fase:
@@ -537,8 +591,10 @@ Aceite da fase:
 - [x] Preservar UID, cor e rota em todo o percurso da caixa.
 - [x] Trocar descarte silencioso por fila, bloqueio legível ou expansão.
 - [x] Implementar `TrafficCoordinator` e reduzir veículos em 25–35%.
-- [ ] Fazer RTG/STS animarem jobs reais ou um modo ocioso claramente
-      cosmético.
+- [x] Fazer RTG/STS animarem jobs reais ou um modo ocioso claramente
+      cosmético — o portêiner só balança com navio no berço e inverte o arco
+      quando o berço está embarcando; o transtêiner só roda sobre bloco com
+      caixa, e a caixa que ele carrega tem a cor de uma que está mesmo lá.
 - [x] Fazer terreno desbloquear capacidade/geometria declarada de verdade.
 
 Aceite da fase:
@@ -599,7 +655,9 @@ com geometria fixa e sem movimento adicional.
 - [x] Criar níveis automáticos low/medium/high para shader e sprites de água.
 - [x] Corrigir o cartão do tutorial para permanecer compacto e fugir do alvo.
 - [x] Proteger chamadas de áudio feitas antes de o pool terminar de iniciar.
-- [ ] Aumentar a composição útil do porto e melhorar leitura das faixas.
+- [ ] Aumentar a composição útil do porto — a faixa de terra não comprada e o
+      vazio à esquerda ainda ocupam cerca de um terço da tela. A **leitura das
+      faixas** já foi feita: a via de serviço tem eixo pintado e duas mãos.
 - [ ] Reaproveitar boia, nuvens, lua e estrelas sem poluir a leitura.
 - [ ] Adicionar detalhes ociosos ligados ao estado real: trabalhadores,
       iluminação, sinalização de setor e manutenção.

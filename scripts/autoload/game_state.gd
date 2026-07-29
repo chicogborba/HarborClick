@@ -234,7 +234,8 @@ func _normalized_milestones(value: Variant) -> Array:
 
 
 func _notify(text: String) -> void:
-	EventBus.notification_requested.emit({"text": text, "kind": &"milestone"})
+	EventBus.notification_requested.emit({
+		"text": text, "kind": &"milestone", "priority": 2})
 
 
 func _trim_manual_ledger() -> void:

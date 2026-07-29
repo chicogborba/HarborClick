@@ -218,11 +218,11 @@ func _finish() -> void:
 	if not UserPreferences.can_animate():
 		visible = false
 		finished.emit()
-		EventBus.toast.emit("Bom trabalho. O porto é teu.")
+		EventBus.notification_requested.emit({"id": "tutorial_done", "kind": &"tutorial", "priority": 2, "text": "Bom trabalho. O porto é teu."})
 		return
 	var tween := create_tween()
 	tween.tween_property(_panel, "modulate:a", 0.0, 0.3)
 	tween.tween_callback(func() -> void:
 		visible = false
 		finished.emit()
-		EventBus.toast.emit("Bom trabalho. O porto é teu."))
+		EventBus.notification_requested.emit({"id": "tutorial_done", "kind": &"tutorial", "priority": 2, "text": "Bom trabalho. O porto é teu."}))

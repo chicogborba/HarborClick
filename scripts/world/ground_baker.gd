@@ -75,6 +75,15 @@ static func bake(world_h: int) -> ImageTexture:
 		for tx in range(int(PortLayout.YARD_X0), int(PortLayout.QUAY_X0), TILE):
 			_blend(img, dash, tx, int(lane_y) - 2)
 
+	# --- service road: two one-way columns, so the gate traffic reads ---
+	# Vehicles drive in on the left of this line and out on the right. Without
+	# the paint the road was indistinguishable from the rest of the apron and
+	# the two streams of traffic looked like a jam.
+	var dash_v := _rot90(dash)
+	for ty in range(int(PortLayout.TOP_MARGIN) - TILE,
+			int(PortLayout.yard_bottom()), TILE):
+		_blend(img, dash_v, int(PortLayout.GATE_ROAD_X) - 1, ty)
+
 	# --- RTG runway paint down each gap between block columns ---
 	var solid := _rot90(_img("gr_lane_solid"))
 	for runway_x in PortLayout.runway_xs():

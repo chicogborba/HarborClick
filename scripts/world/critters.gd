@@ -85,7 +85,9 @@ func tap_cat(world_pos: Vector2) -> bool:
 		return false
 	var granted := GameState.grant_cat_boost()
 	if granted:
-		EventBus.toast.emit("O gato aprovou. Cliques turbinados!")
+		EventBus.notification_requested.emit({
+			"id": "cat_boost", "kind": &"cat", "priority": 1,
+			"text": "O gato aprovou. Cliques turbinados!"})
 	var tween := create_tween()
 	tween.tween_property(_cat, "scale", Vector2(1.25, 0.8), 0.08)
 	tween.tween_property(_cat, "scale", Vector2.ONE, 0.2) \
