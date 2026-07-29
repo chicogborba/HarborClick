@@ -428,6 +428,13 @@ um painel web flutuando sobre o porto.
 - ajustes, offline, tutorial e prestígio usam backdrop `full_rect`, centro real
   do viewport e devolução de foco ao fechar.
 
+#### Notificações — revisado em 30/07/2026
+
+Nada fica permanentemente sobre o porto. O chip de objetivo morava no canto
+superior a sessão inteira e cobria o cais; no desktop o rail já carrega a meta,
+e no retrato a tecla DIÁRIO está ali. O único momento que ganha faixa agora é
+uma **conquista de verdade sendo cumprida**, e a faixa encolheu.
+
 #### Notificações e conquistas
 
 - chegada e mudança de fase ficam no chip do berço, não em toast — implementado
@@ -458,6 +465,17 @@ resize) e falha se qualquer overlay ficar fora do viewport.
 - [x] rotação e resize em runtime;
 - [ ] mouse, touch, teclado e gesto de drag sem ações atravessando overlays —
       touch e mouse cobertos por `ui_p0_test_runner`; teclado só na Fase 7.
+
+### Verdade logística — revisada em 30/07/2026
+
+A divisão em setores de importação e exportação era um **portão**: só uma caixa
+marcada EXPORT podia embarcar. Na prática isso trancava o terminal — o pátio
+podia estar cheio e o berço parado esperando carga que estava a dez metros.
+
+A regra agora é a de um terminal de verdade: **tudo que está no pátio pode
+sair**, menos as caixas que este mesmo casco acabou de descarregar. O que
+chegou num navio parte no próximo. Os setores continuam existindo como
+preferência de pouso, que é pra isso que serviam.
 
 ### Nova verdade logística
 
@@ -634,7 +652,12 @@ cumprindo as metas de sessão.
 
 ### Fase E — polimento de movimento — P1
 
-- [ ] O navio entra de proa, gira no berço e sai de proa. Nada anda de ré.
+- [x] O navio entra de proa e sai de proa. O casco é desenhado com a proa pra
+      cima, então só existe um rumo em que ele navega de frente: o canal corre
+      **sul → norte** passando pelo cais. Antes era interpolado pra baixo nas
+      duas pontas — ré pra atracar e ré pra sair.
+- [x] As boias saíram do canal: viraram marcas laterais desenhadas **por cima**
+      do casco, então o navio passa por trás delas em vez de atropelá-las.
 - [ ] Rebocadores acompanham a manobra de atracação e desatracação.
 - [ ] Haulers entram pelo portão dirigindo, com aceleração, desaceleração e
       curva em arco em vez de virada de 90° seca.
