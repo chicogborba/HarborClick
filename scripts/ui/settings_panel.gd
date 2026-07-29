@@ -130,6 +130,12 @@ func _build() -> void:
 	_wipe_btn.pressed.connect(_on_wipe)
 	_content.add_child(_wipe_btn)
 
+	var menu_btn := _wide_button("SAIR PARA O MENU", &"ghost")
+	UiTheme.describe(menu_btn, "Sair para o menu de terminais",
+		"Salva o progresso antes de sair.")
+	menu_btn.pressed.connect(_on_leave)
+	_content.add_child(menu_btn)
+
 	var close_btn := _wide_button("FECHAR", &"amber")
 	close_btn.pressed.connect(close)
 	_content.add_child(close_btn)
@@ -280,6 +286,14 @@ func _toggle_sfx() -> void:
 	AudioManager.set_sfx_on(not AudioManager.sfx_on)
 	AudioManager.play_sfx("tap")
 	_refresh()
+
+
+func _on_leave() -> void:
+	## Write before leaving: the scene change tears down every section provider,
+	## so a snapshot taken afterwards would be empty.
+	SaveManager.save_game(&"leave_to_menu")
+	AudioManager.play_sfx("tap")
+	get_tree().change_scene_to_file("res://scenes/Title.tscn")
 
 
 func _on_export() -> void:

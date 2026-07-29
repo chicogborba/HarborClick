@@ -66,6 +66,7 @@ godot --headless --path . res://tests/notification_test_runner.tscn
 godot --headless --path . res://tests/contrast_test_runner.tscn
 godot --headless --path . res://tests/a11y_test_runner.tscn
 godot --headless --path . res://tests/backup_test_runner.tscn
+godot --headless --path . res://tests/profile_test_runner.tscn
 
 # cenários de balanceamento (ativo, híbrido, casual, offline e recuperação)
 godot --headless --path . --script res://tools/balance/run_balance.gd -- all
@@ -243,7 +244,10 @@ de deixar o jogador construir uma run que evapora no reload.
 - **Acessibilidade** — foco alcança tudo por Tab/setas, Enter ativa, Escape e
   Back fecham; anel de foco de dois tons; nomes acessíveis em toda tecla de
   ícone. Todo texto funcional passa de 4,5:1, verificado por teste.
-- **Save** — envelope JSON v2 em `user://save.json`, escrita temporária,
+- **Perfis** — três terminais independentes em `user://profiles/<n>/`. O slot
+  é parte do caminho, nunca do payload, então um save exportado de um entra em
+  qualquer outro. O `user://save.json` da build antiga vira o perfil 1 sozinho.
+- **Save** — envelope JSON v2 por perfil, escrita temporária,
   rotação de backup, recuperação, migração da versão-base e autosave a cada
   30s. Progresso offline tem cap de 8h e 50% de eficiência.
 
@@ -543,15 +547,17 @@ limpa.
 
 ### Fase B — tela inicial e perfis — P0
 
-- [ ] Cena `TitleScreen` como cena principal: título, três lugares de perfil e
-      créditos curtos.
-- [ ] Cada lugar mostra TEU total, dia e classe do maior navio já atendido, ou
-      "vazio".
-- [ ] Criar, entrar, e apagar com confirmação de duas etapas.
-- [ ] `SaveManager` passa a escrever em `user://profiles/<n>/save.json`, com
+- [x] Cena `Title` como cena principal: título, três lugares de perfil e o
+      aviso de storage indisponível quando é o caso.
+- [x] Cada lugar mostra TEU de carreira, dia e reconstruções, ou "terreno
+      livre".
+- [x] Criar, entrar, e apagar com confirmação de duas etapas — e o segundo
+      toque só confirma o **mesmo** terminal que foi armado.
+- [x] `SaveManager` passa a escrever em `user://profiles/<n>/save.json`, com
       backup e recuperação por perfil.
-- [ ] Voltar ao menu por Ajustes, salvando antes.
-- [ ] Migrar o `user://save.json` existente para o perfil 1 na primeira
+- [x] Voltar ao menu por Ajustes, salvando antes (a troca de cena derruba os
+      provedores de seção, então um snapshot posterior sairia vazio).
+- [x] Migrar o `user://save.json` existente para o perfil 1 na primeira
       execução, sem perder nada.
 
 Aceite: três perfis independentes; apagar um não toca nos outros; um save

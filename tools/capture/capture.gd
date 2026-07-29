@@ -42,6 +42,27 @@ func _ready() -> void:
 	if _sizes.is_empty():
 		_sizes.append(Vector2i(390, 844))
 
+	if _wanted.size() == 1 and _wanted[0] == "title":
+		# The title screen has no Main behind it, so it is captured on its own.
+		var title: Node = load("res://scenes/Title.tscn").instantiate()
+		add_child(title)
+		for size in _sizes:
+			_prefix = "%dx%d_" % [size.x, size.y] if _sizes.size() > 1 else ""
+			DisplayServer.window_set_size(size)
+			get_window().size = size
+			await get_tree().create_timer(0.4).timeout
+			_check("title", title.get_node(^"../Title/PanelContainer")
+				if title.has_node(^"../Title/PanelContainer") else title._board, size)
+			await _shot("title")
+		if not _failures.is_empty():
+			for failure in _failures:
+				printerr("[capture] FAIL: ", failure)
+			get_tree().quit(1)
+			return
+		print("[capture] all layout checks passed")
+		get_tree().quit(0)
+		return
+
 	_main = load("res://scenes/Main.tscn").instantiate()
 	add_child(_main)
 	await get_tree().create_timer(1.0).timeout

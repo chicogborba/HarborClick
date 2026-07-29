@@ -18,6 +18,12 @@ var _overlay_state := {"shop": false, "settings": false, "journal": false, "pres
 
 
 func _ready() -> void:
+	# Normally the title screen has already chosen a slot. Running this scene
+	# directly — F6, the capture harness, the dev probe — falls back to the
+	# first terminal so the game is never left with no save path at all.
+	if SaveManager.active_slot == 0:
+		SaveManager.use_profile(1)
+
 	shell = ResponsiveShell.new()
 	shell.name = "ResponsiveShell"
 	add_child(shell)

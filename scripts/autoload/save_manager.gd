@@ -4,6 +4,11 @@ extends Node
 
 const SAVE_VERSION := 2
 const SAVE_PATH := "user://save.json"
+## Three independent runs. The slot is part of the path, not of the payload, so
+## a save file stays byte-identical whichever slot it came from and can be
+## exported from one and imported into another.
+const PROFILE_COUNT := 3
+const PROFILE_DIR := "user://profiles"
 const AUTOSAVE_INTERVAL := 30.0
 const SAVE_DEBOUNCE := 0.35
 const OFFLINE_CAP_HOURS := 8.0
@@ -21,19 +26,17 @@ var _loaded_sections: Dictionary = {}
 var _has_loaded_game := false
 var _save_path := SAVE_PATH
 var _last_saved_at := 0.0
+var active_slot := 0
 var _storage_ok := true
 
 
 func _ready() -> void:
 	_connect_save_events()
 	probe_storage()
-	# Test runners choose an isolated path during their first deferred frame.
-	# Loading user://save.json here would migrate/credit the player's real save
-	# before the runner can redirect us.
-	for argument in OS.get_cmdline_args():
-		if str(argument).contains("res://tests/"):
-			return
-	load_game()
+	# Nothing is loaded at boot any more: the title screen decides which of the
+	# three profiles to open, and Main falls back to the first slot when it is
+	# run on its own (F6, the capture harness, the dev probe).
+	_migrate_legacy_save()
 
 
 func _connect_save_events() -> void:
@@ -339,6 +342,77 @@ func _recovery_path() -> String:
 func set_save_path_for_tests(path: String) -> void:
 	## Deliberately public so the headless suite can isolate its files.
 	_save_path = path
+	active_slot = 0
+
+
+# ------------------------------------------------------------------ profiles
+
+func profile_path(slot: int) -> String:
+	return "%s/%d/save.json" % [PROFILE_DIR, clampi(slot, 1, PROFILE_COUNT)]
+
+
+func use_profile(slot: int) -> bool:
+	## Point every path at this slot and load it. A slot with no file is simply
+	## a new game: every registered section seeds itself.
+	active_slot = clampi(slot, 1, PROFILE_COUNT)
+	DirAccess.make_dir_recursive_absolute(
+		ProjectSettings.globalize_path("%s/%d" % [PROFILE_DIR, active_slot]))
+	_save_path = profile_path(active_slot)
+	_loaded_sections.clear()
+	_pending.clear()
+	_has_loaded_game = false
+	offline_earnings = 0.0
+	GameState.from_save({})
+	TimeManager.from_save({})
+	return load_game()
+
+
+func profile_summary(slot: int) -> Dictionary:
+	## Read-only peek for the title screen: it must never apply a save or
+	## credit offline progress just to draw a slot.
+	var envelope := _read_valid_save(profile_path(slot))
+	if envelope.is_empty():
+		envelope = _read_valid_save(profile_path(slot) + ".bak")
+	if envelope.is_empty():
+		return {"slot": slot, "exists": false}
+	var version := int(envelope.get("save_version", 1))
+	var core: Dictionary = envelope.get("core", envelope) if version >= 2 else envelope
+	var time: Dictionary = envelope.get("time", {}) if version >= 2 else envelope
+	return {
+		"slot": slot,
+		"exists": true,
+		"teus": float(core.get("all_time_teus", core.get("lifetime", 0.0))),
+		"day": int(time.get("day", 1)),
+		"prestige": int(core.get("prestige_count", 0)),
+		"saved_at": float(envelope.get("saved_at_unix", 0.0)),
+	}
+
+
+func delete_profile(slot: int) -> void:
+	var base := profile_path(slot)
+	for path in [base, base + ".tmp", base + ".bak", base + ".recovery"]:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	if active_slot == clampi(slot, 1, PROFILE_COUNT):
+		active_slot = 0
+
+
+func _migrate_legacy_save() -> void:
+	## The single-save build wrote user://save.json. It becomes profile 1 the
+	## first time this build starts, so nobody loses a run to a feature.
+	if not FileAccess.file_exists(SAVE_PATH):
+		return
+	if FileAccess.file_exists(profile_path(1)):
+		return
+	DirAccess.make_dir_recursive_absolute(
+		ProjectSettings.globalize_path("%s/1" % PROFILE_DIR))
+	for suffix: String in ["", ".bak"]:
+		var from: String = SAVE_PATH + suffix
+		if not FileAccess.file_exists(from):
+			continue
+		DirAccess.copy_absolute(ProjectSettings.globalize_path(from),
+			ProjectSettings.globalize_path(profile_path(1) + suffix))
+	print("[save] legacy save migrated into profile 1")
 
 
 # ------------------------------------------------------ manual backup / web
