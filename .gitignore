@@ -1,0 +1,30 @@
+# Godot editor cache and generated imports
+.godot/
+
+# Local development probes and captures
+.devprobe
+shot.png
+probe_*.png
+
+# Python virtual environments and caches
+tools/venv/
+**/__pycache__/
+*.py[cod]
+
+# Generated enlarged asset previews
+tools/preview/
+
+# Local editor and operating-system files
+.DS_Store
+.idea/
+.vscode/
+
+# Exported builds
+build/
+dist/
+exports/
+*.apk
+*.aab
+*.ipa
+*.pck
+*.zip

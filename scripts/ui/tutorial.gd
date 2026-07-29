@@ -1,0 +1,189 @@
+class_name Tutorial
+extends CanvasLayer
+## Seu Waldemar walks new players through the first minute.
+## Steps advance on real progress, never on a timer alone.
+
+signal finished
+
+const STEPS := [
+	{
+		"text": "Opa! Seu Waldemar, capataz aposentado. Cuido deste porto há 40 anos - agora é teu.",
+		"advance": "tap_box",
+	},
+	{
+		"text": "Tá vendo aquele navio atracado? Toca nele. Cada toque tira um container do convés.",
+		"advance": "clicks", "count": 8,
+	},
+	{
+		"text": "Isso aí! Container movimentado é TEU no bolso. O contador lá em cima não mente.",
+		"advance": "tap_box",
+	},
+	{
+		"text": "Agora abre a LOJA ali embaixo e contrata um Estivador. Ele descarrega sozinho.",
+		"advance": "structure",
+	},
+	{
+		"text": "Pronto: TEU por segundo. Dorme, acorda, o porto continua rendendo.",
+		"advance": "tap_box",
+	},
+	{
+		"text": "Arrasta a tela pra cima pra ver o pátio inteiro. Enche ele de container até não caber mais.",
+		"advance": "tap_box",
+	},
+]
+
+var _panel: PanelContainer
+var _label: Label
+var _portrait: AnimatedSprite2D
+var _hint: Label
+var _step := 0
+var _clicks := 0
+var _active := false
+
+
+func _ready() -> void:
+	layer = 9
+	_build()
+	visible = false
+
+
+func start() -> void:
+	if GameState.flags.get("tutorial_done", false):
+		queue_free()
+		return
+	_active = true
+	visible = true
+	_step = 0
+	EventBus.container_unloaded.connect(_on_click)
+	EventBus.structure_bought.connect(_on_structure)
+	_show_step()
+
+
+func _build() -> void:
+	_panel = PanelContainer.new()
+	UiTheme.apply_panel(_panel, UiTheme.panel_style())
+	_panel.position = Vector2(8, 322)
+	_panel.custom_minimum_size = Vector2(PortLayout.WORLD_W - 16, 0)
+	add_child(_panel)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 7)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(row)
+
+	var portrait_box := PanelContainer.new()
+	UiTheme.apply_panel(portrait_box, UiTheme.plate_style())
+	portrait_box.custom_minimum_size = Vector2(32, 40)
+	portrait_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(portrait_box)
+
+	_portrait = AnimatedSprite2D.new()
+	var frames := SpriteFrames.new()
+	var tex: Texture2D = preload("res://assets/sprites/foreman_sheet.png")
+	frames.set_animation_speed(&"default", 2.4)
+	for i in 3:
+		var at := AtlasTexture.new()
+		at.atlas = tex
+		at.region = Rect2(i * 12, 0, 12, 16)
+		frames.add_frame(&"default", at)
+	_portrait.sprite_frames = frames
+	_portrait.centered = false
+	_portrait.scale = Vector2(2, 2)
+	_portrait.position = Vector2(4, 4)
+	_portrait.play()
+	portrait_box.add_child(_portrait)
+
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override(&"separation", 2)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(col)
+
+	_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK)
+	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_label.custom_minimum_size.x = 230
+	col.add_child(_label)
+
+	var footer := HBoxContainer.new()
+	footer.add_theme_constant_override(&"separation", 6)
+	col.add_child(footer)
+
+	_hint = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP)
+	_hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer.add_child(_hint)
+
+	var skip := UiTheme.button("PULAR", "off")
+	skip.pressed.connect(_finish)
+	footer.add_child(skip)
+
+
+func _show_step() -> void:
+	var step: Dictionary = STEPS[_step]
+	_label.text = step.text
+	match step.advance:
+		"tap_box":
+			_hint.text = "▸ toque aqui para continuar"
+		"clicks":
+			_hint.text = "▸ toque no navio (%d)" % step.count
+		"structure":
+			_hint.text = "▸ compre um Estivador na loja"
+	_panel.modulate.a = 0.0
+	_panel.scale = Vector2(0.96, 0.96)
+	var tween := create_tween().set_parallel()
+	tween.tween_property(_panel, "modulate:a", 1.0, 0.22)
+	tween.tween_property(_panel, "scale", Vector2.ONE, 0.28) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _input(event: InputEvent) -> void:
+	if not _active or not visible:
+		return
+	if event is InputEventScreenTouch and event.pressed:
+		var step: Dictionary = STEPS[_step]
+		if step.advance != "tap_box":
+			return
+		var local := _panel.get_global_rect()
+		if local.has_point(event.position):
+			_advance()
+			get_viewport().set_input_as_handled()
+
+
+func _on_click(_pos: Vector2, _value: float, _crit: bool) -> void:
+	if not _active:
+		return
+	var step: Dictionary = STEPS[_step]
+	if step.advance != "clicks":
+		return
+	_clicks += 1
+	var left: int = maxi(0, int(step.count) - _clicks)
+	_hint.text = "▸ toque no navio (%d)" % left
+	if left == 0:
+		_advance()
+
+
+func _on_structure(id: String, _count: int) -> void:
+	if not _active:
+		return
+	if STEPS[_step].advance == "structure" and id == "estivador":
+		_advance()
+
+
+func _advance() -> void:
+	_step += 1
+	_clicks = 0
+	if _step >= STEPS.size():
+		_finish()
+		return
+	AudioManager.play_sfx("tap")
+	_show_step()
+
+
+func _finish() -> void:
+	_active = false
+	GameState.flags["tutorial_done"] = true
+	var tween := create_tween()
+	tween.tween_property(_panel, "modulate:a", 0.0, 0.3)
+	tween.tween_callback(func() -> void:
+		visible = false
+		finished.emit()
+		EventBus.toast.emit("Bom trabalho. O porto é teu."))
