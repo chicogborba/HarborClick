@@ -137,14 +137,14 @@ func _ready() -> void:
 	shell.save_requested.connect(SaveManager.request_save)
 	_apply_view_metrics(shell.metrics)
 
-	if OS.is_debug_build() and DisplayServer.get_name() != "headless":
+	if OS.is_debug_build() and DisplayServer.get_name() != "headless" \
+			and FileAccess.file_exists("res://.devprobe"):
 		var timer := Timer.new()
 		timer.wait_time = 3.0
 		timer.autostart = true
 		timer.timeout.connect(_save_screenshot.bind("shot"))
 		add_child(timer)
-		if FileAccess.file_exists("res://.devprobe"):
-			_dev_probe()
+		_dev_probe()
 
 
 func _on_ship_phase(phase: int) -> void:
