@@ -25,11 +25,13 @@ const WATER_X0 := 240.0
 ## The road out to the city. Trucks park on this apron beside the gate, which
 ## is the terminal's second door: without it cargo can only arrive and leave by
 ## sea, and a closed loop can jam.
-const GATE_APRON_Y := 4.0
+## Between the top margin and the first block row: paved, empty, and directly
+## off the service road. At the very top of the world it sat behind the HUD.
+const GATE_APRON_Y := 38.0
 const GATE_BAY_W := 22.0
 const GATE_BAY_H := 26.0
 const GATE_BAY_GAP := 8.0
-const GATE_BAY_X := 40.0
+const GATE_BAY_X := 42.0
 
 const TOP_MARGIN := 30.0
 const SHIP_X := 244.0

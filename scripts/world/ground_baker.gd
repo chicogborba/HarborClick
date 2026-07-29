@@ -89,6 +89,20 @@ static func bake(world_h: int) -> ImageTexture:
 		for tx in range(int(PortLayout.YARD_X0), int(PortLayout.QUAY_X0), TILE):
 			_blend(img, dash, tx, int(lane_y) - 2)
 
+	# --- gate apron: marked parking bays for the city trucks ---
+	for apron_bay in 2:
+		var origin := PortLayout.gate_bay_position(apron_bay)
+		var bx := int(origin.x)
+		var by := int(origin.y)
+		var bw := int(PortLayout.GATE_BAY_W)
+		var bh := int(PortLayout.GATE_BAY_H)
+		for edge in range(bw):
+			_pixel(img, bx + edge, by, Color8(226, 182, 78))
+			_pixel(img, bx + edge, by + bh, Color8(226, 182, 78))
+		for edge in range(bh):
+			_pixel(img, bx, by + edge, Color8(226, 182, 78))
+			_pixel(img, bx + bw, by + edge, Color8(226, 182, 78))
+
 	# --- service road: two one-way columns, so the gate traffic reads ---
 	# Vehicles drive in on the left of this line and out on the right. Without
 	# the paint the road was indistinguishable from the rest of the apron and
