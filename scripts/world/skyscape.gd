@@ -69,8 +69,11 @@ func _build_clouds() -> void:
 		cloud.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		cloud.scale = Vector2.ONE * randf_range(2.2, 3.4)
 		cloud.modulate = Color(0.10, 0.11, 0.20, 0.0)
+		# Cloud shadows fall on the terminal, never on the sea. A 17% dark blob
+		# drifting over open water does not read as a cloud, it reads as dirt
+		# on the screen — which is exactly what the playtest saw.
 		cloud.position = Vector2(
-			randf_range(-40.0, PortLayout.WORLD_W + 40.0),
+			randf_range(-40.0, PortLayout.WATER_X0),
 			randf_range(0.0, PortLayout.world_bottom()))
 		_shadows.add_child(cloud)
 		_clouds.append(cloud)
@@ -137,7 +140,7 @@ func _drift_clouds(delta: float, fog: float) -> void:
 			continue
 		cloud.position += CLOUD_SPEED * delta
 		if cloud.position.x < -70.0:
-			cloud.position.x = PortLayout.WORLD_W + 70.0
+			cloud.position.x = PortLayout.WATER_X0
 		if cloud.position.y > bottom:
 			cloud.position.y = -60.0
 

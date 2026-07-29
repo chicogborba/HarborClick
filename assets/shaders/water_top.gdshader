@@ -1,21 +1,34 @@
 shader_type canvas_item;
-// Pixel-art top-down water. Every branch has a deliberately small fixed cost:
-// low = two sine waves, medium = one value-noise field, high = a second field
-// plus sparse glints. `quality_level` is selected by WaterQuality, not prefs.
+// Pixel-art harbour water, seen from above.
+//
+// The first version banded the depth in straight vertical stripes and dusted a
+// few dashes over them, which read as flat blue paper with lint on it. Three
+// things make it read as water instead:
+//
+//   * the depth bands are *displaced by the swell*, so their edges wander
+//     instead of ruling straight lines down the screen;
+//   * crests are drawn as broken horizontal strokes that ride the swell and
+//     drift at their own rate per row, which is how top-down water reads in
+//     pixel art;
+//   * the shore gets its own foam band that breaks up along its length.
+//
+// Every branch still has a small fixed cost. `quality_level` is chosen by
+// WaterQuality from the viewport, never by a preference.
 
-uniform vec4 col_shallow : source_color = vec4(0.28, 0.56, 0.65, 1.0);
-uniform vec4 col_base : source_color = vec4(0.22, 0.46, 0.60, 1.0);
-uniform vec4 col_deep : source_color = vec4(0.14, 0.32, 0.47, 1.0);
-uniform vec4 col_light : source_color = vec4(0.45, 0.72, 0.76, 1.0);
-uniform vec4 col_spark : source_color = vec4(0.78, 0.92, 0.91, 1.0);
+uniform vec4 col_shallow : source_color = vec4(0.40, 0.70, 0.74, 1.0);
+uniform vec4 col_mid : source_color = vec4(0.26, 0.54, 0.65, 1.0);
+uniform vec4 col_deep : source_color = vec4(0.13, 0.30, 0.47, 1.0);
+uniform vec4 col_abyss : source_color = vec4(0.09, 0.21, 0.36, 1.0);
+uniform vec4 col_light : source_color = vec4(0.56, 0.82, 0.85, 1.0);
+uniform vec4 col_spark : source_color = vec4(0.86, 0.96, 0.96, 1.0);
 uniform vec2 world_offset = vec2(0.0);
 uniform float shore_x = 240.0;
+uniform float water_span = 80.0;
 uniform int quality_level = 1; // 0 low, 1 medium, 2 high
 
 // The hull, in world space. The water is the only thing that can show a ship
 // is under way rather than parked, so the wake is computed here instead of
-// being a sprite dragged behind the boat: it widens with distance astern, it
-// scrolls, and it dies out when the engines stop.
+// being a sprite dragged behind the boat.
 uniform vec2 ship_centre = vec2(-9999.0);
 uniform vec2 ship_half = vec2(33.0, 116.0);
 uniform float ship_speed = 0.0;   // 0 moored, 1 full ahead
@@ -42,43 +55,64 @@ void fragment() {
 	// Whole-pixel coordinates keep the surface in the game's pixel language.
 	vec2 p = floor(v_pos);
 	float t = TIME;
-	float swell = 0.50 + sin(p.x * 0.035 + p.y * 0.019 + t * 0.55) * 0.17;
-	swell += sin(p.y * 0.052 - t * 0.38) * 0.10;
+
+	// --- swell: one slow field the whole surface agrees on, centred on zero ---
+	float swell = sin(p.x * 0.031 + p.y * 0.017 + t * 0.50) * 0.50;
+	swell += sin(p.y * 0.047 - p.x * 0.011 - t * 0.34) * 0.32;
 	if (quality_level > 0) {
-		swell += (value_noise(p * 0.060 + vec2(t * 0.045, -t * 0.026)) - 0.5) * 0.22;
+		swell += (value_noise(p * 0.055 + vec2(t * 0.04, -t * 0.024)) - 0.5) * 0.72;
 	}
 	if (quality_level > 1) {
-		swell += (value_noise(p * 0.135 + vec2(-t * 0.075, t * 0.055)) - 0.5) * 0.11;
+		swell += (value_noise(p * 0.13 + vec2(-t * 0.07, t * 0.05)) - 0.5) * 0.34;
 	}
-	swell = clamp(swell, 0.0, 1.0);
 
-	// Four discrete depth bands make the quay edge readable, without a gradient.
-	float depth = clamp((p.x - shore_x) / 72.0, 0.0, 1.0);
-	float bands = 3.0 + float(quality_level > 1);
-	depth = floor(depth * bands) / bands;
-	vec4 col = mix(col_shallow, col_deep, depth);
-	if (swell > 0.57) col = mix(col, col_light, 0.42);
-	if (swell < 0.34) col = mix(col, col_base, 0.50);
+	// --- depth, in discrete bands whose edges are pushed about by the swell ---
+	// Displacing the band boundary is the whole trick: straight vertical
+	// stripes read as a gradient someone forgot to dither, wandering ones read
+	// as water getting deeper away from the quay.
+	float from_shore = p.x - shore_x;
+	// The curve is biased so the bright shallow band stays a narrow shelf
+	// against the quay rather than half the channel.
+	float depth = pow(clamp((from_shore + swell * 7.0)
+		/ max(water_span, 1.0), 0.0, 1.0), 0.72);
+	float bands = 4.0 + float(quality_level > 1);
+	float shade = floor(depth * bands) / max(bands - 1.0, 1.0);
+	vec4 col = shade < 0.34
+		? mix(col_shallow, col_mid, shade / 0.34)
+		: (shade < 0.67
+			? mix(col_mid, col_deep, (shade - 0.34) / 0.33)
+			: mix(col_deep, col_abyss, clamp((shade - 0.67) / 0.33, 0.0, 1.0)));
 
-	// One sparse horizontal ripple field is always present. High adds a shorter,
-	// counter-moving field; no loops or per-pixel texture reads are involved.
-	float row = floor(p.y / 6.0);
-	float dash = mod(p.x + t * (4.0 + mod(row, 3.0)) + row * 17.0, 31.0);
-	if (mod(p.y, 6.0) < 1.0 && dash < 5.0 && swell > 0.43) {
-		col = mix(col, col_light, 0.70);
+	// --- crests: broken strokes riding the top of the swell ---
+	// Rows sit 5px apart and each drifts at its own rate, so the surface never
+	// resolves into a repeating grid.
+	float row = floor(p.y / 5.0);
+	float row_phase = hash(vec2(row, 3.0));
+	float drift = t * (5.0 + row_phase * 7.0) + row_phase * 61.0;
+	float stroke = mod(p.x + drift, 23.0 + floor(row_phase * 11.0));
+	if (mod(p.y, 5.0) < 1.0 && stroke < 4.0 + row_phase * 3.0 && swell > 0.22) {
+		col = mix(col, col_light, 0.62);
+		// the leading pixel of a stroke catches the light hardest
+		if (stroke < 1.0) col = mix(col, col_spark, 0.55);
 	}
 	if (quality_level > 1) {
-		float short_dash = mod(p.x - t * 8.0 + row * 9.0, 47.0);
-		if (mod(p.y + 2.0, 9.0) < 1.0 && short_dash < 3.0 && swell > 0.61) {
-			col = mix(col, col_spark, 0.55);
+		float row2 = floor((p.y + 3.0) / 9.0);
+		float drift2 = -t * (9.0 + hash(vec2(row2, 7.0)) * 5.0);
+		if (mod(p.y + 3.0, 9.0) < 1.0
+				&& mod(p.x + drift2, 41.0) < 3.0 && swell > 0.55) {
+			col = mix(col, col_spark, 0.5);
 		}
 	}
 
-	// --- shoreline: a broken line of wash where the water meets the quay ---
-	float from_shore = p.x - shore_x;
-	if (from_shore >= 0.0 && from_shore < 4.0) {
-		float wash = mod(p.y + t * 6.0, 17.0);
-		if (wash < 9.0) col = mix(col, col_spark, 0.45 - from_shore * 0.09);
+	// --- shore: a foam band that breaks up along the quay ---
+	if (from_shore >= 0.0 && from_shore < 6.0) {
+		float edge = 1.0 - from_shore / 6.0;
+		float wash = value_noise(vec2(p.y * 0.14, t * 0.55));
+		col = mix(col, col_light, clamp(edge * (0.45 + wash * 0.75), 0.0, 0.85));
+		// the wet line right against the concrete
+		if (from_shore < 2.0 && wash > 0.42) {
+			col = mix(col, col_spark, 0.70 - from_shore * 0.25);
+		}
 	}
 
 	// --- the ship's wake ---
@@ -92,23 +126,25 @@ void fragment() {
 			float spread = ship_half.x * 0.7 + astern * 0.17;
 			float fade = (1.0 - astern / reach) * ship_speed;
 			if (lateral < spread) {
-				col = mix(col, col_light, 0.16 * fade);
+				col = mix(col, col_light, 0.20 * fade);
 				float churn = sin(astern * 0.30 - t * 8.0 + lateral * 0.22);
-				if (churn > 0.55) col = mix(col, col_light, 0.55 * fade);
+				if (churn > 0.55) col = mix(col, col_light, 0.60 * fade);
 			}
 			if (abs(lateral - spread) < 1.6) {
-				col = mix(col, col_spark, 0.75 * fade);
+				col = mix(col, col_spark, 0.80 * fade);
 			}
 		}
 		// Bow wave: a short bright crescent pushed ahead of the stem.
 		float ahead = -(rel.y + ship_half.y);
 		if (ahead > -3.0 && ahead < 7.0 && lateral < ship_half.x * 1.15) {
-			col = mix(col, col_spark, 0.55 * ship_speed);
+			col = mix(col, col_spark, 0.60 * ship_speed);
 		}
 	}
 
 	// Sparkles are intentionally rare and entirely absent on low quality.
-	if (quality_level > 0 && hash(floor(p / 3.0) + floor(t * 3.0)) > (0.9985 - float(quality_level) * 0.0005) && swell > 0.64) {
+	if (quality_level > 0
+			&& hash(floor(p / 3.0) + floor(t * 3.0)) > (0.9982 - float(quality_level) * 0.0006)
+			&& swell > 0.5) {
 		col = col_spark;
 	}
 	COLOR = col;

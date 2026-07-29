@@ -130,6 +130,8 @@ func _build_water() -> void:
 	mat.shader = preload("res://assets/shaders/water_top.gdshader")
 	mat.set_shader_parameter("world_offset", _water.position)
 	mat.set_shader_parameter("shore_x", PortLayout.WATER_X0)
+	mat.set_shader_parameter("water_span",
+		PortLayout.WORLD_W - PortLayout.WATER_X0)
 	_water.material = mat
 	add_child(_water)
 	_water_quality = WaterQuality.choose(get_viewport().get_visible_rect().size)

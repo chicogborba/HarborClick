@@ -135,10 +135,11 @@ func operational_capacity() -> int:
 
 
 func bay_rows() -> int:
-	## How many rows of the bay grid this class actually has. A feeder is not
-	## a Panamax with empty slots — it is a shorter ship, and the hull is
-	## scaled to match.
-	return clampi(int(ship_variant.get("bay_rows", ROWS)), 2, ROWS)
+	## The berth grid is the berth's, not the ship's. Classes were briefly given
+	## fewer rows and a proportionally shorter hull; the result read as a
+	## squashed boat rather than a smaller one, so a class is a silhouette and a
+	## livery again and every hull works the same twenty-four slots.
+	return ROWS
 
 
 func bay_capacity() -> int:
@@ -151,9 +152,6 @@ func _apply_ship_variant() -> void:
 		return
 	var hull_scale: Vector2 = ship_variant.get("hull_scale", Vector2.ONE)
 	var hull_offset: Vector2 = ship_variant.get("hull_offset", Vector2.ZERO)
-	# A shorter class is a shorter hull: the grid and the sprite have to agree
-	# or a feeder is a full-length ship with half its deck empty.
-	hull_scale.y *= float(bay_rows()) / float(ROWS)
 	_hull.scale = hull_scale
 	_hull.position = hull_offset
 	_cargo.scale = hull_scale

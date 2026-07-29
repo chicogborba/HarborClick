@@ -18,7 +18,11 @@ static func _img(name: String) -> Image:
 static func bake(world_h: int) -> ImageTexture:
 	var w := int(PortLayout.WORLD_W)
 	var img := Image.create(w, world_h, false, Image.FORMAT_RGBA8)
-	img.fill(Color8(62, 126, 158))          # sea, under everything
+	# Transparent, not sea blue. The ground plane sits at z -8 and the animated
+	# water at z -9, so a solid fill out here painted flat blue straight over
+	# the water shader — every wave, band and wake was being drawn and then
+	# covered up. Past the quay there is nothing to bake: that is the sea's job.
+	img.fill(Color(0.0, 0.0, 0.0, 0.0))
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 13371337

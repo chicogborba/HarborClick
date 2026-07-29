@@ -251,7 +251,10 @@ de deixar o jogador construir uma run que evapora no reload.
 - **Acessibilidade** — foco alcança tudo por Tab/setas, Enter ativa, Escape e
   Back fecham; anel de foco de dois tons; nomes acessíveis em toda tecla de
   ícone. Todo texto funcional passa de 4,5:1, verificado por teste.
-- **Frota** — quatro classes com capacidade real (feeder 8 → New Panamax 24).
+- **Frota** — quatro silhuetas e quatro pinturas de casco, sorteadas de forma
+  determinística e sem repetir três vezes seguidas. A classe **não** muda
+  quantas caixas a escala move: isso foi tentado e ficou errado — casco mais
+  curto com a mesma boca lê como barco achatado, não como barco menor.
   Qual delas pode atracar depende de quanto pátio existe pra trabalhá-la, então
   o porto cresce em tamanho de navio, não só em número.
 - **Portão** — caminhões da cidade estacionam na praça ao lado do gate e são
@@ -632,10 +635,13 @@ antigo aparece intacto no perfil 1; reabrir o jogo volta pro menu.
 
 - [ ] `PortLayout` ganha berços múltiplos; o segundo e o terceiro são
       destravados por marcos de terreno.
-- [x] `ShipCatalog` tem quatro classes com capacidade **real**: feeder 8,
-      costeiro 14, Panamax 20, New Panamax 24 contêineres por escala. A classe
-      não é repintura — `bay_rows` é quantas fileiras da grade do berço ela
-      carrega, e o casco é desenhado proporcionalmente mais curto.
+- [x] `ShipCatalog` tem quatro silhuetas e quatro pinturas, com a classe
+      sorteada entre as que o terminal já é grande o bastante pra atender.
+- [ ] Capacidade por classe. Uma primeira tentativa deu ao feeder menos
+      fileiras da grade e um casco proporcionalmente mais curto; o resultado
+      leu como um navio **achatado** em vez de um navio menor, e foi revertido.
+      Um navio menor de verdade precisa de um casco próprio desenhado, não de
+      uma escala vertical no mesmo sprite.
 - [x] A classe sorteada depende do tamanho do pátio (`unlock_blocks`): um
       porto de primeira hora só vê feeder, e o primeiro Panamax no berço é um
       evento visível em vez de um número subindo.
