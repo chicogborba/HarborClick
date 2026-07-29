@@ -15,6 +15,7 @@ var lifetime_teus: float:
 var owned: Dictionary = {}      # structure id -> count
 var upgrades: Dictionary = {}   # upgrade id -> true
 var land: Dictionary = {}       # parcel id -> true
+var routes: Dictionary = {}     # route id -> true (the free home lane is implicit)
 var cps: float = 0.0
 var click_power: float = 1.0
 var shares: int = 0              # golden-share wallet
@@ -489,6 +490,7 @@ func to_save() -> Dictionary:
 		"rebuild_targets": rebuild_targets,
 		"last_run_summary": last_run_summary,
 		"owned": owned, "upgrades": upgrades.keys(), "land": land.keys(),
+		"routes": routes.keys(),
 		"flags": flags, "manual_quotes": _manual_quotes,
 		"manual_commits": _manual_commits.keys(),
 	}
@@ -520,6 +522,9 @@ func from_save(data: Dictionary) -> void:
 	for uid in data.get("upgrades", []):
 		upgrades[uid] = true
 	land.clear()
+	routes.clear()
+	for rid in data.get("routes", []):
+		routes[str(rid)] = true
 	for lid in data.get("land", []):
 		land[lid] = true
 	_manual_quotes = data.get("manual_quotes", {}).duplicate()

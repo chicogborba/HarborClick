@@ -11,6 +11,7 @@ signal structure_bought(id: String, count: int)
 signal structure_purchase_committed(payload: Dictionary)
 signal upgrade_bought(id: String)
 signal land_bought(id: String)
+signal route_bought(id: String)
 signal ship_arrived
 signal ship_departed
 signal day_phase_changed(phase: StringName)

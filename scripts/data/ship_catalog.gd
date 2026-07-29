@@ -46,12 +46,17 @@ static func unlocked_silhouettes(blocks: int) -> Array[Dictionary]:
 
 
 static func select_variant(variant_seed: int, call_index: int,
-		history: Array[String] = [], blocks: int = 9999) -> Dictionary:
+		history: Array[String] = [], blocks: int = 9999,
+		lane_classes: Array[String] = []) -> Dictionary:
 	var candidates: Array[Dictionary] = []
 	var blocked := ""
 	if history.size() >= 2 and history[history.size() - 1] == history[history.size() - 2]:
 		blocked = history[history.size() - 1]
 	for silhouette in unlocked_silhouettes(blocks):
+		# A lane decides which hulls even sail here; the yard decides which of
+		# those the terminal can work. Both have to agree.
+		if not lane_classes.is_empty() and not lane_classes.has(str(silhouette.id)):
+			continue
 		for palette in PALETTES:
 			var variant_id := "%s:%s" % [String(silhouette.id), String(palette.id)]
 			if variant_id != blocked:

@@ -12,9 +12,11 @@ var notifications: NotificationCoordinator
 var settings: SettingsPanel
 var objective: ObjectiveChip
 var journal: PortJournal
+var routes: RouteMap
 var prestige_dialog: PrestigeDialog
 var tutorial: TutorialSpotlight
-var _overlay_state := {"shop": false, "settings": false, "journal": false, "prestige": false}
+var _overlay_state := {"shop": false, "settings": false, "journal": false,
+	"prestige": false, "routes": false}
 
 
 func _ready() -> void:
@@ -103,6 +105,12 @@ func _ready() -> void:
 		}))
 	Progression.contract_updated.connect(func(_contract: Dictionary) -> void: journal.refresh())
 	Progression.contract_finished.connect(func(_contract: Dictionary, _completed: bool) -> void: journal.refresh())
+
+	routes = RouteMap.new()
+	routes.name = "RouteMap"
+	add_child(routes)
+	rail.routes_requested.connect(routes.open)
+	routes.open_changed.connect(_on_overlay_changed.bind("routes"))
 
 	prestige_dialog = PrestigeDialog.new()
 	prestige_dialog.name = "PrestigeDialog"
@@ -252,6 +260,9 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 	shop.set_rail(rail)
 	shop.apply_view_metrics(metrics)
 	journal.set_rail(rail)
+	if routes != null:
+		routes.set_rail(rail)
+		routes.apply_view_metrics(metrics)
 
 	toasts.apply_view_metrics(metrics)
 	settings.apply_view_metrics(metrics)
@@ -274,10 +285,11 @@ func _on_overlay_changed(opened: bool, source: String) -> void:
 		# Anything that draws in the rail's place hides the rail's own keys,
 		# so they are never stacked underneath a board.
 		rail.set_overlay_open(bool(_overlay_state.shop)
-			or bool(_overlay_state.journal))
+			or bool(_overlay_state.journal) or bool(_overlay_state.routes))
 	shell.set_world_input_blocked(
 		bool(_overlay_state.shop) or bool(_overlay_state.settings)
-			or bool(_overlay_state.journal) or bool(_overlay_state.prestige))
+			or bool(_overlay_state.journal) or bool(_overlay_state.prestige)
+			or bool(_overlay_state.routes))
 
 
 func _on_world_input_blocked(blocked: bool) -> void:

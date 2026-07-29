@@ -13,6 +13,7 @@ extends CanvasLayer
 ## single strip of keys under the thumb and the readout stays over the world.
 
 signal shop_requested
+signal routes_requested
 signal journal_requested
 signal settings_requested
 signal prestige_requested
@@ -149,6 +150,8 @@ func _build_board() -> void:
 	_column.add_child(_keys)
 	_keys.add_child(_make_key("LOJA", UiTheme.Icon.CRANE, &"amber",
 		"Abrir a loja do terminal", shop_requested))
+	_keys.add_child(_make_key("ROTAS", UiTheme.Icon.SHIP, &"ghost",
+		"Abrir o mapa de rotas", routes_requested))
 	_keys.add_child(_make_key("DIÁRIO", UiTheme.Icon.TROPHY, &"ghost",
 		"Abrir o Diário do Porto", journal_requested))
 	_keys.add_child(_make_key("AJUSTES", UiTheme.Icon.GEAR, &"ghost",
@@ -205,11 +208,17 @@ func _build_bar() -> void:
 	# slab and squeezed the third into a 44px square with a 12px glyph in it,
 	# which is the "settings icon is rubbish" from the playtest.
 	for spec in [["LOJA", UiTheme.Icon.CRANE, &"amber", "Abrir a loja do terminal", shop_requested],
+			["ROTAS", UiTheme.Icon.SHIP, &"ghost", "Abrir o mapa de rotas", routes_requested],
 			["DIÁRIO", UiTheme.Icon.TROPHY, &"ghost", "Abrir o Diário do Porto", journal_requested],
-			["AJUSTES", UiTheme.Icon.GEAR, &"ghost", "Abrir os ajustes", settings_requested]]:
+			["", UiTheme.Icon.GEAR, &"ghost", "Abrir os ajustes", settings_requested]]:
 		var key := _make_key(str(spec[0]), spec[1], spec[2], str(spec[3]), spec[4])
-		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		key.custom_minimum_size = Vector2(0.0, 34.0)
+		# Four keys on a 320px bar: the three named ones share the width and
+		# settings keeps a square, because its glyph reads on its own and a
+		# fourth word would squeeze all of them past legibility.
+		var labelled := not str(spec[0]).is_empty()
+		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL if labelled \
+			else Control.SIZE_SHRINK_END
+		key.custom_minimum_size = Vector2(0.0 if labelled else 40.0, 34.0)
 		_bar_keys.add_child(key)
 
 

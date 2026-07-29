@@ -47,6 +47,7 @@ func _connect_save_events() -> void:
 	EventBus.structure_bought.connect(func(_id: String, _count: int) -> void: save_game(&"structure_bought"))
 	EventBus.upgrade_bought.connect(func(_id: String) -> void: save_game(&"upgrade_bought"))
 	EventBus.land_bought.connect(func(_id: String) -> void: save_game(&"land_bought"))
+	EventBus.route_bought.connect(func(_id: String) -> void: save_game(&"route_bought"))
 	# `prestige_committed` is emitted after the career tracker has observed the
 	# reset, so the immediate snapshot contains both economy and journal state.
 	EventBus.prestige_committed.connect(func(_quote: Dictionary) -> void: save_game(&"prestige"))

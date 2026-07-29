@@ -151,6 +151,13 @@ func _run(size: Vector2i) -> void:
 		await _shot("settings")
 		_main.settings.close()
 		await get_tree().create_timer(0.2).timeout
+	if _wants("routes"):
+		_main.routes.open()
+		await get_tree().create_timer(0.3).timeout
+		_check("routes", _main.routes._sheet, size)
+		await _shot("routes")
+		_main.routes.close()
+		await get_tree().create_timer(0.2).timeout
 	if _wants("journal"):
 		_main.journal.open()
 		await get_tree().create_timer(0.3).timeout

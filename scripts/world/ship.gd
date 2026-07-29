@@ -112,11 +112,11 @@ func set_flights_in_progress(total: int) -> void: _flights_in_progress = maxi(0,
 
 
 func select_variant(variant_seed: int, call_index: int,
-		blocks: int = 9999) -> Dictionary:
+		blocks: int = 9999, lane_classes: Array[String] = []) -> Dictionary:
 	## Deterministic, history-aware, and now size-aware: the classes on offer
 	## are the ones the terminal is big enough to work.
 	ship_variant = ShipCatalog.select_variant(variant_seed, call_index,
-		variant_history, blocks)
+		variant_history, blocks, lane_classes)
 	if not ship_variant.is_empty():
 		variant_history.append(str(ship_variant.id))
 		while variant_history.size() > 8:

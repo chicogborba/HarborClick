@@ -54,10 +54,10 @@ func seed_new(p_seed: int = 0) -> void:
 		# second global random draw solely for presentation.
 		_variant_seed = call_id.hash()
 	if ship != null:
-		# Which classes can call here at all depends on how much yard there is
-		# to work them, so the first Panamax is something the port earned.
+		# Two gates on which hull turns up: the lanes the port trades on, and
+		# whether there is enough yard to work the class those lanes bring.
 		ship.select_variant(_variant_seed, _variant_call_index,
-			PortLayout.block_count())
+			PortLayout.block_count(), RouteDB.class_pool(GameState.routes))
 	_variant_call_index += 1
 	_imports.clear()
 	_exported.clear()
@@ -269,7 +269,10 @@ func departure_bonus(perfect: bool) -> float:
 	## it scales with the run instead of being a flat number that is enormous
 	## in the first hour and invisible in the third.
 	var rate := maxf(GameState.cps, GameState.click_power)
-	var bonus := rate * DEPARTURE_SECONDS
+	# Freight is priced by the longest lane the port is on: a box that crossed
+	# an ocean is worth more than one that came up the coast.
+	var bonus := rate * DEPARTURE_SECONDS \
+		* RouteDB.reward_multiplier(GameState.routes)
 	if perfect:
 		bonus *= 1.0 + PERFECT_CALL_BONUS
 	return bonus
