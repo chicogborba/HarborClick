@@ -16,9 +16,9 @@ signal pressed_card(id: String)
 const DRAG_CANCEL_DISTANCE := 10.0
 const EMULATED_INPUT_DEDUPE_MSEC := 120
 const ART_SIZE := Vector2(54, 38)
-const ART_SIZE_COMPACT := Vector2(40, 34)
+const ART_SIZE_COMPACT := Vector2(38, 32)
 const PRICE_WIDTH := 74.0
-const PRICE_WIDTH_COMPACT := 62.0
+const PRICE_WIDTH_COMPACT := 58.0
 
 var id: String = ""
 var kind: String = "structure"

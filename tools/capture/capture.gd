@@ -130,8 +130,10 @@ func _check(what: String, panel: Control, size: Vector2i) -> void:
 	var rect := panel.get_global_rect()
 	if rect.position.x < view.position.x - 0.5 or rect.position.y < view.position.y - 0.5 \
 			or rect.end.x > view.end.x + 0.5 or rect.end.y > view.end.y + 0.5:
-		_failures.append("%s at %dx%d spills outside the viewport (%s vs %s)"
-			% [what, size.x, size.y, rect, view])
+		# The minimum size is reported because that is almost always the cause:
+		# a container can never be laid out smaller than its own content.
+		_failures.append("%s at %dx%d spills outside the viewport (%s vs %s, min %s)"
+			% [what, size.x, size.y, rect, view, panel.get_combined_minimum_size()])
 
 
 func _shot(shot_name: String) -> void:

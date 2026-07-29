@@ -206,7 +206,9 @@ static func place_clip(clip: TextureRect, board: Control, safe: Rect2) -> void:
 	## is tall enough to reach the top of the safe area — a clip drawn over the
 	## status bar or the TEU readout is worse than no clip.
 	var top := board.position.y - 7.0
-	clip.visible = board.visible and top >= safe.position.y + 4.0
+	# It needs real air above it. A clip drawn into the top strip of the screen
+	# lands on the status bar or the TEU readout, which is worse than no clip.
+	clip.visible = board.visible and top >= safe.position.y + 22.0
 	clip.position = Vector2(
 		board.position.x + (board.size.x - CLIP_SIZE.x) * 0.5, top)
 

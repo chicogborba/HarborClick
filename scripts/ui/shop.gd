@@ -19,7 +19,11 @@ const TABS := [
 	["land", "TERRENO", "TERRA", UiTheme.Icon.LAND],
 ]
 const BUY_MODES: Array[StringName] = [&"x1", &"x10", &"x25", &"max"]
-const DESKTOP_WIDTH := Vector2(240.0, 300.0)
+## Min/max width of the desktop drawer. The world keeps
+## `ResponsiveShell.WORLD_DESKTOP_FRACTION` regardless, so the upper bound only
+## decides how much of the leftover rail the manifest is allowed to use — at
+## 300px the longer machine names were still being truncated on a 1080p screen.
+const DESKTOP_WIDTH := Vector2(240.0, 360.0)
 
 ## Which yard sprite stands for each purchase. Upgrades borrow the sprite of
 ## the machine they improve, so an upgrade never looks like a generic box.
