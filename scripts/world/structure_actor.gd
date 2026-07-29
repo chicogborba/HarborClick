@@ -14,6 +14,12 @@ enum Job { IDLE, ENTERING, TO_TARGET, WORKING, TO_ROAD, LEAVING }
 
 ## How long a hauler may sit blocked before it gives the job back.
 const STALL_TIMEOUT := 12.0
+## A truck has mass. Constant speed and instant 90-degree turns are what made
+## the yard read as boxes sliding around rather than vehicles driving.
+const ACCELERATION := 52.0
+const BRAKING := 78.0
+const BRAKE_DISTANCE := 16.0
+const TURN_RATE := 7.0
 
 var id: String = ""
 var index := 0
@@ -41,6 +47,8 @@ var _job_data: Dictionary = {}
 var _waypoints: Array[Vector2] = []
 var _lane_key := ""
 var _stalled := 0.0
+var _cruise := 0.0
+var _facing := 0.0
 var _cooldown := 0.0
 var _work_timer := 0.0
 var _carrying := false
@@ -399,6 +407,8 @@ func _try_take_job() -> void:
 		_set_cargo_color(job.color)
 
 	position = entry
+	_cruise = 0.0
+	_facing = 0.0
 	visible = true
 	_waypoints = [
 		Vector2(PortLayout.ROAD_IN_X, lane_y),
@@ -413,7 +423,14 @@ func _follow_waypoints(delta: float) -> void:
 		return
 	var target: Vector2 = _waypoints[0]
 	var delta_v := target - position
-	var step := _speed * delta
+	# Pull up to the last waypoint rather than stopping dead on it: a vehicle
+	# arriving at a stack should be seen slowing into it.
+	var wanted := _speed
+	if _waypoints.size() == 1:
+		wanted = _speed * clampf(delta_v.length() / BRAKE_DISTANCE, 0.22, 1.0)
+	_cruise = move_toward(_cruise, wanted,
+		(ACCELERATION if wanted > _cruise else BRAKING) * delta)
+	var step := _cruise * delta
 	if delta_v.length() <= step:
 		position = target
 		_waypoints.pop_front()
@@ -428,28 +445,35 @@ func _follow_waypoints(delta: float) -> void:
 	# gives up the job rather than hold the terminal hostage.
 	if _world != null and _world.traffic != null \
 			and not _world.traffic.can_advance(self, position + dir * step):
-		_face(dir)
+		_cruise = move_toward(_cruise, 0.0, BRAKING * delta)
+		_face(dir, delta)
 		_stalled += delta
 		if _stalled > STALL_TIMEOUT:
 			_abandon_job()
 		return
 	_stalled = 0.0
 	position += dir * step
-	_face(dir)
+	_face(dir, delta)
 
 
-func _face(dir: Vector2) -> void:
-	## Pixel art only survives 90° steps, so snap to the dominant axis.
-	var rot: float
+func _face(dir: Vector2, delta: float = 0.0) -> void:
+	## The target heading is still one of four, because the sprites only have
+	## four sides. Turning *into* it takes time, though — snapping through 90
+	## degrees in one frame is why the yard looked like sliding boxes.
+	var wanted: float
 	if absf(dir.x) > absf(dir.y):
-		rot = PI / 2.0 if dir.x > 0.0 else -PI / 2.0
+		wanted = PI / 2.0 if dir.x > 0.0 else -PI / 2.0
 	else:
-		rot = 0.0 if dir.y > 0.0 else PI
-	_sprite.rotation = rot
+		wanted = 0.0 if dir.y > 0.0 else PI
+	if delta <= 0.0:
+		_facing = wanted
+	else:
+		_facing = rotate_toward(_facing, wanted, TURN_RATE * delta)
+	_sprite.rotation = _facing
 	if _shadow != null:
-		_shadow.rotation = rot
+		_shadow.rotation = _facing
 	if _cargo != null:
-		_cargo.rotation = rot
+		_cargo.rotation = _facing
 
 
 func _on_waypoints_done() -> void:
@@ -457,6 +481,11 @@ func _on_waypoints_done() -> void:
 		Job.ENTERING, Job.TO_TARGET:
 			_job = Job.WORKING
 			_work_timer = 0.9
+			_cruise = 0.0
+			# Dust where the tyres stop, so the arrival lands rather than just
+			# ending.
+			if _world != null:
+				_world.spawn_dust(position + Vector2(-6, 4))
 		Job.TO_ROAD:
 			_waypoints = [Vector2(PortLayout.ROAD_OUT_X, PortLayout.TOP_MARGIN - 30.0)]
 			_job = Job.LEAVING

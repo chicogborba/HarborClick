@@ -670,11 +670,13 @@ cumprindo as metas de sessão.
 - [x] As boias saíram do canal: viraram marcas laterais desenhadas **por cima**
       do casco, então o navio passa por trás delas em vez de atropelá-las.
 - [ ] Rebocadores acompanham a manobra de atracação e desatracação.
-- [ ] Haulers entram pelo portão dirigindo, com aceleração, desaceleração e
-      curva em arco em vez de virada de 90° seca.
-- [ ] Cada viagem tem um alvo legível: o veículo para na pilha, o spreader
-      desce, a caixa muda de dono, e só então ele sai.
-- [ ] Estivadores param ao lado do que estão conferindo.
+- [x] Haulers dirigem: aceleram, freiam ao chegar e giram através do arco em
+      vez de trocar de rumo num frame. O alvo continua sendo um dos quatro
+      lados (os sprites só têm quatro), mas **virar** leva tempo — era a
+      virada instantânea que fazia o pátio parecer caixas deslizando.
+- [x] Cada viagem tem um alvo legível: o veículo desacelera na pilha, levanta
+      poeira ao parar, trabalha, e só então sai.
+- [x] Estivadores fazem rondas e param onde chegam, em vez de pendular.
 
 Aceite: gravar 30 s do pátio e nenhum veículo anda de lado, de ré, ou pára no
 meio do nada.
