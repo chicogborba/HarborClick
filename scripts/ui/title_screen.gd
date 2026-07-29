@@ -139,11 +139,11 @@ func _make_slot(summary: Dictionary) -> PanelContainer:
 	return card
 
 
-func _line(text: String, size: int, color: Color) -> Label:
+func _line(text: String, font_size: int, color: Color) -> Label:
 	## Every label on a slot clips. A long terminal summary must never set the
 	## board's minimum width — that is what pushed the whole card off a 320px
 	## screen the first time.
-	var label := UiTheme.label(text, size, color)
+	var label := UiTheme.label(text, font_size, color)
 	label.clip_text = true
 	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	label.custom_minimum_size.x = 0.0
