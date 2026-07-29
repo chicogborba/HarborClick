@@ -69,6 +69,7 @@ godot --headless --path . res://tests/backup_test_runner.tscn
 godot --headless --path . res://tests/profile_test_runner.tscn
 godot --headless --path . res://tests/automation_test_runner.tscn
 godot --headless --path . res://tests/gate_test_runner.tscn
+godot --headless --path . res://tests/wake_test_runner.tscn
 
 # cenários de balanceamento (ativo, híbrido, casual, offline e recuperação)
 godot --headless --path . --script res://tools/balance/run_balance.gd -- all
@@ -232,6 +233,10 @@ de deixar o jogador construir uma run que evapora no reload.
 - **Dia/noite** — ciclo de 12 min. `Atmosphere` interpola o tint global, acende
   os postes com flicker ao anoitecer e roda a névoa (15% dos dias) com foghorn.
   Os mastros do cais também acendem enquanto o berço está sendo trabalhado.
+- **Água** — o rastro do navio é calculado no shader a partir do casco (centro,
+  meia-medida e velocidade), não é sprite arrastado atrás do barco: abre em V
+  com a distância à popa, rola, e morre quando as máquinas param. Mais uma
+  linha quebrada de espuma onde a água encontra o cais.
 - **Céu** — `Skyscape`. De cima não se olha pra cima: nuvem é só a sombra que
   ela joga no pátio, lua e estrelas só o reflexo na água, por baixo do casco.
 - **Áudio** — 13 SFX e 3 trilhas longas e calmas (dia/noite/neblina) com

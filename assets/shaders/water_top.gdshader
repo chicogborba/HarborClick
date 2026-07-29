@@ -12,6 +12,14 @@ uniform vec2 world_offset = vec2(0.0);
 uniform float shore_x = 240.0;
 uniform int quality_level = 1; // 0 low, 1 medium, 2 high
 
+// The hull, in world space. The water is the only thing that can show a ship
+// is under way rather than parked, so the wake is computed here instead of
+// being a sprite dragged behind the boat: it widens with distance astern, it
+// scrolls, and it dies out when the engines stop.
+uniform vec2 ship_centre = vec2(-9999.0);
+uniform vec2 ship_half = vec2(33.0, 116.0);
+uniform float ship_speed = 0.0;   // 0 moored, 1 full ahead
+
 varying vec2 v_pos;
 
 void vertex() {
@@ -63,6 +71,39 @@ void fragment() {
 		float short_dash = mod(p.x - t * 8.0 + row * 9.0, 47.0);
 		if (mod(p.y + 2.0, 9.0) < 1.0 && short_dash < 3.0 && swell > 0.61) {
 			col = mix(col, col_spark, 0.55);
+		}
+	}
+
+	// --- shoreline: a broken line of wash where the water meets the quay ---
+	float from_shore = p.x - shore_x;
+	if (from_shore >= 0.0 && from_shore < 4.0) {
+		float wash = mod(p.y + t * 6.0, 17.0);
+		if (wash < 9.0) col = mix(col, col_spark, 0.45 - from_shore * 0.09);
+	}
+
+	// --- the ship's wake ---
+	if (ship_speed > 0.01) {
+		vec2 rel = p - ship_centre;
+		float lateral = abs(rel.x);
+		float astern = rel.y - ship_half.y;
+		float reach = 90.0 + 170.0 * ship_speed;
+		if (astern > 0.0 && astern < reach) {
+			// A V that opens with distance, and churn inside it.
+			float spread = ship_half.x * 0.7 + astern * 0.17;
+			float fade = (1.0 - astern / reach) * ship_speed;
+			if (lateral < spread) {
+				col = mix(col, col_light, 0.16 * fade);
+				float churn = sin(astern * 0.30 - t * 8.0 + lateral * 0.22);
+				if (churn > 0.55) col = mix(col, col_light, 0.55 * fade);
+			}
+			if (abs(lateral - spread) < 1.6) {
+				col = mix(col, col_spark, 0.75 * fade);
+			}
+		}
+		// Bow wave: a short bright crescent pushed ahead of the stem.
+		float ahead = -(rel.y + ship_half.y);
+		if (ahead > -3.0 && ahead < 7.0 && lateral < ship_half.x * 1.15) {
+			col = mix(col, col_spark, 0.55 * ship_speed);
 		}
 	}
 

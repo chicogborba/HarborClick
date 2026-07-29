@@ -310,6 +310,7 @@ func _apply_water_quality(metrics: Dictionary) -> void:
 
 
 func _process(delta: float) -> void:
+	_feed_water_shader()
 	if berth != null:
 		berth.tick(delta)
 	if gate != null:
@@ -349,6 +350,20 @@ func _rebuild_gate_view() -> void:
 			box.scale = Vector2(0.62, 0.62)
 			box.position = Vector2(-1, 12.0 + index * 8.0)
 			root.add_child(box)
+
+
+func _feed_water_shader() -> void:
+	if _water == null or ship == null or not (_water.material is ShaderMaterial):
+		return
+	var mat := _water.material as ShaderMaterial
+	var strength := ship.wake_strength() if ship.visible else 0.0
+	mat.set_shader_parameter("ship_speed", strength)
+	if strength > 0.0:
+		# Shader space is world space offset by the water rect's own origin.
+		mat.set_shader_parameter("ship_centre",
+			ship.hull_centre() - _water.position)
+		mat.set_shader_parameter("ship_half",
+			Vector2(PortLayout.SHIP_W, PortLayout.SHIP_H) * 0.5)
 
 
 # ---------- input ----------

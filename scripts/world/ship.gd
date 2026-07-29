@@ -26,6 +26,8 @@ var _reserved: Dictionary = {}
 var _flights_in_progress := 0
 var _t := 0.0
 var _nudge := 0.0
+var _last_y := 0.0
+var _wake_strength := 0.0
 var ship_variant: Dictionary = {}
 var variant_history: Array[String] = []
 @onready var _containers: Texture2D = preload("res://assets/sprites/container_sheet.png")
@@ -60,7 +62,23 @@ func _ready() -> void:
 	_refresh_wake_state()
 
 
+func wake_strength() -> float:
+	## Measured from the hull actually moving, not from the phase: a tween that
+	## has not started yet, or one easing to a stop at the berth, should not be
+	## throwing water either way.
+	return _wake_strength
+
+
+func hull_centre() -> Vector2:
+	return global_position + Vector2(PortLayout.SHIP_W, PortLayout.SHIP_H) * 0.5
+
+
 func _process(delta: float) -> void:
+	var travelled := absf(position.y - _last_y) / maxf(delta, 0.0001)
+	_last_y = position.y
+	var driving := 0.0 if not (phase == Phase.ARRIVING or phase == Phase.DEPARTING) \
+		else clampf(travelled / 70.0, 0.0, 1.0)
+	_wake_strength = move_toward(_wake_strength, driving, delta * 1.6)
 	_t += delta
 	_nudge = maxf(0.0, _nudge - delta * 4.0)
 	if is_working():

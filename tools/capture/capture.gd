@@ -114,6 +114,24 @@ func _run(size: Vector2i) -> void:
 		await _shot("night")
 		TimeManager.time_of_day = was
 		await get_tree().create_timer(0.4).timeout
+	if _wants("wake"):
+		# The wake only exists while the hull is driving. Rather than race a
+		# tween, the hull is parked mid-channel and the water is told it is
+		# under way — that is exactly the state the shader has to render.
+		var water: ColorRect = _main.world._water
+		var mat := water.material as ShaderMaterial
+		_main.world.ship.position = Vector2(PortLayout.SHIP_X,
+			PortLayout.SHIP_Y + 150.0)
+		_main.world.ship.visible = true
+		await get_tree().process_frame
+		mat.set_shader_parameter("ship_centre",
+			_main.world.ship.hull_centre() - water.position)
+		mat.set_shader_parameter("ship_half",
+			Vector2(PortLayout.SHIP_W, PortLayout.SHIP_H) * 0.5)
+		mat.set_shader_parameter("ship_speed", 1.0)
+		await get_tree().create_timer(0.5).timeout
+		await _shot("wake")
+		mat.set_shader_parameter("ship_speed", 0.0)
 	if _wants("shop"):
 		_main.shop._on_tab("structures")
 		await get_tree().create_timer(0.4).timeout
