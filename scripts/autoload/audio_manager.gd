@@ -51,7 +51,7 @@ func _exit_tree() -> void:
 
 
 func play_sfx(sfx_name: String, pitch_jitter: float = 0.06, volume_db: float = 0.0) -> void:
-	if not sfx_on or DisplayServer.get_name() == "headless":
+	if not sfx_on or DisplayServer.get_name() == "headless" or _pool.is_empty():
 		return
 	var stream := _load(sfx_name)
 	if stream == null:

@@ -15,7 +15,6 @@ const RECOVERY_PATH := "user://preferences.cfg.recovery"
 const UI_SCALE_PRESETS := [0.90, 1.00, 1.15]
 
 var reduce_motion := false
-var haptics := true
 var floating_numbers := true
 var ui_scale := 1.00
 var fullscreen := false
@@ -43,7 +42,6 @@ func load_preferences() -> void:
 	if config == null:
 		return
 	reduce_motion = bool(config.get_value("preferences", "reduce_motion", reduce_motion))
-	haptics = bool(config.get_value("preferences", "haptics", haptics))
 	floating_numbers = bool(config.get_value("preferences", "floating_numbers", floating_numbers))
 	ui_scale = _safe_ui_scale(float(config.get_value("preferences", "ui_scale", ui_scale)))
 	fullscreen = bool(config.get_value("preferences", "fullscreen", fullscreen))
@@ -56,11 +54,10 @@ func load_preferences() -> void:
 func _config_is_usable(config: ConfigFile) -> bool:
 	if config == null or not config.has_section("preferences"):
 		return false
-	for key in ["reduce_motion", "haptics", "floating_numbers", "ui_scale",
-			"fullscreen"]:
+	for key in ["reduce_motion", "floating_numbers", "ui_scale", "fullscreen"]:
 		if not config.has_section_key("preferences", key):
 			return false
-	for key in ["reduce_motion", "haptics", "floating_numbers", "fullscreen"]:
+	for key in ["reduce_motion", "floating_numbers", "fullscreen"]:
 		if not config.get_value("preferences", key) is bool:
 			return false
 	var raw_scale: Variant = config.get_value("preferences", "ui_scale")
@@ -75,13 +72,6 @@ func set_reduce_motion(value: bool) -> void:
 		return
 	reduce_motion = value
 	_commit(&"reduce_motion")
-
-
-func set_haptics(value: bool) -> void:
-	if haptics == value:
-		return
-	haptics = value
-	_commit(&"haptics")
 
 
 func set_floating_numbers(value: bool) -> void:
@@ -119,14 +109,6 @@ func set_fullscreen(value: bool) -> void:
 
 func can_animate() -> bool:
 	return not reduce_motion
-
-
-func haptic_feedback(duration_ms: int = 25) -> void:
-	## Keep this as the sole future entry point. Desktop builds never request a
-	## vibration, even when a controller or a compatibility layer is present.
-	if not haptics or not OS.has_feature("mobile"):
-		return
-	Input.vibrate_handheld(maxi(1, duration_ms))
 
 
 func _safe_ui_scale(value: float) -> float:
@@ -168,7 +150,6 @@ func _commit(key: StringName) -> void:
 func save_preferences() -> Error:
 	var config := ConfigFile.new()
 	config.set_value("preferences", "reduce_motion", reduce_motion)
-	config.set_value("preferences", "haptics", haptics)
 	config.set_value("preferences", "floating_numbers", floating_numbers)
 	config.set_value("preferences", "ui_scale", ui_scale)
 	config.set_value("preferences", "fullscreen", fullscreen)

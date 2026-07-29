@@ -20,6 +20,8 @@ var overhead: Node2D          # gantries, drones, boxes in flight
 
 var _ground: Sprite2D
 var _water: ColorRect
+var _water_foam: WaterFoam
+var _water_quality: WaterQuality.Level = WaterQuality.Level.MEDIUM
 var _decals: Node2D
 var _props: Node2D
 var _pressed := false
@@ -110,8 +112,17 @@ func _build_water() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://assets/shaders/water_top.gdshader")
 	mat.set_shader_parameter("world_offset", _water.position)
+	mat.set_shader_parameter("shore_x", PortLayout.WATER_X0)
 	_water.material = mat
 	add_child(_water)
+	_water_quality = WaterQuality.choose(get_viewport().get_visible_rect().size)
+	mat.set_shader_parameter("quality_level", int(_water_quality))
+	_water_foam = WaterFoam.new()
+	_water_foam.name = "WaterFoam"
+	_water_foam.z_index = -7
+	_water_foam.z_as_relative = false
+	add_child(_water_foam)
+	_water_foam.setup(_water_quality, PortLayout.world_bottom())
 
 
 func _spawn_ship() -> void:
@@ -191,6 +202,8 @@ func _on_land_bought(_id: String) -> void:
 	yard.resize()
 	_rebake_ground()
 	_water.size.y = PortLayout.world_bottom() + 220.0
+	if _water_foam != null:
+		_water_foam.rebuild(PortLayout.world_bottom())
 	_rebuild_decals()
 	structures.rebuild()
 	atmosphere.rebuild_lamps()
@@ -204,6 +217,9 @@ func _on_prestiged(_shares: int) -> void:
 	## duplicate props after a prestige reset.
 	yard.resize()
 	_rebake_ground()
+	_water.size.y = PortLayout.world_bottom() + 220.0
+	if _water_foam != null:
+		_water_foam.rebuild(PortLayout.world_bottom())
 	if structures != null:
 		structures.rebuild()
 	_rebuild_decals()
@@ -221,8 +237,20 @@ func set_input_enabled(input_allowed: bool) -> void:
 
 
 func apply_view_metrics(metrics: Dictionary) -> void:
+	_apply_water_quality(metrics)
 	if berth != null:
 		berth.apply_view_metrics(metrics)
+
+
+func _apply_water_quality(metrics: Dictionary) -> void:
+	var level := WaterQuality.from_metrics(metrics, get_viewport().get_visible_rect().size)
+	if level == _water_quality:
+		return
+	_water_quality = level
+	if _water != null and _water.material is ShaderMaterial:
+		(_water.material as ShaderMaterial).set_shader_parameter("quality_level", int(level))
+	if _water_foam != null:
+		_water_foam.set_quality(level)
 
 
 # ---------- input ----------

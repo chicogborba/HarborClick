@@ -97,9 +97,9 @@ func _test_prestige_requires_explicit_confirmation() -> void:
 
 func _test_spotlight_seven_steps_and_safe_target() -> void:
 	var viewport := _viewport(Vector2i(360, 800))
-	var target := Rect2(Vector2(24, 80), Vector2(90, 40))
+	var target := [Rect2(Vector2(24, 80), Vector2(90, 40))]
 	var spotlight := TutorialSpotlight.new()
-	spotlight.setup({"get_target_rect": func(_key: String) -> Rect2: return target, "reduced_motion": func() -> bool: return true})
+	spotlight.setup({"get_target_rect": func(_key: String) -> Rect2: return target[0], "reduced_motion": func() -> bool: return true})
 	viewport.add_child(spotlight)
 	await get_tree().process_frame
 	var safe := Rect2(Vector2(10, 24), Vector2(340, 740))
@@ -108,6 +108,12 @@ func _test_spotlight_seven_steps_and_safe_target() -> void:
 	_expect(spotlight.STEPS.size() == 7, "spotlight has seven data-driven orientation steps")
 	_expect(spotlight._veil.mouse_filter == Control.MOUSE_FILTER_IGNORE, "spotlight veil does not block the highlighted target")
 	_expect(_inside(safe, spotlight._panel.get_global_rect()), "spotlight instruction panel stays inside safe area")
+	_expect(spotlight._panel.size.y <= 120.0,
+		"spotlight instruction panel remains compact instead of covering the port")
+	target[0] = Rect2(Vector2(80, 650), Vector2(120, 52))
+	spotlight._show_step()
+	_expect(not spotlight._panel.get_global_rect().intersects(target[0].grow(8.0)),
+		"spotlight instruction panel moves away from a bottom-screen target")
 	for _step in 7: spotlight.next()
 	_expect(not spotlight.is_active(), "spotlight completes after its seventh step")
 	viewport.queue_free()

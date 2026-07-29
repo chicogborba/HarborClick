@@ -59,6 +59,8 @@ godot --headless --path . res://tests/ui_p0_test_runner.tscn
 godot --headless --path . res://tests/phase3_economy_test_runner.tscn
 godot --headless --path . --script res://tests/phase3_progression_test_runner.gd
 godot --headless --path . res://tests/phase3_progression_ui_test_runner.tscn
+godot --headless --path . res://tests/phase4_ship_test_runner.tscn
+godot --headless --path . res://tests/phase4_water_test_runner.tscn
 
 # cenários de balanceamento (ativo, híbrido, casual, offline e recuperação)
 godot --headless --path . --script res://tools/balance/run_balance.gd -- all
@@ -97,12 +99,13 @@ scripts/
                AudioManager
   cargo/       CargoUnit, transações, controlador de escala e tráfego
   core/        schema e contratos puros de persistência
-  data/        structure_db, upgrade_db, land_db, achievements, contratos e
-               árvore de capital (dados puros)
+  data/        structure_db, upgrade_db, land_db, achievements, contratos,
+               catálogo de navios e árvore de capital (dados puros)
   economy/     fórmula geométrica, catálogo canônico e simulador determinístico
   progression/ carreira, conquistas, contratos, Diário e persistência
-  world/       port_layout, port_world, ship, container_yard, structure_*,
-               ground_baker, atmosphere, critters, port_camera
+  world/       port_layout, port_world, ship, água/espuma por qualidade,
+               container_yard, structure_*, ground_baker, atmosphere,
+               critters, port_camera
   ui/          ui_theme, hud, shop, shop_card, tutorial, Diário, capital,
                toast_layer, settings_panel, offline_popup
 tools/
@@ -322,7 +325,7 @@ clareza, retenção e prazer de interação.
 | [Estudo de engajamento em idle games](https://escholarship.org/content/qt0b07v51w/qt0b07v51w.pdf) | Objetivos claros, progresso contínuo e features que aparecem no mundo sustentam engajamento; contexto mobile e PC não é idêntico | Próximo objetivo no HUD, novidades visíveis e layouts próprios |
 | [Cookie Clicker](https://play.google.com/store/apps/details?id=org.dashnet.cookieclicker) | Grande trilha de upgrades/conquistas, progresso offline, ascensão e eventos reconhecíveis | Conquistas acompanháveis, prestígio que muda a run e Golden Ship |
 | [Egg, Inc.](https://apps.apple.com/us/app/egg-inc/id993492744) | Veículos variados, missões, coleção e mais de uma camada de prestígio dão forma visual aos números | Rotas, classes de navio, contratos e evolução visível do porto |
-| [Análise de “juice” inspirada em Balatro](https://blakecrosley.com/guides/design/balatro) | Números animados, som, cor, partículas e movimento funcionam melhor em camadas proporcionais à importância | `JuiceDirector`, contagem rolante e impactos distintos por evento |
+| [Análise de feedback visual inspirada em Balatro](https://blakecrosley.com/guides/design/balatro) | Movimento só ajuda quando combina com a linguagem e o ritmo do jogo | O protótipo de contagem rolante, shake, pulso e vibração foi rejeitado em playtest; HarborClick mantém contador instantâneo e feedback discreto |
 | [Godot: múltiplas resoluções](https://docs.godotengine.org/en/stable/tutorials/rendering/multiple_resolutions.html) | Stretch, anchors, safe area e composição devem ser escolhidos para o formato, não apenas para um viewport-base | Perfis retrato e paisagem testados por matriz |
 | [Godot: exportar para Web](https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_web.html) | Web exige renderer compatível e cuidados específicos com armazenamento e ciclo de vida | Preset web, persistência testada e export/import manual do save |
 
@@ -506,7 +509,7 @@ O simulador deve testar sessões ativas, híbridas e offline. Comprar a opção
 - [x] Implementar HUD compacto e contador sem reflow.
 - [x] Refazer loja escura com outside click/Back/Escape e drawer desktop.
 - [x] Refazer gear e Ajustes com foco, safe area e opções de movimento,
-      haptics, números flutuantes, UI scale e fullscreen.
+      números flutuantes, UI scale e fullscreen.
 - [x] Unificar gesto mouse/touch: tap, drag e compra no release.
 - [ ] Criar `NotificationCoordinator` e remover toasts rotineiros.
 - [x] Corrigir todos os bugs/dívidas listados antes desta fase ser encerrada.
@@ -575,33 +578,40 @@ Aceite da fase:
 - save antigo recebe conquistas retroativas sem repetir recompensa;
 - tutorial é concluível por touch, mouse e teclado sem encobrir o alvo.
 
-#### Fase 4 — porto vivo, números e “juice” — P1
+#### Fase 4 — porto vivo e variedade visual — P1 — pausada
 
-- [ ] Criar `JuiceDirector` central para toque, crítico, compra, marco, evento
-      e prestígio.
-- [ ] Implementar contagem rolante/interpolada, `+N` separado e pitch chain
-      limitada.
-- [ ] Escalonar flash, partículas, squash, shake e áudio pela importância.
-- [ ] Adicionar haptic mobile e opção de reduzir movimento/desligar shake.
+Estado em 29/07/2026: o pacote visual que já estava em desenvolvimento foi
+concluído, testado e publicado. A fase fica pausada aqui; nenhum item seguinte
+deve ser iniciado sem uma nova rodada de direção.
+
+Decisão de playtest: contagem rolante/interpolada, `+N` no HUD, pitch chain,
+shake de câmera, pulso, flash e vibração deixaram a leitura pior e foram
+removidos integralmente. O contador TEU volta a refletir o valor imediatamente,
+com geometria fixa e sem movimento adicional.
+
+- [x] Preservar o feedback simples anterior de toque, compra, marco e prestígio.
+- [x] Criar três perfis de silhueta/capacidade e quatro paletas de navio.
+- [x] Persistir a variante visual e impedir três repetições idênticas seguidas.
+- [x] Fazer wake existir apenas na chegada/saída e parar completamente no
+      berço.
+- [x] Adicionar espuma no cais, splash e bandas de profundidade à água.
+- [x] Reaproveitar os assets existentes de espuma, splash e wake.
+- [x] Criar níveis automáticos low/medium/high para shader e sprites de água.
+- [x] Corrigir o cartão do tutorial para permanecer compacto e fugir do alvo.
+- [x] Proteger chamadas de áudio feitas antes de o pool terminar de iniciar.
 - [ ] Aumentar a composição útil do porto e melhorar leitura das faixas.
-- [ ] Criar ao menos três silhuetas/capacidades de navio e quatro paletas.
-- [ ] Impedir repetição da mesma variante por mais de duas escalas seguidas.
-- [ ] Adicionar wake ligado à velocidade, espuma no cais, splash e camada de
-      profundidade à água.
-- [ ] Reaproveitar assets hoje ociosos: espuma, splash, boia, nuvens, lua e
-      estrelas.
-- [ ] Adicionar detalhes ociosos que reflitam o estado real: trabalhadores,
+- [ ] Reaproveitar boia, nuvens, lua e estrelas sem poluir a leitura.
+- [ ] Adicionar detalhes ociosos ligados ao estado real: trabalhadores,
       iluminação, sinalização de setor e manutenção.
-- [ ] Criar níveis de qualidade para shader/partículas no mobile e web.
 
-Aceite da fase:
+Aceite deste pacote:
 
-- feedback de toque começa no mesmo frame;
-- shake normal não ultrapassa 1–2 px lógicos e reduced motion remove movimento
-  não essencial;
-- navio gera wake proporcional à velocidade e para de gerá-lo atracado;
-- referência mobile e desktop sustentam meta de 60 FPS no cenário de estresse;
-- trinta escalas não aumentam continuamente nós, memória ou props duplicados.
+- [x] contador TEU instantâneo, estável e sem shake, vibração ou pulso;
+- [x] catálogo determinístico com 12 combinações e persistência no save;
+- [x] wake mais lento na chegada, mais rápido na saída e desligado no berço;
+- [x] espuma/splash limitados por qualidade, sem crescimento por altura;
+- [x] 100 escalas e 4.800 transferências passam sem quebrar o contrato de carga;
+- [ ] referência mobile e desktop sustenta 60 FPS no cenário de estresse.
 
 #### Fase 5 — mapa, rotas e expansão meta — P2
 
@@ -692,7 +702,8 @@ Não começar por mapa, OVNI ou novas skins. A sequência que evita retrabalho �
 1. **Fase 1:** save/testes + shell responsivo + correções de UI;
 2. **Fase 2:** verdade de carga e tráfego;
 3. **Fase 3:** simulador, curva, conquistas e prestígio;
-4. **Fase 4:** variedade visual e juice sobre eventos confiáveis;
+4. **Fase 4:** variedade visual e água, mantendo feedback discreto após o
+   resultado do playtest;
 5. **Fases 5–6:** rotas, coleção e eventos;
 6. **Fase 7:** fechamento web/mobile e release.
 

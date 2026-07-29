@@ -26,6 +26,8 @@ var _reserved: Dictionary = {}
 var _flights_in_progress := 0
 var _t := 0.0
 var _nudge := 0.0
+var ship_variant: Dictionary = {}
+var variant_history: Array[String] = []
 @onready var _containers: Texture2D = preload("res://assets/sprites/container_sheet.png")
 
 
@@ -52,13 +54,18 @@ func _ready() -> void:
 	add_child(_hull)
 	_cargo = Node2D.new()
 	add_child(_cargo)
+	if ship_variant.is_empty():
+		ship_variant = ShipCatalog.select_variant(0, 0, [])
+	_apply_ship_variant()
+	_refresh_wake_state()
 
 
 func _process(delta: float) -> void:
 	_t += delta
 	_nudge = maxf(0.0, _nudge - delta * 4.0)
 	if is_working():
-		_hull.position = Vector2(sin(_t * 0.8) * 0.8 + _nudge * 1.6, sin(_t * 0.55) * 1.2)
+		var hull_offset: Vector2 = ship_variant.get("hull_offset", Vector2.ZERO)
+		_hull.position = hull_offset + Vector2(sin(_t * 0.8) * 0.8 + _nudge * 1.6, sin(_t * 0.55) * 1.2)
 		_cargo.position = _hull.position
 		_wake.position.y = PortLayout.SHIP_H - 30.0 + _hull.position.y
 
@@ -85,10 +92,61 @@ func hit_test(world_pos: Vector2) -> bool:
 func nudge() -> void: _nudge = 1.0
 func set_flights_in_progress(total: int) -> void: _flights_in_progress = maxi(0, total)
 
+
+func select_variant(variant_seed: int, call_index: int) -> Dictionary:
+	## Variant choice is deterministic and history-aware; cargo bays stay at 24.
+	ship_variant = ShipCatalog.select_variant(variant_seed, call_index, variant_history)
+	if not ship_variant.is_empty():
+		variant_history.append(str(ship_variant.id))
+		while variant_history.size() > 8:
+			variant_history.pop_front()
+	_apply_ship_variant()
+	return ship_variant.duplicate(true)
+
+
+func variant_id() -> StringName:
+	return StringName(ship_variant.get("id", ""))
+
+
+func operational_capacity() -> int:
+	## Informational vessel capacity, never the 24-transfer berth capacity.
+	return int(ship_variant.get("capacity", 0))
+
+
+func _apply_ship_variant() -> void:
+	if _hull == null or _cargo == null or _wake == null or ship_variant.is_empty():
+		return
+	var hull_scale: Vector2 = ship_variant.get("hull_scale", Vector2.ONE)
+	var hull_offset: Vector2 = ship_variant.get("hull_offset", Vector2.ZERO)
+	_hull.scale = hull_scale
+	_hull.position = hull_offset
+	_cargo.scale = hull_scale
+	_cargo.position = hull_offset
+	_wake.scale = ship_variant.get("wake_scale", Vector2.ONE)
+	_hull.modulate = Color(str(ship_variant.get("hull_color", "#ffffff")))
+	var wake_color := Color(str(ship_variant.get("wake_color", "#ffffff")))
+	wake_color.a = 0.65
+	_wake.modulate = wake_color
+
 func _set_phase(value: Phase) -> void:
 	if phase == value: return
 	phase = value
+	_refresh_wake_state()
 	phase_changed.emit(value)
+
+
+func _refresh_wake_state() -> void:
+	if _wake == null or not is_instance_valid(_wake):
+		return
+	var moving := phase == Phase.ARRIVING or phase == Phase.DEPARTING
+	_wake.visible = moving
+	if moving:
+		# Departure is the faster leg; both values stay deliberately restrained.
+		_wake.speed_scale = 1.0 if phase == Phase.DEPARTING else 0.72
+		if not _wake.is_playing():
+			_wake.play()
+	else:
+		_wake.stop()
 
 func set_manifest(imports: Array[CargoUnit], export_target: int = 0) -> void:
 	_imports = imports.duplicate()
@@ -216,13 +274,19 @@ func snapshot() -> Dictionary:
 					"unit": item.unit.snapshot(),
 				})
 	return {"phase": int(phase), "exports_target": _export_target, "exported": _exported,
-		"claimed": _export_claimed, "manifest": manifest}
+		"claimed": _export_claimed, "manifest": manifest,
+		"variant": ship_variant.duplicate(true), "variant_history": variant_history.duplicate()}
 
 
 func restore(data: Dictionary) -> void:
 	_export_target = int(data.get("exports_target", 0))
 	_exported = int(data.get("exported", 0))
 	_export_claimed = int(data.get("claimed", _exported))
+	ship_variant = _restore_variant(data.get("variant", {}))
+	variant_history = _restore_variant_history(data.get("variant_history", []))
+	if ship_variant.is_empty():
+		ship_variant = ShipCatalog.select_variant(0, 0, variant_history)
+	_apply_ship_variant()
 	_empty_grid()
 	var manifest: Array = data.get("manifest", [])
 	for i in manifest.size():
@@ -242,6 +306,35 @@ func restore(data: Dictionary) -> void:
 				and _slots[col][row] == null:
 			_make_box(col, row, CargoUnit.from_snapshot(unit_raw))
 	_set_phase(int(data.get("phase", Phase.AWAY)))
+
+
+func _restore_variant(raw: Variant) -> Dictionary:
+	if not raw is Dictionary:
+		return {}
+	var silhouette_id := StringName(raw.get("silhouette_id", ""))
+	var palette_id := StringName(raw.get("palette_id", ""))
+	var silhouette := ShipCatalog.get_silhouette(silhouette_id)
+	var palette := ShipCatalog.get_palette(palette_id)
+	if silhouette.is_empty() or palette.is_empty():
+		return {}
+	return {
+		"id": "%s:%s" % [String(silhouette_id), String(palette_id)],
+		"silhouette_id": silhouette_id, "palette_id": palette_id,
+		"capacity": silhouette.capacity, "hull_scale": silhouette.hull_scale,
+		"hull_offset": silhouette.hull_offset, "wake_scale": silhouette.wake_scale,
+		"hull_color": palette.hull, "wake_color": palette.wake, "cargo_color": palette.cargo,
+	}
+
+
+func _restore_variant_history(raw: Variant) -> Array[String]:
+	var restored: Array[String] = []
+	if raw is Array:
+		for item in raw:
+			if item is String or item is StringName:
+				restored.append(str(item))
+	while restored.size() > 8:
+		restored.pop_front()
+	return restored
 
 func normalize_after_restore() -> void:
 	## Flights are reconciled by BerthCallController; transient tween phases are

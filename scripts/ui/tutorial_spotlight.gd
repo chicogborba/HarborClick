@@ -45,6 +45,11 @@ func _ready() -> void:
 	col.add_child(_title)
 	_body = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.PLATE_TEXT)
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Autowrap needs a real width before PanelContainer computes its minimum
+	# height; otherwise a zero-width first pass wraps one glyph per line and can
+	# turn this compact tutorial card into a full-height sheet.
+	_body.custom_minimum_size = Vector2(280.0, 26.0)
+	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_child(_body)
 	var actions := HBoxContainer.new()
 	col.add_child(actions)
@@ -119,7 +124,14 @@ func _layout() -> void:
 	if _panel == null or not is_instance_valid(_panel): return
 	var safe := _safe_rect if _safe_rect.size != Vector2.ZERO else Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
 	_panel.size = Vector2(minf(340.0, safe.size.x - 16.0), 96.0)
-	_panel.position = Vector2(safe.get_center().x - _panel.size.x * 0.5, safe.end.y - _panel.size.y - 10.0)
+	var target := _target_rect() if _active else Rect2()
+	var bottom_position := Vector2(
+		safe.get_center().x - _panel.size.x * 0.5,
+		safe.end.y - _panel.size.y - 10.0)
+	var top_position := Vector2(bottom_position.x, safe.position.y + 10.0)
+	var bottom_rect := Rect2(bottom_position, _panel.size)
+	_panel.position = top_position if not target.size.is_zero_approx() \
+		and bottom_rect.intersects(target.grow(8.0)) else bottom_position
 
 
 func _finish(skipped: bool) -> void:

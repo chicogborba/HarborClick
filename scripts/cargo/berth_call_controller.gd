@@ -18,6 +18,8 @@ var _imports: Array[CargoUnit] = []
 var _exported: Array[CargoUnit] = [] # committed outbound ledger only
 var _seeded_exports: Array[CargoUnit] = []
 var _active: Dictionary = {} # transfer id -> restart-reconciliation record
+var _variant_seed := 0
+var _variant_call_index := 0
 
 
 func setup(p_world: PortWorld, p_ship: Ship, p_yard: ContainerYard) -> void:
@@ -32,6 +34,15 @@ func seed_new(p_seed: int = 0) -> void:
 	if p_seed != 0:
 		seed(p_seed)
 	call_id = CargoUnit.new_uid("call")
+	if p_seed != 0:
+		_variant_seed = p_seed
+	elif _variant_seed == 0:
+		# The generated call id is persisted with the selection; this avoids a
+		# second global random draw solely for presentation.
+		_variant_seed = call_id.hash()
+	if ship != null:
+		ship.select_variant(_variant_seed, _variant_call_index)
+	_variant_call_index += 1
 	_imports.clear()
 	_exported.clear()
 	_active.clear()
@@ -263,7 +274,9 @@ func snapshot() -> Dictionary:
 	var active: Array = []
 	for record: Dictionary in _active.values(): active.append(record.duplicate(true))
 	return {"call_id": call_id, "imports": imports, "exports": exported,
-		"seeded_exports": seeded, "active_transfers": active, "ship": ship.snapshot() if ship != null else {}}
+		"seeded_exports": seeded, "active_transfers": active,
+		"variant_seed": _variant_seed, "variant_call_index": _variant_call_index,
+		"ship": ship.snapshot() if ship != null else {}}
 
 
 func restore(data: Dictionary) -> void:
@@ -271,6 +284,8 @@ func restore(data: Dictionary) -> void:
 	_imports = _units_from(data.get("imports", []))
 	_exported = _units_from(data.get("exports", []))
 	_seeded_exports = _units_from(data.get("seeded_exports", []))
+	_variant_seed = int(data.get("variant_seed", 0))
+	_variant_call_index = maxi(0, int(data.get("variant_call_index", 0)))
 	if ship != null:
 		ship.restore(data.get("ship", {}))
 		ship.set_import_manifest_reference(_imports)

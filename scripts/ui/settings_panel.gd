@@ -12,7 +12,6 @@ var _content: VBoxContainer
 var _music_btn: Button
 var _sfx_btn: Button
 var _motion_btn: Button
-var _haptics_btn: Button
 var _numbers_btn: Button
 var _ui_scale_btn: Button
 var _fullscreen_btn: Button
@@ -71,12 +70,6 @@ func _build() -> void:
 		UserPreferences.set_reduce_motion(not UserPreferences.reduce_motion)
 		_refresh())
 	_content.add_child(_motion_btn)
-
-	_haptics_btn = _compact_button()
-	_haptics_btn.pressed.connect(func() -> void:
-		UserPreferences.set_haptics(not UserPreferences.haptics)
-		_refresh())
-	_content.add_child(_haptics_btn)
 
 	_numbers_btn = _compact_button()
 	_numbers_btn.pressed.connect(func() -> void:
@@ -191,7 +184,6 @@ func _refresh() -> void:
 	_music_btn.text = "MÚSICA: %s" % ("LIGADA" if AudioManager.music_on else "DESLIGADA")
 	_sfx_btn.text = "EFEITOS: %s" % ("LIGADOS" if AudioManager.sfx_on else "DESLIGADOS")
 	_motion_btn.text = "MOVIMENTO: %s" % ("REDUZIDO" if UserPreferences.reduce_motion else "NORMAL")
-	_haptics_btn.text = "VIBRAÇÃO: %s" % ("LIGADA" if UserPreferences.haptics else "DESLIGADA")
 	_numbers_btn.text = "NÚMEROS FLUTUANTES: %s" % ("LIGADOS" if UserPreferences.floating_numbers else "DESLIGADOS")
 	_ui_scale_btn.text = "ESCALA DA UI: %d%%" % roundi(UserPreferences.ui_scale * 100.0)
 	_fullscreen_btn.text = "TELA CHEIA: %s" % ("LIGADA" if UserPreferences.fullscreen else "DESLIGADA")

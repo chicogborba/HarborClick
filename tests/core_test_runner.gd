@@ -180,20 +180,17 @@ func test_preferences_backup_recovers() -> void:
 		_remove_if_exists(path)
 	var backup := ConfigFile.new()
 	backup.set_value("preferences", "reduce_motion", true)
-	backup.set_value("preferences", "haptics", false)
 	backup.set_value("preferences", "floating_numbers", false)
 	backup.set_value("preferences", "ui_scale", 1.15)
 	backup.set_value("preferences", "fullscreen", true)
 	_expect(backup.save(PREFERENCES_TEST_PATH + ".bak") == OK,
 		"preferences crash-state backup writes")
 	UserPreferences.reduce_motion = false
-	UserPreferences.haptics = true
 	UserPreferences.floating_numbers = true
 	UserPreferences.ui_scale = 1.0
 	UserPreferences.fullscreen = false
 	UserPreferences.load_preferences()
-	_expect(UserPreferences.reduce_motion and not UserPreferences.haptics \
-			and not UserPreferences.floating_numbers \
+	_expect(UserPreferences.reduce_motion and not UserPreferences.floating_numbers \
 			and is_equal_approx(UserPreferences.ui_scale, 1.15) \
 			and UserPreferences.fullscreen,
 		"preferences recover values from backup when live file is absent")
@@ -209,15 +206,13 @@ func test_preferences_backup_recovers() -> void:
 	_write(PREFERENCES_TEST_PATH, "{ corrupt preferences")
 	var interrupted_tmp := ConfigFile.new()
 	interrupted_tmp.set_value("preferences", "reduce_motion", false)
-	interrupted_tmp.set_value("preferences", "haptics", true)
 	interrupted_tmp.set_value("preferences", "floating_numbers", true)
 	interrupted_tmp.set_value("preferences", "ui_scale", 0.9)
 	interrupted_tmp.set_value("preferences", "fullscreen", false)
 	_expect(interrupted_tmp.save(PREFERENCES_TEST_PATH + ".tmp") == OK,
 		"preferences interrupted temporary file writes")
 	UserPreferences.load_preferences()
-	_expect(not UserPreferences.reduce_motion and UserPreferences.haptics \
-			and UserPreferences.floating_numbers \
+	_expect(not UserPreferences.reduce_motion and UserPreferences.floating_numbers \
 			and is_equal_approx(UserPreferences.ui_scale, 0.9) \
 			and not UserPreferences.fullscreen,
 		"preferences recover a valid temporary file after a corrupt live file")
