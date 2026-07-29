@@ -103,8 +103,7 @@ func _build_fog() -> void:
 	layer.layer = 3
 	world.add_child(layer)
 	_fog_rect = ColorRect.new()
-	_fog_rect.anchors_preset = Control.PRESET_FULL_RECT
-	_fog_rect.size = Vector2(PortLayout.WORLD_W, PortLayout.VIEW_H)
+	_fog_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_fog_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fog_mat = ShaderMaterial.new()
 	_fog_mat.shader = preload("res://assets/shaders/fog.gdshader")

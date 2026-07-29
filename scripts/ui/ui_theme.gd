@@ -83,8 +83,26 @@ static func row_style(enabled: bool = true) -> StyleBoxTexture:
 	return nine("ui_row" if enabled else "ui_row_off", 4)
 
 
-static func apply_panel(control: Control, style: StyleBoxTexture) -> void:
+static func apply_panel(control: Control, style: StyleBox) -> void:
 	control.add_theme_stylebox_override(&"panel", style)
+
+
+static func dark_panel(radius: int = 8, border: Color = Color8(82, 71, 103)) -> StyleBoxFlat:
+	## Runtime surfaces stay legible even where the original paper nine-patch
+	## would stretch across a desktop drawer.
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color8(34, 30, 44)
+	box.border_color = border
+	box.set_border_width_all(2)
+	box.corner_radius_top_left = radius
+	box.corner_radius_top_right = radius
+	box.corner_radius_bottom_left = radius
+	box.corner_radius_bottom_right = radius
+	box.content_margin_left = 8
+	box.content_margin_right = 8
+	box.content_margin_top = 8
+	box.content_margin_bottom = 8
+	return box
 
 
 static func button(text: String, kind: String = "amber",
@@ -114,7 +132,13 @@ static func button(text: String, kind: String = "amber",
 
 static func icon_button(kind: Icon, style: String = "alt") -> Button:
 	var node := button("", style)
-	node.icon = icon_texture(kind)
-	node.expand_icon = false
 	node.custom_minimum_size = Vector2(26, 26)
+	var glyph := icon(kind)
+	glyph.custom_minimum_size = Vector2(20, 20)
+	glyph.set_anchors_preset(Control.PRESET_CENTER)
+	glyph.offset_left = -10
+	glyph.offset_top = -10
+	glyph.offset_right = 10
+	glyph.offset_bottom = 10
+	node.add_child(glyph)
 	return node

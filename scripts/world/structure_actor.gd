@@ -55,6 +55,16 @@ func is_hauler() -> bool:
 	return HAULERS.has(id)
 
 
+func _exit_tree() -> void:
+	if _world == null:
+		return
+	if not _job_data.is_empty():
+		_world.cancel_job(_job_data)
+		_job_data = {}
+	if _world.traffic != null:
+		_world.traffic.release(self)
+
+
 # ---------------------------------------------------------------- building
 
 func _build() -> void:
@@ -146,10 +156,12 @@ func _build_worker() -> void:
 func _build_vehicle(sprite_name: String, speed: float) -> void:
 	_add_shadow(15.0, 9.0, Vector2(0, 6))
 	_sprite = _sprite2d(sprite_name, true)
+	_sprite.scale = Vector2(0.70, 0.70)
 	add_child(_sprite)
 	_speed = speed
 	_cargo = _container_sprite()
 	_cargo.centered = true
+	_cargo.scale = Vector2(0.70, 0.70)
 	_cargo.visible = false
 	add_child(_cargo)
 	visible = false          # haulers stay off-site until they get a job
@@ -157,6 +169,7 @@ func _build_vehicle(sprite_name: String, speed: float) -> void:
 
 func _build_boat(sprite_name: String, speed: float) -> void:
 	_sprite = _sprite2d(sprite_name, true)
+	_sprite.scale = Vector2(0.70, 0.70)
 	add_child(_sprite)
 	_speed = speed
 	_vertical = true
@@ -193,6 +206,7 @@ func _build_sts() -> void:
 
 func _build_train() -> void:
 	_sprite = Node2D.new()
+	_sprite.scale = Vector2(0.70, 0.70)
 	add_child(_sprite)
 	var loco := _sprite2d("veh_loco", true)
 	loco.rotation = PI / 2.0
@@ -212,6 +226,7 @@ func _build_train() -> void:
 
 func _build_drone() -> void:
 	_sprite = _anim("veh_drone", 2, 18, 18, 16.0, true)
+	_sprite.scale = Vector2(0.70, 0.70)
 	add_child(_sprite)
 	_add_shadow(9.0, 6.0, Vector2(2, 14))
 
@@ -317,10 +332,18 @@ func _try_take_job() -> void:
 	if _world == null:
 		_cooldown = 1.0
 		return
+	var road_x := PortLayout.GATE_ROAD_X
+	var entry := Vector2(road_x, PortLayout.TOP_MARGIN - 24.0)
+	# Check the shared gate before request_job reserves an EXPORT landing.
+	if _world.traffic != null and not _world.traffic.can_enter(self, "gate", entry):
+		_cooldown = 0.5
+		return
 	var job := _world.request_job()
 	if job.is_empty():
 		_cooldown = randf_range(1.5, 3.5)
 		return
+	if _world.traffic != null:
+		_world.traffic.reserve(self, "gate")
 	_job_data = job
 	_carrying = job.type == "deliver"
 	_cargo.visible = _carrying
@@ -329,8 +352,7 @@ func _try_take_job() -> void:
 
 	var target: Vector2 = job.pos
 	var lane_y := PortLayout.nearest_lane(target.y + 6.0)
-	var road_x := PortLayout.GATE_ROAD_X
-	position = Vector2(road_x, PortLayout.TOP_MARGIN - 24.0)
+	position = entry
 	visible = true
 	_waypoints = [
 		Vector2(road_x, lane_y),
@@ -389,14 +411,17 @@ func _finish_work() -> void:
 	_sprite.position.y = 0.0
 	if _world != null:
 		if _job_data.get("type") == "pickup":
-			var box: Dictionary = _world.complete_pickup(_job_data.slot)
+			var box: Dictionary = _world.begin_hauler_pickup(_job_data.slot)
 			if not box.is_empty():
+				_job_data["taken"] = box
+				_job_data["traffic_token"] = str(box.get("traffic_token", ""))
 				_carrying = true
 				_cargo.visible = true
-				_set_cargo_color(randi() % 8)
+				var carried_unit: CargoUnit = box.get("unit")
+				_set_cargo_color(carried_unit.color if carried_unit != null else 0)
 		else:
 			_world.complete_delivery(_job_data.slot, _job_data.level,
-				_job_data.color)
+				_job_data.color, str(_job_data.get("token", "")))
 			_carrying = false
 			_cargo.visible = false
 	var lane_y := position.y
@@ -405,12 +430,16 @@ func _finish_work() -> void:
 
 
 func _end_job() -> void:
+	if _world != null and not _job_data.is_empty():
+		_world.commit_job(_job_data)
 	_job = Job.IDLE
 	_job_data = {}
 	_waypoints.clear()
 	_carrying = false
 	_cargo.visible = false
 	visible = false
+	if _world != null and _world.traffic != null:
+		_world.traffic.release(self)
 	_cooldown = randf_range(1.0, 4.0)
 
 

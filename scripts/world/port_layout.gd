@@ -54,11 +54,14 @@ const RAIL_MARGIN := 46.0
 
 
 static func block_rows() -> int:
-	return BASE_BLOCK_ROWS + LandDB.owned_count() * PARCEL_BLOCK_ROWS
+	## Each purchased parcel contributes its declared capacity.  Two terrain
+	## slots make a visual row of container blocks.
+	return BASE_BLOCK_ROWS + ceili(float(LandDB.owned_slots()) / 2.0)
 
 
 static func slot_rows() -> int:
-	return BASE_SLOT_ROWS + LandDB.owned_count() * PARCEL_SLOT_ROWS
+	return ceili(float(BASE_SLOT_ROWS * SLOTS_PER_ROW + LandDB.owned_slots()) /
+		float(SLOTS_PER_ROW))
 
 
 static func block_count() -> int:
@@ -66,7 +69,7 @@ static func block_count() -> int:
 
 
 static func slot_count() -> int:
-	return slot_rows() * SLOTS_PER_ROW
+	return BASE_SLOT_ROWS * SLOTS_PER_ROW + LandDB.owned_slots()
 
 
 static func block_origin(index: int) -> Vector2:

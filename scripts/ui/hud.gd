@@ -6,8 +6,6 @@ extends CanvasLayer
 signal settings_pressed
 signal job_tick
 
-const W := PortLayout.WORLD_W
-
 var _teus_label: Label
 var _rate_label: Label
 var _shares_row: HBoxContainer
@@ -16,27 +14,32 @@ var _job_label: Label
 var _boost_row: HBoxContainer
 var _boost_label: Label
 var _plate: PanelContainer
+var _berth_chip: PanelContainer
 var _prestige: Button
-var _pulse := 0.0
 var _tick := 0.0
+var _teu_visual_tick := 0.0
+var _pending_teu_text := "0"
+var _safe_rect := Rect2()
 
 
 func _ready() -> void:
 	layer = 6
 	_build_plate()
 	_build_keys()
+	get_viewport().size_changed.connect(_layout)
 	EventBus.teus_changed.connect(_on_teus)
 	EventBus.cps_changed.connect(_on_cps)
 	EventBus.prestiged.connect(func(_s: int) -> void: _refresh_prestige())
 	_on_teus(GameState.teus)
 	_on_cps(GameState.cps)
+	_layout()
 
 
 func _build_plate() -> void:
 	_plate = PanelContainer.new()
 	UiTheme.apply_panel(_plate, UiTheme.plate_style())
 	_plate.position = Vector2(6, 6)
-	_plate.size = Vector2(W - 46, 58)
+	_plate.size = Vector2(188, 48)
 	_plate.custom_minimum_size = _plate.size
 	_plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_plate)
@@ -50,7 +53,7 @@ func _build_plate() -> void:
 	# big tally: container icon + number + unit
 	var tally := HBoxContainer.new()
 	tally.add_theme_constant_override(&"separation", 5)
-	tally.alignment = BoxContainer.ALIGNMENT_CENTER
+	tally.alignment = BoxContainer.ALIGNMENT_BEGIN
 	tally.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(tally)
 
@@ -58,13 +61,15 @@ func _build_plate() -> void:
 	_teus_label = UiTheme.label("0", UiTheme.SIZE_TITLE, UiTheme.PLATE_TEXT)
 	_teus_label.label_settings = UiTheme.settings(UiTheme.SIZE_TITLE,
 		UiTheme.PLATE_TEXT, 2)
+	_teus_label.custom_minimum_size.x = 86
+	_teus_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	tally.add_child(_teus_label)
 	tally.add_child(UiTheme.label("TEU", UiTheme.SIZE_SMALL, UiTheme.AMBER))
 
 	# throughput
 	var rate := HBoxContainer.new()
 	rate.add_theme_constant_override(&"separation", 4)
-	rate.alignment = BoxContainer.ALIGNMENT_CENTER
+	rate.alignment = BoxContainer.ALIGNMENT_BEGIN
 	rate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(rate)
 	rate.add_child(UiTheme.icon(UiTheme.Icon.CLOCK))
@@ -81,11 +86,34 @@ func _build_plate() -> void:
 	_shares_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER)
 	_shares_row.add_child(_shares_label)
 
-	# what the berth wants from you right now
+	# Berth state is deliberately outside the fixed-count plate: it can change
+	# freely without moving the tally's borders, icon, unit or digits.
+	_berth_chip = PanelContainer.new()
+	var chip_style := UiTheme.dark_panel(5, UiTheme.TEAL)
+	chip_style.content_margin_left = 4
+	chip_style.content_margin_right = 4
+	chip_style.content_margin_top = 2
+	chip_style.content_margin_bottom = 2
+	UiTheme.apply_panel(_berth_chip, chip_style)
+	_berth_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_berth_chip.visible = false
+	add_child(_berth_chip)
+
+	# A plain Control deliberately breaks minimum-size propagation. Otherwise a
+	# long status string makes PanelContainer wider even with clip_text=true.
+	var berth_clip := Control.new()
+	berth_clip.name = "Clip"
+	berth_clip.clip_contents = true
+	berth_clip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	berth_clip.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_berth_chip.add_child(berth_clip)
 	_job_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL)
 	_job_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_job_label.visible = false
-	col.add_child(_job_label)
+	_job_label.clip_text = true
+	_job_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_job_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	berth_clip.add_child(_job_label)
+	_job_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	# cat boost timer, only while it runs
 	_boost_row = HBoxContainer.new()
@@ -101,7 +129,11 @@ func _build_plate() -> void:
 
 func _build_keys() -> void:
 	var gear := UiTheme.icon_button(UiTheme.Icon.GEAR)
-	gear.position = Vector2(W - 34, 6)
+	gear.name = "SettingsGear"
+	gear.tooltip_text = "Ajustes"
+	gear.focus_mode = Control.FOCUS_ALL
+	gear.custom_minimum_size = Vector2(44, 44)
+	gear.size = Vector2(44, 44)
 	gear.pressed.connect(func() -> void:
 		AudioManager.play_sfx("tap")
 		settings_pressed.emit())
@@ -116,10 +148,11 @@ func _build_keys() -> void:
 
 
 func _process(delta: float) -> void:
-	if _pulse > 0.0:
-		_pulse = maxf(0.0, _pulse - delta * 4.0)
-		_plate.pivot_offset = _plate.size / 2.0
-		_plate.scale = Vector2.ONE * (1.0 + _pulse * 0.03)
+	_teu_visual_tick += delta
+	if _teu_visual_tick >= 0.05:
+		_teu_visual_tick = 0.0
+		if _teus_label.text != _pending_teu_text:
+			_teus_label.text = _pending_teu_text
 	if GameState.boost_time > 0.0:
 		_boost_row.visible = true
 		_boost_label.text = "x%d por %ds" % [int(GameState.CAT_BOOST_MULT),
@@ -134,13 +167,58 @@ func _process(delta: float) -> void:
 
 
 func set_job_hint(text: String) -> void:
+	set_berth_status({"text": text})
+
+
+func set_berth_status(status: Dictionary) -> void:
+	## Public structured entry point for future berth controllers. Common forms:
+	## {text}, {phase, current, total}, or {label, progress}.
+	var supplied_text := status.has("text") or status.has("label")
+	var text := str(status.get("text", status.get("label", status.get("phase", ""))))
+	var current: Variant = status.get("current", status.get("progress", null))
+	var total: Variant = status.get("total", null)
+	if not supplied_text and current != null and total != null:
+		text += " %s/%s" % [current, total]
 	_job_label.text = text
-	_job_label.visible = text != ""
+	_berth_chip.visible = not text.is_empty()
 
 
 func _on_teus(total: float) -> void:
-	_teus_label.text = GameState.fmt(total)
-	_pulse = 0.6
+	_pending_teu_text = GameState.fmt(total)
+
+
+func _layout() -> void:
+	var view := get_viewport().get_visible_rect().size
+	var safe := _resolved_safe_rect(view)
+	var compact_width := clampf(safe.size.x * 0.58, 168.0, 196.0)
+	_plate.position = safe.position + Vector2(6, 6)
+	_plate.size = Vector2(compact_width, 48)
+	_plate.custom_minimum_size = _plate.size
+	_berth_chip.position = safe.position + Vector2(6, 58)
+	_berth_chip.size = Vector2(compact_width, 20)
+	_berth_chip.custom_minimum_size = _berth_chip.size
+	_job_label.custom_minimum_size = Vector2.ZERO
+	var gear := get_node_or_null(^"SettingsGear") as Button
+	if gear != null:
+		gear.position = Vector2(
+			safe.end.x - gear.size.x - 6.0, safe.position.y + 6.0)
+	_prestige.position = safe.position + Vector2(6, 82)
+
+
+func apply_view_metrics(metrics: Dictionary) -> void:
+	var view := get_viewport().get_visible_rect().size
+	_safe_rect = metrics.get(
+		"safe_rect", Rect2(Vector2.ZERO, view))
+	_layout()
+
+
+func _resolved_safe_rect(view: Vector2) -> Rect2:
+	var viewport_rect := Rect2(Vector2.ZERO, view)
+	if _safe_rect.size.x <= 0.0 or _safe_rect.size.y <= 0.0:
+		return viewport_rect
+	var clipped := _safe_rect.intersection(viewport_rect)
+	return clipped if clipped.size.x > 0.0 and clipped.size.y > 0.0 \
+		else viewport_rect
 
 
 func _on_cps(cps: float) -> void:

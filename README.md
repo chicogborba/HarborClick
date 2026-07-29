@@ -4,9 +4,10 @@ Clicker/idle de terminal de contêineres. Mobile, retrato, pixel art top-down.
 Godot 4.7 · todos os assets (sprites, fonte, SFX e música) são **gerados por
 código**.
 
-Na versão-base, o pátio começa vazio. Você toca no navio pra descarregar a
-importação, depois embarca carga de volta, contrata equipamento, compra terreno
-— e o terminal vai enchendo até virar um caos lindo de contêiner empilhado.
+O pátio já nasce com um manifesto de exportação. Você descarrega toda a
+importação do navio, embarca um lote diferente até completar o convés, contrata
+equipamento, compra terreno — e o terminal vai enchendo até virar um caos lindo
+de contêiner empilhado.
 
 ## Rodar
 
@@ -36,10 +37,9 @@ godot --path .
 & "C:\Program Files\Godot\Godot_v4.7-stable_win64.exe" --path .
 ```
 
-Viewport-base 320×480 com escala inteira (janela inicial 640×960). A janela é
-redimensionável, mas a versão-base ainda não recompõe corretamente o mundo e a
-interface em telas largas. O conserto mobile/desktop está especificado no
-[plano de evolução](#plano-de-evolução--auditoria-de-29072026).
+Viewport-base 320×480 com escala inteira (janela inicial 640×960). A composição
+é mobile-first e redimensionável: em retrato o porto ocupa a tela; em 16:9 ele
+usa cerca de 68% da largura e deixa um rail de comandos para loja e menus.
 
 Touch/mouse: arraste pra rolar o terminal, toque no navio pra movimentar carga,
 toque no gato pra um bônus temporário.
@@ -50,19 +50,28 @@ Para apenas validar o carregamento do projeto, sem abrir uma janela:
 godot --headless --path . --editor --quit
 ```
 
-## O ciclo de uma escala na versão-base
+As suítes determinísticas também podem ser executadas sem janela:
+
+```bash
+godot --headless --path . res://tests/core_test_runner.tscn
+godot --headless --path . res://tests/cargo_test_runner.tscn
+godot --headless --path . res://tests/ui_p0_test_runner.tscn
+```
+
+## O ciclo de uma escala
 
 O navio atual segue esta sequência:
 
-1. **Chega** carregado de importação.
-2. **DESCARGA** — cada toque tira uma caixa do convés e ela voa pro pátio.
-3. Convés vazio → **EMBARQUE**. Agora cada toque puxa uma caixa do mesmo
-   estoque do pátio pro navio. O lote atual é ~45% da capacidade.
-4. O lote termina → o navio zarpa e o próximo entra.
+1. **Chega** com 24 contêineres de importação, cada um com UID persistente.
+2. **DESCARGA 0/24 → 24/24** — o clique reserva origem e destino; TEU só é
+   creditado quando a caixa pousa no setor de importação.
+3. Convés vazio e nenhum voo pendente → **AGUARDANDO EXPORTAÇÃO**.
+4. **EMBARQUE 0/24 → 24/24** — somente caixas do setor de exportação, com UIDs
+   diferentes do manifesto importado, podem subir.
+5. O navio parte apenas cheio e com zero transferências em voo.
 
-Esse fluxo ainda não diferencia importação de exportação e permite
-inconsistências. O plano abaixo substitui-o por manifestos reais: descarregar
-100%, carregar 100% de outro estoque e só então partir.
+Salvar no meio de uma transferência é seguro: no reload ela volta à origem,
+sem duplicar carga nem pagar a recompensa duas vezes.
 
 Enquanto isso, reach stackers e cavalos mecânicos entram pelo portão, correm a
 via de serviço, encostam no bloco pela faixa de rolamento e levam contêineres
@@ -79,6 +88,8 @@ assets/
   shaders/     água top-down, névoa
 scripts/
   autoload/    EventBus, GameState, TimeManager, SaveManager, AudioManager
+  cargo/       CargoUnit, transações, controlador de escala e tráfego
+  core/        schema e contratos puros de persistência
   data/        structure_db, upgrade_db, land_db (dados puros)
   world/       port_layout, port_world, ship, container_yard, structure_*,
                ground_baker, atmosphere, critters, port_camera
@@ -88,6 +99,7 @@ tools/
   venv/        Python + Pillow
   sprites/     geradores de pixel art, fonte e UI
   audio/       synth chiptune + geradores de SFX/música
+tests/         regressão headless de core/save, UI e 100 escalas de carga
 ```
 
 Dois arquivos concentram as decisões:
@@ -142,8 +154,9 @@ separada, em `tools/sprites/gen_ui.py`.
   os postes com flicker ao anoitecer e roda a névoa (15% dos dias) com foghorn.
 - **Áudio** — 13 SFX e 3 trilhas longas e calmas (dia/noite/neblina) com
   crossfade. Liga/desliga em Ajustes, persistido em `user://audio.cfg`.
-- **Save** — JSON em `user://save.json`, autosave a cada 30s, progresso offline
-  (cap 8h, 50% de eficiência) com quadro de boas-vindas.
+- **Save** — envelope JSON v2 em `user://save.json`, escrita temporária,
+  rotação de backup, recuperação, migração da versão-base e autosave a cada
+  30s. Progresso offline tem cap de 8h e 50% de eficiência.
 
 ## Debug
 
@@ -270,22 +283,22 @@ Fase 3.
 
 #### Bugs e dívida técnica a remover antes de expandir
 
-- [ ] Impedir a renovação infinita do bônus ×7 ao tocar repetidamente no gato.
-- [ ] Implementar ou remover `radar_neblina`, hoje consultado mas ausente no
+- [x] Impedir a renovação infinita do bônus ×7 ao tocar repetidamente no gato.
+- [x] Implementar ou remover `radar_neblina`, hoje consultado mas ausente no
       banco de upgrades.
-- [ ] Corrigir milestones carregados do JSON com tipo inconsistente e impedir
+- [x] Corrigir milestones carregados do JSON com tipo inconsistente e impedir
       duplicatas.
-- [ ] Reconstruir prédios e HUD no mesmo frame do prestígio.
-- [ ] Fazer `wipe()` também limpar boost, neblina e todos os estados de sessão.
-- [ ] Aplicar a regra de desbloqueio de upgrade dentro de `GameState`, não só
+- [x] Reconstruir prédios e HUD no mesmo frame do prestígio.
+- [x] Fazer `wipe()` também limpar boost, neblina e todos os estados de sessão.
+- [x] Aplicar a regra de desbloqueio de upgrade dentro de `GameState`, não só
       na UI.
-- [ ] Parar de apagar pilhas silenciosamente quando o pátio lota.
-- [ ] Usar a capacidade real declarada pelos terrenos.
-- [ ] Parar de duplicar árvores, arbustos e cones a cada expansão.
-- [ ] Remover referências de import antigas sem arquivo-fonte
+- [x] Parar de apagar pilhas silenciosamente quando o pátio lota.
+- [x] Usar a capacidade real declarada pelos terrenos.
+- [x] Parar de duplicar árvores, arbustos e cones a cada expansão.
+- [x] Remover referências de import antigas sem arquivo-fonte
       (`tile_dirt`, `tile_asphalt`, `tile_concrete`, `tile_asphalt_lane`,
       `ship_feeder` e `fender`).
-- [ ] Corrigir câmera/inputs: A/D hoje deslocam o eixo vertical e zoom foi
+- [x] Corrigir câmera/inputs: A/D hoje deslocam o eixo vertical e zoom foi
       declarado, mas não implementado.
 
 ### Síntese da pesquisa
@@ -469,24 +482,24 @@ O simulador deve testar sessões ativas, híbridas e offline. Comprar a opção
 
 #### Fase 1 — fundação confiável e shell responsivo — P0
 
-- [ ] Criar testes determinísticos para economia, formatação numérica, cargo,
+- [x] Criar testes determinísticos para economia, formatação numérica, cargo,
       save e eventos.
 - [ ] Criar cenas/probes de screenshot para toda a matriz de resoluções.
-- [ ] Implementar save v2 com `save_version`, migrações, temporário, troca
+- [x] Implementar save v2 com `save_version`, migrações, temporário, troca
       atômica, backup e recuperação.
-- [ ] Salvar em compra importante, expansão, prestígio, pause/background,
+- [x] Salvar em compra importante, expansão, prestígio, pause/background,
       fechamento e reload web.
-- [ ] Separar `run_teus`, `all_time_teus`, estatísticas de carreira e moeda
+- [x] Separar `run_teus`, `all_time_teus`, estatísticas de carreira e moeda
       meta.
-- [ ] Criar `ResponsiveShell` e perfis retrato/paisagem.
-- [ ] Fazer mundo, névoa, modais e input usarem o viewport real.
-- [ ] Implementar HUD compacto e contador sem reflow.
-- [ ] Refazer loja escura com outside click/Back/Escape e drawer desktop.
-- [ ] Refazer gear e Ajustes com foco, safe area e opções de movimento,
+- [x] Criar `ResponsiveShell` e perfis retrato/paisagem.
+- [x] Fazer mundo, névoa, modais e input usarem o viewport real.
+- [x] Implementar HUD compacto e contador sem reflow.
+- [x] Refazer loja escura com outside click/Back/Escape e drawer desktop.
+- [x] Refazer gear e Ajustes com foco, safe area e opções de movimento,
       haptics, números flutuantes, UI scale e fullscreen.
-- [ ] Unificar gesto mouse/touch: tap, drag e compra no release.
+- [x] Unificar gesto mouse/touch: tap, drag e compra no release.
 - [ ] Criar `NotificationCoordinator` e remover toasts rotineiros.
-- [ ] Corrigir todos os bugs/dívidas listados antes desta fase ser encerrada.
+- [x] Corrigir todos os bugs/dívidas listados antes desta fase ser encerrada.
 
 Aceite da fase:
 
@@ -499,21 +512,21 @@ Aceite da fase:
 
 #### Fase 2 — carga verdadeira e porto coerente — P0
 
-- [ ] Implementar `CargoUnit` e inventários de importação, exportação e
+- [x] Implementar `CargoUnit` e inventários de importação, exportação e
       trânsito.
-- [ ] Dividir o pátio em setores funcionais de importação/exportação.
-- [ ] Semear exportação inicial num save novo.
-- [ ] Implementar `BerthCallController` e ciclo 100%→0%→100%.
-- [ ] Pagar TEU somente depois do commit da transferência.
-- [ ] Persistir manifesto, fase, reservas e caixas em voo.
-- [ ] Impedir partida parcial ou antes da aterrissagem da última caixa.
-- [ ] Fazer caminhões retirarem importação e entregarem exportação.
-- [ ] Preservar UID, cor e rota em todo o percurso da caixa.
-- [ ] Trocar descarte silencioso por fila, bloqueio legível ou expansão.
-- [ ] Implementar `TrafficCoordinator` e reduzir veículos em 25–35%.
+- [x] Dividir o pátio em setores funcionais de importação/exportação.
+- [x] Semear exportação inicial num save novo.
+- [x] Implementar `BerthCallController` e ciclo 100%→0%→100%.
+- [x] Pagar TEU somente depois do commit da transferência.
+- [x] Persistir manifesto, fase, reservas e caixas em voo.
+- [x] Impedir partida parcial ou antes da aterrissagem da última caixa.
+- [x] Fazer caminhões retirarem importação e entregarem exportação.
+- [x] Preservar UID, cor e rota em todo o percurso da caixa.
+- [x] Trocar descarte silencioso por fila, bloqueio legível ou expansão.
+- [x] Implementar `TrafficCoordinator` e reduzir veículos em 25–35%.
 - [ ] Fazer RTG/STS animarem jobs reais ou um modo ocioso claramente
       cosmético.
-- [ ] Fazer terreno desbloquear capacidade/geometria declarada de verdade.
+- [x] Fazer terreno desbloquear capacidade/geometria declarada de verdade.
 
 Aceite da fase:
 

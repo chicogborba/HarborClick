@@ -5,9 +5,18 @@ var world: PortWorld
 var cam: PortCamera
 var shop: Shop
 var hud: Hud
+var shell: ResponsiveShell
+var toasts: ToastLayer
+var settings: SettingsPanel
+var tutorial: Tutorial
+var _overlay_state := {"shop": false, "settings": false}
 
 
 func _ready() -> void:
+	shell = ResponsiveShell.new()
+	shell.name = "ResponsiveShell"
+	add_child(shell)
+
 	world = PortWorld.new()
 	world.name = "World"
 	add_child(world)
@@ -26,38 +35,59 @@ func _ready() -> void:
 	shop.name = "Shop"
 	add_child(shop)
 
-	var toasts := ToastLayer.new()
+	toasts = ToastLayer.new()
 	toasts.name = "Toasts"
 	add_child(toasts)
 
-	var settings := SettingsPanel.new()
+	settings = SettingsPanel.new()
 	settings.name = "Settings"
 	add_child(settings)
 	hud.settings_pressed.connect(settings.open)
+	shop.open_changed.connect(_on_overlay_changed.bind("shop"))
+	settings.open_changed.connect(_on_overlay_changed.bind("settings"))
 
-	add_child(OfflinePopup.new())
+	var offline := OfflinePopup.new()
+	offline.name = "OfflinePopup"
+	add_child(offline)
 
-	SaveManager.yard = world.yard
+	# One-time v1 migration. New saves use the rich cargo_yard/berth_call
+	# sections registered by PortWorld and never flatten UIDs back into heights.
 	var stored := SaveManager.pending_yard()
 	if not stored.is_empty():
 		world.yard.from_save(stored)
+		world.berth.ensure_export_stock()
+	SaveManager.yard = null
 
 	EventBus.land_bought.connect(func(id: String) -> void:
 		cam.set_world_bottom(world.visible_bottom())
 		var parcel := LandDB.get_item(id)
-		EventBus.toast.emit("%s pavimentado. Mais espaço pra empilhar!" % parcel.get("name", "Terreno"))
+		EventBus.notification_requested.emit({
+			"id": "land_%s" % id,
+			"type": &"unlock",
+			"priority": 1,
+			"text": "%s pavimentado. Mais espaço pra empilhar!"
+				% parcel.get("name", "Terreno"),
+		})
 		cam.focus_on(PortLayout.yard_bottom() - 120.0, 0.9))
 
+	world.berth.status_changed.connect(hud.set_berth_status)
+	world.berth.notice_requested.connect(
+		func(notice: Dictionary) -> void:
+			EventBus.notification_requested.emit(notice))
 	world.ship.phase_changed.connect(_on_ship_phase)
-	hud.job_tick.connect(func() -> void: _on_ship_phase(world.ship.phase))
 	_on_ship_phase(world.ship.phase)
 
-	var tutorial := Tutorial.new()
+	tutorial = Tutorial.new()
 	tutorial.name = "Tutorial"
 	add_child(tutorial)
 	tutorial.start()
 
-	if OS.is_debug_build():
+	shell.metrics_changed.connect(_apply_view_metrics)
+	shell.world_input_blocked_changed.connect(_on_world_input_blocked)
+	shell.save_requested.connect(SaveManager.request_save)
+	_apply_view_metrics(shell.metrics)
+
+	if OS.is_debug_build() and DisplayServer.get_name() != "headless":
 		var timer := Timer.new()
 		timer.wait_time = 3.0
 		timer.autostart = true
@@ -71,19 +101,53 @@ func _on_ship_phase(phase: int) -> void:
 	## The board tells you what the berth needs, so tapping always has a point.
 	match phase:
 		Ship.Phase.DISCHARGING:
-			hud.set_job_hint("DESCARGA: toque no navio")
+			hud.set_job_hint("Descarga: toque no navio")
+		Ship.Phase.WAITING_EXPORT:
+			hud.set_job_hint("Aguardando exportação")
 		Ship.Phase.LOADING:
 			var progress := world.ship.export_progress()
-			hud.set_job_hint("EMBARQUE %d/%d: toque no navio"
+			hud.set_job_hint("Embarque %d/%d: toque no navio"
 				% [progress.x, progress.y])
 		Ship.Phase.ARRIVING:
-			hud.set_job_hint("Navio se aproximando...")
+			hud.set_job_hint("Navio se aproximando")
+		Ship.Phase.DEPARTING:
+			hud.set_job_hint("Navio partindo")
 		_:
 			hud.set_job_hint("Aguardando próximo navio")
 
 
+func _apply_view_metrics(metrics: Dictionary) -> void:
+	world.apply_view_metrics(metrics)
+	cam.apply_view_metrics(metrics)
+	hud.apply_view_metrics(metrics)
+	shop.apply_view_metrics(metrics)
+	toasts.apply_view_metrics(metrics)
+	settings.apply_view_metrics(metrics)
+	if tutorial != null:
+		tutorial.apply_view_metrics(metrics)
+	var offline := get_node_or_null(^"OfflinePopup")
+	if offline != null and offline.has_method("apply_view_metrics"):
+		offline.apply_view_metrics(metrics)
+
+
+func _on_overlay_changed(opened: bool, source: String) -> void:
+	_overlay_state[source] = opened
+	shell.set_world_input_blocked(
+		bool(_overlay_state.shop) or bool(_overlay_state.settings))
+
+
+func _on_world_input_blocked(blocked: bool) -> void:
+	world.set_input_enabled(not blocked)
+	cam.set_input_enabled(not blocked)
+
+
 func _save_screenshot(shot_name: String = "shot") -> void:
-	var img := get_viewport().get_texture().get_image()
+	var texture := get_viewport().get_texture()
+	if texture == null:
+		return
+	var img := texture.get_image()
+	if img == null or img.is_empty():
+		return
 	img.save_png("user://%s.png" % shot_name)
 
 
@@ -101,9 +165,9 @@ func _dev_probe() -> void:
 	# --- work a full call: discharge the imports, then load the exports ---
 	var before := GameState.teus
 	var saw_loading := false
-	for i in 90:
+	for i in 120:
 		if world.ship.is_working():
-			GameState.do_click(world.ship.global_position + Vector2(30, 100))
+			world.berth.handle_tap(world.ship.global_position + Vector2(30, 100))
 		if world.ship.is_loading():
 			saw_loading = true
 		await get_tree().create_timer(0.05).timeout
@@ -201,7 +265,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_save_screenshot("shot")
 		KEY_F3 when OS.is_debug_build():
 			GameState.teus += 1e6
-			GameState.lifetime_teus += 1e6
+			GameState.run_teus += 1e6
+			GameState.all_time_teus += 1e6
 			EventBus.teus_changed.emit(GameState.teus)
 		KEY_F4 when OS.is_debug_build():
 			TimeManager.speed_mult = 40.0 if TimeManager.speed_mult == 1.0 else 1.0

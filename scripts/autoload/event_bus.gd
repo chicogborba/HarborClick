@@ -17,3 +17,9 @@ signal fog_changed(active: bool)
 signal new_day(day: int)
 signal prestiged(shares: int)
 signal toast(text: String)
+# A committed manual reward is deliberately separate from the visual click
+# event.  Network/replay callers can safely retry it by transaction id.
+signal manual_reward_committed(payload: Dictionary)
+signal notification_requested(payload: Dictionary)
+signal save_finished(ok: bool, reason: StringName)
+signal save_recovered(source: StringName)

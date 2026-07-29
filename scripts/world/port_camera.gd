@@ -1,45 +1,114 @@
 class_name PortCamera
 extends Camera2D
-## Vertical touch camera: drag to scroll the terminal, with momentum.
+## Responsive terminal camera: touch/mouse drag, wheel zoom and keyboard pan.
 
 const VIEW_H := PortLayout.VIEW_H
 const VIEW_W := PortLayout.WORLD_W
 
-var _velocity := 0.0
+var _velocity := Vector2.ZERO
 var _dragging := false
 var _world_bottom := 520.0
+var _viewport_size := Vector2(VIEW_W, VIEW_H)
+var _world_rect := Rect2(Vector2.ZERO, Vector2(VIEW_W, VIEW_H))
+var _zoom_floor := 1.0
+var _zoom_ceiling := 2.5
+var _has_shell_metrics := false
+var _input_enabled := true
 
 
 func _ready() -> void:
 	position = Vector2(VIEW_W / 2.0, VIEW_H / 2.0)
 	set_world_bottom(_world_bottom)
+	get_viewport().size_changed.connect(_on_viewport_resized)
+	_on_viewport_resized()
 
 
 func _process(delta: float) -> void:
-	if not _dragging and absf(_velocity) > 1.0:
-		position.y += _velocity * delta
-		_velocity = lerpf(_velocity, 0.0, minf(1.0, delta * 5.0))
-	var dev := Input.get_axis(&"pan_left", &"pan_right")
-	if dev != 0.0:
-		position.y += dev * 300.0 * delta
-	_clamp_y()
+	if not _dragging and _velocity.length() > 1.0:
+		position += _velocity * delta
+		_velocity = _velocity.lerp(Vector2.ZERO, minf(1.0, delta * 5.0))
+	var keyboard := Vector2.ZERO
+	if _input_enabled:
+		keyboard = Vector2(
+			Input.get_axis(&"pan_left", &"pan_right"),
+			float(Input.is_key_pressed(KEY_DOWN)) - float(Input.is_key_pressed(KEY_UP)))
+	if keyboard != Vector2.ZERO:
+		position += keyboard.normalized() * 300.0 * delta / zoom
+	_clamp_position()
 	position = position.round()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not _input_enabled:
+		return
 	if event is InputEventScreenTouch:
 		_dragging = event.pressed
 		if event.pressed:
-			_velocity = 0.0
+			_velocity = Vector2.ZERO
+	elif event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			_dragging = event.pressed
+			if event.pressed:
+				_velocity = Vector2.ZERO
+		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_set_zoom(zoom.x * 0.88)
+		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_set_zoom(zoom.x * 1.14)
 	elif event is InputEventScreenDrag and _dragging:
-		position.y -= event.relative.y
-		_velocity = -event.velocity.y * 0.3
-		_clamp_y()
+		_drag_camera(event.relative, event.velocity)
+	elif event is InputEventMouseMotion and _dragging:
+		_drag_camera(event.relative, event.velocity)
 
 
-func _clamp_y() -> void:
-	var max_center := maxf(VIEW_H / 2.0, _world_bottom - VIEW_H / 2.0)
-	position.y = clampf(position.y, VIEW_H / 2.0, max_center)
+func apply_view_metrics(metrics: Dictionary) -> void:
+	_viewport_size = metrics.get("viewport_size", _viewport_size)
+	_world_rect = metrics.get("world_rect", Rect2(Vector2.ZERO, _viewport_size))
+	_has_shell_metrics = true
+	var target_zoom := _target_zoom_for(_world_rect)
+	# Camera2D normally centers its canvas in the whole viewport. On desktop
+	# the command rail owns the right side, so offset the narrower world frame
+	# to the left instead of leaving symmetric empty gutters.
+	offset = Vector2(
+		maxf(0.0, (_viewport_size.x - _world_rect.size.x) / (2.0 * target_zoom)),
+		0.0)
+	_zoom_floor = clampf(target_zoom, 0.25, 4.0)
+	_zoom_ceiling = maxf(_zoom_floor * 2.5, 1.0)
+	zoom = Vector2.ONE * _zoom_floor
+	_clamp_position()
+
+
+func _on_viewport_resized() -> void:
+	if _has_shell_metrics:
+		return
+	_viewport_size = get_viewport().get_visible_rect().size
+	_world_rect = Rect2(Vector2.ZERO, _viewport_size)
+	offset = Vector2.ZERO
+	var target_zoom := _target_zoom_for(_world_rect)
+	_zoom_floor = clampf(target_zoom, 0.25, 4.0)
+	_zoom_ceiling = maxf(_zoom_floor * 2.5, 1.0)
+	zoom = Vector2.ONE * _zoom_floor
+	_clamp_position()
+
+
+func _drag_camera(relative: Vector2, drag_velocity: Vector2) -> void:
+	position -= relative / zoom
+	_velocity = -drag_velocity / zoom * 0.3
+	_clamp_position()
+
+
+func _set_zoom(value: float) -> void:
+	zoom = Vector2.ONE * clampf(value, _zoom_floor, _zoom_ceiling)
+	_clamp_position()
+
+
+func _clamp_position() -> void:
+	var half_view := Vector2(_world_rect.size.x, _viewport_size.y) / (zoom * 2.0)
+	var min_x := minf(VIEW_W * 0.5, half_view.x)
+	var max_x := maxf(VIEW_W * 0.5, VIEW_W - half_view.x)
+	var min_y := half_view.y
+	var max_y := maxf(half_view.y, _world_bottom - half_view.y)
+	position.x = clampf(position.x, min_x, max_x)
+	position.y = clampf(position.y, min_y, max_y)
 
 
 func set_world_bottom(bottom: float) -> void:
@@ -48,10 +117,25 @@ func set_world_bottom(bottom: float) -> void:
 	limit_right = int(VIEW_W)
 	limit_top = 0
 	limit_bottom = int(maxf(bottom, VIEW_H))
+	_clamp_position()
+
+
+func set_input_enabled(input_allowed: bool) -> void:
+	_input_enabled = input_allowed
+	if not input_allowed:
+		_dragging = false
+		_velocity = Vector2.ZERO
 
 
 func focus_on(y: float, duration: float = 0.6) -> void:
-	var target := clampf(y, VIEW_H / 2.0, maxf(VIEW_H / 2.0, _world_bottom - VIEW_H / 2.0))
+	var half_height := _viewport_size.y / (zoom.y * 2.0)
+	var target := clampf(y, half_height, maxf(half_height, _world_bottom - half_height))
 	var tween := create_tween()
 	tween.tween_property(self, "position:y", target, duration) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+
+
+func _target_zoom_for(world_rect: Rect2) -> float:
+	## The terminal scrolls vertically, so width is the stable composition axis.
+	## Portrait stays at 1×; desktop enlarges 320 px into the allotted world rail.
+	return world_rect.size.x / VIEW_W

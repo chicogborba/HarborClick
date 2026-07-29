@@ -39,11 +39,14 @@ var _hint: Label
 var _step := 0
 var _clicks := 0
 var _active := false
+var _safe_rect := Rect2(Vector2.ZERO, Vector2(PortLayout.WORLD_W, PortLayout.VIEW_H))
+var _has_shell_metrics := false
 
 
 func _ready() -> void:
 	layer = 9
 	_build()
+	get_viewport().size_changed.connect(_on_viewport_resized)
 	visible = false
 
 
@@ -54,16 +57,14 @@ func start() -> void:
 	_active = true
 	visible = true
 	_step = 0
-	EventBus.container_unloaded.connect(_on_click)
+	EventBus.manual_reward_committed.connect(_on_click)
 	EventBus.structure_bought.connect(_on_structure)
 	_show_step()
 
 
 func _build() -> void:
 	_panel = PanelContainer.new()
-	UiTheme.apply_panel(_panel, UiTheme.panel_style())
-	_panel.position = Vector2(8, 322)
-	_panel.custom_minimum_size = Vector2(PortLayout.WORLD_W - 16, 0)
+	UiTheme.apply_panel(_panel, UiTheme.dark_panel())
 	add_child(_panel)
 
 	var row := HBoxContainer.new()
@@ -72,7 +73,7 @@ func _build() -> void:
 	_panel.add_child(row)
 
 	var portrait_box := PanelContainer.new()
-	UiTheme.apply_panel(portrait_box, UiTheme.plate_style())
+	UiTheme.apply_panel(portrait_box, UiTheme.dark_panel(5, UiTheme.TEAL))
 	portrait_box.custom_minimum_size = Vector2(32, 40)
 	portrait_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(portrait_box)
@@ -99,7 +100,7 @@ func _build() -> void:
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(col)
 
-	_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK)
+	_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.CREAM)
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_label.custom_minimum_size.x = 230
 	col.add_child(_label)
@@ -115,6 +116,7 @@ func _build() -> void:
 	var skip := UiTheme.button("PULAR", "off")
 	skip.pressed.connect(_finish)
 	footer.add_child(skip)
+	_layout()
 
 
 func _show_step() -> void:
@@ -127,6 +129,10 @@ func _show_step() -> void:
 			_hint.text = "▸ toque no navio (%d)" % step.count
 		"structure":
 			_hint.text = "▸ compre um Estivador na loja"
+	if not UserPreferences.can_animate():
+		_panel.modulate.a = 1.0
+		_panel.scale = Vector2.ONE
+		return
 	_panel.modulate.a = 0.0
 	_panel.scale = Vector2(0.96, 0.96)
 	var tween := create_tween().set_parallel()
@@ -138,7 +144,8 @@ func _show_step() -> void:
 func _input(event: InputEvent) -> void:
 	if not _active or not visible:
 		return
-	if event is InputEventScreenTouch and event.pressed:
+	if (event is InputEventScreenTouch and event.pressed) \
+			or (event is InputEventMouseButton and event.pressed):
 		var step: Dictionary = STEPS[_step]
 		if step.advance != "tap_box":
 			return
@@ -148,7 +155,33 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 
-func _on_click(_pos: Vector2, _value: float, _crit: bool) -> void:
+func apply_view_metrics(metrics: Dictionary) -> void:
+	_safe_rect = metrics.get("safe_rect", _safe_rect)
+	_has_shell_metrics = true
+	_layout()
+
+
+func _on_viewport_resized() -> void:
+	if not _has_shell_metrics:
+		_safe_rect = Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
+	_layout()
+
+
+func _layout() -> void:
+	if _panel == null:
+		return
+	if _safe_rect.size == Vector2.ZERO:
+		_safe_rect = Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
+	var width := minf(_safe_rect.size.x - 16.0, 420.0)
+	_panel.custom_minimum_size = Vector2(width, 0)
+	_panel.size = Vector2(width, _panel.get_combined_minimum_size().y)
+	_panel.position = Vector2(
+		_safe_rect.get_center().x - width * 0.5,
+		_safe_rect.end.y - _panel.size.y - 10.0)
+	_label.custom_minimum_size.x = maxf(150.0, width - 78.0)
+
+
+func _on_click(_payload: Dictionary) -> void:
 	if not _active:
 		return
 	var step: Dictionary = STEPS[_step]
@@ -181,6 +214,11 @@ func _advance() -> void:
 func _finish() -> void:
 	_active = false
 	GameState.flags["tutorial_done"] = true
+	if not UserPreferences.can_animate():
+		visible = false
+		finished.emit()
+		EventBus.toast.emit("Bom trabalho. O porto é teu.")
+		return
 	var tween := create_tween()
 	tween.tween_property(_panel, "modulate:a", 0.0, 0.3)
 	tween.tween_callback(func() -> void:

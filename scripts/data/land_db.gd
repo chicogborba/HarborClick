@@ -67,3 +67,12 @@ static func owned_count() -> int:
 		if GameState.land.has(item.id):
 			n += 1
 	return n
+
+
+static func owned_slots() -> int:
+	## Parcel capacity is data, not an incidental "one parcel = one row" rule.
+	var total := 0
+	for item in ITEMS:
+		if GameState.land.has(item.id):
+			total += int(item.get("slots", 0))
+	return total

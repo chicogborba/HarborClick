@@ -13,6 +13,11 @@ var _cost_label: Label
 var _count_label: Label
 var _icon: TextureRect
 var _affordable := false
+var _press_start := Vector2.ZERO
+var _tracking_press := false
+var _last_activation_msec := -1000
+const DRAG_CANCEL_DISTANCE := 10.0
+const EMULATED_INPUT_DEDUPE_MSEC := 120
 
 
 func setup(item_id: String, item_kind: String, icon_path: String,
@@ -21,7 +26,7 @@ func setup(item_id: String, item_kind: String, icon_path: String,
 	kind = item_kind
 	custom_minimum_size.y = 40.0
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	UiTheme.apply_panel(self, UiTheme.row_style(true))
+	UiTheme.apply_panel(self, UiTheme.dark_panel(6, Color8(82, 71, 103)))
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 5)
@@ -30,7 +35,7 @@ func setup(item_id: String, item_kind: String, icon_path: String,
 
 	# icon sits on its own dark chip so every sprite reads at a glance
 	var chip := PanelContainer.new()
-	UiTheme.apply_panel(chip, UiTheme.plate_style())
+	UiTheme.apply_panel(chip, UiTheme.dark_panel(5, UiTheme.TEAL))
 	chip.custom_minimum_size = Vector2(34, 34)
 	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(chip)
@@ -50,15 +55,17 @@ func setup(item_id: String, item_kind: String, icon_path: String,
 	text_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(text_col)
 
-	_name_label = UiTheme.label(title, UiTheme.SIZE_BODY, UiTheme.INK)
+	_name_label = UiTheme.label(title, UiTheme.SIZE_BODY, UiTheme.CREAM)
 	text_col.add_child(_name_label)
 
 	_desc_label = UiTheme.label(description, UiTheme.SIZE_SMALL,
-		UiTheme.INK_SOFT)
+		UiTheme.PLATE_TEXT)
 	_desc_label.label_settings = UiTheme.settings(UiTheme.SIZE_SMALL,
-		UiTheme.INK_SOFT)
+		UiTheme.PLATE_TEXT)
 	_desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_desc_label.custom_minimum_size.x = 150.0
+	# The text column yields to the price on the 224 px desktop drawer. A
+	# fixed 150 px minimum forced cards and the third tab beyond the viewport.
+	_desc_label.custom_minimum_size.x = 0.0
 	text_col.add_child(_desc_label)
 
 	var price_col := VBoxContainer.new()
@@ -71,7 +78,7 @@ func setup(item_id: String, item_kind: String, icon_path: String,
 	_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	price_col.add_child(_cost_label)
 
-	_count_label = UiTheme.label("", UiTheme.SIZE_TITLE, UiTheme.INK)
+	_count_label = UiTheme.label("", UiTheme.SIZE_TITLE, UiTheme.CREAM)
 	_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	price_col.add_child(_count_label)
 
@@ -81,14 +88,43 @@ func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false) 
 	_cost_label.text = "PRONTO" if sold_out else GameState.fmt(cost)
 	_count_label.text = str(count) if count > 0 else ""
 	_cost_label.label_settings.font_color = \
-		UiTheme.AMBER_DEEP if affordable else Color8(150, 136, 128)
-	UiTheme.apply_panel(self, UiTheme.row_style(affordable or sold_out))
+		UiTheme.AMBER if affordable else Color8(150, 136, 128)
+	UiTheme.apply_panel(self, UiTheme.dark_panel(6,
+		UiTheme.TEAL if affordable or sold_out else Color8(82, 71, 103)))
 	_name_label.label_settings.font_color = \
-		UiTheme.INK if (affordable or sold_out) else Color8(122, 112, 106)
+		UiTheme.CREAM if (affordable or sold_out) else Color8(150, 140, 154)
 
 
 func _gui_input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch and event.pressed:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_begin_press(event.position)
+		elif _tracking_press:
+			_finish_press(event.position)
+	elif event is InputEventScreenTouch:
+		if event.pressed:
+			_begin_press(event.position)
+		elif _tracking_press:
+			_finish_press(event.position)
+	elif event is InputEventMouseMotion and _tracking_press:
+		if _press_start.distance_to(event.position) >= DRAG_CANCEL_DISTANCE:
+			_tracking_press = false
+	elif event is InputEventScreenDrag and _tracking_press:
+		if _press_start.distance_to(event.position) >= DRAG_CANCEL_DISTANCE:
+			_tracking_press = false
+
+
+func _begin_press(at: Vector2) -> void:
+	_press_start = at
+	_tracking_press = true
+
+
+func _finish_press(at: Vector2) -> void:
+	var should_buy := _press_start.distance_to(at) < DRAG_CANCEL_DISTANCE
+	_tracking_press = false
+	var now := Time.get_ticks_msec()
+	if should_buy and now - _last_activation_msec >= EMULATED_INPUT_DEDUPE_MSEC:
+		_last_activation_msec = now
 		pressed_card.emit(id)
 
 

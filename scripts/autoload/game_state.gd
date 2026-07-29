@@ -2,7 +2,15 @@ extends Node
 ## Core economy state: TEUs (currency), structures, upgrades, CPS.
 
 var teus: float = 0.0
-var lifetime_teus: float = 0.0
+var run_teus: float = 0.0
+var all_time_teus: float = 0.0
+# `lifetime_teus` is retained for world/UI compatibility, including direct
+# reads/writes made by older scripts. It is an alias of the all-time total.
+var lifetime_teus: float:
+	get:
+		return all_time_teus
+	set(value):
+		all_time_teus = value
 var owned: Dictionary = {}      # structure id -> count
 var upgrades: Dictionary = {}   # upgrade id -> true
 var land: Dictionary = {}       # parcel id -> true
@@ -13,12 +21,12 @@ var boost_time: float = 0.0      # remaining seconds of the cat boost
 var flags: Dictionary = {}       # tutorial_done, seen milestones, ...
 
 const MILESTONES := [
-	{"teus": 100.0, "text": "100 TEUs! O porto saiu do papel."},
-	{"teus": 1e4, "text": "10 mil TEUs. A alfândega já sabe teu nome."},
-	{"teus": 1e6, "text": "1 milhão de TEUs. Isso vira notícia local."},
-	{"teus": 1e9, "text": "1 bilhão de TEUs. O oceano pediu pausa."},
-	{"teus": 1e12, "text": "1 trilhão. Contadores do mundo inteiro choram."},
-	{"teus": 1e15, "text": "1 quatrilhão. Ninguém sabe mais o que é um container."},
+	{"id": "first_100", "teus": 100.0, "text": "100 TEUs! O porto saiu do papel."},
+	{"id": "ten_thousand", "teus": 1e4, "text": "10 mil TEUs. A alfândega já sabe teu nome."},
+	{"id": "one_million", "teus": 1e6, "text": "1 milhão de TEUs. Isso vira notícia local."},
+	{"id": "one_billion", "teus": 1e9, "text": "1 bilhão de TEUs. O oceano pediu pausa."},
+	{"id": "one_trillion", "teus": 1e12, "text": "1 trilhão. Contadores do mundo inteiro choram."},
+	{"id": "one_quadrillion", "teus": 1e15, "text": "1 quatrilhão. Ninguém sabe mais o que é um container."},
 ]
 
 const CRIT_CHANCE := 0.03
@@ -29,6 +37,10 @@ const PRESTIGE_DIVISOR := 1e12   # lifetime TEUs per golden share
 const SHARE_BONUS := 0.02        # +2% to everything per share
 
 const SUFFIXES := ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"]
+const MANUAL_LEDGER_LIMIT := 512
+
+var _manual_quotes: Dictionary = {} # tx_id -> {value, crit}
+var _manual_commits: Dictionary = {} # tx_id -> true
 
 
 func _ready() -> void:
@@ -44,14 +56,18 @@ func _process(delta: float) -> void:
 		_earn(cps * delta)
 
 
-func grant_cat_boost() -> void:
+func grant_cat_boost() -> bool:
+	# A cat visit is a one-shot bonus. Repeated taps cannot extend its timer.
+	if boost_time > 0.0:
+		return false
 	boost_time = CAT_BOOST_TIME
 	recompute()
+	return true
 
 
 func prestige_gain() -> int:
 	## Shares the player would earn by resetting right now.
-	return int(sqrt(maxf(0.0, lifetime_teus) / PRESTIGE_DIVISOR))
+	return int(sqrt(maxf(0.0, all_time_teus) / PRESTIGE_DIVISOR))
 
 
 func can_prestige() -> bool:
@@ -64,7 +80,7 @@ func do_prestige() -> bool:
 		return false
 	shares = gain
 	teus = 0.0
-	lifetime_teus = 0.0
+	run_teus = 0.0
 	owned.clear()
 	upgrades.clear()
 	boost_time = 0.0
@@ -75,28 +91,117 @@ func do_prestige() -> bool:
 
 
 func do_click(world_pos: Vector2) -> void:
-	var crit := randf() < CRIT_CHANCE
-	var value := click_power * (CRIT_MULT if crit else 1.0)
-	_earn(value)
-	EventBus.container_unloaded.emit(world_pos, value, crit)
+	# Legacy world API: generate an ephemeral transaction then present the same
+	# visual event it has always emitted.
+	var tx_id := "local:%d:%d" % [Time.get_ticks_usec(), randi()]
+	var quote := make_manual_reward_quote(tx_id)
+	if commit_manual_reward(tx_id, quote, world_pos):
+		EventBus.container_unloaded.emit(world_pos, float(quote.value), bool(quote.crit))
+
+
+func make_manual_reward_quote(tx_id: String) -> Dictionary:
+	## Returns a deterministic, persisted quote. Calling it never changes money.
+	if tx_id.is_empty():
+		return {"value": 0.0, "crit": false}
+	if _manual_quotes.has(tx_id):
+		return _manual_quotes[tx_id].duplicate()
+	# A transaction id, rather than a second random roll on retry, decides crit.
+	var roll := float(abs(tx_id.hash()) % 1000000) / 1000000.0
+	var crit := roll < CRIT_CHANCE
+	var quote := {"value": click_power * (CRIT_MULT if crit else 1.0), "crit": crit}
+	_manual_quotes[tx_id] = quote
+	_trim_manual_ledger()
+	return quote.duplicate()
+
+
+func commit_manual_reward(tx_id: String, quote: Dictionary = {}, pos: Vector2 = Vector2.ZERO) -> bool:
+	## Idempotent: a retry is successful but never pays the transaction twice.
+	if tx_id.is_empty():
+		return false
+	var committed_quote: Dictionary
+	if _manual_quotes.has(tx_id):
+		committed_quote = _manual_quotes[tx_id]
+	elif quote.is_empty():
+		committed_quote = make_manual_reward_quote(tx_id)
+	else:
+		if not quote.has("value") or not quote.has("crit"):
+			return false
+		var value := float(quote.value)
+		if not is_finite(value) or value < 0.0:
+			return false
+		committed_quote = {"value": value, "crit": bool(quote.crit)}
+		_manual_quotes[tx_id] = committed_quote
+	if _manual_commits.has(tx_id):
+		return true
+	_manual_commits[tx_id] = true
+	_earn(float(committed_quote.value))
+	_trim_manual_ledger()
+	EventBus.manual_reward_committed.emit({
+		"tx_id": tx_id, "value": float(committed_quote.value),
+		"crit": bool(committed_quote.crit), "pos": pos,
+	})
+	return true
+
+
+func grant_offline_earnings(amount: float) -> void:
+	## Applies offline income through the normal accounting/milestone path once.
+	if is_finite(amount) and amount > 0.0:
+		_earn(amount)
 
 
 func _earn(amount: float) -> void:
 	teus += amount
-	lifetime_teus += amount
+	run_teus += amount
+	all_time_teus += amount
+	lifetime_teus = all_time_teus
 	EventBus.teus_changed.emit(teus)
 	_check_milestones()
 
 
 func _check_milestones() -> void:
-	var seen: Array = flags.get("milestones", [])
+	var seen := _normalized_milestones(flags.get("milestones", []))
 	for i in MILESTONES.size():
-		if lifetime_teus >= MILESTONES[i].teus and not seen.has(i):
-			seen.append(i)
+		var milestone: Dictionary = MILESTONES[i]
+		if all_time_teus >= float(milestone.teus) and not seen.has(milestone.id):
+			seen.append(milestone.id)
 			flags["milestones"] = seen
-			EventBus.toast.emit(MILESTONES[i].text)
+			_notify(milestone.text)
 			AudioManager.play_sfx("milestone")
 			return
+	flags["milestones"] = seen
+
+
+func _normalized_milestones(value: Variant) -> Array:
+	var normalized: Array = []
+	if not value is Array:
+		return normalized
+	for raw in value:
+		var id := ""
+		if raw is String:
+			id = raw
+		elif raw is int and raw >= 0 and raw < MILESTONES.size():
+			id = MILESTONES[raw].id
+		elif raw is float and raw >= 0.0 and raw < float(MILESTONES.size()) and is_equal_approx(raw, roundf(raw)):
+			id = MILESTONES[int(raw)].id
+		var known := false
+		for milestone: Dictionary in MILESTONES:
+			if milestone.id == id:
+				known = true
+				break
+		if known and not normalized.has(id):
+			normalized.append(id)
+	return normalized
+
+
+func _notify(text: String) -> void:
+	EventBus.notification_requested.emit({"text": text, "kind": &"milestone"})
+
+
+func _trim_manual_ledger() -> void:
+	while _manual_quotes.size() > MANUAL_LEDGER_LIMIT:
+		_manual_quotes.erase(_manual_quotes.keys()[0])
+	while _manual_commits.size() > MANUAL_LEDGER_LIMIT:
+		_manual_commits.erase(_manual_commits.keys()[0])
 
 
 func can_afford(cost: float) -> bool:
@@ -120,6 +225,8 @@ func structure_cost(id: String) -> float:
 
 
 func buy_structure(id: String) -> bool:
+	if StructureDB.get_item(id).is_empty():
+		return false
 	if not spend(structure_cost(id)):
 		return false
 	owned[id] = structure_count(id) + 1
@@ -135,6 +242,8 @@ func has_upgrade(id: String) -> bool:
 func buy_upgrade(id: String) -> bool:
 	var item := UpgradeDB.get_item(id)
 	if item.is_empty() or has_upgrade(id):
+		return false
+	if not upgrade_unlocked(item):
 		return false
 	if not spend(item.cost):
 		return false
@@ -209,17 +318,26 @@ func fmt(n: float) -> String:
 
 func to_save() -> Dictionary:
 	return {
-		"teus": teus, "lifetime": lifetime_teus, "shares": shares,
+		"teus": teus, "lifetime": lifetime_teus, "run_teus": run_teus,
+		"all_time_teus": all_time_teus, "shares": shares,
 		"owned": owned, "upgrades": upgrades.keys(), "land": land.keys(),
-		"flags": flags,
+		"flags": flags, "manual_quotes": _manual_quotes,
+		"manual_commits": _manual_commits.keys(),
 	}
 
 
 func from_save(data: Dictionary) -> void:
 	teus = data.get("teus", 0.0)
-	lifetime_teus = data.get("lifetime", 0.0)
+	# Boosts are session-scoped and never survive a wipe/reload.
+	boost_time = 0.0
+	# v1's lifetime was the only earned-total field, so it seeds both totals.
+	var legacy_lifetime := float(data.get("lifetime", data.get("lifetime_teus", 0.0)))
+	run_teus = float(data.get("run_teus", legacy_lifetime))
+	all_time_teus = float(data.get("all_time_teus", legacy_lifetime))
+	lifetime_teus = all_time_teus
 	shares = int(data.get("shares", 0))
 	flags = data.get("flags", {})
+	flags["milestones"] = _normalized_milestones(flags.get("milestones", []))
 	owned = data.get("owned", {})
 	upgrades.clear()
 	for uid in data.get("upgrades", []):
@@ -227,5 +345,10 @@ func from_save(data: Dictionary) -> void:
 	land.clear()
 	for lid in data.get("land", []):
 		land[lid] = true
+	_manual_quotes = data.get("manual_quotes", {}).duplicate()
+	_manual_commits.clear()
+	for tx_id in data.get("manual_commits", []):
+		_manual_commits[str(tx_id)] = true
+	_trim_manual_ledger()
 	recompute()
 	EventBus.teus_changed.emit(teus)

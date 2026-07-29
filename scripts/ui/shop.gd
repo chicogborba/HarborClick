@@ -1,17 +1,19 @@
 class_name Shop
 extends CanvasLayer
-## The terminal's order book: a manifest board that slides up from the tabs.
+## Responsive order book: bottom sheet in portrait, compact drawer on desktop.
 
-const SHEET_H := 280.0
-const TAB_H := 30.0
-const W := PortLayout.WORLD_W
-const H := PortLayout.VIEW_H
+signal open_changed(opened: bool)
 
 const TABS := [
 	["structures", "EQUIPAMENTO", UiTheme.Icon.CRANE],
 	["upgrades", "MELHORIAS", UiTheme.Icon.STAR],
 	["land", "TERRENO", UiTheme.Icon.LAND],
 ]
+const DESKTOP_TAB_LABELS := {
+	"structures": "EQUIP.",
+	"upgrades": "MELH.",
+	"land": "TERRA",
+}
 
 const ICONS := {
 	"estivador": "worker_sheet", "empilhadeira": "veh_forklift", "tt": "veh_tt",
@@ -21,7 +23,9 @@ const ICONS := {
 	"drone": "veh_drone", "porto_ia": "bld_ai_hub", "portal": "bld_portal",
 }
 
+var _backdrop: ColorRect
 var _sheet: PanelContainer
+var _launcher: Button
 var _tabs: HBoxContainer
 var _lists: Dictionary = {}
 var _scrolls: Dictionary = {}
@@ -31,18 +35,22 @@ var _open := false
 var _active := "structures"
 var _refresh_timer := 0.0
 var _dirty := true
+var _desktop := false
+var _safe_rect := Rect2()
+var _profile := ""
 
 
 func _ready() -> void:
-	layer = 5
+	layer = 8
 	_build()
 	_populate()
-	_sheet.position.y = H - TAB_H
+	get_viewport().size_changed.connect(_layout)
 	EventBus.teus_changed.connect(func(_t: float) -> void: _dirty = true)
 	EventBus.structure_bought.connect(func(_a: String, _b: int) -> void: _refresh())
 	EventBus.upgrade_bought.connect(func(_a: String) -> void: _rebuild_upgrades())
 	EventBus.land_bought.connect(func(_a: String) -> void: _refresh())
 	_refresh()
+	_layout()
 
 
 func _process(delta: float) -> void:
@@ -55,22 +63,49 @@ func _process(delta: float) -> void:
 			_rebuild_upgrades()
 
 
-# ---------- construction ----------
+func _unhandled_key_input(event: InputEvent) -> void:
+	if _open and event is InputEventKey and event.pressed \
+			and (event.keycode == KEY_ESCAPE or event.keycode == KEY_BACK):
+		_close()
+		get_viewport().set_input_as_handled()
+
 
 func _build() -> void:
-	_sheet = PanelContainer.new()
-	UiTheme.apply_panel(_sheet, UiTheme.panel_style())
-	_sheet.size = Vector2(W, SHEET_H + TAB_H)
-	_sheet.custom_minimum_size = _sheet.size
-	add_child(_sheet)
+	_backdrop = ColorRect.new()
+	_backdrop.color = Color(0.03, 0.025, 0.07, 0.68)
+	_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	_backdrop.gui_input.connect(_on_backdrop_input)
+	add_child(_backdrop)
+	_launcher = UiTheme.button("LOJA", "amber", UiTheme.SIZE_BODY)
+	_launcher.icon = UiTheme.icon_texture(UiTheme.Icon.CRANE)
+	_launcher.focus_mode = Control.FOCUS_ALL
+	_launcher.tooltip_text = "Abrir loja"
+	_launcher.pressed.connect(func() -> void: _on_tab("structures"))
+	add_child(_launcher)
 
+	_sheet = PanelContainer.new()
+	UiTheme.apply_panel(_sheet, UiTheme.dark_panel(10))
+	_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_sheet)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override(&"separation", 3)
+	col.add_theme_constant_override(&"separation", 5)
 	_sheet.add_child(col)
 
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override(&"separation", 5)
+	col.add_child(header)
+	var handle := UiTheme.label("LOJA", UiTheme.SIZE_SMALL, UiTheme.TEAL)
+	handle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(handle)
+	var close_btn := UiTheme.button("X", "off", UiTheme.SIZE_TITLE)
+	close_btn.tooltip_text = "Fechar loja"
+	close_btn.custom_minimum_size = Vector2(32, 28)
+	close_btn.pressed.connect(_close)
+	header.add_child(close_btn)
+
 	_tabs = HBoxContainer.new()
-	_tabs.add_theme_constant_override(&"separation", 2)
-	_tabs.custom_minimum_size.y = TAB_H - 8.0
+	_tabs.add_theme_constant_override(&"separation", 3)
 	col.add_child(_tabs)
 	for tab: Array in TABS:
 		var button := _make_tab(tab[1], tab[2])
@@ -78,53 +113,97 @@ func _build() -> void:
 		_tabs.add_child(button)
 		_tab_buttons[tab[0]] = button
 
-	# One scroll per tab, all stacked in the same slot; hidden ones are skipped
-	# by the container so the visible one always fills the sheet.
 	for tab: Array in TABS:
 		var scroll := ScrollContainer.new()
-		scroll.custom_minimum_size.y = SHEET_H - 14.0
 		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		scroll.visible = tab[0] == _active
 		col.add_child(scroll)
 		_scrolls[tab[0]] = scroll
-
 		var list := VBoxContainer.new()
 		list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		list.custom_minimum_size.x = W - 22
-		list.add_theme_constant_override(&"separation", 3)
+		list.add_theme_constant_override(&"separation", 4)
 		scroll.add_child(list)
 		_lists[tab[0]] = list
 
 
 func _make_tab(text: String, icon: UiTheme.Icon) -> Button:
-	var button := Button.new()
-	button.text = text
+	var button := UiTheme.button(text, "alt", UiTheme.SIZE_SMALL)
 	button.icon = UiTheme.icon_texture(icon)
-	button.focus_mode = Control.FOCUS_NONE
+	button.focus_mode = Control.FOCUS_ALL
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.add_theme_font_override(&"font", UiTheme.FONT)
-	button.add_theme_font_size_override(&"font_size", UiTheme.SIZE_SMALL)
 	_style_tab(button, false)
 	return button
 
 
 func _style_tab(button: Button, active: bool) -> void:
-	var style := UiTheme.nine("ui_tab_on" if active else "ui_tab_off", 4)
-	for state: StringName in [&"normal", &"hover", &"pressed", &"focus"]:
-		button.add_theme_stylebox_override(state, style)
-	var color := UiTheme.INK if active else Color8(76, 66, 60)
-	button.add_theme_color_override(&"font_color", color)
-	button.add_theme_color_override(&"font_hover_color", color)
-	button.add_theme_color_override(&"font_pressed_color", color)
+	button.modulate = Color.WHITE if active else Color(0.7, 0.67, 0.78)
+	button.add_theme_color_override(&"font_color", UiTheme.CREAM if active else UiTheme.PLATE_TEXT)
+
+
+func _on_backdrop_input(event: InputEvent) -> void:
+	if (event is InputEventMouseButton and event.pressed) \
+			or (event is InputEventScreenTouch and event.pressed):
+		_close()
+		get_viewport().set_input_as_handled()
+
+
+func _layout() -> void:
+	var view := get_viewport().get_visible_rect().size
+	var safe := _resolved_safe_rect(view)
+	_desktop = _profile == "desktop" if not _profile.is_empty() \
+		else view.x >= 700.0 and view.x / maxf(view.y, 1.0) >= 1.25
+	if _desktop:
+		var width := clampf(safe.size.x * 0.29, 200.0, 224.0)
+		_sheet.size = Vector2(width, safe.size.y - 16.0)
+		_sheet.position = Vector2(
+			safe.end.x - width - 8.0, safe.position.y + 8.0)
+	else:
+		var height := minf(safe.size.y * 0.68, 390.0)
+		_sheet.size = Vector2(safe.size.x - 12.0, height)
+		_sheet.position = Vector2(
+			safe.position.x + 6.0, safe.end.y - height - 6.0)
+	for index in TABS.size():
+		var tab: Array = TABS[index]
+		var tab_button: Button = _tab_buttons.get(tab[0])
+		if tab_button != null:
+			tab_button.text = str(DESKTOP_TAB_LABELS.get(tab[0], tab[1])) \
+				if _desktop else str(tab[1])
+	_backdrop.visible = _open
+	_sheet.visible = _open
+	_launcher.visible = not _open
+	if _desktop:
+		_launcher.size = Vector2(154.0, 40.0)
+		_launcher.position = Vector2(
+			safe.end.x - 162.0, safe.end.y - 48.0)
+	else:
+		_launcher.size = Vector2(118.0, 36.0)
+		_launcher.position = Vector2(
+			safe.position.x + (safe.size.x - _launcher.size.x) * 0.5,
+			safe.end.y - 44.0)
+
+
+func apply_view_metrics(metrics: Dictionary) -> void:
+	var view := get_viewport().get_visible_rect().size
+	_safe_rect = metrics.get(
+		"safe_rect", Rect2(Vector2.ZERO, view))
+	_profile = str(metrics.get("profile", ""))
+	_layout()
+
+
+func _resolved_safe_rect(view: Vector2) -> Rect2:
+	var viewport_rect := Rect2(Vector2.ZERO, view)
+	if _safe_rect.size.x <= 0.0 or _safe_rect.size.y <= 0.0:
+		return viewport_rect
+	var clipped := _safe_rect.intersection(viewport_rect)
+	return clipped if clipped.size.x > 0.0 and clipped.size.y > 0.0 \
+		else viewport_rect
 
 
 func _populate() -> void:
 	for item in StructureDB.ITEMS:
 		var card := ShopCard.new()
-		card.setup(item.id, "structure",
-			"res://assets/sprites/%s.png" % ICONS.get(item.id, "bld_office"),
-			item.name, item.desc)
+		card.setup(item.id, "structure", "res://assets/sprites/%s.png" % ICONS.get(item.id, "bld_office"), item.name, item.desc)
 		card.pressed_card.connect(_on_buy_structure)
 		_lists["structures"].add_child(card)
 		_cards[item.id] = card
@@ -147,10 +226,10 @@ func _rebuild_upgrades() -> void:
 		if _cards.has(uid):
 			continue
 		var item := UpgradeDB.get_item(uid)
-		var icon: String = ICONS.get(item.get("target", ""), "bld_ai_hub")
 		var card := ShopCard.new()
-		card.setup(uid, "upgrade", "res://assets/sprites/%s.png" % icon,
-			item.name, item.desc)
+		var icon_path := "res://assets/sprites/%s.png" % ICONS.get(
+			item.get("target", ""), "bld_ai_hub")
+		card.setup(uid, "upgrade", icon_path, item.name, item.desc)
 		card.pressed_card.connect(_on_buy_upgrade)
 		list.add_child(card)
 		_cards[uid] = card
@@ -158,7 +237,7 @@ func _rebuild_upgrades() -> void:
 	if wanted.is_empty() and hint == null:
 		var note := UiTheme.label(
 			"Nada novo na prancheta.\nMovimente mais carga.",
-			UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+			UiTheme.SIZE_SMALL, UiTheme.PLATE_TEXT)
 		note.name = "EmptyHint"
 		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		list.add_child(note)
@@ -179,8 +258,6 @@ func _rebuild_land() -> void:
 		_cards["land_" + item.id] = card
 
 
-# ---------- interaction ----------
-
 func _on_tab(tab_name: String) -> void:
 	if _open and _active == tab_name:
 		_close()
@@ -198,18 +275,24 @@ func _on_tab(tab_name: String) -> void:
 
 func _open_sheet() -> void:
 	_open = true
-	var tween := create_tween()
-	tween.tween_property(_sheet, "position:y", H - SHEET_H - TAB_H, 0.3) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_layout()
+	if not UserPreferences.can_animate():
+		_sheet.modulate.a = 1.0
+		open_changed.emit(true)
+		return
+	_sheet.modulate.a = 0.0
+	create_tween().tween_property(_sheet, "modulate:a", 1.0, 0.16)
+	open_changed.emit(true)
 
 
 func _close() -> void:
+	if not _open:
+		return
 	_open = false
 	for key: String in _tab_buttons:
 		_style_tab(_tab_buttons[key], false)
-	var tween := create_tween()
-	tween.tween_property(_sheet, "position:y", H - TAB_H, 0.24) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	_layout()
+	open_changed.emit(false)
 
 
 func is_open() -> bool:
@@ -262,9 +345,7 @@ func _refresh() -> void:
 			continue
 		var count := GameState.structure_count(item.id)
 		var cost := GameState.structure_cost(item.id)
-		var reachable: bool = count > 0 \
-			or GameState.lifetime_teus >= float(item.cost) * 0.35
-		card.visible = reachable
+		card.visible = count > 0 or GameState.lifetime_teus >= float(item.cost) * 0.35
 		card.refresh(cost, count, GameState.can_afford(cost))
 	for item in UpgradeDB.ITEMS:
 		var card: ShopCard = _cards.get(item.id)

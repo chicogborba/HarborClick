@@ -31,7 +31,10 @@ func _ready() -> void:
 	_load_settings()
 	EventBus.day_phase_changed.connect(func(_p: StringName) -> void: update_music())
 	EventBus.fog_changed.connect(func(_a: bool) -> void: update_music())
-	update_music.call_deferred()
+	# Headless runners have no audible output, and keeping a looping WAV alive
+	# until SceneTree.quit() makes Godot report two false-positive ObjectDB leaks.
+	if DisplayServer.get_name() != "headless":
+		update_music.call_deferred()
 
 
 func play_sfx(sfx_name: String, pitch_jitter: float = 0.06, volume_db: float = 0.0) -> void:

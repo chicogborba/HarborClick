@@ -51,6 +51,20 @@ func _roll_weather() -> void:
 
 
 func weather_cps_mult() -> float:
-	if fog_active and not GameState.has_upgrade("radar_neblina"):
+	# There is no radar_neblina upgrade in the current catalog.  Keeping a
+	# hidden reference here made fog behavior depend on an impossible state.
+	if fog_active:
 		return 0.8
 	return 1.0
+
+
+func to_save() -> Dictionary:
+	return {"day": day, "time_of_day": time_of_day, "fog_active": fog_active}
+
+
+func from_save(data: Dictionary) -> void:
+	day = maxi(1, int(data.get("day", 1)))
+	time_of_day = clampf(float(data.get("time_of_day", 0.3)), 0.0, 0.999999)
+	fog_active = bool(data.get("fog_active", false))
+	speed_mult = 1.0
+	_phase = _compute_phase()
