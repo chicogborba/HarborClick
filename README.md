@@ -282,7 +282,7 @@ acima — vale rodar depois de mexer no fluxo de carga.
 
 ---
 
-## Plano de evolução — auditoria de 29/07/2026
+## Plano de evolução — replanejado em 30/07/2026
 
 Este é o documento vivo de produção do HarborClick. Cada entrega deve atualizar
 seu checkbox no mesmo commit da implementação. Um item só recebe `[x]` depois
@@ -317,123 +317,6 @@ Os cinco pilares são:
 primeiros minutos e progressivamente mais espaçada. A produção continua
 multiplicativa, como se espera de um idle, mas o simulador impedirá saltos
 bruscos de minutos para dias.
-
-### O que já foi concluído
-
-- [x] Preservar e publicar a versão-base no branch `main` do
-      [repositório HarborClick](https://github.com/chicogborba/HarborClick).
-- [x] Criar `.gitignore` para cache do Godot, probes, previews e exports.
-- [x] Documentar clone, execução no editor, linha de comando e validação
-      headless.
-- [x] Abrir e executar o projeto no Godot 4.7.1 sem erro de runtime.
-- [x] Auditar os 29 scripts, a cena principal, economia, save, input, UI e
-      fluxo de carga.
-- [x] Inspecionar o jogo em retrato, telefone alto e desktop 16:9.
-- [x] Preservar sem alteração o save, as capturas e a configuração de áudio do
-      usuário usados durante a inspeção.
-- [x] Pesquisar padrões de clickers/idle conhecidos e feedback visual em
-      camadas.
-- [x] Publicar este roadmap com prioridades e critérios de aceite.
-
-Nenhuma das features abaixo está sendo apresentada como pronta.
-
-### Diagnóstico da versão-base
-
-| Área | Evidência encontrada | Efeito no jogador | Direção |
-|---|---|---|---|
-| Escala da tela | Mundo, câmera, névoa e overlays assumem 320×480 | No desktop sobra área cinza e o porto fica minúsculo; em telefone alto, conteúdo da loja pode aparecer fora da folha | `ResponsiveShell` e câmera por perfil |
-| Contador TEU | O label central muda de largura e o painel pulsa a cada emissão; CPS emite todo frame | HUD “samba” quando o sufixo ou número muda | Slot numérico fixo, alinhado à direita, atualização visual limitada |
-| HUD | Placa de 274×58 ocupa cerca de 86% da largura-base | O contador domina a tela | Placa compacta no canto esquerdo e status do navio separado |
-| Loja | Folha clara de tamanho/posição fixos, sem backdrop | Muito luminosa, presa à esquerda no PC e não fecha ao tocar fora | Bottom sheet roxo no mobile; drawer lateral no desktop |
-| Ajustes | Gear absoluto 26×26 e modal/dim de 320×480 | Ícone desalinhado, alvo pequeno e bloqueio parcial no PC | Botão dedicado de 44 px e modal `full_rect` |
-| Notificações | Navio, tutorial, gato e milestones usam o mesmo toast; até três faixas grandes | Informação rotineira compete com conquistas | Estado rotineiro no HUD; um toast priorizado e histórico |
-| Carga | Navio descarrega 24 e carrega apenas 10; pátio não tem tipo de carga | A mesma caixa pode “sair e voltar” e o navio parte incompleto | Manifestos de importação/exportação e transações |
-| Clique | TEU é pago antes de confirmar a movimentação | Clique inválido pode render moeda | Recompensa somente no commit da carga |
-| Pátio | Save novo começa vazio; pátio cheio apaga uma pilha aleatória | Primeira cena parece morta e carga pode sumir | Estoque inicial de exportação e capacidade sem descarte oculto |
-| Tráfego | Veículos grandes compartilham spawn e caminho sem distância mínima | Sobreposição e escala estranha | Veículos 25–35% menores e coordenador de faixas |
-| Navios | Um casco, uma capacidade e uma silhueta | Escalas repetitivas | Catálogo data-driven por classe, paleta e rota |
-| Economia | Custos sobem 15%, mas nove estruturas tardias não têm upgrades próprios | O início anda e depois vira um deserto de horas/dias | Simulador, milestones de quantidade e upgrades para toda estrutura |
-| Prestígio | Primeiro reset exige `1e12` e concede apenas +2%; não há confirmação | Repetição quase tão longa quanto a primeira run e risco de toque acidental | Meta-progressão perceptível, modal e reconstrução do mundo |
-| Save | JSON é sobrescrito diretamente, sem versão, migração ou backup | Risco maior em background mobile e storage web | Save v2 atômico e recuperável |
-| Atmosfera | Água já tem swell/ripples/glints, mas sem wake, espuma ou reação ao casco | Boa base, pouca presença | Shader em camadas, efeitos locais e orçamento mobile |
-
-#### Gargalos de economia medidos
-
-O clique-base tem valor esperado de 1,18 TEU antes de upgrades. A primeira
-unidade usa `custo_base × 1,15^quantidade`; a unidade 50 já custa cerca de
-1.084× o preço-base e a 100, 1,17 milhão de vezes. Não existem compras
-x10/x25/MAX.
-
-| Estrutura | Retorno da primeira unidade, sem upgrade |
-|---|---:|
-| Empilhadeira | 100 s |
-| Estivador | 150 s |
-| Cavalo mecânico | 138 s |
-| Reach stacker | 255 s |
-| Transtêiner RTG | 8,3 min |
-| Portêiner STS | 16,7 min |
-| Armazém | 42,7 min |
-| Rebocador | 2,1 h |
-| Trem | 5,45 h |
-| Guindaste flutuante | 13 h |
-| Alfândega | 27,8 h |
-| Torre | 59,8 h |
-| Drone | 109,8 h |
-| Porto IA | 201 h |
-| Portal | 344 h |
-
-Uma simulação otimista da versão-base coloca `1e12` TEU em aproximadamente
-47 horas de jogo ativo ou cerca de dois dias no melhor caso passivo. O primeiro
-prestígio reduz a próxima jornada em apenas ~2%. A correção não será um bônus
-arbitrário: a curva será simulada até cumprir as metas de sessão descritas na
-Fase 3.
-
-#### Bugs e dívida técnica a remover antes de expandir
-
-- [x] Impedir a renovação infinita do bônus ×7 ao tocar repetidamente no gato.
-- [x] Implementar ou remover `radar_neblina`, hoje consultado mas ausente no
-      banco de upgrades.
-- [x] Corrigir milestones carregados do JSON com tipo inconsistente e impedir
-      duplicatas.
-- [x] Reconstruir prédios e HUD no mesmo frame do prestígio.
-- [x] Fazer `wipe()` também limpar boost, neblina e todos os estados de sessão.
-- [x] Aplicar a regra de desbloqueio de upgrade dentro de `GameState`, não só
-      na UI.
-- [x] Parar de apagar pilhas silenciosamente quando o pátio lota.
-- [x] Usar a capacidade real declarada pelos terrenos.
-- [x] Parar de duplicar árvores, arbustos e cones a cada expansão.
-- [x] Remover referências de import antigas sem arquivo-fonte
-      (`tile_dirt`, `tile_asphalt`, `tile_concrete`, `tile_asphalt_lane`,
-      `ship_feeder` e `fender`).
-- [x] Corrigir câmera/inputs: A/D hoje deslocam o eixo vertical e zoom foi
-      declarado, mas não implementado.
-
-### Síntese da pesquisa
-
-O plano não copia a aparência de outro jogo; replica mecanismos que sustentam
-clareza, retenção e prazer de interação.
-
-| Referência | Padrão útil | Aplicação no HarborClick |
-|---|---|---|
-| [Quest for Progress — matemática e design de idle games](https://www.gdcvault.com/play/1023863/Quest-for-Progress-The-Math) | Geradores, custos e camadas precisam ser modelados como sistema, não balanceados carta por carta | Simulador econômico, metas de tempo e testes de regressão |
-| [Estudo de engajamento em idle games](https://escholarship.org/content/qt0b07v51w/qt0b07v51w.pdf) | Objetivos claros, progresso contínuo e features que aparecem no mundo sustentam engajamento; contexto mobile e PC não é idêntico | Próximo objetivo no HUD, novidades visíveis e layouts próprios |
-| [Cookie Clicker](https://play.google.com/store/apps/details?id=org.dashnet.cookieclicker) | Grande trilha de upgrades/conquistas, progresso offline, ascensão e eventos reconhecíveis | Conquistas acompanháveis, prestígio que muda a run e Golden Ship |
-| [Egg, Inc.](https://apps.apple.com/us/app/egg-inc/id993492744) | Veículos variados, missões, coleção e mais de uma camada de prestígio dão forma visual aos números | Rotas, classes de navio, contratos e evolução visível do porto |
-| [Análise de feedback visual inspirada em Balatro](https://blakecrosley.com/guides/design/balatro) | Movimento só ajuda quando combina com a linguagem e o ritmo do jogo | O protótipo de contagem rolante, shake, pulso e vibração foi rejeitado em playtest; HarborClick mantém contador instantâneo e feedback discreto |
-| [Godot: múltiplas resoluções](https://docs.godotengine.org/en/stable/tutorials/rendering/multiple_resolutions.html) | Stretch, anchors, safe area e composição devem ser escolhidos para o formato, não apenas para um viewport-base | Perfis retrato e paisagem testados por matriz |
-| [Godot: exportar para Web](https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_web.html) | Web exige renderer compatível e cuidados específicos com armazenamento e ciclo de vida | Preset web, persistência testada e export/import manual do save |
-
-Os padrões comuns que entram no design são:
-
-- resposta imediata para todo toque válido;
-- um próximo objetivo legível sem abrir três menus;
-- novidade a cada poucos minutos na primeira hora;
-- crescimento ativo e passivo que se alimentam, sem uma simulação falsa;
-- reset que acelera a recuperação e abre uma decisão nova;
-- eventos raros previsíveis o bastante para não parecerem injustos;
-- retorno offline resumido, nunca uma chuva de toasts;
-- coleção/conquistas como memória de carreira;
-- números grandes estáveis, legíveis e prazerosos de acompanhar.
 
 ### Especificação de UI e responsividade
 
@@ -595,251 +478,153 @@ carregar completamente e partir sem um tutorial artificial.
 O simulador deve testar sessões ativas, híbridas e offline. Comprar a opção
 “errada” pode ser menos eficiente, mas nunca deve condenar a run.
 
-### Roadmap de implementação
+### O que já está entregue
 
-#### Fase 0 — baseline e descoberta — concluída
+Fases 0 a 4 e a metade entregável da 7 estão fechadas e cobertas por teste.
+Em vez de manter a lista antiga item a item, o resumo:
 
-- [x] Snapshot da versão recebida antes de qualquer alteração funcional.
-- [x] Repositório remoto e instruções de execução.
-- [x] Auditoria visual mobile/desktop.
-- [x] Auditoria de economia, save, UI, mundo e carga.
-- [x] Pesquisa de padrões do gênero.
-- [x] Roadmap e critérios de aceite.
+- **Fundação** — save v2 atômico com backup, recuperação e migração; export e
+  import manual do save; detecção de storage indisponível; `ResponsiveShell`
+  com perfis retrato/paisagem; 13 suítes headless; harness de captura que roda
+  a matriz de resolução inteira e falha se um overlay vazar do viewport.
+- **Carga** — `CargoUnit` com UID persistente, setores de importação e
+  exportação, `BerthCallController` com ciclo 100%→0%→100%, recompensa só no
+  commit, reservas transacionais e 100 escalas automatizadas sem UID duplicado.
+- **Economia e carreira** — simulador de balanceamento, compras x1/x10/x25/MAX,
+  upgrades para as 15 estruturas, ~35 conquistas, Diário do Porto, contratos e
+  prestígio com árvore de capital.
+- **Porto vivo** — variantes de casco persistidas, água por qualidade, sombra
+  de nuvem, reflexo noturno, boias de canal, sinalização de setor no chão e
+  detalhes ligados ao estado real do berço.
+- **Tráfego** — via de serviço de mão dupla, faixa reservada por veículo,
+  distância de seguimento e destravamento por timeout.
+- **Interface** — a prancheta do conferente: nine-patches na grade de pixel,
+  contador sem placa, loja reconstruída, notificações com política única.
+- **Acessibilidade** — foco por teclado em tudo, anel de foco de dois tons,
+  nomes acessíveis, contraste AA verificado por teste.
 
-#### Fase 1 — fundação confiável e shell responsivo — P0
+O que segue é o que **falta**, reordenado depois do playtest de 30/07/2026.
 
-- [x] Criar testes determinísticos para economia, formatação numérica, cargo,
-      save e eventos.
-- [x] Criar cenas/probes de screenshot para toda a matriz de resoluções
-      (`tools/capture`, com asserção de contenção no viewport).
-- [x] Implementar save v2 com `save_version`, migrações, temporário, troca
-      atômica, backup e recuperação.
-- [x] Salvar em compra importante, expansão, prestígio, pause/background,
-      fechamento e reload web.
-- [x] Separar `run_teus`, `all_time_teus`, estatísticas de carreira e moeda
-      meta.
-- [x] Criar `ResponsiveShell` e perfis retrato/paisagem.
-- [x] Fazer mundo, névoa, modais e input usarem o viewport real.
-- [x] Implementar HUD compacto e contador sem reflow.
-- [x] Refazer loja escura com outside click/Back/Escape e drawer desktop.
-- [x] Refazer gear e Ajustes com foco, safe area e opções de movimento,
-      números flutuantes, UI scale e fullscreen.
-- [x] Unificar gesto mouse/touch: tap, drag e compra no release.
-- [x] Criar `NotificationCoordinator` e remover toasts rotineiros.
-- [x] Corrigir todos os bugs/dívidas listados antes desta fase ser encerrada.
+### Diagnóstico do playtest — 30/07/2026
 
-Aceite da fase:
+| Sintoma relatado | Causa | Fase |
+|---|---|---|
+| "O menu de ações está quebrado, o scroll fica na frente" | A barra de rolagem é desenhada por cima dos cards em vez de reservar largura | A |
+| "O botão de configurações está horrível, o de abrir a loja também" | O rail de comandos de desktop nunca foi construído: sobrou um vazio cinza de 32% da tela com dois botões soltos flutuando nele, ainda no estilo antigo | A |
+| "Não existe mapa-múndi nem comprar rotas" | Fase 5 nunca foi iniciada | F |
+| "Quero menu inicial com 3 perfis" | Não existe tela inicial; o jogo entra direto num save único | B |
+| "As máquinas deviam descarregar o navio sozinhas" | Nada além do toque move carga do navio; a automação comprada só enche o pátio | D |
+| "Falta um bônus quando o navio vai embora" | A partida não paga nada além do que já foi creditado por caixa | D |
+| "Queria vários navios no porto, aparecendo aos poucos" | Existe exatamente um berço e um navio | C |
+| "Queria navios de tamanhos e cores diferentes, pequenos no início" | O catálogo tem silhuetas e paletas, mas capacidade fixa em 24 e nenhuma relação com o tamanho do porto | C |
+| "O barco entra e sai de ré" | `Ship` interpola posição sem nunca girar o casco | E |
+| "As máquinas parecem mover coisas sem sentido" | Os haulers teleportam pro portão, andam em velocidade constante e viram em 90° secos | E |
 
-- Godot inicia sem erro nem referência de asset quebrada;
-- 100 gestos de scroll na loja produzem zero compras acidentais;
-- tocar fora fecha a loja sem interagir com o porto;
-- contador passa pelo teste 0→`1e15` sem deslocamento;
-- todas as resoluções P0 ficam sem cinza descoberto, corte ou overlay parcial;
-- save corrompido recupera o backup e uma migração não duplica progresso.
+### Fase A — o rail de comandos e o resto do cromo — P0
 
-#### Fase 2 — carga verdadeira e porto coerente — P0
+O desktop é o pior estado do jogo hoje: um terço da tela é cinza vazio.
 
-- [x] Implementar `CargoUnit` e inventários de importação, exportação e
-      trânsito.
-- [x] Dividir o pátio em setores funcionais de importação/exportação.
-- [x] Semear exportação inicial num save novo.
-- [x] Implementar `BerthCallController` e ciclo 100%→0%→100%.
-- [x] Pagar TEU somente depois do commit da transferência.
-- [x] Persistir manifesto, fase, reservas e caixas em voo.
-- [x] Impedir partida parcial ou antes da aterrissagem da última caixa.
-- [x] Fazer caminhões retirarem importação e entregarem exportação.
-- [x] Preservar UID, cor e rota em todo o percurso da caixa.
-- [x] Trocar descarte silencioso por fila, bloqueio legível ou expansão.
-- [x] Implementar `TrafficCoordinator` e reduzir veículos em 25–35%.
-- [x] Fazer RTG/STS animarem jobs reais ou um modo ocioso claramente
-      cosmético — o portêiner só balança com navio no berço e inverte o arco
-      quando o berço está embarcando; o transtêiner só roda sobre bloco com
-      caixa, e a caixa que ele carrega tem a cor de uma que está mesmo lá.
-- [x] Fazer terreno desbloquear capacidade/geometria declarada de verdade.
+- [ ] Criar `CommandRail`: uma prancheta fixa na lateral direita em paisagem,
+      com o contador, o objetivo fixado e as teclas (LOJA, DIÁRIO, AJUSTES,
+      CAPITAL). Nada de botão solto sobre o vazio.
+- [ ] Em retrato, as mesmas teclas viram uma barra inferior no mesmo material.
+- [ ] A loja abre **dentro** do rail no desktop, não como gaveta que cobre.
+- [ ] Reservar a largura da barra de rolagem em vez de desenhá-la por cima do
+      conteúdo, em toda lista.
+- [ ] Corrigir a sobreposição entre a taxa do contador e o chip do berço.
+- [ ] Barra de progresso do Diário com altura de barra, não de sublinhado.
 
-Aceite da fase:
+Aceite: em 1280×720 e 1920×1080 não sobra nenhuma área sem função; nenhuma
+lista desenha a barra de rolagem sobre um card; a matriz de captura continua
+limpa.
 
-- 100 escalas automatizadas, inclusive a 60 taps/s, sem UID duplicado ou
-  perdido;
-- importação descarregada nunca reembarca no mesmo navio;
-- clique sem transferência válida rende zero;
-- todo navio parte com `loaded == capacity` e zero caixas em voo;
-- salvar/reabrir no meio de cada estado reconcilia exatamente o manifesto;
-- comprar todos os terrenos não duplica props nem apaga carga.
+### Fase B — tela inicial e perfis — P0
 
-#### Fase 3 — primeira hora, economia e carreira — P1
+- [ ] Cena `TitleScreen` como cena principal: título, três lugares de perfil e
+      créditos curtos.
+- [ ] Cada lugar mostra TEU total, dia e classe do maior navio já atendido, ou
+      "vazio".
+- [ ] Criar, entrar, e apagar com confirmação de duas etapas.
+- [ ] `SaveManager` passa a escrever em `user://profiles/<n>/save.json`, com
+      backup e recuperação por perfil.
+- [ ] Voltar ao menu por Ajustes, salvando antes.
+- [ ] Migrar o `user://save.json` existente para o perfil 1 na primeira
+      execução, sem perder nada.
 
-- [x] Criar simulador de balanceamento com cenários ativo, híbrido e offline.
-- [x] Rebalancear custos/CPS para cumprir as metas de progressão.
-- [x] Criar upgrades específicos para as 15 estruturas.
-- [x] Adicionar milestones de quantidade 10/25/50/100.
-- [x] Adicionar compra x1/x10/x25/MAX com preço e ganho total claros.
-- [x] Mostrar impacto de compra e próximo objetivo, sem poluir a tela.
-- [x] Refazer tutorial com spotlight nos alvos, termos consistentes e replay.
-- [x] Criar 30–40 conquistas iniciais: TEU, escalas, estruturas, carga,
-      críticos, eventos, rotas, terrenos e coleção.
-- [x] Criar Diário do Porto, progresso fixável e estatísticas de carreira.
-- [x] Agrupar progresso offline numa única tela.
-- [x] Refazer prestígio com confirmação, ganho perceptível e árvore de escolhas
-      para throughput, clique, offline, rotas e eventos.
-- [x] Garantir reconstrução visual e save imediato no prestígio.
-- [x] Adicionar contratos curtos de sessão depois que a curva-base estiver
-      estável.
+Aceite: três perfis independentes; apagar um não toca nos outros; um save
+antigo aparece intacto no perfil 1; reabrir o jogo volta pro menu.
 
-Aceite da fase:
+### Fase C — frota: vários navios, classes e cadência — P1
 
-- metas de 10 s, 30 s, 60 s, 5 min e 60–120 min cumpridas pelo simulador;
-- primeiro prestígio recupera o pico anterior 3–5× mais rápido;
-- nenhuma estrutura tem payback fora da banda definida para seu tier;
-- save antigo recebe conquistas retroativas sem repetir recompensa;
-- tutorial é concluível por touch, mouse e teclado sem encobrir o alvo.
+- [ ] `PortLayout` ganha berços múltiplos; o segundo e o terceiro são
+      destravados por marcos de terreno.
+- [ ] `ShipCatalog` passa a ter classes com capacidade real crescente —
+      **feeder 8 → coastal 16 → panamax 24 → post-panamax 40** — com casco,
+      largura e paleta próprios.
+- [ ] A classe sorteada depende do tamanho do porto: no começo só feeder;
+      navio grande é um evento visível.
+- [ ] `FleetDirector` agenda chegadas, mantém uma fila de espera fora do porto
+      quando todos os berços estão ocupados, e persiste a fila.
+- [ ] Cada berço tem seu próprio `BerthCallController` e seu próprio chip de
+      estado no HUD.
 
-#### Fase 4 — porto vivo e variedade visual — P1 — pausada
+Aceite: com um berço o jogo se comporta como hoje; com três, três navios são
+trabalhados em paralelo sem misturar manifesto; salvar e reabrir reconstrói
+exatamente a mesma frota.
 
-Estado em 29/07/2026: o pacote visual que já estava em desenvolvimento foi
-concluído, testado e publicado. A fase fica pausada aqui; nenhum item seguinte
-deve ser iniciado sem uma nova rodada de direção.
+### Fase D — automação e recompensa de partida — P1
 
-Decisão de playtest: contagem rolante/interpolada, `+N` no HUD, pitch chain,
-shake de câmera, pulso, flash e vibração deixaram a leitura pior e foram
-removidos integralmente. O contador TEU volta a refletir o valor imediatamente,
-com geometria fixa e sem movimento adicional.
+- [ ] Portêiner e transtêiner comprados passam a mover carga de verdade: cada
+      um contribui com uma taxa de movimentos por segundo no berço que atende.
+- [ ] O toque continua valendo — vira um empurrão instantâneo por cima da
+      automação, nunca o único caminho.
+- [ ] O HUD mostra a taxa automática do berço ao lado da fase.
+- [ ] Bônus de partida ao navio sair completo, proporcional à classe e ao
+      tempo de operação, com uma faixa validada no simulador.
+- [ ] Escala perfeita (sem recusa e sem reversão) paga um extra pequeno.
 
-- [x] Preservar o feedback simples anterior de toque, compra, marco e prestígio.
-- [x] Criar três perfis de silhueta/capacidade e quatro paletas de navio.
-- [x] Persistir a variante visual e impedir três repetições idênticas seguidas.
-- [x] Fazer wake existir apenas na chegada/saída e parar completamente no
-      berço.
-- [x] Adicionar espuma no cais, splash e bandas de profundidade à água.
-- [x] Reaproveitar os assets existentes de espuma, splash e wake.
-- [x] Criar níveis automáticos low/medium/high para shader e sprites de água.
-- [x] Corrigir o cartão do tutorial para permanecer compacto e fugir do alvo.
-- [x] Proteger chamadas de áudio feitas antes de o pool terminar de iniciar.
-- [x] Melhorar a leitura das faixas: a via de serviço ganhou eixo pintado e
-      duas mãos, e cada bloco tem cabeceira pintada — âmbar para importação,
-      teal para exportação. Antes nada no chão dizia onde a carga de saída
-      podia pousar.
-- [x] Aumentar a composição útil do porto **por densidade, não por largura**.
-      O terminal já ocupa a largura inteira do retrato por construção: os
-      blocos terminam em x=194, o cais vai até 240 e a água restante é
-      exatamente o casco. Alargar o mundo obrigaria a rolar na horizontal num
-      telefone, o que contraria o pilar 1. O ganho veio de encher o quadro:
-      marcação de setor, boias de canal, sombra de nuvem, reflexo noturno e
-      detalhes ligados ao estado real.
-- [x] Reaproveitar boia, nuvens, lua e estrelas sem poluir a leitura. Numa
-      câmera de topo não dá pra olhar pra cima, então nada disso é desenhado
-      como céu: a nuvem só aparece como a sombra que joga no pátio, e a lua e
-      as estrelas só como reflexo na água, **por baixo** do casco. Os quatro
-      PNGs eram órfãos da versão-base, sem gerador; agora saem de
-      `tools/sprites/gen_props.py` como o resto.
-- [x] Adicionar detalhes ociosos ligados ao estado real: a equipe caminha em
-      direção ao cais enquanto o berço está sendo trabalhado, os mastros do
-      cais acendem durante a operação independente da hora, e a sinalização de
-      setor está pintada no chão. Detalhe ocioso só vale a pena quando conta
-      alguma coisa verdadeira.
+Aceite: com equipamento suficiente uma escala inteira acontece sem um toque; o
+bônus de partida nunca passa de uma banda definida da CPS; o simulador continua
+cumprindo as metas de sessão.
 
-Aceite deste pacote:
+### Fase E — polimento de movimento — P1
 
-- [x] contador TEU instantâneo, estável e sem shake, vibração ou pulso;
-- [x] catálogo determinístico com 12 combinações e persistência no save;
-- [x] wake mais lento na chegada, mais rápido na saída e desligado no berço;
-- [x] espuma/splash limitados por qualidade, sem crescimento por altura;
-- [x] 100 escalas e 4.800 transferências passam sem quebrar o contrato de carga;
-- [ ] referência mobile e desktop sustenta 60 FPS no cenário de estresse —
-      **desktop medido e aprovado**, aparelho móvel real ainda pendente.
-      `tools/capture/perf.tscn` monta o pior terminal possível (tudo comprado,
-      todo terreno, pátio lotado nas três alturas, neblina e luzes acesas) e
-      falha se o p95 estourar 16,67 ms. Num M1: p95 de 6,7 ms em 390×844,
-      6,9 ms em 1280×720 e 12,4 ms em 1920×1080. Não há aparelho no ambiente
-      para fechar a outra metade.
+- [ ] O navio entra de proa, gira no berço e sai de proa. Nada anda de ré.
+- [ ] Rebocadores acompanham a manobra de atracação e desatracação.
+- [ ] Haulers entram pelo portão dirigindo, com aceleração, desaceleração e
+      curva em arco em vez de virada de 90° seca.
+- [ ] Cada viagem tem um alvo legível: o veículo para na pilha, o spreader
+      desce, a caixa muda de dono, e só então ele sai.
+- [ ] Estivadores param ao lado do que estão conferindo.
 
-#### Fase 5 — mapa, rotas e expansão meta — P2
+Aceite: gravar 30 s do pátio e nenhum veículo anda de lado, de ré, ou pára no
+meio do nada.
 
-- [ ] Criar mapa-múndi estilizado, legível no mobile e explorável no desktop.
-- [ ] Criar rotas compráveis com origem, destino, ETA, licença, valor, classe
-      de navio e mix de carga.
-- [ ] Dar trade-offs às rotas: rápida/estável, longa/valiosa,
-      arriscada/eventos, especializada.
-- [ ] Fazer uma rota nova alterar navio ou ganho visível em até 1–2 escalas.
-- [ ] Integrar viagem/ETA ao progresso offline.
-- [ ] Criar contratos ligados a rotas sem virar lista de tarefas excessiva.
-- [ ] Liberar segundo berço ou retroárea somente quando acrescentar decisão,
-      não apenas mais números.
-- [ ] Criar coleção de pinturas de casco, bandeiras, contêineres especiais e
-      chapéus de funcionários.
-- [ ] Ligar cosméticos a conquistas, rotas e eventos, com bônus econômicos
-      pequenos ou inexistentes.
+### Fase F — mapa-múndi e rotas — P2
 
-Aceite da fase:
+- [ ] Mapa estilizado com o porto no centro e destinos ao redor.
+- [ ] Rota comprável com origem, destino, ETA, classe de navio, valor e mix de
+      carga; a rota alimenta as chegadas da Fase C.
+- [ ] Trade-offs: curta e estável, longa e valiosa, arriscada com eventos.
+- [ ] Uma rota nova muda o navio ou o ganho visível em até duas escalas.
+- [ ] Integrar ETA ao progresso offline.
+- [ ] Coleção de pinturas de casco e bandeiras ligada a rotas e conquistas.
 
-- comprar uma rota muda o mundo e a economia dentro de duas escalas;
-- cada rota tem pelo menos uma vantagem e uma renúncia compreensível;
-- trocar rota não perde nem duplica manifesto;
-- mapa, coleção e contratos são totalmente utilizáveis com uma mão.
+Aceite: comprar uma rota muda o mundo dentro de duas escalas; trocar de rota
+não perde nem duplica manifesto; o mapa é usável com uma mão.
 
-#### Fase 6 — eventos raros e personalidade — P2
+### Fase G — eventos raros — P2
 
-- [ ] Criar scheduler determinístico com cooldown, janela, pity, seed e save.
-- [ ] Criar Golden Ship com silhueta/áudio próprios.
-- [ ] Limitar sua recompensa a uma banda relativa à economia — ponto inicial:
-      1–3 min da CPS atual ou boost curto — e validar no simulador.
-- [ ] Criar OVNI que abduz um proxy visual, nunca uma caixa do inventário real.
-- [ ] Prototipar baleia, tempestade, regata, inspeção aduaneira e carga
-      misteriosa.
-- [ ] Dar contrajogo claro a eventos negativos e nunca punir o jogador
-      offline.
-- [ ] Registrar eventos no Diário do Porto e ligar raridades à coleção.
-- [ ] Testar reload em cada frame crítico do evento.
+Inalterada em relação ao plano anterior: scheduler determinístico com cooldown,
+pity e seed; Golden Ship; OVNI sobre proxy visual; baleia, tempestade, regata e
+inspeção aduaneira; nada que bloqueie o berço, corrompa carga ou puna offline.
 
-Aceite da fase:
+### Fase H — fechamento — P1
 
-- evento nunca bloqueia o berço, corrompe carga ou domina a renda horária;
-- pity/cooldown sobrevivem a fechar e reabrir;
-- resultado e ação possível ficam entendíveis em menos de dois segundos;
-- nenhuma perda ocorre por evento enquanto o app está fechado.
-
-#### Fase 7 — acessibilidade, web e release — P1
-
-- [x] Restaurar navegação por foco: Tab/setas, Enter e Escape/Back. Abrir um
-      overlay leva o foco pra dentro dele e fechar devolve pra tecla que abriu;
-      os cards da loja eram só ponteiro e agora ativam no Enter, pela mesma
-      janela de deduplicação do toque.
-- [x] Adicionar foco visível, nomes acessíveis e não depender só de cor. O
-      anel de foco é de dois tons — nenhuma cor única se separa do papel creme
-      e da ardósia quase preta ao mesmo tempo. Ícone não é rótulo: toda tecla
-      de ícone tem nome explícito, e as linhas de Ajustes carregam a opção a
-      que pertencem ("LIGADA" sozinho não diz nada).
-- [x] Validar contraste mínimo de 4,5:1 para texto funcional. Nove pares
-      falhavam — o pior era o rótulo de aba inativa em 2,08:1.
-      `tests/contrast_test_runner.gd` calcula os vinte pares pela fórmula de
-      luminância relativa da WCAG e quebra o build se algum cair.
-- [x] Criar preset Web com renderer Compatibility/WebGL2 e build reproduzível
-      (`export_presets.cfg` + `tools/export/build_web.sh`, que roda a regressão
-      inteira antes de exportar). O preset foi verificado até o ponto em que o
-      Godot pede os export templates, que não existem neste ambiente.
-- [~] Detecção de storage indisponível **feita** e coberta por teste; o
-      teste no navegador de verdade continua pendente por falta de export
-      templates aqui.
-- [x] Criar exportação/importação manual e backup do save, com recusa
-      explicada e sem encostar na run atual quando o texto é inválido.
-- [ ] Testar pause/background/resume no Android e iOS — o tratamento está
-      escrito (`APPLICATION_PAUSED/RESUMED`, `WM_GO_BACK_REQUEST`, recrédito
-      offline no resume), mas não há aparelho aqui para confirmar.
-- [x] Documentar processo de export mobile e web (seção **Exportar**).
-- [x] Rodar regressão funcional (12 suítes headless), visual (matriz de
-      captura), econômica (`run_balance`), de performance (`perf.tscn`) e de
-      save (`backup_test_runner`).
-- [ ] Preparar página web/PWA — o PWA já está ligado no preset; a página em
-      si espera uma build de verdade.
-
-Aceite da fase:
-
-- jogo completo navegável apenas por teclado e apenas por touch;
-- reload do browser e background mobile não perdem nem duplicam progresso;
-- build web abre sem erro em navegadores-alvo e ocupa a tela corretamente;
-- save pode ser exportado, apagado, importado e reproduzir o mesmo estado;
-- checklist de release e instruções do README reproduzíveis numa máquina
-  limpa.
+- [ ] Medir 60 FPS num aparelho móvel real.
+- [ ] Testar pause/background/resume em Android e iOS.
+- [ ] Rodar a build web e confirmar persistência de `user://` no navegador.
+- [ ] Página web/PWA.
 
 ### Definition of Done de qualquer feature
 
@@ -855,19 +640,11 @@ Uma feature só pode ser marcada como concluída quando:
 8. texto, números e contraste continuam legíveis;
 9. documentação e checkbox são atualizados no mesmo commit.
 
-### Ordem recomendada
+### Ordem de execução
 
-Não começar por mapa, OVNI ou novas skins. A sequência que evita retrabalho é:
+A → B → D → E → C → F → G → H.
 
-1. **Fase 1:** save/testes + shell responsivo + correções de UI;
-2. **Fase 2:** verdade de carga e tráfego;
-3. **Fase 3:** simulador, curva, conquistas e prestígio;
-4. **Fase 4:** variedade visual e água, mantendo feedback discreto após o
-   resultado do playtest;
-5. **Fases 5–6:** rotas, coleção e eventos;
-6. **Fase 7:** fechamento web/mobile e release.
-
-O primeiro marco jogável será o fim da Fase 2: HarborClick já responsivo, com
-contador estável, loja escura, save seguro, pátio dividido e todo navio
-descarregando e carregando por completo. A partir daí, economia e conteúdo
-podem crescer sem construir em cima de estados falsos.
+O cromo quebrado e a falta de tela inicial são o que o jogador vê primeiro, e
+automação com bônus de partida é o que muda o jogo com menos código. A frota
+múltipla (C) vem depois do polimento de movimento (E) de propósito: não faz
+sentido multiplicar por três um navio que ainda atraca de ré.
