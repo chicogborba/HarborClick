@@ -105,7 +105,11 @@ func _prepare() -> void:
 func _run(size: Vector2i) -> void:
 	if _wants("world"):
 		await _shot("world")
-	if _wants("night"):
+	# Night and the wake are about the world, not the layout, so across a whole
+	# matrix run they are captured once rather than at all seven sizes — they
+	# were more than half the wall clock of a full sweep.
+	var world_pass := _sizes.size() == 1 or size == _sizes[0]
+	if _wants("night") and world_pass:
 		# Reflections and flood lights only exist after dark, so they need
 		# their own pass rather than whatever the clock happens to say.
 		var was := TimeManager.time_of_day
@@ -114,7 +118,7 @@ func _run(size: Vector2i) -> void:
 		await _shot("night")
 		TimeManager.time_of_day = was
 		await get_tree().create_timer(0.4).timeout
-	if _wants("wake"):
+	if _wants("wake") and world_pass:
 		# Driving the hull by hand rather than racing the arrival tween, which
 		# would otherwise keep overwriting the position we parked it at. The
 		# wake strength is derived from real movement, so this is the genuine
