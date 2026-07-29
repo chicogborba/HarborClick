@@ -63,6 +63,9 @@ godot --headless --path . res://tests/phase4_ship_test_runner.tscn
 godot --headless --path . res://tests/phase4_water_test_runner.tscn
 godot --headless --path . res://tests/traffic_test_runner.tscn
 godot --headless --path . res://tests/notification_test_runner.tscn
+godot --headless --path . res://tests/contrast_test_runner.tscn
+godot --headless --path . res://tests/a11y_test_runner.tscn
+godot --headless --path . res://tests/backup_test_runner.tscn
 
 # cenários de balanceamento (ativo, híbrido, casual, offline e recuperação)
 godot --headless --path . --script res://tools/balance/run_balance.gd -- all
@@ -118,8 +121,9 @@ tools/
   capture/     harness de screenshot (roda o jogo de verdade em toda a matriz
                de resolução e falha se algum overlay sair do viewport) e
                medição de frame time no cenário de estresse
-tests/         regressão headless de core/save, UI, tráfego, notificações e
-               100 escalas de carga
+  export/      build web reproduzível + servidor local com COOP/COEP
+tests/         regressão headless: core/save, backup manual, UI, acessibilidade,
+               contraste, tráfego, notificações e 100 escalas de carga
 ```
 
 Dois arquivos concentram as decisões:
@@ -164,6 +168,55 @@ separada, em `tools/sprites/gen_ui.py`.
 > Cuidado ao desenhar nine-patches: o miolo é **esticado**, então qualquer
 > textura ali vira retângulo gigante num painel largo. Miolo sempre chapado.
 
+## Exportar
+
+O renderer já é `gl_compatibility` (WebGL2 no navegador), e o preset Web exclui
+`tools/`, `tests/` e `.devprobe` — as sondas de desenvolvimento nunca embarcam.
+
+```bash
+tools/export/build_web.sh          # importa, roda a regressão inteira, exporta
+python3 tools/export/serve_web.py  # serve build/web com COOP/COEP
+```
+
+Abrir `index.html` direto do disco **não funciona**: o navegador bloqueia o
+fetch do módulo, e sem cross-origin isolation a engine cai num caminho
+degradado ou nem inicia. O servidor acima existe só pra mandar os dois
+cabeçalhos certos.
+
+Requer os *export templates* da versão do Godot em uso (Editor → Manage Export
+Templates). Sem eles o export falha com `No export template found` — foi
+exatamente até esse ponto que o preset foi verificado aqui.
+
+Mobile: crie o preset em Editor → Export, aponte o Android SDK/keystore em
+Editor Settings e exporte com o mesmo comando trocando o nome do preset. O
+ciclo de vida do app já está tratado — `SaveManager` grava de forma síncrona em
+`APPLICATION_PAUSED`, `FOCUS_OUT`, `WM_GO_BACK_REQUEST` e `WM_CLOSE_REQUEST`, e
+recredita o progresso offline em `APPLICATION_RESUMED` pelo mesmo caminho que
+uma inicialização a frio usa.
+
+### Backup do save
+
+Ajustes → **SAVE** → `EXPORTAR` copia o save pra área de transferência e grava
+uma cópia em `user://harborclick_save.json`; `IMPORTAR` lê da área de
+transferência e pede uma segunda confirmação antes de substituir a run.
+Um texto inválido é recusado com o motivo e **não** encosta no save atual
+(`tests/backup_test_runner.gd`).
+
+No boot o `SaveManager` sonda se `user://` é gravável. Um navegador que recusa
+dados do site — janela anônima, cota cheia — passa a avisar em Ajustes em vez
+de deixar o jogador construir uma run que evapora no reload.
+
+### Checklist de release
+
+1. `tools/generate_all.sh` e importar **duas vezes**;
+2. `tools/export/build_web.sh` (roda a regressão inteira e falha cedo);
+3. `tools/capture/capture.tscn -- matrix` — nenhum overlay fora do viewport;
+4. `tools/capture/perf.tscn -- 1920x1080` — p95 dentro de 16,67 ms;
+5. `tools/balance/run_balance.gd -- all` — metas de sessão ainda batendo;
+6. exportar um save, apagar o progresso, reimportar e conferir que o estado
+   volta idêntico;
+7. abrir a build servida, recarregar a aba e conferir que o progresso persiste.
+
 ## Sistemas
 
 - **Economia** — TEUs como moeda, custo `base × 1.15^n`, 15 equipamentos,
@@ -187,6 +240,9 @@ separada, em `tools/sprites/gen_ui.py`.
   estado rotineiro (fase do berço, chegada) fica só no chip e no histórico,
   repetições dentro de 8 s viram contagem numa faixa só, um toast por vez e no
   máximo um por segundo, prioridade fura fila.
+- **Acessibilidade** — foco alcança tudo por Tab/setas, Enter ativa, Escape e
+  Back fecham; anel de foco de dois tons; nomes acessíveis em toda tecla de
+  ícone. Todo texto funcional passa de 4,5:1, verificado por teste.
 - **Save** — envelope JSON v2 em `user://save.json`, escrita temporária,
   rotação de backup, recuperação, migração da versão-base e autosave a cada
   30s. Progresso offline tem cap de 8h e 50% de eficiência.
@@ -744,17 +800,37 @@ Aceite da fase:
 
 #### Fase 7 — acessibilidade, web e release — P1
 
-- [ ] Restaurar navegação por foco: Tab/setas, Enter e Escape/Back.
-- [ ] Adicionar foco visível, nomes acessíveis e não depender só de cor.
-- [ ] Validar contraste mínimo de 4,5:1 para texto funcional.
-- [ ] Criar preset Web com renderer Compatibility/WebGL2 e build reproduzível.
-- [ ] Testar persistência de `user://` no navegador e detectar storage
-      indisponível.
-- [ ] Criar exportação/importação manual e backup do save.
-- [ ] Testar pause/background/resume no Android e iOS.
-- [ ] Documentar processo de export mobile e web.
-- [ ] Rodar regressão funcional, visual, econômica, performance e save.
-- [ ] Preparar página web/PWA somente depois do jogo passar pela matriz.
+- [x] Restaurar navegação por foco: Tab/setas, Enter e Escape/Back. Abrir um
+      overlay leva o foco pra dentro dele e fechar devolve pra tecla que abriu;
+      os cards da loja eram só ponteiro e agora ativam no Enter, pela mesma
+      janela de deduplicação do toque.
+- [x] Adicionar foco visível, nomes acessíveis e não depender só de cor. O
+      anel de foco é de dois tons — nenhuma cor única se separa do papel creme
+      e da ardósia quase preta ao mesmo tempo. Ícone não é rótulo: toda tecla
+      de ícone tem nome explícito, e as linhas de Ajustes carregam a opção a
+      que pertencem ("LIGADA" sozinho não diz nada).
+- [x] Validar contraste mínimo de 4,5:1 para texto funcional. Nove pares
+      falhavam — o pior era o rótulo de aba inativa em 2,08:1.
+      `tests/contrast_test_runner.gd` calcula os vinte pares pela fórmula de
+      luminância relativa da WCAG e quebra o build se algum cair.
+- [x] Criar preset Web com renderer Compatibility/WebGL2 e build reproduzível
+      (`export_presets.cfg` + `tools/export/build_web.sh`, que roda a regressão
+      inteira antes de exportar). O preset foi verificado até o ponto em que o
+      Godot pede os export templates, que não existem neste ambiente.
+- [~] Detecção de storage indisponível **feita** e coberta por teste; o
+      teste no navegador de verdade continua pendente por falta de export
+      templates aqui.
+- [x] Criar exportação/importação manual e backup do save, com recusa
+      explicada e sem encostar na run atual quando o texto é inválido.
+- [ ] Testar pause/background/resume no Android e iOS — o tratamento está
+      escrito (`APPLICATION_PAUSED/RESUMED`, `WM_GO_BACK_REQUEST`, recrédito
+      offline no resume), mas não há aparelho aqui para confirmar.
+- [x] Documentar processo de export mobile e web (seção **Exportar**).
+- [x] Rodar regressão funcional (12 suítes headless), visual (matriz de
+      captura), econômica (`run_balance`), de performance (`perf.tscn`) e de
+      save (`backup_test_runner`).
+- [ ] Preparar página web/PWA — o PWA já está ligado no preset; a página em
+      si espera uma build de verdade.
 
 Aceite da fase:
 

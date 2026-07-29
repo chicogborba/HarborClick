@@ -20,10 +20,13 @@ var _sections: Dictionary = {} # id -> {snapshot, restore, seed_new}
 var _loaded_sections: Dictionary = {}
 var _has_loaded_game := false
 var _save_path := SAVE_PATH
+var _last_saved_at := 0.0
+var _storage_ok := true
 
 
 func _ready() -> void:
 	_connect_save_events()
+	probe_storage()
 	# Test runners choose an isolated path during their first deferred frame.
 	# Loading user://save.json here would migrate/credit the player's real save
 	# before the runner can redirect us.
@@ -61,10 +64,18 @@ func _process(delta: float) -> void:
 
 
 func _notification(what: int) -> void:
+	# Android and iOS can kill a backgrounded app without warning, and a web
+	# tab can be discarded on navigation, so every route out of the foreground
+	# writes synchronously rather than waiting for the autosave tick.
 	if what == NOTIFICATION_APPLICATION_PAUSED \
 			or what == NOTIFICATION_APPLICATION_FOCUS_OUT \
+			or what == NOTIFICATION_WM_GO_BACK_REQUEST \
 			or what == NOTIFICATION_WM_CLOSE_REQUEST:
 		save_game(&"lifecycle")
+	if what == NOTIFICATION_APPLICATION_RESUMED:
+		# Time passed while we were away. Re-crediting from the last write is
+		# the same path a cold start takes, so the two can never disagree.
+		_apply_offline_progress(_last_saved_at)
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
 		get_tree().quit()
 
@@ -95,7 +106,10 @@ func pending_yard() -> Array:
 	return _loaded_sections.get("yard", _pending.get("yard", []))
 
 
-func save_game(reason: StringName = &"manual") -> bool:
+func build_envelope() -> Dictionary:
+	## The exact payload that would be written right now. Shared by save and
+	## manual export so an exported file can never be a different shape from a
+	## real save.
 	# Preserve payloads whose providers have not registered yet. Registered
 	# providers overwrite their own section with a fresh snapshot below.
 	var sections: Dictionary = _loaded_sections.duplicate(true)
@@ -105,19 +119,25 @@ func save_game(reason: StringName = &"manual") -> bool:
 	# Main currently owns the yard lifecycle and has not registered it itself.
 	if yard != null:
 		sections["yard"] = yard.to_save()
-	var envelope := {
+	return {
 		"save_version": SAVE_VERSION,
 		"saved_at_unix": Time.get_unix_time_from_system(),
 		"core": GameState.to_save(),
 		"time": TimeManager.to_save(),
 		"sections": sections,
 	}
+
+
+func save_game(reason: StringName = &"manual") -> bool:
+	var envelope := build_envelope()
+	var sections: Dictionary = envelope.sections
 	if not _write_atomically(envelope):
 		EventBus.save_finished.emit(false, reason)
 		return false
 	_pending = sections.duplicate(true)
 	_loaded_sections = sections.duplicate(true)
 	_has_loaded_game = true
+	_last_saved_at = float(envelope.saved_at_unix)
 	EventBus.save_finished.emit(true, reason)
 	return true
 
@@ -173,7 +193,8 @@ func _apply_loaded(envelope: Dictionary) -> void:
 		if _loaded_sections.has(id):
 			var restore: Callable = _sections[id].restore
 			restore.call(_loaded_sections[id])
-	_apply_offline_progress(float(envelope.get("saved_at_unix", envelope.get("timestamp", 0.0))))
+	_last_saved_at = float(envelope.get("saved_at_unix", envelope.get("timestamp", 0.0)))
+	_apply_offline_progress(_last_saved_at)
 
 
 func _apply_offline_progress(saved_at: float) -> void:
@@ -280,12 +301,27 @@ func _read_valid_save(path: String) -> Dictionary:
 	if not (parsed is Dictionary):
 		return {}
 	var data: Dictionary = parsed
+	return data if envelope_problem(data).is_empty() else {}
+
+
+static func envelope_problem(data: Dictionary) -> String:
+	## The one place a payload is judged, so a file on disk and a pasted backup
+	## are held to identical rules. Returns "" when the envelope is usable.
 	var version := int(data.get("save_version", 1))
 	if version > SAVE_VERSION:
-		return {}
-	if version >= 2 and (not (data.get("core", null) is Dictionary) or not (data.get("time", null) is Dictionary) or not (data.get("sections", null) is Dictionary)):
-		return {}
-	return data
+		return "Save de uma versão mais nova (v%d)." % version
+	if version >= 2:
+		if not (data.get("core", null) is Dictionary
+				and data.get("time", null) is Dictionary
+				and data.get("sections", null) is Dictionary):
+			return "Save incompleto ou corrompido."
+		return ""
+	# A v1 envelope was flat. Requiring the one field every v1 save carried
+	# stops an empty or foreign JSON object from being read as a valid save —
+	# which would silently wipe the run instead of falling back to the backup.
+	if not data.has("teus"):
+		return "Isso não é um save do HarborClick."
+	return ""
 
 
 func _tmp_path() -> String:
@@ -303,3 +339,70 @@ func _recovery_path() -> String:
 func set_save_path_for_tests(path: String) -> void:
 	## Deliberately public so the headless suite can isolate its files.
 	_save_path = path
+
+
+# ------------------------------------------------------ manual backup / web
+
+const EXPORT_PATH := "user://harborclick_save.json"
+
+
+func storage_available() -> bool:
+	## A browser can refuse `user://` entirely — private windows, blocked
+	## site data, a full quota. Silently playing a run that will evaporate on
+	## reload is the worst possible outcome, so this is probed at boot and the
+	## answer is surfaced in Ajustes.
+	return _storage_ok
+
+
+func probe_storage() -> bool:
+	var probe := _save_path + ".probe"
+	var file := FileAccess.open(probe, FileAccess.WRITE)
+	if file == null:
+		_storage_ok = false
+		return false
+	file.store_string("ok")
+	file.close()
+	var back := FileAccess.open(probe, FileAccess.READ)
+	_storage_ok = back != null and back.get_as_text() == "ok"
+	if back != null:
+		back.close()
+	if FileAccess.file_exists(probe):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(probe))
+	return _storage_ok
+
+
+func export_text() -> String:
+	## The live state, not whatever is on disk: exporting has to capture the
+	## run the player is actually in.
+	return JSON.stringify(build_envelope(), "  ")
+
+
+func export_to_file(path: String = EXPORT_PATH) -> bool:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(export_text())
+	file.flush()
+	file.close()
+	return true
+
+
+func import_text(text: String) -> Dictionary:
+	## Validated against exactly the same rules a save file on disk has to
+	## pass, then written through the normal atomic path so a bad paste can
+	## never leave the primary save half-written.
+	var json := JSON.new()
+	if json.parse(text.strip_edges()) != OK:
+		return {"ok": false, "error": "Isso não é um save (JSON inválido)."}
+	var parsed: Variant = json.data
+	if not parsed is Dictionary:
+		return {"ok": false, "error": "Isso não é um save do HarborClick."}
+	var envelope: Dictionary = parsed
+	var problem := envelope_problem(envelope)
+	if not problem.is_empty():
+		return {"ok": false, "error": problem}
+	if not _write_atomically(envelope):
+		return {"ok": false, "error": "Não foi possível gravar o save."}
+	_apply_loaded(envelope)
+	EventBus.save_finished.emit(true, &"import")
+	return {"ok": true, "error": ""}

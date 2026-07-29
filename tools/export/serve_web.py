@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+"""Serve build/web with the headers a Godot web export needs.
+
+    python3 tools/export/serve_web.py [port]
+
+Opening index.html straight from disk does not work: the browser blocks the
+module fetch, and without cross-origin isolation the engine falls back to a
+single-threaded path (or refuses to start at all). This is the smallest server
+that sets both COOP and COEP correctly.
+"""
+import functools
+import http.server
+import os
+import sys
+
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
+                    "build", "web")
+
+
+class IsolatedHandler(http.server.SimpleHTTPRequestHandler):
+    def end_headers(self):
+        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
+        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
+        self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
+
+def main() -> int:
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8060
+    root = os.path.normpath(ROOT)
+    if not os.path.isdir(root):
+        print(f"No build at {root}. Run tools/export/build_web.sh first.",
+              file=sys.stderr)
+        return 1
+    handler = functools.partial(IsolatedHandler, directory=root)
+    with http.server.ThreadingHTTPServer(("127.0.0.1", port), handler) as httpd:
+        print(f"HarborClick on http://127.0.0.1:{port}/  (Ctrl-C to stop)")
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            print()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

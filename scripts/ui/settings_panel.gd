@@ -30,6 +30,8 @@ var _wipe_btn: Button
 var _tutorial_btn: Button
 var _safe_rect := Rect2()
 var _focus_return: Control
+var _backup_status: Label
+var _confirm_import := false
 
 
 func _ready() -> void:
@@ -95,6 +97,29 @@ func _build() -> void:
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content.add_child(note)
 
+	_content.add_child(_caption("SAVE"))
+	var backup_row := HBoxContainer.new()
+	backup_row.add_theme_constant_override(&"separation", 4)
+	_content.add_child(backup_row)
+	var export_btn := UiTheme.button("EXPORTAR", &"ghost", UiTheme.SIZE_SMALL)
+	export_btn.custom_minimum_size.y = 26.0
+	export_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiTheme.describe(export_btn, "Exportar o save",
+		"Copia o save para a área de transferência e grava uma cópia em disco.")
+	export_btn.pressed.connect(_on_export)
+	backup_row.add_child(export_btn)
+	var import_btn := UiTheme.button("IMPORTAR", &"ghost", UiTheme.SIZE_SMALL)
+	import_btn.custom_minimum_size.y = 26.0
+	import_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiTheme.describe(import_btn, "Importar um save",
+		"Lê o save da área de transferência e substitui o progresso atual.")
+	import_btn.pressed.connect(_on_import)
+	backup_row.add_child(import_btn)
+	_backup_status = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	_backup_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_backup_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_content.add_child(_backup_status)
+
 	_content.add_child(UiTheme.spacer(4.0))
 	_content.add_child(UiTheme.divider())
 	_content.add_child(UiTheme.spacer(2.0))
@@ -151,8 +176,16 @@ func _wide_button(text: String, kind: StringName) -> Button:
 
 func open() -> void:
 	_confirm_wipe = false
+	_confirm_import = false
 	_wipe_btn.text = "APAGAR PROGRESSO"
 	UiTheme.style_button(_wipe_btn, &"danger")
+	# A browser that refuses site data would otherwise let the player build a
+	# run for an hour and lose it on reload without ever being warned.
+	if SaveManager.storage_available():
+		_backup_status.text = ""
+	else:
+		_backup_status.text = "Este navegador não está guardando o progresso. Exporte o save antes de sair."
+		_backup_status.label_settings.font_color = UiTheme.DANGER
 	_refresh()
 	_focus_return = get_viewport().gui_get_focus_owner()
 	visible = true
@@ -247,6 +280,38 @@ func _toggle_sfx() -> void:
 	AudioManager.set_sfx_on(not AudioManager.sfx_on)
 	AudioManager.play_sfx("tap")
 	_refresh()
+
+
+func _on_export() -> void:
+	## Clipboard first: on the web build it is the only channel out of the
+	## sandbox, and on desktop the file copy is the one you can actually keep.
+	DisplayServer.clipboard_set(SaveManager.export_text())
+	var wrote := SaveManager.export_to_file()
+	_backup_status.text = "Save copiado. Cópia em %s" % SaveManager.EXPORT_PATH \
+		if wrote else "Save copiado para a área de transferência."
+	_backup_status.label_settings.font_color = UiTheme.TEAL_DEEP
+	AudioManager.play_sfx("tap")
+
+
+func _on_import() -> void:
+	## Two presses: this overwrites the run in progress and there is no undo.
+	if not _confirm_import:
+		_confirm_import = true
+		_backup_status.text = "Isso substitui o progresso atual. Toque de novo."
+		_backup_status.label_settings.font_color = UiTheme.DANGER
+		AudioManager.play_sfx("deny")
+		return
+	_confirm_import = false
+	var result := SaveManager.import_text(DisplayServer.clipboard_get())
+	if bool(result.get("ok", false)):
+		_backup_status.text = "Save importado."
+		_backup_status.label_settings.font_color = UiTheme.TEAL_DEEP
+		AudioManager.play_sfx("build")
+		get_tree().reload_current_scene()
+		return
+	_backup_status.text = str(result.get("error", "Falha ao importar."))
+	_backup_status.label_settings.font_color = UiTheme.DANGER
+	AudioManager.play_sfx("deny")
 
 
 func _on_wipe() -> void:

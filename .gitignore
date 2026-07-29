@@ -28,3 +28,4 @@ exports/
 *.ipa
 *.pck
 *.zip
+build/
