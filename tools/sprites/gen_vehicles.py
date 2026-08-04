@@ -41,6 +41,85 @@ def gen_tt():
     save(outline(img), "veh_tt")
 
 
+def gen_road_cab():
+    """Road tractor unit, nose up. 18x24.
+
+    Drawn as its own sprite because a road rig is two rigid bodies, not one:
+    the cab turns first and the trailer follows it round. A single 20x52 sprite
+    can only ever pivot about one point, which is why the old truck's boxes
+    appeared to lag through every corner — they were being carried by a body
+    that was still swinging when the wheels had already changed direction.
+
+    The fifth wheel is at y=19; `RoadTruck.HITCH` is that number.
+    """
+    w, h = 18, 24
+    img = new_img(w, h)
+    # bonnet and cab body
+    rect(img, 2, 2, 14, 18, P.SAFETY)
+    hline(img, 2, 2, 14, P.SAFETY_L)
+    vline(img, 2, 2, 18, P.SAFETY_L)
+    vline(img, 15, 2, 18, P.SAFETY_D)
+    hline(img, 2, 19, 14, P.SAFETY_D)
+    # windscreen, roof deflector and mirrors
+    rect(img, 4, 4, 10, 6, P.GLASS)
+    hline(img, 4, 4, 10, P.GLASS_D)
+    px(img, 12, 5, (206, 240, 246, 255))
+    rect(img, 4, 11, 10, 4, P.SAFETY_D)
+    px(img, 1, 6, P.STEEL_D)
+    px(img, 16, 6, P.STEEL_D)
+    # fifth wheel: the plate the chassis pivots on
+    rect(img, 6, 17, 6, 4, P.STEEL_D)
+    hline(img, 6, 17, 6, P.STEEL)
+    # headlights, marker lamps, exhaust stacks
+    px(img, 3, 2, P.WINDOW_LIT)
+    px(img, 14, 2, P.WINDOW_LIT)
+    px(img, 8, 2, P.SAFETY_L)
+    px(img, 9, 2, P.SAFETY_L)
+    tyres(img, 0, 5, 3, 7)
+    tyres(img, 15, 5, 3, 7)
+    tyres(img, 0, 14, 3, 6)
+    tyres(img, 15, 14, 3, 6)
+    save(outline(img), "veh_truck_cab")
+
+
+def gen_road_chassis():
+    """Skeletal container chassis, kingpin up. 18x48.
+
+    Long enough for the two twenty-foot boxes a road chassis is allowed to
+    carry, which the old drawing was not: the bed was 28 px for 29 px of cargo,
+    so the second box always hung off the tail.
+
+    The three numbers `RoadTruck` reads off this drawing: the kingpin at y=2,
+    box centres at y=14 and y=34, the rear axle at y=34.
+    """
+    w, h = 18, 48
+    img = new_img(w, h)
+    # drawbar reaching forward to the kingpin
+    rect(img, 7, 0, 4, 7, P.STEEL_D)
+    hline(img, 7, 0, 4, P.STEEL)
+    # main rails and cross members: skeletal, so the deck reads as open steel
+    rect(img, 3, 5, 12, 38, P.STEEL_D)
+    vline(img, 4, 6, 36, P.STEEL)
+    vline(img, 13, 6, 36, P.STEEL)
+    for cross in (7, 14, 24, 34, 41):
+        hline(img, 4, cross, 10, P.STEEL)
+    # twist locks: four corners per box slot, at y=14 and y=34
+    for ty in (7, 21, 27, 41):
+        px(img, 3, ty, P.STEEL_L)
+        px(img, 14, ty, P.STEEL_L)
+    # tandem bogie under the rear box slot
+    rect(img, 2, 31, 14, 2, P.STEEL_D)
+    tyres(img, 0, 30, 3, 7)
+    tyres(img, 15, 30, 3, 7)
+    tyres(img, 0, 38, 3, 6)
+    tyres(img, 15, 38, 3, 6)
+    # rear underrun bar and lamps
+    rect(img, 3, 45, 12, 2, P.STEEL_D)
+    px(img, 5, 46, P.RED_LIGHT)
+    px(img, 12, 46, P.RED_LIGHT)
+    save(outline(img), "veh_truck_chassis")
+
+
 def gen_forklift():
     """Container-handling forklift, 16x26."""
     w, h = 16, 26
@@ -195,6 +274,8 @@ def gen_drone():
 if __name__ == "__main__":
     print("vehicles:")
     gen_tt()
+    gen_road_cab()
+    gen_road_chassis()
     gen_forklift()
     gen_reach_stacker()
     gen_tug()

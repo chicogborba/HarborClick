@@ -266,8 +266,350 @@ def gen_star():
     save(sheet(frames), "prop_star")
 
 
+def gen_harbor_furniture():
+    """Small pieces that make the quay feel operated, not decorated."""
+    # Red fire point / hydrant, deliberately bright enough to remain legible
+    # on the concrete after the day/night tint.
+    hydrant = new_img(8, 8)
+    rect(hydrant, 2, 2, 4, 5, (176, 50, 42, 255))
+    hline(hydrant, 1, 2, 6, (236, 104, 72, 255))
+    rect(hydrant, 3, 0, 2, 3, (214, 76, 54, 255))
+    px(hydrant, 3, 1, (255, 160, 104, 255))
+    save(outline(hydrant), "prop_hydrant")
+
+    # Lifebuoy cabinet on the quay. The white centre keeps it distinct from
+    # the red channel buoys in the water.
+    lifebuoy = new_img(10, 10)
+    for y in range(10):
+        for x in range(10):
+            d = math.hypot(x - 4.5, y - 4.5)
+            if 2.3 <= d <= 4.2:
+                img_color = (230, 92, 54, 255) if (x + y) % 4 < 2 \
+                    else (244, 224, 190, 255)
+                px(lifebuoy, x, y, img_color)
+    save(outline(lifebuoy), "prop_lifebuoy")
+
+    # Palletised spare parts and a cable reel for the workshop apron.
+    pallet = new_img(14, 10)
+    rect(pallet, 1, 2, 12, 7, (124, 82, 50, 255))
+    for y in (2, 5, 8):
+        hline(pallet, 1, y, 12, (188, 132, 76, 255))
+    for x in (2, 7, 12):
+        vline(pallet, x, 2, 7, (92, 62, 46, 255))
+    rect(pallet, 3, 3, 4, 3, (78, 112, 126, 255))
+    rect(pallet, 8, 3, 3, 4, (154, 92, 56, 255))
+    save(outline(pallet), "prop_pallet")
+
+    reel = new_img(12, 12)
+    for y in range(12):
+        for x in range(12):
+            d = math.hypot(x - 5.5, y - 5.5)
+            if d <= 5:
+                px(reel, x, y, (126, 86, 58, 255))
+            if 2.1 <= d <= 3.5:
+                px(reel, x, y, (48, 52, 58, 255))
+    rect(reel, 5, 4, 2, 4, (196, 142, 82, 255))
+    save(outline(reel), "prop_cable_reel")
+
+
+def gen_rope():
+    """A tileable mooring rope, drawn along its length.
+
+    `Line2D` tiles this over the whole span, so the twist has to close at the
+    seam or the rope reads as a dashed line. Six pixels wide and three body rows
+    is exactly one turn of the spiral: the lit strand steps down a row every two
+    pixels and wraps at the tile edge.
+    """
+    W, H = 6, 4
+    # Tarred mooring rope, not hemp: a working ship's lines are near black, and
+    # the pale hemp read as spaghetti draped over the quay.
+    hemp_l = (96, 86, 78, 255)
+    hemp = (68, 60, 56, 255)
+    hemp_d = (44, 38, 36, 255)
+    img = new_img(W, H)
+    for x in range(W):
+        px(img, x, 0, P.OUTLINE)
+        px(img, x, 3, P.OUTLINE)
+        # Two body rows and a half-tile stagger: at three pixels thick the twist
+        # has to be suggested, not drawn, or it turns into stripes.
+        lit = 1 if (x % 4) < 2 else 2
+        px(img, x, 1, hemp_l if lit == 1 else hemp)
+        px(img, x, 2, hemp_d if lit == 1 else hemp)
+    save(img, "prop_rope", preview_scale=12)
+
+
+def gen_rope_knot():
+    """The eye splice that drops over a bollard."""
+    hemp_l = (96, 86, 78, 255)
+    hemp = (68, 60, 56, 255)
+    hemp_d = (44, 38, 36, 255)
+    img = new_img(7, 7)
+    ring = [(2, 1), (3, 1), (4, 1), (5, 2), (5, 3), (5, 4),
+            (4, 5), (3, 5), (2, 5), (1, 4), (1, 3), (1, 2)]
+    for index, point in enumerate(ring):
+        # Light on the upper-left of the loop, shade on the lower-right, so the
+        # eye reads as rope lying over something rather than as a drawn ring.
+        shade = hemp_l if index < 4 else (hemp if index < 8 else hemp_d)
+        px(img, point[0], point[1], shade)
+    rect(img, 3, 3, 2, 2, (52, 40, 34, 255))
+    save(outline(img), "prop_rope_knot", preview_scale=12)
+
+
+def gen_clock_face():
+    """The sky itself, painted round a disc, so the clock shows the day turning.
+
+    A hand sweeping a flat dial tells you the time; a window onto the sky tells
+    you what the port *looks* like right now without reading anything. The disc
+    is painted with noon at the top and midnight at the bottom, and the view
+    rotates it so the current hour is always under the fixed pointer.
+    """
+    import math
+    # Sized for the gantry: the dial is one instrument on a 44px bar beside the
+    # tally, not a wall clock. Everything below is measured off R so the disc can
+    # be resized without redrawing the sky by hand.
+    R = 12
+    SIZE = R * 2
+    img = new_img(SIZE, SIZE)
+    cx = cy = R - 0.5
+
+    # Sky, hour by hour round the rim. The bands are the same ones
+    # `TimeManager` uses, so the picture and the clock agree.
+    def sky(f):
+        if 0.30 <= f < 0.70:
+            return ((124, 196, 236, 255), (168, 218, 246, 255))      # day
+        if 0.22 <= f < 0.30:
+            return ((214, 150, 122, 255), (240, 190, 146, 255))      # dawn
+        if 0.70 <= f < 0.80:
+            return ((206, 124, 104, 255), (236, 168, 118, 255))      # dusk
+        return ((26, 32, 66, 255), (44, 52, 96, 255))                # night
+
+    for y in range(SIZE):
+        for x in range(SIZE):
+            dx = x - cx
+            dy = y - cy
+            dist = math.hypot(dx, dy)
+            if dist > R - 0.5:
+                continue
+            # Angle measured *counter*-clockwise from straight up, as a day
+            # fraction with noon at the top. Counter-clockwise so that as the
+            # disc turns the sun rises on the left and sets on the right, the way
+            # it does in the sky rather than the other way round.
+            ang = math.atan2(-dx, -dy)
+            f = (0.5 + ang / (2.0 * math.pi)) % 1.0
+            deep, high = sky(f)
+            # Lighter towards the rim so the disc reads as a dome rather than a
+            # flat wheel.
+            px(img, x, y, high if dist > R * 0.58 else deep)
+
+    def blob(bx, by, r, core, edge):
+        for yy in range(SIZE):
+            for xx in range(SIZE):
+                d = math.hypot(xx - bx, yy - by)
+                if d <= r:
+                    px(img, xx, yy, core if d <= r - 1.2 else edge)
+
+    # The sun rides at the top of the disc, the moon at the bottom.
+    blob(cx, cy - R * 0.60, R * 0.21, (255, 236, 150, 255), (250, 206, 96, 255))
+    for a in range(0, 360, 60):
+        px(img, int(round(cx + math.cos(math.radians(a)) * R * 0.36)),
+           int(round(cy - R * 0.60 + math.sin(math.radians(a)) * R * 0.36)),
+           (252, 220, 120, 255))
+    blob(cx, cy + R * 0.60, R * 0.18, (238, 242, 252, 255), (198, 206, 232, 255))
+    # A bite out of the moon makes it a crescent rather than a pale sun.
+    blob(cx + R * 0.14, cy + R * 0.60 - R * 0.09, R * 0.15,
+         (30, 36, 72, 255), (30, 36, 72, 255))
+    # Stars, only on the night side.
+    for sx, sy in ((-0.39, 0.50), (0.33, 0.61), (-0.17, 0.72),
+                   (0.50, 0.33), (-0.55, 0.28), (0.11, 0.83)):
+        if math.hypot(sx, sy) * R < R - 1.8:
+            px(img, int(round(cx + sx * R)), int(round(cy + sy * R)),
+               (226, 232, 250, 255))
+    save(img, "prop_clock_face", preview_scale=8)
+
+
+def gen_clock_bezel():
+    """The brass porthole the sky turns behind, with the pointer at the top.
+
+    Brass on navy enamel is the one warm thing on the gantry, which is what
+    makes the dial read as an instrument someone screwed on rather than another
+    panel. The ring carries a tick at every third hour, a screw at the quarters,
+    and a diagonal sheen across the glass so the sky behind it looks covered.
+    """
+    import math
+    R = 14
+    SIZE = R * 2 + 2          # a pixel of air all round, so the outline fits
+    img = new_img(SIZE, SIZE)
+    cx = cy = R
+    brass = (196, 152, 74, 255)
+    brass_l = (232, 196, 116, 255)
+    brass_d = (140, 100, 48, 255)
+    brass_xd = (94, 66, 30, 255)
+    for y in range(SIZE):
+        for x in range(SIZE):
+            d = math.hypot(x - cx, y - cy)
+            if d > R - 0.5 or d < R - 3.6:
+                continue
+            # Lit from the upper left like everything else in the game.
+            if (x - cx) + (y - cy) < -2.0:
+                px(img, x, y, brass_l)
+            elif (x - cx) + (y - cy) > 2.0:
+                px(img, x, y, brass_d)
+            else:
+                px(img, x, y, brass)
+
+    # Every third hour gets a tick cut into the ring: enough rhythm to read the
+    # disc as a 24-hour face, few enough that it stays a picture of the sky.
+    for hour in range(0, 24, 3):
+        a = math.radians(hour * 15.0 - 90.0)
+        px(img, int(round(cx + math.cos(a) * (R - 3.0))),
+           int(round(cy + math.sin(a) * (R - 3.0))), brass_xd)
+    for a in (45, 135, 225, 315):
+        sx = int(round(cx + math.cos(math.radians(a)) * (R - 1.8)))
+        sy = int(round(cy + math.sin(math.radians(a)) * (R - 1.8)))
+        px(img, sx, sy, brass_xd)
+        px(img, sx, sy - 1, brass_l)
+
+    # The pointer at noon: a wedge biting into the ring, so the hour under it is
+    # unmistakable.
+    for i in range(4):
+        rect(img, int(cx) - i // 2, int(cy) - R + 1 + i, 1 + (i // 2) * 2, 1,
+             (250, 236, 200, 255))
+    px(img, int(cx), int(cy) - R + 5, brass_xd)
+
+    ringed = outline(img)
+    # The glass: one diagonal sheen across the upper left, kept faint so the sun
+    # and the moon still read through it. Drawn *after* the outline pass, which
+    # treats any non-zero alpha as solid and would otherwise trace a dark rim
+    # around the streak.
+    for step in range(-R * 2, R * 2):
+        gx = int(cx + step * 0.5) - 3
+        gy = int(cy - step * 0.5) - 3
+        for run in range(2):
+            if math.hypot(gx + run - cx, gy + run - cy) < R - 4.5:
+                px(ringed, gx + run, gy + run, (208, 232, 244, 38))
+    save(ringed, "prop_clock_bezel", preview_scale=8)
+
+
+def gen_windsock():
+    """A windsock on its pole, in three degrees of fill.
+
+    The port's own instrument: the sock is limp in calm air, half up in a
+    breeze, and streaming straight out when it blows. Drawn pointing right; the
+    view flips it for the other wind direction.
+    """
+    FW, FH = 20, 14
+    frames = []
+    for step, lift in enumerate((0, 3, 5)):
+        img = new_img(FW, FH)
+        # the mast, and the hoop the sock is laced to
+        vline(img, 3, 2, 11, P.STEEL_D)
+        px(img, 3, 2, P.STEEL_L)
+        rect(img, 2, 12, 4, 2, P.STEEL_D)
+        vline(img, 5, 3, 5, P.STEEL)
+        # the sock: bands of orange and white, narrowing as it streams
+        length = 6 + step * 5
+        for i in range(length):
+            x = 6 + i
+            half = max(1, 3 - i // 3)
+            y = 5 - lift + (i * lift) // max(1, length)
+            band = P.SAFETY if (i // 2) % 2 == 0 else (240, 236, 226, 255)
+            rect(img, x, y - half + 1, 1, half * 2, band)
+        frames.append(outline(img))
+    save(sheet(frames), "prop_windsock")
+
+
+def gen_flag():
+    """A pennant on a pole, three frames of the same wave."""
+    FW, FH = 16, 16
+    frames = []
+    for step in range(3):
+        img = new_img(FW, FH)
+        vline(img, 2, 1, 14, P.WOOD_D)
+        px(img, 2, 1, P.WOOD_L)
+        for i in range(10):
+            # A travelling wave rather than a flap: the crest moves along the
+            # cloth instead of the whole flag jumping.
+            import math
+            wave = int(round(math.sin((i * 0.7) - step * 1.6) * 1.4))
+            top = 2 + wave
+            rect(img, 3 + i, top, 1, 6 - i // 4, P.TEAL)
+            px(img, 3 + i, top, P.TEAL_L)
+        frames.append(outline(img))
+    save(sheet(frames), "prop_flag")
+
+
+def gen_weather_glyphs():
+    """Sun, moon, cloud, rain and fog for the port clock. 14x14 each."""
+    FW = 14
+    frames = []
+
+    sun = new_img(FW, FW)
+    for a in range(0, 360, 45):
+        import math
+        x = int(7 + math.cos(math.radians(a)) * 5)
+        y = int(7 + math.sin(math.radians(a)) * 5)
+        px(sun, x, y, P.SAFETY_L)
+    patch(sun, 7, 7, 3, 3, P.SAFETY, seed=1)
+    patch(sun, 6, 6, 2, 2, P.SAFETY_L, seed=2)
+    frames.append(outline(sun))
+
+    def disc(img, cx, cy, r, color):
+        for y in range(FW):
+            for x in range(FW):
+                if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
+                    px(img, x, y, color)
+
+    def cut(img, cx, cy, r):
+        for y in range(FW):
+            for x in range(FW):
+                if (x - cx) ** 2 + (y - cy) ** 2 <= r * r:
+                    px(img, x, y, P.TRANSPARENT)
+
+    # A crescent is a disc with a second disc taken out of it. The blob helper
+    # made a shape that read as a bird.
+    moon = new_img(FW, FW)
+    disc(moon, 7, 7, 5, (226, 230, 244, 255))
+    disc(moon, 6, 6, 4, (240, 243, 252, 255))
+    cut(moon, 10, 5, 5)
+    px(moon, 5, 9, (196, 202, 220, 255))
+    px(moon, 4, 6, (196, 202, 220, 255))
+    frames.append(outline(moon))
+
+    # Three puffs on a flat base, which is what makes a cloud a cloud.
+    cloud = new_img(FW, FW)
+    disc(cloud, 5, 8, 3, (214, 220, 232, 255))
+    disc(cloud, 9, 8, 3, (214, 220, 232, 255))
+    disc(cloud, 7, 6, 3, (232, 238, 248, 255))
+    rect(cloud, 2, 8, 10, 3, (214, 220, 232, 255))
+    rect(cloud, 3, 5, 3, 2, (240, 244, 250, 255))
+    frames.append(outline(cloud))
+
+    rain = new_img(FW, FW)
+    disc(rain, 5, 6, 3, (188, 196, 212, 255))
+    disc(rain, 9, 6, 3, (188, 196, 212, 255))
+    rect(rain, 2, 6, 10, 3, (188, 196, 212, 255))
+    rect(rain, 3, 4, 3, 2, (214, 220, 232, 255))
+    for index, x in enumerate((4, 7, 10)):
+        vline(rain, x, 10 + (index % 2), 3, (150, 196, 224, 255))
+    frames.append(outline(rain))
+
+    fog = new_img(FW, FW)
+    for i, y in enumerate((4, 6, 8, 10)):
+        rect(fog, 2 + (i % 2), y, 9 - (i % 2) * 2, 1, (206, 212, 220, 255))
+    frames.append(outline(fog))
+
+    save(sheet(frames), "ui_weather")
+
+
 if __name__ == "__main__":
     print("props:")
+    gen_clock_face()
+    gen_clock_bezel()
+    gen_windsock()
+    gen_flag()
+    gen_weather_glyphs()
+    gen_rope()
+    gen_rope_knot()
     gen_lamp()
     gen_glow()
     gen_bollard()
@@ -284,3 +626,4 @@ if __name__ == "__main__":
     gen_cloud()
     gen_moon()
     gen_star()
+    gen_harbor_furniture()

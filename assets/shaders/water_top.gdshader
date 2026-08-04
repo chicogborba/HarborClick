@@ -33,6 +33,14 @@ uniform vec2 ship_centre = vec2(-9999.0);
 uniform vec2 ship_half = vec2(33.0, 116.0);
 uniform float ship_speed = 0.0;   // 0 moored, 1 full ahead
 
+// Every hull on the water, moving or not, as (centre.xy, half.xy). A ship lying
+// alongside still works the water around it, and a berth is what the player
+// looks at almost all of the time — without this the surface only ever moved
+// during the five seconds of an arrival, which is to say never.
+const int MAX_HULLS = 3;
+uniform int hull_count = 0;
+uniform vec4 hulls[MAX_HULLS];
+
 varying vec2 v_pos;
 
 void vertex() {
@@ -115,12 +123,85 @@ void fragment() {
 		}
 	}
 
-	// --- the ship's wake ---
+	// --- water worked by a hull lying alongside ---
+	for (int i = 0; i < MAX_HULLS; i++) {
+		if (i >= hull_count) { break; }
+		vec4 hull = hulls[i];
+		vec2 rel = p - hull.xy;
+		// Distance outside the hull rectangle, so the band hugs the real shape.
+		vec2 outside = abs(rel) - hull.zw;
+		float d = max(outside.x, outside.y);
+		if (d > -1.0 && d < 14.0) {
+			// A slow swell running down the hull's side, and a second one against
+			// it, so the band breathes instead of pulsing.
+			float run = sin(rel.y * 0.24 - t * 1.5) * 0.5
+				+ sin(rel.y * 0.11 + t * 0.9) * 0.5;
+			// Peaked a few pixels *out* rather than hard against the plating: the
+			// first three pixels are under the hull's own contact shadow, so a
+			// band that was brightest at zero was a band nobody could see.
+			float band = 1.0 - clamp(abs(d - 3.5) / 10.5, 0.0, 1.0);
+			float lap = band * (0.42 + run * 0.46);
+			col = mix(col, col_light, clamp(lap, 0.0, 0.80));
+			// The crest of the lap, breaking along the hull.
+			if (run > 0.30 && d > 0.5 && d < 8.0) {
+				col = mix(col, col_spark, 0.70 * band);
+			}
+			// And a second, slower set of rings shed further out, so the water
+			// beside a moored ship is never still.
+			float ring = sin(d * 0.9 - t * 2.2 + rel.y * 0.05);
+			if (ring > 0.80 && d > 4.0) {
+				col = mix(col, col_light, 0.45 * (1.0 - d / 14.0));
+			}
+		}
+	}
+
+	// --- the ship cutting the water ---
+	// Three parts, and the middle one is what was missing: a hull under way
+	// pushes a bow wave *out to the sides*, drags a foam collar along its
+	// length, and leaves a widening V astern with transverse crests inside it.
 	if (ship_speed > 0.01) {
 		vec2 rel = p - ship_centre;
+		// The GitHub source hull points up, so its bow is already at negative y
+		// in sprite space. The wake maths below is written in that same frame.
 		float lateral = abs(rel.x);
 		float astern = rel.y - ship_half.y;
+		float ahead = -(rel.y + ship_half.y);
 		float reach = 90.0 + 170.0 * ship_speed;
+
+		// The bow wave: two crests leaving the stem at a fixed angle, brightest
+		// where they are born and spreading as they run aft.
+		float bow_run = -ahead;                       // 0 at the stem, + going aft
+		if (ahead > -40.0 && ahead < 12.0) {
+			float crest = ship_half.x * 0.55 + max(0.0, bow_run) * 0.62;
+			float d = abs(lateral - crest);
+			float bow_fade = ship_speed * (1.0 - clamp(bow_run / 44.0, 0.0, 1.0));
+			// Three pixels of crest with a soft shoulder: at two it was a hairline
+			// nobody saw go past.
+			if (d < 3.2) {
+				col = mix(col, col_spark, (1.0 - d / 3.2) * 1.0 * bow_fade);
+			}
+			if (d < 6.0) {
+				col = mix(col, col_light, (1.0 - d / 6.0) * 0.45 * bow_fade);
+			}
+			// The water piled up right on the stem.
+			if (ahead > 0.0 && lateral < ship_half.x * 0.9) {
+				col = mix(col, col_spark, 0.55 * ship_speed * (ahead / 10.0));
+			}
+		}
+
+		// The collar of disturbed water dragged along the hull's sides.
+		if (rel.y > -ship_half.y && rel.y < ship_half.y) {
+			float side = abs(lateral - ship_half.x);
+			if (side < 5.0) {
+				float boil = value_noise(vec2(rel.y * 0.20, t * 1.6));
+				col = mix(col, col_light,
+					(1.0 - side / 5.0) * (0.45 + boil * 0.50) * ship_speed);
+				if (side < 2.0 && boil > 0.55) {
+					col = mix(col, col_spark, 0.7 * ship_speed);
+				}
+			}
+		}
+
 		if (astern > 0.0 && astern < reach) {
 			// A V that opens with distance, and churn inside it.
 			float spread = ship_half.x * 0.7 + astern * 0.17;
@@ -129,15 +210,18 @@ void fragment() {
 				col = mix(col, col_light, 0.20 * fade);
 				float churn = sin(astern * 0.30 - t * 8.0 + lateral * 0.22);
 				if (churn > 0.55) col = mix(col, col_light, 0.60 * fade);
+				// Transverse crests: the arcs a real wake leaves across itself,
+				// curved back at the edges because the middle travels faster.
+				float bow_curve = lateral * lateral * 0.010;
+				float trans = sin((astern + bow_curve) * 0.42 - t * 5.0);
+				if (trans > 0.72) {
+					col = mix(col, col_spark, 0.45 * fade
+						* (1.0 - lateral / max(spread, 1.0)));
+				}
 			}
 			if (abs(lateral - spread) < 1.6) {
-				col = mix(col, col_spark, 0.80 * fade);
+				col = mix(col, col_spark, 0.85 * fade);
 			}
-		}
-		// Bow wave: a short bright crescent pushed ahead of the stem.
-		float ahead = -(rel.y + ship_half.y);
-		if (ahead > -3.0 && ahead < 7.0 && lateral < ship_half.x * 1.15) {
-			col = mix(col, col_spark, 0.60 * ship_speed);
 		}
 	}
 

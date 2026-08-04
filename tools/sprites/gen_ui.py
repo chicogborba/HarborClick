@@ -1,11 +1,20 @@
-"""UI chrome: the foreman's clipboard, drawn as an object rather than a box.
+"""UI chrome, in the two materials the terminal is actually made of.
 
-Every overlay in HarborClick is one thing you could pick up on the quay: a
-weathered wooden clipboard, steel corner protectors, a chrome spring clip, and
-a stack of manifest paper under it. Cards are slips torn off that manifest,
-prices are ink stamped into a steel plate, and the only saturated colours are
-the amber "GO" keys and the teal service tags — the same two accents the
-machines wear in the yard.
+**Paper** is the paperwork you pick up: every overlay is one weathered wooden
+clipboard with steel corner protectors, a chrome spring clip, and a stack of
+manifest sheets under it. Cards are slips torn off that manifest and prices are
+ink stamped into a steel plate.
+
+**Steel** is the terminal's own signage and instrumentation: the gantry bolted
+across the top of the quay carrying the tally and the clock, the console the
+keys sit on, and the dark glass a number is lit behind. It is navy enamel with
+a lit lip, a fine brushed pinstripe and one amber hairline along the edge that
+faces the port — the same amber the machines wear.
+
+The split is the point. Anything permanent over the port is steel, so it reads
+as part of the terminal rather than a panel floating on it; anything you open
+is paper, so it reads as something handed to you. The only saturated colours in
+either are the amber "GO" keys and the teal service tags.
 
 Two rules keep it looking like a material instead of a diagram:
 
@@ -46,6 +55,21 @@ PAPER_L = (250, 240, 218, 255)
 PAPER_XL = (255, 250, 236, 255)
 PAPER_FIBRE = (228, 213, 186, 255)
 PAPER_RULE = (216, 202, 176, 255)
+
+# --- enamelled navy steel: the HUD's own material ---
+# Dark enough that cream and amber both clear AA on it, and blue enough that it
+# never reads as "grey box" over the warm greys of the yard.
+HULL_XD = (16, 22, 34, 255)
+HULL_D = (28, 37, 54, 255)
+HULL = (42, 54, 74, 255)
+HULL_L = (68, 86, 112, 255)
+HULL_XL = (112, 136, 166, 255)
+
+# --- the dark glass a lit number sits behind ---
+GLASS_XD = (8, 11, 18, 255)
+GLASS_D = (17, 21, 32, 255)
+GLASS = (25, 31, 46, 255)
+GLASS_GLOW = (38, 47, 66, 255)
 
 SLATE_XD = (20, 18, 27, 255)
 SLATE_D = (34, 30, 44, 255)
@@ -341,6 +365,218 @@ def gen_well():
     save(img, "ui_well")
 
 
+def gen_badge():
+    """The staff ID card: laminate, a teal header band, a photo mount and a clip.
+
+    A personnel record printed as rows of text reads as a form. The same record
+    on a card with the person's photograph on it reads as their badge, which is
+    what it actually is — so this is the one overlay that is not a slip off the
+    manifest.
+    """
+    s = 16
+    # --- the laminated card ---
+    card = new_img(s, s)
+    hline(card, 2, s - 1, s - 3, SHADOW_1)
+    vline(card, s - 1, 2, s - 3, SHADOW_1)
+    rect(card, 0, 0, s - 1, s - 1, TEAL_D)
+    rect(card, 1, 1, s - 3, s - 3, PAPER_L)
+    speckle(card, 2, 2, s - 5, s - 5, [PAPER_XL, PAPER_FIBRE], 0.10, seed=71)
+    hline(card, 1, 1, s - 3, PAPER_XL)
+    vline(card, 1, 1, s - 3, PAPER_XL)
+    hline(card, 1, s - 3, s - 3, PAPER_D)
+    for cx, cy in ((0, 0), (s - 2, 0), (0, s - 2), (s - 2, s - 2)):
+        px(card, cx, cy, (0, 0, 0, 0))
+    save(card, "ui_badge")
+
+    # --- the header band the port's name sits on ---
+    head = new_img(s, s)
+    rect(head, 0, 0, s, s, TEAL_D)
+    rect(head, 0, 1, s, s - 3, TEAL)
+    hline(head, 0, 1, s, TEAL_L)
+    hline(head, 0, s - 2, s, TEAL_XD)
+    hline(head, 0, s - 1, s, SHADOW_1)
+    save(head, "ui_badge_head")
+
+    # --- the photo mount: white print border, sunk into the card ---
+    photo = new_img(s, s)
+    rect(photo, 0, 0, s, s, PAPER_XD)
+    rect(photo, 1, 1, s - 2, s - 2, PAPER_XL)
+    rect(photo, 3, 3, s - 6, s - 6, (58, 62, 78, 255))
+    hline(photo, 1, 1, s - 2, (152, 132, 104, 255))
+    vline(photo, 1, 1, s - 2, (152, 132, 104, 255))
+    hline(photo, 1, s - 2, s - 2, (255, 255, 250, 255))
+    hline(photo, 3, 3, s - 6, (36, 40, 52, 255))
+    save(photo, "ui_photo")
+
+    # --- the bulldog clip the lanyard hangs from ---
+    w, h = 26, 11
+    clip = new_img(w, h)
+    rect(clip, 3, h - 2, w - 6, 2, SHADOW_1)
+    rect(clip, 6, 0, w - 12, 3, STEEL_D)
+    rect(clip, 7, 0, w - 14, 2, STEEL_L)
+    rect(clip, 1, 3, w - 2, h - 5, STEEL_XD)
+    rect(clip, 2, 4, w - 4, h - 8, STEEL)
+    hline(clip, 3, 4, w - 6, STEEL_XL)
+    hline(clip, 2, h - 5, w - 4, STEEL_D)
+    for rx in (5, w - 7):
+        rivet(clip, rx, 5)
+    corner_notch(clip, w, h, 1)
+    save(clip, "ui_badge_clip", preview_scale=8)
+
+
+# ------------------------------------------------- steel: the terminal's own
+
+def _steel_panel(name, rows, rivet_y):
+    """32x24 nine-patch, margin 11: a bolted enamel panel.
+
+    The geometry is dictated by how a nine-patch tiles. The middle band is two
+    rows and repeats, so those two rows are body and body-dark and the repeat
+    *is* the brushed pinstripe rather than a seam. Everything else that runs
+    across the panel is a full-width horizontal line, which tiles invisibly;
+    anything that must not repeat — rivets, end caps — lives in the 11px corner
+    regions, which a nine-patch never tiles.
+    """
+    w, h = 32, 24
+    img = new_img(w, h)
+    rect(img, 0, 0, w, h, HULL)
+    for row, tone in rows:
+        hline(img, 0, row, w, tone)
+    # The tiled middle: body over body-dark, which repeats into a fine pinstripe.
+    hline(img, 0, 11, w, HULL)
+    hline(img, 0, 12, w, HULL_D)
+    for cx in (0, w - 1):
+        vline(img, cx, 0, h, HULL_XD)
+    for cx in (4, w - 5):
+        rivet(img, cx, rivet_y)
+    save(img, name)
+
+
+def gen_gantry():
+    """The two panels the HUD is bolted to.
+
+    Both are lit from above, like everything else in the game — the amber
+    hairline, not the highlight, is what moves to whichever edge faces the port,
+    because it is a painted edge marking rather than a reflection.
+    """
+    _steel_panel("ui_gantry", [
+        (0, HULL_XL),           # lit lip along the top
+        (1, HULL_L),
+        (3, HULL_L),            # brushed streak
+        (19, HULL_D),
+        (20, HULL_D),
+        (21, HULL_XD),
+        (22, AMBER),            # the edge facing the port
+        (23, AMBER_XD),
+    ], rivet_y=6)
+    _steel_panel("ui_console", [
+        (0, AMBER_XD),
+        (1, AMBER),             # the edge facing the port
+        (2, HULL_XL),           # lit lip under it
+        (3, HULL_L),
+        (5, HULL_L),            # brushed streak
+        (21, HULL_D),
+        (22, HULL_D),
+        (23, HULL_XD),
+    ], rivet_y=17)
+
+
+def gen_glass():
+    """16x16 nine-patch, margin 5: the dark glass a lit number sits behind.
+
+    A tally is an instrument, not a caption, so the digits are lit behind glass
+    set into the panel rather than printed on it. Recessed: the top-left edge is
+    the shadow the frame casts inside, the bottom-right catches the light, and
+    the field carries 2px scanlines so it reads as something switched on.
+    """
+    s = 16
+    img = new_img(s, s)
+    rect(img, 0, 0, s, s, HULL_XD)
+    rect(img, 1, 1, s - 2, s - 2, GLASS_D)
+    # scanlines: pitch 2 over an even-height middle band, so the tile is seamless
+    for ry in range(1, s - 1, 2):
+        hline(img, 1, ry, s - 2, GLASS)
+    # the recess — dark where the frame overhangs, lit on the far side
+    hline(img, 1, 1, s - 2, GLASS_XD)
+    vline(img, 1, 1, s - 2, GLASS_XD)
+    hline(img, 1, s - 2, s - 2, GLASS_GLOW)
+    vline(img, s - 2, 1, s - 2, GLASS_GLOW)
+    # the frame's own lit bottom-right lip, outside the glass
+    hline(img, 1, 0, s - 2, HULL_D)
+    hline(img, 1, s - 1, s - 2, HULL_L)
+    vline(img, s - 1, 1, s - 2, HULL_L)
+    for cx, cy in ((0, 0), (s - 1, 0), (0, s - 1), (s - 1, s - 1)):
+        px(img, cx, cy, (0, 0, 0, 0))
+    save(img, "ui_glass")
+
+
+def gen_tag():
+    """16x16 nine-patch, margin 5: the enamel job tag that hangs off the gantry.
+
+    Whatever the berth is doing is the one line of text that changes every few
+    seconds, so it gets its own object instead of a slab of the bar: a small
+    dark sign with a teal service spine down the left and a screw at each end.
+    """
+    s = 16
+    img = new_img(s, s)
+    hline(img, 2, s - 1, s - 3, SHADOW_1)
+    rect(img, 0, 0, s, s - 1, HULL_XD)
+    rect(img, 1, 1, s - 2, s - 3, HULL_D)
+    hline(img, 1, 1, s - 2, HULL_L)
+    hline(img, 1, s - 3, s - 2, HULL_XD)
+    # the service spine, in the left margin so it is drawn once however wide the
+    # tag has to grow
+    vline(img, 1, 1, s - 3, TEAL_D)
+    vline(img, 2, 1, s - 3, TEAL)
+    px(img, 2, 1, TEAL_L)
+    for sx in (5, s - 4):
+        px(img, sx, 2, HULL_XL)
+        px(img, sx, 3, HULL_XD)
+    for cx, cy in ((0, 0), (s - 1, 0), (0, s - 2), (s - 1, s - 2)):
+        px(img, cx, cy, (0, 0, 0, 0))
+    save(img, "ui_tag")
+
+
+def gen_indicators():
+    """The two small lights the HUD blinks: a status LED and a notice pip.
+
+    A key that has something waiting behind it and a berth that wants a tap are
+    both "look here" with no room for a word, and a lamp is how a control panel
+    has always said it.
+    """
+    # LED: dim, teal (running), amber (wants you)
+    frames = []
+    for core, ring, glow in (
+            ((58, 70, 90, 255), HULL_XD, None),
+            (TEAL_L, TEAL_XD, TEAL),
+            (AMBER_L, AMBER_XD, AMBER)):
+        img = new_img(8, 8)
+        for y in range(8):
+            for x in range(8):
+                d = ((x - 3.5) ** 2 + (y - 3.5) ** 2) ** 0.5
+                if d <= 3.5:
+                    px(img, x, y, ring)
+                if d <= 2.5:
+                    px(img, x, y, glow or core)
+                if d <= 1.6:
+                    px(img, x, y, core)
+        px(img, 2, 2, (255, 255, 255, 190))
+        frames.append(img)
+    save(sheet(frames), "ui_led", preview_scale=8)
+
+    pip = new_img(6, 6)
+    for y in range(6):
+        for x in range(6):
+            d = ((x - 2.5) ** 2 + (y - 2.5) ** 2) ** 0.5
+            if d <= 2.9:
+                px(pip, x, y, AMBER_XD)
+            if d <= 2.1:
+                px(pip, x, y, AMBER)
+            if d <= 1.2:
+                px(pip, x, y, AMBER_L)
+    px(pip, 2, 1, AMBER_XL)
+    save(pip, "ui_pip", preview_scale=10)
+
+
 # ------------------------------------------------------------------- controls
 
 def _button(base, light, xlight, dark, xdark, name):
@@ -377,6 +613,11 @@ def gen_buttons():
             (138, 128, 118, 255), (104, 96, 88, 255), "ui_btn_off")
     _button(RUST, RUST_L, (222, 140, 116, 255), RUST_D, RUST_XD, "ui_btn_danger")
     _button(PAPER, PAPER_L, PAPER_XL, PAPER_D, PAPER_XD, "ui_btn_ghost")
+    # The console keys. Paper keys on a steel console read as sticky notes; these
+    # are the same enamel as the panel they are bolted to, one step lighter so
+    # they still stand off it.
+    _button(HULL, HULL_L, HULL_XL, HULL_D, HULL_XD, "ui_btn_steel")
+    _button(HULL_D, HULL, HULL_L, HULL_XD, HULL_XD, "ui_btn_steel_down")
 
 
 def gen_tabs():
@@ -531,14 +772,13 @@ def gen_desk_props():
 
 
 def gen_scrims():
-    """Vertical fades that keep HUD text legible without drawing a box."""
-    top = new_img(4, 40)
-    for y in range(40):
-        k = 1.0 - (y / 39.0)
-        a = int(150 * (k ** 1.7))
-        rect(top, 0, y, 4, 1, (16, 14, 22, a))
-    save(top, "ui_topfade", preview_scale=2)
+    """The flat dim behind a modal.
 
+    There used to be a vertical fade at the top of the screen here, buying
+    legibility for HUD text that had nothing behind it. The tally and the clock
+    are instruments set into a steel gantry now, so the fade has nothing left to
+    protect and the port keeps those pixels.
+    """
     dim = new_img(4, 4)
     rect(dim, 0, 0, 4, 4, (12, 10, 18, 190))
     save(dim, "ui_scrim", preview_scale=8)
@@ -579,13 +819,24 @@ def gen_icons():
     rect(i, 5, 7, 3, 2, (238, 176, 62, 255))
     icons["crane"] = i
 
-    # ship: hull from above
+    # ship: a laden hull from above. The old one was a plain taper with a white
+    # block on it, which at 2x on a console key read as a house with a door.
+    # A pointed bow, a squared stern and two rows of boxes on deck read as a
+    # container ship at any size.
     i = _icon_base()
-    for y in range(2, 10):
-        k = min(1.0, (y - 2) / 3.0)
-        half = int(1 + k * 3)
-        rect(i, 6 - half, y, half * 2, 1, (70, 94, 128, 255))
-    rect(i, 4, 6, 4, 3, (226, 218, 202, 255))
+    HULL_ICON = (70, 94, 128, 255)
+    HULL_ICON_D = (44, 60, 88, 255)
+    for y, half in ((1, 1), (2, 2), (3, 3), (4, 4), (5, 4), (6, 4), (7, 4),
+                    (8, 4), (9, 4), (10, 3)):
+        rect(i, 6 - half, y, half * 2, 1, HULL_ICON)
+    hline(i, 3, 10, 6, HULL_ICON_D)
+    px(i, 5, 1, (150, 178, 210, 255))
+    for row, tone in ((4, (198, 108, 70, 255)), (5, (110, 154, 96, 255)),
+                      (6, (198, 108, 70, 255)), (7, (86, 128, 168, 255))):
+        rect(i, 3, row, 2, 1, tone)
+        rect(i, 7, row, 2, 1, tone)
+    rect(i, 3, 8, 6, 2, (226, 218, 202, 255))
+    hline(i, 3, 9, 6, (168, 162, 150, 255))
     icons["ship"] = i
 
     # land: a fenced plot
@@ -603,12 +854,29 @@ def gen_icons():
                    "..######..", ".##....##."], 1, 3, (250, 208, 96, 255))
     icons["star"] = i
 
-    # gear: settings
+    # gear: settings. Drawn from an angle-modulated radius rather than a hand
+    # bitmap — the hand-drawn one had teeth one pixel deep, and at 2x on a
+    # console key a gear with shallow teeth is just a doughnut.
+    import math as _math
     i = _icon_base()
-    _blit_rows(i, ["..#..#..", ".######.", "#.####.#", "##.##.##",
-                   "##.##.##", "#.####.#", ".######.", "..#..#.."], 2, 2,
-               (196, 190, 190, 255))
-    rect(i, 5, 5, 2, 2, SLATE_D)
+    for y in range(12):
+        for x in range(12):
+            dx = x - 5.5
+            dy = y - 5.5
+            dist = _math.hypot(dx, dy)
+            if dist < 0.1:
+                continue
+            # Six teeth, each 1.4px proud of the body.
+            tooth = _math.cos(6.0 * _math.atan2(dy, dx))
+            radius = 4.0 + (1.4 if tooth > 0.35 else 0.0)
+            if dist > radius:
+                continue
+            if dist <= 1.9:
+                continue                      # the bore, punched right through
+            lit = dx + dy < -1.6
+            px(i, x, y, (228, 224, 224, 255) if lit else (176, 170, 172, 255))
+            if dist > radius - 1.0 and not lit:
+                px(i, x, y, (128, 122, 126, 255))
     icons["gear"] = i
 
     # speaker: audio toggle
@@ -706,9 +974,24 @@ def gen_icons():
     px(i, 9, 3, AMBER_D)
     icons["trophy"] = i
 
+    # bell: the notice log. Nothing interrupts the port any more, so this is the
+    # only thing that says a notice happened at all.
+    i = _icon_base()
+    px(i, 5, 0, AMBER_D)                       # the loop it hangs from
+    px(i, 6, 0, AMBER_D)
+    for row, half in ((1, 1), (2, 2), (3, 3), (4, 3), (5, 4), (6, 4), (7, 5)):
+        rect(i, 6 - half, row, half * 2, 1, AMBER)
+        px(i, 6 - half, row, AMBER_L)          # lit edge, light from upper left
+        px(i, 5 + half, row, AMBER_D)
+    hline(i, 1, 8, 10, AMBER_D)                # the rim, wider than the body
+    hline(i, 1, 9, 10, AMBER_XD)
+    rect(i, 5, 10, 2, 2, AMBER_D)              # the clapper, swung clear
+    px(i, 4, 2, AMBER_XL)
+    icons["bell"] = i
+
     order = ["teu", "crane", "ship", "land", "star", "gear", "sound", "clock",
              "paw", "glove", "globe", "lock", "check", "close", "chevron",
-             "truck", "trophy"]
+             "truck", "trophy", "bell"]
     save(sheet([icons[k] for k in order]), "ui_icons")
     print("    icon order:", ", ".join(order))
 
@@ -721,6 +1004,11 @@ if __name__ == "__main__":
     gen_cards()
     gen_slate()
     gen_well()
+    gen_badge()
+    gen_gantry()
+    gen_glass()
+    gen_tag()
+    gen_indicators()
     gen_buttons()
     gen_tabs()
     gen_segments()

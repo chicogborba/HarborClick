@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://byxy1pgirqu0m"
-path="res://.godot/imported/ui_topfade.png-63d3624b1fadc0b662ffa7602c3f6d27.ctex"
+uid="uid://crxj4rj8bk8bt"
+path="res://.godot/imported/ui_title_port.png-9cfa309dedc384ed103d4db3261a557a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/ui_topfade.png"
-dest_files=["res://.godot/imported/ui_topfade.png-63d3624b1fadc0b662ffa7602c3f6d27.ctex"]
+source_file="res://assets/sprites/ui_title_port.png"
+dest_files=["res://.godot/imported/ui_title_port.png-9cfa309dedc384ed103d4db3261a557a.ctex"]
 
 [params]
 
