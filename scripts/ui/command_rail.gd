@@ -1,21 +1,24 @@
 class_name CommandRail
 extends CanvasLayer
-## Where the player's commands live.
+## The console under the thumb: what to do next, and every key that opens a board.
 ##
-## On a wide screen the world only wants about two thirds of the window, and
-## the third that was left over was literally empty grey with a gear floating
-## in one corner and a shop button in the other. That is not a layout, it is a
-## leftover. The rail is a real clipboard pinned down that side: the berth, the
-## pinned objective and every key, in the same material as the boards they open.
+## This used to be two layouts. On a wide screen it was a clipboard pinned down
+## the right-hand third of the window carrying the berth, the pinned objective,
+## a port summary and the keys; in portrait it collapsed to this steel console.
+## `PortraitFrame` then clamped the aspect at 2:3, which made the logical
+## viewport never wider than it is tall, which made the wide branch unreachable
+## from inside the game. The board is gone rather than dormant — but the two
+## things it carried that the phone never had are not, because losing them was
+## how "próximo objetivo sempre visível" quietly stopped being true.
 ##
-## In portrait the port takes the whole screen, so the rail collapses to a steel
-## console under the thumb — the same enamel panel the gantry is made of, seen
-## from the other end of the screen, with the keys bolted to it.
+## So the console grew a head: one line that answers "what now?". On the left the
+## objective the player is working toward, on the right the single most valuable
+## thing they could press. That right-hand chip is a priority, not a state:
+## reconstruction outranks a purchase, and a purchase outranks a countdown, so
+## the console never shows the smaller of two invitations.
 ##
-## The tally is deliberately not here in either profile. It used to be, and a
-## wide screen then carried the same number twice: once in the rail and once
-## over the port. The gantry spans the world in both profiles now, so there is
-## one counter in the game.
+## The tally is deliberately not here. It lives on the gantry, which spans the
+## port, so there is exactly one number in the game.
 
 signal shop_requested
 signal routes_requested
@@ -23,211 +26,57 @@ signal journal_requested
 signal settings_requested
 signal prestige_requested
 
-## Where a desktop overlay should draw itself so it reads as the rail changing
-## contents rather than a drawer sliding over the port.
-var content_rect := Rect2()
+## The console, and the key face on it. Sized so a 24px glyph and its word both
+## fit: a 12px icon on a thumb-sized key reads as a bullet point, and this is the
+## one row of the interface the player touches all session.
+const BAR_KEY_H := 44.0
+## The head above the keys: the objective and the next-move chip.
+const HEAD_H := 17.0
+const BAR_H := 54.0 + HEAD_H
 
-var _board: PanelContainer
-var _clip: TextureRect
-var _column: VBoxContainer
-var _berth_chip: PanelContainer
-var _berth_label: Label
-var _berth_bar: ProgressBar
-var _berth_detail: Label
-var _fleet: VBoxContainer
-var _fleet_rows: Array[PanelContainer] = []
-var _objective: PanelContainer
-var _objective_title: Label
-var _objective_progress: Label
-var _keys: VBoxContainer
-var _prestige_key: Button
-var _summary: VBoxContainer
-var _summary_values: Dictionary = {}
-var _yard_fill := Callable()
-var _objective_source := Callable()
 var _bar: PanelContainer
+var _head: Control
+var _objective_button: Button
+var _objective_label: Label
+var _objective_value: Label
+var _next_button: Button
+var _next_label: Label
+var _next_pip: TextureRect
 var _bar_keys: HBoxContainer
 var _shop_pip: TextureRect
 var _shop_alert := Callable()
-var _desktop := false
+var _shop_eta := Callable()
+var _objective_source := Callable()
 var _safe_rect := Rect2()
-var _profile := ""
 var _tick := 0.0
 
 
 func _ready() -> void:
 	layer = 5
-	_build_board()
 	_build_bar()
 	get_viewport().size_changed.connect(_layout)
-	EventBus.prestiged.connect(func(_s: int) -> void: _refresh_prestige())
+	EventBus.prestiged.connect(func(_s: int) -> void: _refresh_next())
 	_layout()
 
 
 # ------------------------------------------------------------------ assembly
 
-func _build_board() -> void:
-	_board = PanelContainer.new()
-	UiTheme.apply_panel(_board, UiTheme.board_style(9))
-	_board.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_board)
-	_clip = UiTheme.clip_badge()
-	add_child(_clip)
-
-	_column = VBoxContainer.new()
-	_column.add_theme_constant_override(&"separation", 5)
-	_board.add_child(_column)
-
-	# The berth is the thing the player is actually watching, and the rail had
-	# a hand-sized patch of blank paper under the keys. It gets a real card:
-	# what the berth is doing, how far through it is, and what the machines are
-	# contributing without a finger on the screen.
-	_berth_chip = PanelContainer.new()
-	UiTheme.apply_panel(_berth_chip, UiTheme.card_style(&"normal"))
-	_berth_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_berth_chip.visible = false
-	_column.add_child(_berth_chip)
-	var berth_col := VBoxContainer.new()
-	berth_col.add_theme_constant_override(&"separation", 3)
-	berth_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_berth_chip.add_child(berth_col)
-	var berth_head := HBoxContainer.new()
-	berth_head.add_theme_constant_override(&"separation", 4)
-	berth_head.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	berth_col.add_child(berth_head)
-	berth_head.add_child(UiTheme.icon(UiTheme.Icon.SHIP))
-	_berth_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK)
-	_berth_label.clip_text = true
-	_berth_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_berth_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	berth_head.add_child(_berth_label)
-	_berth_bar = ProgressBar.new()
-	var bar_styles := UiTheme.bar_styles()
-	_berth_bar.add_theme_stylebox_override(&"background", bar_styles[0])
-	_berth_bar.add_theme_stylebox_override(&"fill", bar_styles[1])
-	_berth_bar.show_percentage = false
-	_berth_bar.custom_minimum_size.y = 9.0
-	_berth_bar.max_value = 1.0
-	_berth_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	berth_col.add_child(_berth_bar)
-	_berth_detail = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
-	_berth_detail.clip_text = true
-	berth_col.add_child(_berth_detail)
-
-	# With more than one berth the rail carries the whole quay: the worked berth
-	# keeps the card above, and the others get a line each with what they are on
-	# or when their next hull ties up. In portrait there is no room, so this stays
-	# collapsed and the HUD chip speaks for the focused berth alone.
-	_fleet = VBoxContainer.new()
-	_fleet.add_theme_constant_override(&"separation", 2)
-	_fleet.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_fleet.visible = false
-	_column.add_child(_fleet)
-
-	_objective = PanelContainer.new()
-	UiTheme.apply_panel(_objective, UiTheme.card_style(&"ready"))
-	_objective.mouse_filter = Control.MOUSE_FILTER_STOP
-	_objective.visible = false
-	_column.add_child(_objective)
-	var objective_button := Button.new()
-	objective_button.flat = true
-	objective_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	objective_button.add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
-	UiTheme.describe(objective_button, "Abrir o Diário do Porto")
-	objective_button.pressed.connect(func() -> void: journal_requested.emit())
-	_objective.add_child(objective_button)
-	var objective_row := HBoxContainer.new()
-	objective_row.add_theme_constant_override(&"separation", 4)
-	objective_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	objective_row.set_anchors_and_offsets_preset(
-		Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, 4)
-	_objective.add_child(objective_row)
-	objective_row.add_child(UiTheme.icon(UiTheme.Icon.TROPHY))
-	var objective_text := VBoxContainer.new()
-	objective_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	objective_text.add_theme_constant_override(&"separation", 0)
-	objective_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	objective_row.add_child(objective_text)
-	_objective_title = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK)
-	_objective_title.clip_text = true
-	_objective_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	objective_text.add_child(_objective_title)
-	_objective_progress = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP)
-	_objective_progress.clip_text = true
-	objective_text.add_child(_objective_progress)
-
-	_column.add_child(UiTheme.divider())
-
-	_keys = VBoxContainer.new()
-	_keys.add_theme_constant_override(&"separation", 4)
-	_keys.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_column.add_child(_keys)
-	_keys.add_child(_make_key("LOJA", UiTheme.Icon.CRANE, &"amber",
-		"Abrir a loja do terminal", shop_requested))
-	# A globe, not a hull: the key opens a world chart, and the ship glyph is
-	# already what a berth row wears.
-	_keys.add_child(_make_key("ROTAS", UiTheme.Icon.GLOBE, &"ghost",
-		"Abrir o mapa de rotas", routes_requested))
-	_keys.add_child(_make_key("DIÁRIO", UiTheme.Icon.TROPHY, &"ghost",
-		"Abrir o Diário do Porto", journal_requested))
-	_keys.add_child(_make_key("AJUSTES", UiTheme.Icon.GEAR, &"ghost",
-		"Abrir os ajustes", settings_requested))
-	_prestige_key = _make_key("ABRIR CAPITAL", UiTheme.Icon.STAR, &"alt",
-		"Reconstruir o porto e emitir ações", prestige_requested)
-	_prestige_key.visible = false
-	_keys.add_child(_prestige_key)
-	# The keys never fill a full-height board and the blank sheet under them
-	# read as unfinished. A pencil lying across it says "someone works here"
-	# for the price of one sprite.
-	var pencil_row := Control.new()
-	pencil_row.custom_minimum_size.y = 24.0
-	pencil_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_keys.add_child(pencil_row)
-	var pencil := UiTheme.desk_prop("ui_pencil", -6.0)
-	pencil.position = Vector2(12, 6)
-	pencil_row.add_child(pencil)
-
-	# The keys do not fill a full-height board, and blank parchment reads as
-	# unfinished. The gap carries the three numbers a foreman would actually
-	# glance at between decisions.
-	_column.add_child(UiTheme.spacer(2.0))
-	_column.add_child(UiTheme.divider())
-	_summary = VBoxContainer.new()
-	_summary.add_theme_constant_override(&"separation", 1)
-	_summary.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_column.add_child(_summary)
-	for row in [["DIA", "day"], ["ESCALAS", "calls"], ["PÁTIO", "fill"]]:
-		var line := HBoxContainer.new()
-		line.add_theme_constant_override(&"separation", 4)
-		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_summary.add_child(line)
-		var caption := UiTheme.label(str(row[0]), UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
-		caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		line.add_child(caption)
-		var value := UiTheme.label("-", UiTheme.SIZE_SMALL, UiTheme.INK)
-		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		line.add_child(value)
-		_summary_values[str(row[1])] = value
-
-
-## The console, and the key face on it. Sized so a 24px glyph and its word both
-## fit: a 12px icon on a thumb-sized key reads as a bullet point, and this is the
-## one row of the interface the player touches all session.
-const BAR_H := 54.0
-const BAR_KEY_H := 44.0
-
-
 func _build_bar() -> void:
-	## Portrait: the port keeps the whole screen, so the rail is one console of
-	## keys where a thumb already rests — the gantry's panel the other way up,
-	## with its amber edge facing the port.
+	## The port keeps the whole screen, so the console is the gantry's panel the
+	## other way up, with its amber edge facing the port.
 	_bar = PanelContainer.new()
 	UiTheme.apply_panel(_bar, UiTheme.console_style())
 	_bar.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_bar)
+
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override(&"separation", 2)
+	_bar.add_child(column)
+	column.add_child(_build_head())
+
 	_bar_keys = HBoxContainer.new()
 	_bar_keys.add_theme_constant_override(&"separation", 3)
-	_bar.add_child(_bar_keys)
+	column.add_child(_bar_keys)
 	# Four keys of equal weight, each a glyph over its word. The old bar gave the
 	# named keys a full-width slab and squeezed settings into a 44px square with a
 	# 12px glyph in it, which is the "settings icon is rubbish" from the playtest.
@@ -237,8 +86,7 @@ func _build_bar() -> void:
 			["ROTAS", UiTheme.Icon.GLOBE, &"steel", "Abrir o mapa de rotas", routes_requested],
 			["DIÁRIO", UiTheme.Icon.TROPHY, &"steel", "Abrir o Diário do Porto", journal_requested],
 			["AJUSTES", UiTheme.Icon.GEAR, &"steel", "Abrir os ajustes", settings_requested]]:
-		var key := _make_key(str(spec[0]), spec[1], spec[2], str(spec[3]), spec[4],
-			true)
+		var key := _make_key(str(spec[0]), spec[1], spec[2], str(spec[3]), spec[4])
 		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		key.custom_minimum_size = Vector2(0.0, BAR_KEY_H)
 		_bar_keys.add_child(key)
@@ -257,43 +105,103 @@ func _build_bar() -> void:
 	shop_key.add_child(_shop_pip)
 
 
+func _build_head() -> Control:
+	## Two touch targets on one line. Both are flat buttons over the console's own
+	## enamel rather than panels: a card here would be a third material inside a
+	## panel that is already two, and the line is 17px tall.
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override(&"separation", 4)
+	head.custom_minimum_size.y = HEAD_H
+	_head = head
+
+	_objective_button = _flat_button("Abrir o Diário do Porto", journal_requested)
+	# The objective takes the room the chip does not, so a long goal title is
+	# trimmed by its own label rather than pushing the chip off the console.
+	_objective_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_objective_button.clip_contents = true
+	head.add_child(_objective_button)
+	var objective_row := HBoxContainer.new()
+	objective_row.add_theme_constant_override(&"separation", 3)
+	objective_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	objective_row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT,
+		Control.PRESET_MODE_MINSIZE, 2)
+	_objective_button.add_child(objective_row)
+	var star := UiTheme.icon(UiTheme.Icon.TROPHY)
+	star.modulate = UiTheme.STEEL_DIM
+	star.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	objective_row.add_child(star)
+	_objective_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.STEEL_TEXT)
+	_objective_label.clip_text = true
+	_objective_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_objective_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_objective_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	objective_row.add_child(_objective_label)
+	_objective_value = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER)
+	_objective_value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	objective_row.add_child(_objective_value)
+
+	_next_button = _flat_button("Próxima ação", shop_requested)
+	head.add_child(_next_button)
+	var next_row := HBoxContainer.new()
+	next_row.add_theme_constant_override(&"separation", 3)
+	next_row.alignment = BoxContainer.ALIGNMENT_END
+	next_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	next_row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT,
+		Control.PRESET_MODE_MINSIZE, 2)
+	_next_button.add_child(next_row)
+	_next_pip = UiTheme.pip()
+	_next_pip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	next_row.add_child(_next_pip)
+	_next_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER)
+	_next_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	next_row.add_child(_next_label)
+	return head
+
+
+func _flat_button(control_name: String, target: Signal) -> Button:
+	var button := Button.new()
+	button.flat = true
+	button.focus_mode = Control.FOCUS_ALL
+	button.add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
+	UiTheme.describe(button, control_name)
+	button.pressed.connect(func() -> void:
+		AudioManager.play_sfx("tap")
+		target.emit())
+	return button
+
+
 func _make_key(text: String, icon: UiTheme.Icon, kind: StringName,
-		control_name: String, target: Signal, stacked: bool = false) -> Button:
+		control_name: String, target: Signal) -> Button:
 	## Button draws its icon hard against the left edge and only centres the
 	## text, which left a hand-sized hole between the two on a wide key. The
-	## glyph and the word are laid out as one group instead, centred together —
-	## side by side on the rail's tall keys, stacked on the console's square ones.
+	## glyph and the word are laid out as one group instead, stacked and centred
+	## together.
 	var key := UiTheme.button("", kind, UiTheme.SIZE_SMALL)
-	key.custom_minimum_size.y = BAR_KEY_H if stacked else 34.0
+	key.custom_minimum_size.y = BAR_KEY_H
 	UiTheme.describe(key, control_name)
 	key.pressed.connect(func() -> void:
 		AudioManager.play_sfx("tap")
 		target.emit())
 
-	var group: BoxContainer = VBoxContainer.new() if stacked else HBoxContainer.new()
-	group.add_theme_constant_override(&"separation", 1 if stacked else 5)
+	var group := VBoxContainer.new()
+	group.add_theme_constant_override(&"separation", 1)
 	group.alignment = BoxContainer.ALIGNMENT_CENTER
 	group.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	group.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	key.add_child(group)
-	var glyph := UiTheme.icon(icon, 2 if stacked else 1)
-	glyph.size_flags_horizontal = Control.SIZE_SHRINK_CENTER if stacked \
-		else Control.SIZE_FILL
+	var glyph := UiTheme.icon(icon, 2)
+	glyph.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	group.add_child(glyph)
-	if not text.is_empty():
-		var label := UiTheme.label(text, UiTheme.SIZE_SMALL, _key_ink(kind))
-		label.name = "KeyText"
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		if stacked:
-			# Only the console's keys are width-constrained, and only there may the
-			# word be clipped. A clipped Label reports a minimum width of one
-			# pixel, so doing this on the rail's centred group collapses the word
-			# to nothing and leaves a key with a bare glyph on it.
-			label.clip_text = true
-			label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		group.add_child(label)
+	var label := UiTheme.label(text, UiTheme.SIZE_SMALL, _key_ink(kind))
+	label.name = "KeyText"
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# Only the console's keys are width-constrained, and only there may the word
+	# be clipped. A clipped Label reports a minimum width of one pixel.
+	label.clip_text = true
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	group.add_child(label)
 	return key
 
 
@@ -309,135 +217,7 @@ func _key_ink(kind: StringName) -> Color:
 			return UiTheme.INK
 
 
-func _set_key_text(key: Button, text: String) -> void:
-	## The word on a key is a child Label, not the Button's own `text` — the icon
-	## and the word are laid out as one centred group. Writing `Button.text`
-	## instead draws a *second*, differently centred string on top of the first,
-	## which is what turned the prestige key into "CABEITALCABITAL".
-	if key == null:
-		return
-	for group in key.get_children():
-		var label := group.get_node_or_null(^"KeyText") as Label
-		if label != null:
-			label.text = text
-			return
-
-
 # --------------------------------------------------------------------- state
-
-func set_berth_status(text: String) -> void:
-	set_berth({"text": text})
-
-
-func set_berth(status: Dictionary) -> void:
-	var text := str(status.get("text", ""))
-	_berth_label.text = text
-	var total := float(status.get("total", 0.0))
-	var current := float(status.get("current", 0.0))
-	_berth_bar.visible = total > 0.0
-	if total > 0.0:
-		_berth_bar.max_value = total
-		_berth_bar.value = clampf(current, 0.0, total)
-	var rate := float(status.get("auto_rate", 0.0))
-	var parts: PackedStringArray = []
-	var vessel := str(status.get("vessel", ""))
-	if not vessel.is_empty():
-		parts.append(vessel)
-	if total > 0.0:
-		parts.append("%d / %d" % [int(current), int(total)])
-	if rate > 0.0:
-		parts.append("%.1f/s auto" % rate)
-	# The card is a rail's width; a truncated line says nothing.
-	_berth_detail.text = " - ".join(parts)
-	_berth_detail.visible = not _berth_detail.text.is_empty()
-	_berth_chip.visible = _desktop and not text.is_empty()
-
-
-func set_fleet(rows: Array) -> void:
-	## One line per berth other than the one the card above is already showing.
-	if _fleet == null or not is_instance_valid(_fleet):
-		return
-	var wanted := 0 if not _desktop else maxi(0, rows.size() - 1)
-	while _fleet_rows.size() < wanted:
-		_fleet_rows.append(_make_fleet_row())
-	for index in _fleet_rows.size():
-		_fleet_rows[index].visible = index < wanted
-	_fleet.visible = wanted > 0
-	if wanted == 0:
-		return
-	var slot := 0
-	for row: Dictionary in rows:
-		if bool(row.get("focused", false)):
-			continue
-		if slot >= _fleet_rows.size():
-			break
-		_fill_fleet_row(_fleet_rows[slot], row)
-		slot += 1
-
-
-func _make_fleet_row() -> PanelContainer:
-	var card := PanelContainer.new()
-	UiTheme.apply_panel(card, UiTheme.card_style(&"normal"))
-	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_fleet.add_child(card)
-	var row := HBoxContainer.new()
-	# Named, because the row is looked up by path every refresh: an auto-named
-	# node makes that lookup fail once per berth per frame, and the error spam
-	# costs more than the row draws.
-	row.name = "Row"
-	row.add_theme_constant_override(&"separation", 4)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(row)
-	row.add_child(UiTheme.icon(UiTheme.Icon.SHIP))
-	var label := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK)
-	label.name = "Berth"
-	label.clip_text = true
-	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(label)
-	var value := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP)
-	value.name = "Value"
-	row.add_child(value)
-	return card
-
-
-func _fill_fleet_row(card: PanelContainer, row: Dictionary) -> void:
-	var index := int(row.get("index", 0))
-	var label := card.get_node(^"Row/Berth") as Label
-	var value := card.get_node(^"Row/Value") as Label
-	var vessel := str(row.get("vessel", ""))
-	label.text = "B%d  %s" % [index + 1,
-		vessel if not vessel.is_empty() else str(row.get("state", ""))]
-	var total := float(row.get("total", 0.0))
-	var eta := float(row.get("eta", -1.0))
-	if total > 0.0:
-		value.text = "%d/%d" % [int(row.get("current", 0.0)), int(total)]
-	elif eta >= 0.0:
-		# An empty berth is only interesting for one reason: when the next one
-		# gets here.
-		value.text = "em %ds" % int(ceilf(eta))
-	else:
-		value.text = str(row.get("state", ""))
-	UiTheme.apply_panel(card, UiTheme.card_style(
-		&"ready" if bool(row.get("special", false)) else &"normal"))
-
-
-func set_objective(objective: Dictionary) -> void:
-	if objective.is_empty():
-		_objective.visible = false
-		return
-	_objective.visible = _desktop
-	var pinned := bool(objective.get("pinned", false))
-	_objective_title.text = ("FIXADA: " if pinned else "PRÓXIMA: ") \
-		+ str(objective.get("title", "Meta"))
-	_objective_progress.text = "%s / %s" % [
-		GameState.fmt(float(objective.get("progress", 0.0))),
-		GameState.fmt(float(objective.get("target", 0.0)))]
-
-
-func set_yard_source(fill: Callable) -> void:
-	_yard_fill = fill
-
 
 func set_objective_source(objective: Callable) -> void:
 	_objective_source = objective
@@ -446,51 +226,100 @@ func set_objective_source(objective: Callable) -> void:
 
 func set_shop_alert_source(alert: Callable) -> void:
 	## Whether the shop has anything the player can afford right now. Asked on
-	## the rail's own slow tick rather than on every credited box: the answer
+	## the console's own slow tick rather than on every credited box: the answer
 	## walks the whole catalogue.
 	_shop_alert = alert
-	_refresh_alerts()
+	_refresh_next()
+
+
+func set_shop_eta_source(eta: Callable) -> void:
+	## Seconds until the cheapest revealed purchase becomes affordable, or a
+	## negative number when the port earns too little to ever reach it. Rule 2 of
+	## the design principles: a wait the player cannot price is a stall.
+	_shop_eta = eta
+	_refresh_next()
 
 
 func _process(delta: float) -> void:
 	_tick += delta
 	if _tick > 0.4:
 		_tick = 0.0
-		_refresh_prestige()
-		_refresh_summary()
 		_refresh_objective()
-		_refresh_alerts()
-
-
-func _refresh_alerts() -> void:
-	if _shop_pip == null:
-		return
-	_shop_pip.visible = _shop_alert.is_valid() and bool(_shop_alert.call())
+		_refresh_next()
 
 
 func _refresh_objective() -> void:
+	if _objective_label == null:
+		return
+	var objective: Dictionary = {}
 	if _objective_source.is_valid():
 		var value: Variant = _objective_source.call()
-		set_objective(value if value is Dictionary else {})
-
-
-func _refresh_summary() -> void:
-	if not _desktop or _summary_values.is_empty():
+		objective = value if value is Dictionary else {}
+	if objective.is_empty():
+		_objective_label.text = "Toque no navio pra mover carga"
+		_objective_value.text = ""
 		return
-	(_summary_values.day as Label).text = str(TimeManager.day)
-	(_summary_values.calls as Label).text = str(int(
-		Progression.stats.get(&"calls_completed", 0)))
-	var fill := float(_yard_fill.call()) if _yard_fill.is_valid() else 0.0
-	(_summary_values.fill as Label).text = "%d%%" % roundi(fill * 100.0)
+	var pinned := bool(objective.get("pinned", false))
+	_objective_label.text = ("FIXADA: " if pinned else "") \
+		+ str(objective.get("title", "Meta"))
+	_objective_value.text = "%s/%s" % [
+		GameState.fmt(float(objective.get("progress", 0.0))),
+		GameState.fmt(float(objective.get("target", 0.0)))]
 
 
-func _refresh_prestige() -> void:
-	if _prestige_key == null:
+func _refresh_next() -> void:
+	## One chip, three answers, in the order the player should care about them.
+	## Rebuilding the port is rare and outranks everything; something affordable
+	## outranks a countdown to something that is not.
+	if _next_label == null:
 		return
-	var can := GameState.can_prestige()
-	_prestige_key.visible = can
-	if can:
-		_set_key_text(_prestige_key, "CAPITAL +%d" % GameState.prestige_gain())
+	var affordable := _shop_alert.is_valid() and bool(_shop_alert.call())
+	if _shop_pip != null:
+		_shop_pip.visible = affordable
+	if GameState.can_prestige():
+		_set_next("CAPITAL +%d" % GameState.prestige_gain(), UiTheme.AMBER, true,
+			"Reconstruir o porto e emitir ações", prestige_requested)
+		return
+	if affordable:
+		_set_next("COMPRAR", UiTheme.AMBER, true, "Abrir a loja do terminal",
+			shop_requested)
+		return
+	var eta := float(_shop_eta.call()) if _shop_eta.is_valid() else -1.0
+	if eta < 0.0:
+		# Nothing revealed, or nothing the port's income will ever reach. Saying
+		# "em ∞" is worse than saying nothing.
+		_set_next("", UiTheme.STEEL_DIM, false, "Abrir a loja do terminal",
+			shop_requested)
+		return
+	_set_next(_fmt_eta(eta), UiTheme.STEEL_DIM, false,
+		"Abrir a loja do terminal", shop_requested)
+
+
+func _set_next(text: String, ink: Color, lit: bool, control_name: String,
+		target: Signal) -> void:
+	_next_label.text = text
+	_next_label.add_theme_color_override(&"font_color", ink)
+	_next_pip.visible = lit
+	_next_button.visible = not text.is_empty()
+	UiTheme.describe(_next_button, control_name, text)
+	# The chip changes what it does, not just what it says, so the old connection
+	# has to go with the old label — otherwise pressing "CAPITAL" opens the shop.
+	for connection in _next_button.pressed.get_connections():
+		_next_button.pressed.disconnect(connection["callable"])
+	_next_button.pressed.connect(func() -> void:
+		AudioManager.play_sfx("tap")
+		target.emit())
+
+
+static func _fmt_eta(seconds: float) -> String:
+	## Coarse on purpose. The number is there to turn a wait into a plan, and a
+	## countdown ticking every second on a bar the player is not looking at is
+	## movement for its own sake.
+	if seconds < 60.0:
+		return "em %ds" % maxi(1, int(ceilf(seconds)))
+	if seconds < 3600.0:
+		return "em %dmin" % maxi(1, int(ceilf(seconds / 60.0)))
+	return "em %dh" % int(ceilf(seconds / 3600.0))
 
 
 # -------------------------------------------------------------------- layout
@@ -498,7 +327,6 @@ func _refresh_prestige() -> void:
 func apply_view_metrics(metrics: Dictionary) -> void:
 	_safe_rect = metrics.get("safe_rect",
 		Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size))
-	_profile = str(metrics.get("profile", ""))
 	_layout()
 
 
@@ -506,38 +334,18 @@ func _layout() -> void:
 	var view := get_viewport().get_visible_rect().size
 	var safe := _safe_rect if _safe_rect.size != Vector2.ZERO \
 		else Rect2(Vector2.ZERO, view)
-	_desktop = _profile == "desktop" if not _profile.is_empty() \
-		else view.x >= 700.0 and view.x / maxf(view.y, 1.0) >= 1.25
+	_bar.size = Vector2(safe.size.x - 12.0, BAR_H)
+	_bar.position = Vector2(safe.position.x + 6.0, safe.end.y - BAR_H - 6.0)
 
-	_board.visible = _desktop
-	_bar.visible = not _desktop
-	if _desktop:
-		var width := clampf(safe.size.x * 0.30, 240.0, 360.0)
-		# The spring clip straddles the top edge, so the board starts far
-		# enough down for the hardware to be on screen.
-		var top := safe.position.y + 20.0
-		_board.size = Vector2(width, safe.end.y - top - 8.0)
-		_board.position = Vector2(safe.end.x - width - 8.0, top)
-		# Overlays land exactly here, so opening the shop reads as the rail
-		# turning a page instead of a panel arriving from off screen.
-		content_rect = Rect2(_board.position, _board.size)
-	else:
-		_bar.size = Vector2(safe.size.x - 12.0, BAR_H)
-		_bar.position = Vector2(safe.position.x + 6.0,
-			safe.end.y - BAR_H - 6.0)
-		content_rect = Rect2()
-	UiTheme.place_clip(_clip, _board, safe)
-	_berth_chip.visible = _desktop and not _berth_label.text.is_empty()
-	_objective.visible = _desktop and not _objective_title.text.is_empty()
-	_summary.visible = _desktop
-	_refresh_summary()
+
+func head_rect() -> Rect2:
+	## Where the "what now?" line actually is, for the tutorial spotlight to cut
+	## its hole around. Asked rather than reached into.
+	return _head.get_global_rect() if _head != null and is_instance_valid(_head) \
+		else Rect2()
 
 
 func set_overlay_open(open: bool) -> void:
-	## While a board is up in the rail's place, the rail's own keys would be
-	## drawn underneath it. Hiding them keeps the focus order honest too.
-	if _desktop:
-		_board.visible = not open
-		_clip.visible = not open and _clip.visible
-	else:
-		_bar.visible = not open
+	## While a board is up over the console, its keys would be drawn underneath.
+	## Hiding them keeps the focus order honest too.
+	_bar.visible = not open

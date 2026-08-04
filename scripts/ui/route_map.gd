@@ -231,23 +231,11 @@ func _layout() -> void:
 		return
 	var safe := _safe_rect if _safe_rect.size != Vector2.ZERO \
 		else Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
-	var desktop := _profile == "desktop" \
-		or (_profile.is_empty() and safe.size.x >= 700.0)
-	if desktop:
-		var slot := _rail.content_rect if _rail != null \
-			and _rail.content_rect.size != Vector2.ZERO else Rect2()
-		if slot.size == Vector2.ZERO:
-			var width := clampf(safe.size.x * 0.34, 280.0, 390.0)
-			slot = Rect2(Vector2(safe.end.x - width - 8.0, safe.position.y + 20.0),
-				Vector2(width, safe.size.y - 28.0))
-		_sheet.size = slot.size
-		_sheet.position = slot.position
-	else:
-		var top := safe.position.y + 20.0
-		_sheet.size = Vector2(safe.size.x - 12.0,
-			maxf(220.0, safe.end.y - top - 6.0))
-		_sheet.position = Vector2(safe.position.x + 6.0,
-			safe.end.y - _sheet.size.y - 6.0)
+	var top := safe.position.y + 20.0
+	_sheet.size = Vector2(safe.size.x - 12.0,
+		maxf(220.0, safe.end.y - top - 6.0))
+	_sheet.position = Vector2(safe.position.x + 6.0,
+		safe.end.y - _sheet.size.y - 6.0)
 	_backdrop.visible = _open
 	_sheet.visible = _open
 	UiTheme.place_clip(_clip, _sheet, safe)
@@ -255,7 +243,7 @@ func _layout() -> void:
 
 class RouteChart extends Control:
 	## A compact equirectangular world chart. Coast points are quantized to the
-	## rendered pixel grid, so even on a wide desktop panel it keeps the stepped
+	## rendered pixel grid, so at any panel width it keeps the stepped
 	## silhouette of a printed 16-bit atlas instead of becoming smooth vector
 	## blobs.
 

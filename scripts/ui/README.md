@@ -18,7 +18,7 @@ Entry points:
 
 - `title_screen.gd` — profile selection.
 - `responsive_shell.gd` — viewport/breakpoint layout.
-- `hud.gd`, `readout.gd`, `objective_chip.gd`, `command_rail.gd` — play HUD.
+- `hud.gd`, `readout.gd`, `command_rail.gd` — play HUD.
 - `shop.gd`, `route_map.gd`, `port_journal.gd`, `settings_panel.gd`,
   `prestige_dialog.gd` — overlays. The journal's EQUIPE tab is the whole shift in
   one list, which the per-person dossier cannot give.
@@ -37,10 +37,16 @@ Entry points:
   nothing is being displayed, so the slot is free, and not saying so wedges the
   queue behind a banner that no longer exists.
 - `hud.gd` — the gantry bolted across the top of the *world* rect, never the
-  window, or on a wide screen it would run under the command rail. It is present
-  in both profiles, which is why the rail no longer carries a second `Readout`:
-  there is one tally in the game. The berth hangs under it on its own tag, so a
-  status that grows into a sentence can never move the counter.
+  window, so an inset moves it with the port instead of leaving it spanning the
+  glass. It is the only tally in the game. The berth hangs under it on its own
+  tag, so a status that grows into a sentence can never move the counter; with
+  more than one berth the tag also carries a lamp per berth, because otherwise a
+  second and third ship are invisible until one is tapped.
+- `command_rail.gd` — the console. Four keys, and above them one line that
+  answers "what now?": the objective on the left, and on the right the single
+  most valuable press available — rebuilding the port outranks a purchase, and a
+  purchase outranks a countdown to one. That countdown is `Shop.next_purchase_eta`,
+  and it exists because a wait the player cannot price is a stall.
 - `readout.gd` — the tally, as a totaliser rather than a caption. The glass is a
   fixed window cut for the widest string `GameState.fmt` can return and the
   digits are right-aligned in it, so nothing moves when the number rolls over;
@@ -111,5 +117,13 @@ the thing that decides that.
 
 `PortraitFrame` (autoload) clamps the window's aspect: wider than 2:3 gets
 pillarboxed, taller than 2:3 keeps the extra height. `ResponsiveShell` therefore
-only ever sees a portrait viewport, and its `desktop` profile no longer fires —
-see the open item in the README before building anything else on top of it.
+only ever sees a portrait viewport, so there is exactly one layout and
+`ResponsiveShell.PROFILE` is a constant.
+
+There used to be a second one. A `desktop` profile handed two thirds of a wide
+window to the port and the rest to a clipboard rail carrying the berth card, the
+pinned objective, a port summary and the keys. The portrait clamp made it
+unreachable, and it stayed in the tree for a week — tested, maintained, and
+described in the roadmap as delivered, while carrying the *only* way to reach the
+prestige dialog. It is deleted. Do not add a layout the game cannot open: put the
+feature in the console and let the console grow.

@@ -7,9 +7,14 @@ signal metrics_changed(metrics: Dictionary)
 signal world_input_blocked_changed(blocked: bool)
 signal save_requested(reason: StringName)
 
-const DESKTOP_MIN_WIDTH := 700.0
-const DESKTOP_MIN_ASPECT := 1.35
-const WORLD_DESKTOP_FRACTION := 0.68
+## The one profile the game has. It used to also classify a wide viewport as
+## `desktop` and hand two thirds of it to the world so a command rail could own
+## the rest — but `PortraitFrame` now clamps the aspect at 2:3, so the logical
+## viewport is never wider than it is tall and that branch could not be reached
+## from inside the game. It is gone rather than dormant: a layout no player can
+## open still gets maintained, still gets tested, and still gets described in the
+## roadmap as if it shipped.
+const PROFILE := "portrait"
 
 var metrics: Dictionary = {}
 var _world_input_blocked := false
@@ -42,14 +47,12 @@ func request_save(reason: StringName = &"ui") -> void:
 func _rebuild_metrics() -> void:
 	var viewport_size := get_viewport().get_visible_rect().size
 	var safe_rect := _safe_area(viewport_size)
-	var aspect := viewport_size.x / maxf(viewport_size.y, 1.0)
-	var desktop := viewport_size.x >= DESKTOP_MIN_WIDTH and aspect >= DESKTOP_MIN_ASPECT
-	var profile := "desktop" if desktop else "portrait"
+	# The port gets the whole safe area. `world_rect` stays in the metrics because
+	# the camera and the gantry frame the *port*, not the window, and a future
+	# inset (a tablet layout, a cutout) belongs here rather than in each consumer.
 	var world_rect := safe_rect
-	if desktop:
-		world_rect.size.x = floorf(safe_rect.size.x * WORLD_DESKTOP_FRACTION)
 	metrics = {
-		"profile": profile,
+		"profile": PROFILE,
 		"viewport_size": viewport_size,
 		"safe_rect": safe_rect,
 		"world_rect": world_rect,

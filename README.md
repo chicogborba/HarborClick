@@ -4,10 +4,11 @@ Clicker/idle de terminal de contêineres. Mobile, retrato, pixel art top-down.
 Godot 4.7 · todos os assets (sprites, fonte, SFX e música) são **gerados por
 código**.
 
-O pátio já nasce com um manifesto de exportação. Você descarrega toda a
-importação do navio, embarca um lote diferente até completar o convés, contrata
-equipamento, compra terreno — e o terminal vai enchendo até virar um caos lindo
-de contêiner empilhado.
+O pátio já nasce com um manifesto de exportação entregue pelo comboio rodoviário
+inaugural antes do primeiro turno. Você descarrega toda a importação do navio,
+embarca esse lote diferente até completar o convés, contrata equipamento,
+compra terreno — e o terminal vai enchendo até virar um caos lindo de
+contêiner empilhado.
 
 ## Rodar
 
@@ -62,6 +63,7 @@ godot --headless --path . res://tests/phase3_progression_ui_test_runner.tscn
 godot --headless --path . res://tests/phase4_ship_test_runner.tscn
 godot --headless --path . res://tests/phase4_water_test_runner.tscn
 godot --headless --path . res://tests/traffic_test_runner.tscn
+godot --headless --path . res://tests/relay_test_runner.tscn
 godot --headless --path . res://tests/notification_test_runner.tscn
 godot --headless --path . res://tests/contrast_test_runner.tscn
 godot --headless --path . res://tests/a11y_test_runner.tscn
@@ -91,9 +93,9 @@ Salvar no meio de uma transferência é seguro: no reload ela volta à origem,
 sem duplicar carga nem pagar a recompensa duas vezes.
 
 Enquanto isso, reach stackers e cavalos mecânicos entram pelo portão, correm a
-via de serviço, encostam no bloco pela faixa de rolamento e levam contêineres
-pra fora do terminal — ou trazem carga de importação. Quanto mais throughput,
-mais cheio o pátio fica (`PortWorld.target_fill()`).
+via de serviço e encostam no bloco pela faixa de rolamento. Toda coleta protege
+um manifesto operacional de 24 caixas: abaixo da meta o caminhão traz 2 e leva
+no máximo 1; acima dela troca 1 por 1. Portanto, a estrada nunca drena o porto.
 
 Todo veículo é desenhado de nariz pra cima, então norte é rotação zero — o eixo
 vertical estava invertido e a frota inteira subia e descia o pátio de ré, o
@@ -110,7 +112,8 @@ assets/
 scripts/
   autoload/    EventBus, GameState, TimeManager, Progression, SaveManager,
                AudioManager
-  cargo/       CargoUnit, transações, controlador de escala e tráfego
+  cargo/       CargoUnit, transações, escala, portão, política rodoviária
+               pura e coordenação de tráfego
   core/        schema e contratos puros de persistência
   data/        structure_db, upgrade_db, land_db, achievements, contratos,
                catálogo de navios e árvore de capital (dados puros)
@@ -121,7 +124,7 @@ scripts/
                skyscape, critters, port_camera
   ui/          ui_theme, port_icon, readout, command_rail, hud, shop,
                shop_card, tutorial, Diário, capital, notification_coordinator,
-               toast_layer, settings_panel, offline_popup
+               notice_bell, npc_card, settings_panel, offline_popup
 tools/
   venv/        Python + Pillow
   sprites/     geradores de pixel art, fonte e UI
@@ -129,12 +132,14 @@ tools/
   capture/     harness de screenshot (roda o jogo de verdade em toda a matriz
                de resolução e falha se algum overlay sair do viewport) e
                medição de frame time no cenário de estresse
+  docs/        gerador do mapa completo do código
+  qa/          documentação fresca + import + todas as suítes em um comando
   export/      build web reproduzível + servidor local com COOP/COEP
 tests/         regressão headless: core/save, backup manual, UI, acessibilidade,
                contraste, tráfego, notificações e 100 escalas de carga
 ```
 
-Dois arquivos concentram as decisões:
+Alguns arquivos concentram as decisões:
 
 - **`PortLayout`** — a geometria do terminal (onde é pátio, cais, água, bloco,
   faixa, portão). Qualquer coisa que precise de posição pergunta pra ele.
@@ -261,32 +266,60 @@ de deixar o jogador construir uma run que evapora no reload.
 - **Acessibilidade** — foco alcança tudo por Tab/setas, Enter ativa, Escape e
   Back fecham; anel de foco de dois tons; nomes acessíveis em toda tecla de
   ícone. Todo texto funcional passa de 4,5:1, verificado por teste.
-- **Frota** — quatro silhuetas e quatro pinturas de casco, sorteadas de forma
-  determinística e sem repetir três vezes seguidas. A classe **não** muda
-  quantas caixas a escala move: isso foi tentado e ficou errado — casco mais
-  curto com a mesma boca lê como barco achatado, não como barco menor.
-  Qual delas pode atracar depende de quanto pátio existe pra trabalhá-la, então
-  o porto cresce em tamanho de navio, não só em número.
+- **Frota** — três silhuetas e quatro pinturas de casco, sorteadas de forma
+  determinística e sem repetir três vezes seguidas. Todas usam o mesmo
+  `ship_top.png` de 66x232 e as mesmas 24 posições; Feeder/Panamax/New Panamax
+  são escala, offset e pintura do casco único, como no `origin/main`.
 - **Portão** — uma via sai do topo do mapa pra cidade, atravessa a cerca do
   perímetro na guarita e alimenta três vagas na praça. O caminhão **dirige**:
   entra pela faixa sul, contorna as vagas pela aproximação, encosta de nariz
   pro portão, é trabalhado com toque como o navio, e sai pela faixa de saída e
   pela pista norte. Carga nunca aparece na vaga — chega e sai em cima de uma
   carreta, que leva no máximo `GateDock.TRUCK_CAPACITY` caixas porque uma
-  carreta de rua leva um contêiner de 40 pés ou dois de 20. Caminhão carregado
-  é porta de **entrada** com o pátio vazio; caminhão vazio é porta de **saída**
-  com o pátio cheio. Sem isso o terminal é um ciclo fechado (entra por mar, sai
-  por mar) e um ciclo fechado trava.
+  carreta de rua leva um contêiner de 40 pés ou dois de 20. Todo caminhão cruza
+  o portão carregado. `RoadCargoPolicy` só autoriza viagens positivas (2 entram,
+  1 sai) ou neutras (1 entra, 1 sai), e a coleta para antes de consumir as 24
+  caixas da próxima escala.
 - **Automação** — portêiner, transtêiner e flutuante movem carga sozinhos no
   berço, pela mesma transação do toque. Uma escala inteira acontece sem um
   toque quando há equipamento; o toque vira empurrão. A partida paga um bônus
   medido em segundos da renda atual.
+- **Cadeia de custódia** — `CargoRelay` é o itinerário de uma caixa: o portêiner
+  tira do costado e põe no apron, o cavalo mecânico dirige até a faixa do bloco,
+  o transtêiner levanta da carreta e empilha. A carreta é reservada quando o
+  itinerário é desenhado, então o número de caixas sendo dirigidas é exatamente o
+  número de máquinas livres — sem carreta livre, a caixa atravessa no arco antigo
+  e o toque continua imediato. Qualquer falha (máquina liberada no meio, carreta
+  travada, pouso forçado pela captura) desemboca nesse mesmo arco: a apresentação
+  pode falhar, a transação não.
+- **A frota tem endereço** — o cavalo mecânico é máquina de pátio, sem placa de
+  rua: estaciona numa vaga numerada no apron e fica visível entre viagens. Reach
+  stacker e empilhadeira são rodoviários e entram pelo portão quando têm serviço.
+  Comprar uma máquina sempre tem corpo — ela sacode nas molas e solta um
+  `+X TEU/s` sobre si mesma, mesmo quando o teto visual já foi atingido.
 - **Perfis** — três terminais independentes em `user://profiles/<n>/`. O slot
   é parte do caminho, nunca do payload, então um save exportado de um entra em
   qualquer outro. O `user://save.json` da build antiga vira o perfil 1 sozinho.
 - **Save** — envelope JSON v2 por perfil, escrita temporária,
   rotação de backup, recuperação, migração da versão-base e autosave a cada
   30s. Progresso offline tem cap de 8h e 50% de eficiência.
+
+## Arquitetura AI-first
+
+O repositório possui um guia operacional em [`AGENTS.md`](AGENTS.md), um hub em
+[`docs/README.md`](docs/README.md), documentação por domínio dentro de
+`scripts/*/README.md` e um
+[mapa gerado de todo o código](docs/reference/code-map.md). Assim, uma pessoa ou
+agente começa pelo contrato relevante em vez de vasculhar 17 mil linhas.
+
+```bash
+# Atualiza/valida o mapa e roda todas as suítes
+tools/qa/run_all.sh
+```
+
+As decisões seguem a separação recomendada pelo Godot: cenas/nodes apresentam e
+orquestram; classes puras decidem regras; autoloads ficam restritos ao estado
+que realmente atravessa cenas.
 
 ## Debug
 
@@ -408,6 +441,166 @@ viewport compra a mesma legibilidade sem peso visual nenhum.
 
 Aceite: ao simular 0→`1e15` e 100 ganhos/s, ícone, origem do número e a linha
 de taxa não se movem sequer um pixel (coberto por `ui_p0_test_runner`).
+
+#### O pórtico de sinalização — revisado em 30/07/2026
+
+O contador sem placa resolveu o problema errado. Tirar o painel tirou o ruído,
+mas também tirou o objeto: sobraram um número contornado, uma taxa contornada,
+um chip de ardósia e uma caixa de madeira com relógio dentro, quatro coisas
+soltas boiando num degradê. Nada dizia que fossem a mesma interface, e nenhuma
+delas parecia pertencer a um terminal.
+
+A interface passa a ter **dois materiais, e o material diz o que a coisa é**:
+
+- **aço esmaltado** é o terminal falando de si mesmo — o pórtico parafusado no
+  topo do porto com os instrumentos embutidos, o console das teclas embaixo e o
+  vidro escuro atrás do número. Azul-marinho, risco de escovado fino e um
+  filete âmbar na aresta que dá pra água. Tudo que fica **permanentemente**
+  sobre o porto é aço, então lê como parte da estrutura e não como painel
+  flutuando por cima;
+- **papel** continua sendo o papelório: prancheta, prendedor, manifesto,
+  fichas. Tudo que **abre** é papel, então lê como algo entregue na mão.
+
+O que isso muda, item a item:
+
+- o contador virou totalizador de balança: dígitos âmbar acesos atrás de vidro,
+  numa janela de largura fixa cortada para o maior número que `GameState.fmt`
+  produz (`8.88Qa`), com os dígitos **alinhados à direita** dentro dela. A
+  origem continua invariável — agora por reserva, não por alinhamento — e a
+  taxa ao lado nunca é empurrada;
+- as casas que o número ainda não alcançou não ficam vazias: carregam **oitos
+  apagados**, como o segmento que o mostrador não está acionando. A fonte é
+  monoespaçada, então o trecho apagado e o número aceso encaixam célula a
+  célula sem sobrepor um pixel — e a largura reservada vira leitura de
+  progresso em vez de buraco;
+- ganhar TEU **acende o vidro** por 0,22 s. É o "isso pagou" mais barato
+  possível: nada de geometria se mexe, então pode disparar a cada caixa
+  creditada sem a barra tremer. Respeita `UserPreferences.can_animate()`;
+- o estado do berço saiu do chip de ardósia e virou uma **ficha esmaltada
+  pendurada** no pórtico, com lâmpada de status (âmbar piscando quando o toque
+  paga, teal quando é só automação) e um fio de barra de progresso. O retrato
+  não tinha progresso nenhum: o card do berço só existe no rail, que só existe
+  em tela larga;
+- o relógio perdeu a caixa de madeira e virou uma **vigia de latão** encaixada
+  na ponta direita do mesmo pórtico. `Hud.BAR_H` é o contrato entre os dois. O
+  vento deixou de ocupar onze caracteres em palavra e virou três pips;
+- em retrato as teclas viraram **console**: quatro teclas de peso igual, glifo
+  de 24 px sobre a palavra, e AJUSTES finalmente com nome em vez de um quadrado
+  de 40 px. A LOJA acende um ponto âmbar quando existe algo comprável agora —
+  metade do laço de um clicker é gastar, e essa metade era invisível até abrir
+  a loja e conferir;
+- o pórtico acompanha o **mundo**, não a janela, então em tela larga ele para
+  onde o rail começa. Com ele visível nos dois perfis, o rail devolveu o
+  contador: existe **um** número no jogo, não dois para manter em sincronia;
+- a câmera passou a conhecer o cromo (`PortCamera.set_view_insets`). Sem isso o
+  pórtico sentava em cima do portão e o console em cima da última fileira de
+  galpões, e nenhum arrasto trazia os dois de volta — a câmera parava na borda
+  do terminal, não na borda do que dá pra ver;
+- o navio atraca 36 px mais abaixo (`PortLayout.SHIP_Y` 60 → 96): a proa ficava
+  na faixa do pórtico e da via de acesso, ou seja, meio casco era cromo e meio
+  era fora de quadro exatamente na hora de tocar nele.
+
+Aceite: `ui_p0_test_runner` continua provando que ícone, origem do número e a
+linha de taxa não se movem de 0 a `1e15`; `contrast_test_runner` cobre as oito
+combinações novas de tinta sobre aço; e `tools/capture/capture.tscn -- matrix
+world` falha se o contador ou o relógio saírem do pórtico, se a ficha do berço
+subir por baixo dele ou se ela encostar no console.
+
+#### Aviso, crachá e o que se pode tocar — revisado em 30/07/2026
+
+Quatro coisas que o playtest chamou de "muito ruim mesmo", e as quatro tinham a
+mesma raiz: a interface interrompia, ou respondia, quando ninguém pediu.
+
+- **Notificação virou sino.** Cada aviso chegava como faixa sobre o cais,
+  entrava, ficava três segundos e saía — sempre em cima da parte da tela que o
+  jogador estava olhando, pra dizer algo que ele acabou de ver acontecer. Agora
+  nada interrompe: o aviso acende uma lâmpada no sino na ponta do pórtico e
+  espera ser lido. `NotificationCoordinator` continua decidindo o que vale
+  guardar e continua colapsando repetição — só deixou de existir quem parasse o
+  jogo pra contar. `ToastLayer` saiu; `NoticeBell` entrou, e ele responde
+  `notify_shown_finished()` na hora, senão a fila trava esperando uma faixa que
+  não existe mais.
+- **Tooltip.** Era o único pedaço de interface que o jogo não desenhava: caixa
+  cinza arredondada na fonte padrão da engine, sobre um porto em pixel art. Um
+  tooltip é um popup pendurado na `Window`, não no controle que o pediu, então
+  `UiTheme.install_window_theme()` é o único lugar que alcança ele.
+- **Tocar em máquina não abre ficha de gente.** A inspeção usava `is_crew()`,
+  que é verdade pra qualquer coisa com operador — ou seja, todo reach stacker,
+  transtêiner, portêiner, rebocador e carreta do portão era uma ficha esperando
+  pra abrir. Agora é `is_person()`: só quem está no pátio a pé. Quem trabalha
+  dentro de uma cabine continua na aba EQUIPE do Diário, que é a lista do turno
+  inteiro.
+- **A ficha virou crachá.** Era um formulário sobre uma pessoa: linhas com
+  legenda, nome no topo e nenhuma foto em lugar nenhum. Um terminal emite
+  crachá pro pessoal dele, então é isso que tocar em alguém entrega — laminado,
+  tarja teal com o nome do porto, retrato montado e o registro impresso ao
+  lado. O retrato é de `portrait_sheet` (24x28, seis rostos), escolhido pelo uid
+  da pessoa, com o capacete como camada cinza separada pro `modulate` tingir —
+  mesmo truque do sprite que anda, e pela mesma razão. Despachante e comandante
+  de rebocador saem sem capacete: nenhum dos dois usaria um.
+
+#### Dois cascos nunca dividem o canal — 30/07/2026
+
+Com vários navios atracados, o que manobrava atravessava os outros. A ideia
+original era "passa por fora" — `FAIRWAY_X` a 8 px do berço — e 8 px num casco
+de 66 não é passar por fora, é passar por dentro com a borda aparecendo.
+
+**Não tem offset que resolva.** O mundo tem 320 px, a água tem 80 e o casco tem
+66: pra um casco passar limpo por outro atracado ele teria que começar em x 310
+e terminar em 376, fora do mapa. Duas embarcações não cabem lado a lado, ponto.
+
+Então nada passa. O casco só anda de proa (o sprite é desenhado apontando pro
+norte), logo o canal corre sul → norte, e quem decide se dá pra usar é quem já
+está atracado:
+
+- **canal livre** — a manobra completa: sobe pelo fairway, encosta no fim, e sai
+  pelo topo. É a cena que o porto foi construído em volta;
+- **tem alguém no caminho** — os rebocadores tiram o navio **direto pro mar**, de
+  través, saindo pela borda leste do quadro. Que é como se tira um navio do cais
+  de qualquer jeito: primeiro afasta da parede, depois é que se navega.
+
+`PortWorld.lane_clear_north/south` decide, `PortLayout.OFFING_X` é onde a rota
+lateral termina. E como o afastamento lateral é feito com y constante, e os
+berços são espaçados 258 px pra cascos de no máximo 232, essa rota **não pode**
+cruzar ninguém — é geometria, não é sorte.
+
+Dois efeitos colaterais que valem por si:
+
+- sair do cais virou uma perna própria da manobra em vez de acontecer junto com
+  a corrida pro norte. Um casco que dispara pro norte no instante em que soltam
+  as amarras lê como se estivesse deslizando pela parede em que estava amarrado;
+- a esteira agora depende de **estar navegando**, não da fase. Navio sendo
+  rebocado de través a passo de homem não faz esteira.
+
+Aceite: `phase4_ship_test_runner` prova a premissa geométrica (se alguém alargar
+o mundo, o teste avisa que a regra pode ser afrouxada), a tabela de bloqueio nas
+três configurações de cais, e que as duas rotas estão ligadas à resposta. O shot
+`unberth` do harness mostra o berço do meio saindo com os dois vizinhos
+atracados, e falha se o casco não sair da parede.
+
+#### Pegar o pessoal no colo — 30/07/2026
+
+Tocar num boneco abre o crachá. **Segurar** levanta ele do chão: cresce (está
+mais perto da câmera do que o pátio), balança preso pela nuca, chuta, e a
+sombra fica onde ele estava — mais aberta e mais fraca, que é a única coisa na
+tela dizendo a que altura ele está. Solta e ele cai, amassa no pouso, e volta a
+andar. É o Mii Plaza do porto, e é a única coisa no jogo que se faz com uma
+pessoa em vez de com carga.
+
+Custa zero pra simulação: a ronda que ele estava fazendo é uma tarefa presa no
+quadro e continua presa enquanto ele está no ar, então ser carregado do outro
+lado do terminal só significa que a volta a pé é mais longa.
+
+Três decisões que o teste protege:
+
+- toque e segurar dividem o mesmo aperto, e nunca disparam os dois — `GRAB_HOLD`
+  (0,26 s) decide, e `GRAB_SLOP` (10 px de percurso) entrega o aperto pra câmera;
+- máquina com operador continua sendo máquina: só `is_person()` sobe do chão;
+- ninguém é largado na água — a soltura prende a posição ao terminal.
+
+O navio mantém luzes de navegação e seis holofotes de convés, mas a camada
+posterior de cabines foi removida junto com a frota de PNGs por classe. As luzes
+agora usam diretamente as coordenadas do casco único do GitHub.
 
 #### O material da interface — revisado em 30/07/2026
 
@@ -544,9 +737,13 @@ Componentes:
 - `WorldEventDirector`: eventos usam proxies visuais e nunca corrompem o
   inventário real.
 
-Um save novo nasce com um manifesto completo no setor de exportação. Portanto,
-a primeira cena já tem contêineres, o primeiro navio consegue descarregar,
-carregar completamente e partir sem um tutorial artificial.
+Um save novo nasce com 24 caixas rastreáveis do comboio rodoviário inaugural,
+todas com UID próprio e origem `cidade`, já entregues no setor de exportação
+antes do primeiro turno. Portanto, a primeira cena já tem contêineres, o
+primeiro navio consegue descarregar, carregar completamente e partir sem um
+tutorial artificial. Saves de pátio v2 drenados pela regra antiga recebem uma
+única correção rastreável antes de a cena aparecer; depois de persistidos em v3,
+restaurar um pátio vazio e o loop normal nunca repõem caixas do nada.
 
 ### Metas de progressão
 
@@ -572,7 +769,7 @@ Em vez de manter a lista antiga item a item, o resumo:
 
 - **Fundação** — save v2 atômico com backup, recuperação e migração; export e
   import manual do save; detecção de storage indisponível; `ResponsiveShell`
-  com perfis retrato/paisagem; 13 suítes headless; harness de captura que roda
+  com perfis retrato/paisagem; 18 suítes headless; harness de captura que roda
   a matriz de resolução inteira e falha se um overlay vazar do viewport.
 - **Carga** — `CargoUnit` com UID persistente, setores de importação e
   exportação, `BerthCallController` com ciclo 100%→0%→100%, recompensa só no
@@ -585,8 +782,10 @@ Em vez de manter a lista antiga item a item, o resumo:
   detalhes ligados ao estado real do berço.
 - **Tráfego** — via de serviço de mão dupla, faixa reservada por veículo,
   distância de seguimento e destravamento por timeout.
-- **Interface** — a prancheta do conferente: nine-patches na grade de pixel,
-  contador sem placa, loja reconstruída, notificações com política única.
+- **Interface** — dois materiais: aço esmaltado para o que fica sobre o porto
+  (pórtico, console, vidro do contador) e a prancheta do conferente para o que
+  abre. Nine-patches na grade de pixel, loja reconstruída, notificações com
+  política única.
 - **Acessibilidade** — foco por teclado em tudo, anel de foco de dois tons,
   nomes acessíveis, contraste AA verificado por teste.
 
@@ -607,26 +806,130 @@ O que segue é o que **falta**, reordenado depois do playtest de 30/07/2026.
 | "O barco entra e sai de ré" | `Ship` interpola posição sem nunca girar o casco | E |
 | "As máquinas parecem mover coisas sem sentido" | Os haulers teleportam pro portão, andam em velocidade constante e viram em 90° secos | E |
 
-### Fase A — o rail de comandos e o resto do cromo — P0
+### Diagnóstico do playtest — 30/07/2026, segunda passagem
 
-O desktop é o pior estado do jogo hoje: um terço da tela é cinza vazio.
+Os três sintomas relatados depois da entrega das fases A–E, e o que estava por
+trás de cada um. As regras de gênero que eles violam estão em
+[`docs/design/principios.md`](docs/design/principios.md).
 
-- [x] Criar `CommandRail`: prancheta fixa na lateral direita em paisagem, com
-      contador, chip do berço, objetivo fixado, teclas e um resumo (dia,
-      escalas, ocupação do pátio) preenchendo o pé do quadro.
-- [x] Em retrato, as mesmas teclas viram uma barra inferior no mesmo material.
-- [x] A loja e o Diário abrem **dentro** do rail no desktop, no mesmo
-      retângulo, então parece o rail virando página e não uma gaveta chegando
-      de fora.
+| Sintoma relatado | Causa | Fase |
+|---|---|---|
+| "Compro coisas mas parece que nada acontece" | Cavalo mecânico, reach stacker e empilhadeira ficavam **invisíveis** fora do mapa entre viagens, e o teto visual de cada máquina era 1 ou 2. Comprar a décima não mudava um pixel, e a taxa nova aparecia num contador atrás da loja aberta | P |
+| "Não sei se a compra valeu a pena" | O cartão dizia preço e produção, nunca **quanto tempo leva pra se pagar**. Sem denominador comum, duas máquinas de preços muito diferentes não eram comparáveis | P |
+| "Falta um fluxo claro do contêiner; as máquinas deviam interagir entre si" | A caixa voava do porão direto pro bloco. O portêiner animava por cima do voo, o transtêiner rodava um ciclo decorativo sobre um bloco qualquer, e os cavalos mecânicos faziam recados de portão que não tocavam a carga do navio. Nenhuma máquina passava carga pra outra | P |
+
+### Fase P — a cadeia do contêiner e o peso da compra — P0
+
+O contêiner deixa de teleportar e passa a ter **cadeia de custódia**: cada perna
+do percurso pertence a uma máquina que o jogador comprou.
+
+```text
+NAVIO  --portêiner-->  APRON  --cavalo mecânico-->  FAIXA DO BLOCO  --transtêiner-->  PILHA
+PILHA  --transtêiner-->  FAIXA  --cavalo mecânico-->  APRON  --portêiner-->  NAVIO
+CARRETA DE RUA  --máquina de pneus-->  APROXIMAÇÃO  --carreta-->  FAIXA  --transtêiner-->  PILHA
+```
+
+- [x] `CargoRelay` (`scripts/world/cargo_relay.gd`): itinerário de três pernas
+      sobre o mesmo contrato do `FlyingContainer`, então a camada de carga não
+      mudou uma linha. `duration()` responde antes do primeiro frame, `landed`
+      dispara exatamente uma vez, e o nó se libera em seguida.
+- [x] **Nada trava.** Toda falha desemboca no arco simples de antes: máquina
+      liberada no meio da viagem, carreta travada 22 s, ou pouso forçado pelo
+      harness de captura. `tests/relay_test_runner.gd` prova os três, mais uma
+      escala inteira ponta a ponta.
+- [x] **O toque continua sendo um toque.** A carreta é reservada no momento em
+      que o itinerário é desenhado; sem carreta livre não existe relé, e a caixa
+      atravessa na velocidade antiga. O número de caixas sendo dirigidas é
+      exatamente o número de máquinas livres pra dirigi-las — e é por isso que
+      comprar mais uma é visível.
+- [x] `PortLayout` ganha o **interchange**: o apron sob o trilho do portêiner
+      (que também é a via tronco norte-sul do terminal), a faixa de rolamento na
+      ponta marítima de cada bloco, e a aproximação em frente às vagas do
+      portão. Uma caixa está sempre ou numa máquina com nome ou num chão que uma
+      máquina alcança.
+- [x] Portêiner e transtêiner **sombreiam** a caixa em vez de animar num timer:
+      o carro segue a posição real do contêiner, e o transtêiner rola pela fileira
+      pra encontrá-lo.
+- [x] O cavalo mecânico virou o que a própria descrição dele diz que é: máquina
+      de pátio sem placa de rua. Não pega mais recado de portão, estaciona numa
+      **vaga numerada** no apron e fica visível o tempo todo. Reach stacker e
+      empilhadeira continuam rodoviários e entram pelo portão.
+- [x] Tetos visuais subiram onde ver mais máquinas é o ponto: 5 cavalos, 3
+      portêineres, 3 transtêineres, 2 reach stackers, 2 empilhadeiras.
+- [x] Toda compra tem corpo: a máquina sacode nas molas, sai um `+X TEU/s` sobre
+      ela no pátio, e a taxa no contador anuncia o ganho em porcentagem. Compras
+      acima do teto visual caem sobre uma máquina que já existe.
+- [x] O cartão da loja mostra **tempo de retorno** (`paga em 4min`) assim que a
+      máquina é acessível. É o único número que torna duas máquinas de preços
+      muito diferentes comparáveis.
+- [x] Melhoria comprada tem corpo na máquina: um farol âmbar por upgrade
+      instalado, em fila curta no nariz e piscando fora de fase. Um reach stacker
+      de fábrica e um com três melhorias se distinguem do outro lado do terminal
+      sem ler número. São luzes e não arte nova de propósito — os sprites saem de
+      `tools/sprites`, e uma marca que não exige regeneração acompanha a tabela
+      de upgrades pra onde ela for.
+- [x] Captura `relay_hand_off`: o harness espera uma caixa ser **dirigida** ao
+      menos 26 px numa carreta antes de fotografar, e falha se em 20 s nenhuma
+      chegou a um chassi.
+
+Pendente nesta fase:
+
+- [ ] A máquina de pneus **pegar do leito da carreta**: hoje a caixa dá um salto
+      curto do leito até a aproximação e só então sobe no chassi. Falta a lança
+      do reach stacker estendendo até o caminhão.
+- [ ] Trilhos de pátio: com muitas carretas ao mesmo tempo o corredor do apron
+      vira fila indiana sem prioridade. O `TrafficCoordinator` cobre a via de
+      rua, não o apron.
+- [ ] A carreta ainda não é semirreboque: o cavalo mecânico carrega a caixa em
+      cima dele em vez de puxar um chassi articulado.
+- [ ] Empilhamento visível: o transtêiner sombreia a caixa até o slot, mas não
+      encaixa entre as pilhas vizinhas — passa por cima delas.
+- [ ] Inconsistência conhecida: `GateDock.AUTO_MOVERS` ainda conta `tt` na taxa
+      de automação do portão, e o cavalo mecânico não trabalha mais carreta de
+      rua. Não foi mexido junto porque é número de balanceamento coberto pelas
+      suítes `gate` e `phase3_economy` — trocar exige rodar o simulador, não uma
+      edição de uma linha.
+
+Aceite: uma escala inteira com equipamento comprado não move uma única caixa
+sem uma máquina embaixo dela ou uma máquina que acabou de largá-la; sem
+equipamento, o jogo se comporta exatamente como antes.
+
+### Fase A — o console — P0, encerrada em 04/08/2026
+
+Esta fase nasceu pra consertar o desktop: um terço da tela era cinza vazio com
+dois botões soltos. Ela entregou o rail — e a Fase Q, que veio depois e é a que
+o jogador pediu, travou o jogo em retrato e tornou o rail **inalcançável**.
+
+O rail foi **apagado**, não mantido dormente. Não é limpeza: o board de desktop
+era o único lugar do jogo com a tecla `ABRIR CAPITAL`, então o prestígio inteiro
+— a árvore de capital, o reset, o pilar "todo reset abre um futuro" — estava
+fora de alcance de qualquer jogador. Uma tela que não abre não é código extra
+esperando um dia útil; é onde uma feature some sem ninguém notar.
+
+- [x] Em retrato, as teclas são um console de aço no polegar.
 - [x] Reservar a largura da barra de rolagem (`SCROLL_MODE_RESERVE`) em vez de
       desenhá-la por cima do conteúdo, e trocar a tábua de madeira chapada por
       calha funda com pega arredondada.
 - [x] Corrigir a sobreposição entre a taxa do contador e o chip do berço.
 - [x] Barra de progresso do Diário com altura de barra, não de sublinhado.
+- [x] Board de desktop, `ObjectiveChip` e o perfil `desktop` do
+      `ResponsiveShell` removidos. `ResponsiveShell.PROFILE` virou constante, e
+      a suíte `ui_p0` falha se um segundo perfil voltar.
+- [x] **O console ganhou cabeça**, porque o que o rail carregava e o telefone
+      nunca teve era exatamente o que o jogo precisava mostrar: uma linha que
+      responde "e agora?". À esquerda o objetivo com progresso — que estava
+      invisível em todo lugar, contra o pilar 3 e contra a meta "próximo
+      objetivo sempre visível". À direita **uma** ficha, por prioridade:
+      reconstruir o porto, senão comprar, senão `em 4min`.
+- [x] `Shop.next_purchase_eta()`: quanto falta pra próxima compra possível,
+      medida na renda atual. É a regra 2 de `principios.md` — espera que não dá
+      pra dimensionar é stall.
+- [x] Lâmpada por berço na ficha do berço. Com três navios atracados o retrato
+      só falava de um; os outros dois eram invisíveis até alguém tocar neles.
 
-Aceite: em 1280×720 e 1920×1080 não sobra nenhuma área sem função; nenhuma
-lista desenha a barra de rolagem sobre um card; a matriz de captura continua
-limpa.
+Aceite: o prestígio é alcançável em retrato; o objetivo e o tempo até a próxima
+compra estão visíveis sem abrir nada; nenhuma lista desenha a barra de rolagem
+sobre um card.
 
 ### Fase B — tela inicial e perfis — P0
 
@@ -648,22 +951,27 @@ antigo aparece intacto no perfil 1; reabrir o jogo volta pro menu.
 
 ### Fase C — frota: vários navios, classes e cadência — P1
 
-- [ ] `PortLayout` ganha berços múltiplos; o segundo e o terceiro são
-      destravados por marcos de terreno.
-- [x] `ShipCatalog` tem quatro silhuetas e quatro pinturas, com a classe
+- [x] `PortLayout` ganha berços múltiplos; o segundo e o terceiro são
+      destravados por marcos de terreno. Auditado em 30/07/2026: `BERTH_MAX`,
+      `berth_count()` derivado da profundidade do mundo e `_ensure_berths()`
+      estavam entregues e o checkbox estava desatualizado. A captura `fleet`
+      compra as parcelas e fotografa os três cascos alinhados.
+- [x] `ShipCatalog` tem três silhuetas e quatro pinturas, com a classe
       sorteada entre as que o terminal já é grande o bastante pra atender.
-- [ ] Capacidade por classe. Uma primeira tentativa deu ao feeder menos
-      fileiras da grade e um casco proporcionalmente mais curto; o resultado
-      leu como um navio **achatado** em vez de um navio menor, e foi revertido.
-      Um navio menor de verdade precisa de um casco próprio desenhado, não de
-      uma escala vertical no mesmo sprite.
+- [x] Capacidade visual fixa por classe. Feeder, Panamax e New Panamax usam as
+      mesmas 24 posições do `ship_top.png`; as pequenas variações de escala e
+      pintura são as do catálogo atual no GitHub e não mudam a transferência.
 - [x] A classe sorteada depende do tamanho do pátio (`unlock_blocks`): um
       porto de primeira hora só vê feeder, e o primeiro Panamax no berço é um
       evento visível em vez de um número subindo.
+- [x] Cada berço tem seu próprio `BerthCallController` e sua própria linha de
+      estado. Auditado em 30/07/2026: `PortWorld.berths` e `berth_report()`
+      alimentam o rail com uma linha por berço; o checkbox estava desatualizado.
 - [ ] `FleetDirector` agenda chegadas, mantém uma fila de espera fora do porto
-      quando todos os berços estão ocupados, e persiste a fila.
-- [ ] Cada berço tem seu próprio `BerthCallController` e seu próprio chip de
-      estado no HUD.
+      quando todos os berços estão ocupados, e persiste a fila. **Parcial:**
+      `_drive_arrivals` + `_turnaround` já espaçam chegadas e respeitam o canal
+      de uma via, mas isso vive dentro do `PortWorld` e a fila não é persistida.
+      Extrair para uma classe própria continua pendente.
 
 Aceite: com um berço o jogo se comporta como hoje; com três, três navios são
 trabalhados em paralelo sem misturar manifesto; salvar e reabrir reconstrói
@@ -695,7 +1003,10 @@ cumprindo as metas de sessão.
       duas pontas — ré pra atracar e ré pra sair.
 - [x] As boias saíram do canal: viraram marcas laterais desenhadas **por cima**
       do casco, então o navio passa por trás delas em vez de atropelá-las.
-- [ ] Rebocadores acompanham a manobra de atracação e desatracação.
+- [x] Rebocadores comprados acompanham a manobra de atracação e
+      desatracação, um em cada alheta; durante a operação aguardam ao largo,
+      com rastro de hélice e luzes próprias. O navio mostra amarras de proa e
+      popa somente enquanto está de fato no berço.
 - [x] Haulers dirigem: aceleram, freiam ao chegar e giram através do arco em
       vez de trocar de rumo num frame. O alvo continua sendo um dos quatro
       lados (os sprites só têm quatro), mas **virar** leva tempo — era a
@@ -724,6 +1035,229 @@ meio do nada.
 Aceite: comprar uma rota muda o mundo dentro de duas escalas; trocar de rota
 não perde nem duplica manifesto; o mapa é usável com uma mão.
 
+### Fase I — a tripulação do porto — P1
+
+O playtest disse que as máquinas "parecem mover coisas sem sentido" e que o
+pessoal do pátio "parece aleatório, sem cuidado nenhum". O problema não era a
+quantidade de detalhe: era não haver ninguém ali. Um porto é uma cadeia curta de
+estações, e cada estação é o trabalho de uma pessoa.
+
+- [x] `NpcCatalog` define a cadeia — berço, pátio, pilha, estrada, portão,
+      cidade, manobra — e só essas estações têm gente. Armazém, torre, porto de
+      IA, portal, trem e drone são infraestrutura: funcionam, mas não são
+      alguém. Cada papel responde numa linha por que existe.
+- [x] Os limites visuais caíram junto (`StructureLayer.CAPS`): dois conferentes
+      em vez de quatro, dois portêineres em vez de três, um drone em vez de
+      dois. Comprar mais equipamento deixa o porto mais rápido, não mais cheio
+      de estranhos.
+- [x] `NpcRoster` guarda a pessoa por vaga (`"sts#0"`), não pelo sprite: o
+      operador, a data de contratação (dia do porto **e** data do calendário) e
+      o total de movimentos sobrevivem a comprar terreno, prestígio e reload.
+      Seção de save `npc_roster`.
+- [x] `TaskBoard`: as necessidades são derivadas do estado vivo do porto, cada
+      uma tem uma chave física (`pilha:bloco3`, `portao:baia1`,
+      `estrada:patio47`) e cada chave tem **um** dono. Dois NPCs não pegam a
+      mesma tarefa porque só existe uma chave.
+- [x] O lado terrestre passou a excluir as caixas já reservadas por outro
+      motorista. Antes os dois recebiam o mesmo topo de pilha e o segundo
+      chegava, não achava nada e voltava com o chassi vazio.
+- [x] O conferente faz ronda com motivo: berço enquanto há navio, carreta que
+      acabou de estacionar, depois os blocos com estoque. Anda até o lugar,
+      fica lá o tempo de conferir, credita e pega a próxima.
+- [x] O portêiner só se move quando um contêiner se move:
+      `BerthCallController.move_started` entrega cada transferência real a um
+      guindaste livre, que acompanha aquela caixa pelo tempo exato do voo e
+      estaciona quando não há nada no ar.
+- [x] Tocar numa pessoa abre a ficha: nome, cargo, no porto desde, dossiê,
+      função no porto, tarefa atual e movimentos. A carga tem prioridade no
+      toque — navio e carreta atracada continuam sendo trabalho, nunca ficha.
+- [x] Personagens especiais semeados em vaga fixa: **Alisson**, conferente de
+      capacete azul, referência ao Alisson da Wilson Sons de Rio Grande; **Seu
+      Valdir**, comandante de rebocador; **Dona Neusa**, despachante do portão.
+      O capacete é um overlay em cinzas tingido por `modulate`, alinhado quadro
+      a quadro ao corpo — só o conferente tem capacete para tingir, então só ele
+      carrega cor.
+- [x] Suíte `npc`: identidade persistente, uma chave um dono, o toque de
+      inspeção, o rolo do casco e as tomadas de som. Inclui a checagem de que
+      todo texto da tripulação existe na fonte bitmap do jogo.
+- [x] Aba **EQUIPE** no Diário: a escala inteira numa lista, com cargo, tarefa ao
+      vivo e total de tarefas de cada um. Especiais destacados. É o que a ficha
+      individual não dá — dá pra comparar o turno.
+- [ ] Turnos: a mesma pessoa de dia e de noite, com troca visível.
+
+Aceite: dá para olhar o pátio e dizer quem está pegando do navio e levando para
+a pilha; duas pessoas nunca fazem a mesma tarefa; a ficha do Alisson diz de onde
+ele veio.
+
+### Fase K — frota simultânea e escalas especiais — P1
+
+- [x] `PortLayout` ganha berços de verdade: até três, ao longo do cais, e a
+      quantidade sai da **profundidade do próprio mundo** — comprar terreno alonga
+      o cais e libera o berço seguinte. Nada de constante mágica.
+- [x] Os berços dividem um canal só, porque 80px de água cabem um casco de 66.
+      Então **um navio manobra por vez**, entrando pela lane de fora e encostando
+      no final; quem está atracado fica no lugar e o que passa desenha por cima.
+      `PortWorld.ships`/`berths` são as listas; `ship`/`berth` continuam sendo o
+      berço 0, que é o nome que as suítes já usam.
+- [x] A frota visual voltou ao contrato do GitHub: três silhuetas, quatro
+      pinturas e **um único** `ship_top.png`; todas as escalas trabalham as
+      mesmas doze fileiras/24 caixas.
+- [x] Feeder, Panamax e New Panamax aplicam somente escala, offset e livery ao
+      casco 66x232. Classes adicionadas depois continuam aceitas por rotas e
+      saves como aliases, sem criar novos PNGs.
+- [x] Toda classe está em alguma rota: `barge` na cabotagem, `handysize` no
+      Caribe/Atlântico, `ULCV` no Transpacífico. Sem isso três classes novas eram
+      navios que ninguém veria — a suíte `route` agora falha se sobrar alguma.
+- [x] O portêiner mais perto é que pega o movimento, senão a caixa voava debaixo
+      de um guindaste a 200px de distância. Rebocador e conferente seguem o berço
+      que está sendo trabalhado.
+- [x] O chip do HUD diz de qual berço está falando; o rail diz "berço 2/3".
+- [x] ETA de verdade: a espera de cada berço virou um número (`berth_report()`)
+      em vez de um `await` que ninguém consegue ler. Conta o turnaround, o
+      espaçamento do canal e quem está na frente na fila.
+- [x] Cada berço com sua linha no rail em paisagem: classe, progresso, ou "em
+      12s" quando está vazio. O berço em foco fica no card grande.
+
+Aceite: três navios atracados, cada um com sua carga e seu tamanho; tocar num
+deles trabalha aquele e não o primeiro.
+
+### Fase L — contratos viram evento — P1
+
+O Diário tinha um card de contrato no topo da aba de metas: um contador quieto,
+em cima de objetivos que não tinham nada a ver com ele. Saiu.
+
+- [x] Contrato virou **escala especial**: rara (minutos de cooldown), com alerta
+      que interrompe, aceitável ou recusável, e com prazo pra responder.
+- [x] Aceitar reserva a próxima escala de um berço livre: o navio especial
+      **chega pelo canal**, com pintura que nenhuma escala normal pode sortear.
+- [x] Quando ele atraca, abre o minigame: uma garra que corre o poço e um toque
+      pra soltar o contêiner. A caixa cai onde tu largou, a torre inclina, e o
+      que sobra de encaixe é o alvo da próxima. Três erros ou o relógio zerado =
+      perdeu. Estilo fase surpresa: acelera a cada caixa, pitch subindo, tremida
+      na tela, "PERFEITO!" com combo.
+- [x] Ganhou: 10x a produção por 15s, ou 2x por 2min, ou uma bolada — sempre
+      precificado em **segundos da renda do próprio porto**. Perdeu: multa ou
+      produção a 50% por 45s.
+- [x] Burst nunca sobrevive a reload (guardar um 10x não é prêmio, é exploit) e
+      multa nunca joga a carteira pra baixo de zero.
+- [x] Escala interrompida por reload/prestígio não paga nem cobra; minigame pego
+      no meio volta como minigame a jogar.
+- [x] Suíte `special`: raridade, recusa, expiração, casco exclusivo, limites do
+      prêmio e da multa, e o jogo sendo ganho, perdido e estourado no tempo.
+- [x] Segundo minigame: **labirinto do pátio**. Verbo diferente do empilhar —
+      navegação em vez de timing. Grade 9x9 escavada do seed da própria escala
+      (mesma escala, mesmo pátio), contêineres espalhados, berço trancado até
+      achar todos, e relógio. Direcional de quatro teclas com seta girada por
+      lado, mais setas/WASD. Duas escalas novas usam ele.
+- [x] `MinigameBoard`: a moldura (scrim, placar, grito, encerramento) é uma só,
+      então o jogador aprende onde fica o relógio uma vez. Cada jogo entrega só o
+      miolo.
+- [x] Placar de escalas especiais no Diário, na aba nova **EQUIPE**.
+- [ ] Terceiro minigame (prumo do gancho).
+
+Aceite: aparece de vez em quando, dá pra recusar, é difícil, e ganhar muda o
+número na tela na hora.
+
+### Fase M — cordas, chuva e profundidade — P1
+
+O playtest apontou o cabo de amarração: duas linhas retas pretas saindo do nada.
+
+- [x] Corda de verdade, gerada: tile de 6px com espiral que fecha na emenda, mais
+      um nó de laço pro bollard. `Line2D` texturizado, não linha desenhada.
+- [x] Duas amarras — lançante de proa e de popa — saindo dos
+      **cabeços que o sprite do casco realmente desenha** e chegando nos
+      **bollards que o cais realmente tem** (`PortLayout` virou dono dos dois, e
+      o teste falha se uma corda cair perto de um bollard em vez de nele).
+- [x] Catenária rasa: corda de amarração sob tensão quase não pendura. A primeira
+      versão tinha quatro cabos de sisal claro com barriga generosa que se
+      cruzavam — viraram espaguete. Corda alcatroada escura, reta o bastante.
+- [x] Animação de lançar, escalonada por cabo, e de largar antes de sair. Estado
+      "atracado" é instantâneo; recolher é animação — berço não espera animação.
+- [x] Chuva: fio d'água diagonal, respingo onde cada gota cai (cada gota carrega a
+      altura em que aterrissa, senão só respinga na borda do mundo), céu mais
+      frio e os mastros acendendo de tarde.
+- [x] Sombra de contato sob o casco: o navio passa a pousar na água em vez de
+      parecer adesivo. Luz vem de cima-esquerda, como em todo o resto do jogo.
+- [x] Navio **cortando** a água: onda de proa saindo da roda em ângulo fixo,
+      colarinho de água revolta arrastado pelas laterais do casco, e o V de popa
+      com cristas transversais encurvadas pra trás.
+- [x] Mais coisa com sombra: caixa no chão do pátio e cabeços do cais. Luz de
+      cima-esquerda, como em todo o resto. **Convés não** — as fileiras ficam a
+      11px e a caixa tem 13, então a sombra cai em cima da caixa de baixo e o
+      porão vira faixa escura. Tentei, ficou feio, saiu.
+- [x] Água trabalhada por **todo** casco, parado ou não: uma marola corre ao longo
+      de cada navio, com pico alguns pixels pra fora (os três primeiros ficam sob
+      a sombra do próprio casco). Antes a superfície só se mexia nos cinco
+      segundos de uma atracação, que é dizer nunca.
+- [x] O meio-comprimento passado ao shader acompanha a escala aplicada ao casco
+      único, não o envelope fixo do berço.
+- [x] O "+N TEU" do toque estava lá e ninguém via: texto de 10px quase branco
+      com contorno de um pixel, em cima de um porto cheio de contêiner colorido.
+      Virou número grande, cor quente, contorno grosso, com estalo de escala ao
+      nascer — e o crítico é o dobro do tamanho, em dourado. A captura `reward`
+      falha se nenhum número aparecer.
+- [ ] Reflexo do casco na água parada.
+- [ ] Poças que crescem no pátio enquanto chove.
+
+### Fase N — otimização — P1
+
+- [x] `ContainerYard._slot_is_reserved` era O(reservas) chamado dentro de laços
+      que já percorrem todos os slots — O(slots × reservas) num porto comprado
+      inteiro. Virou contador por slot, O(1).
+- [x] `road_pickup_slot` montava e **ordenava** a lista de todos os slots
+      ocupados. Isso era perguntado uma vez por caminhão por frame pelos contornos
+      de interação. Virou uma passada só.
+- [x] Contornos de interação a 8 Hz em vez de 60 (o ponteiro em movimento ainda
+      atualiza no próprio evento). Cada refresh percorre o pátio inteiro por navio
+      e por caminhão.
+- [x] O portão só pergunta "que baia trabalhar" quando um movimento está de fato
+      vencido, não duas vezes por frame pra decidir se acumula.
+- [x] A linha de berço do rail buscava um nó com nome automático e **errava todo
+      frame**; spam de erro custa mais que a linha desenha.
+- [ ] Medir de verdade: `tools/capture/perf.tscn` precisa de janela em foco. Numa
+      janela sem foco o mesmo build mediu 144 fps num run e 13 no seguinte, então
+      os ganhos acima são algorítmicos e provados por teste, não cronometrados.
+
+### Fase O — o relógio do porto e os instrumentos — P1
+
+- [x] Relógio no canto, no estilo do de Stardew mas de porto: **disco de céu
+      pintado que gira** atrás de um aro de latão com ponteiro fixo em cima. Sol
+      nasce pela esquerda, cruza o topo ao meio-dia e se põe pela direita; noite
+      com lua e estrelas embaixo; faixas de amanhecer e entardecer nas horas
+      certas — as mesmas do `TimeManager`, então quadro e relógio concordam.
+      Um mostrador com ponteiro diz a hora; uma janela pro céu diz o que a luz
+      está fazendo sem ser lida.
+- [x] Hora em âmbar, dia em tom apagado, glifo do tempo (sol, lua, nuvem, chuva,
+      névoa) e a força do vento em três pips. Revisado em 30/07/2026: a placa de
+      ardósia, o cartão do dia e a caixa de madeira em volta saíram, e o vento
+      deixou de gastar onze caracteres da barra em palavra.
+- [x] Fica encaixado na ponta direita do pórtico, que por sua vez acompanha o
+      **mundo** e não a janela: em tela larga a direita é o rail de comandos, e um
+      relógio ali sentaria em cima das teclas.
+- [x] `TimeManager` ganhou `wind` e `overcast`, sorteados por dia. Como a chuva,
+      são só aparência: a neblina já carrega a penalidade de throughput.
+- [x] Birutas laranja-e-branco em três estados de enchimento (com rajada
+      escalonada) e galhardetes de pano nas alturas do vento. Ficam onde o
+      terminal tem chão livre — nunca no trilho do portêiner nem na faixa de
+      rolamento.
+- [ ] Maré subindo e descendo na linha d'água.
+- [ ] Estação/mês no relógio, além do dia.
+
+### Fase J — variedade sonora — P2
+
+- [x] Seis tomadas do contêiner aterrissando e quatro do spreader pegando a
+      caixa, sorteadas em saco embaralhado com escada de pitch: nem a tomada nem
+      o pitch repetem em sequência. Sob automação isso toca várias vezes por
+      segundo e uma amostra só soava como bug.
+- [x] O casco agora **rola**: a caixa que sai ou entra numa fileira faz o navio
+      inclinar para aquele bordo e voltar pelo outro antes de assentar. Antes era
+      um empurrão sem sinal que decaía para zero, então o berço em operação ficava
+      com banda permanente para o mesmo lado.
+- [x] Buzina em quatro tomadas e blip de interface em três. Todo navio soando
+      igual é a única coisa que um porto nunca faz, e a buzina toca em toda
+      chegada e toda partida.
+- [ ] Famílias para marreta e cancela.
+
 ### Fase G — eventos raros — P2
 
 Inalterada em relação ao plano anterior: scheduler determinístico com cooldown,
@@ -751,11 +1285,71 @@ Uma feature só pode ser marcada como concluída quando:
 8. texto, números e contraste continuam legíveis;
 9. documentação e checkbox são atualizados no mesmo commit.
 
+### Fase Q — retrato travado, casco virado, carreta refeita — P0
+
+Quatro pedidos do playtest de 30/07/2026, terceira passagem.
+
+- [x] **O jogo é retrato sempre.** `PortraitFrame` (autoload) trava a proporção em
+      2:3 e coloca **barras laterais** numa janela mais larga; numa tela mais alta
+      que 2:3 — todo telefone moderno — ele solta a altura e preenche. Um valor só
+      de `stretch/aspect` não faz isso: `expand` vira paisagem no desktop e `keep`
+      põe faixa em cima e embaixo de qualquer celular. A regra real é "limite a
+      proporção no retrato", que são os dois modos trocados no cruzamento.
+- [x] Por decisão visual, o casco voltou ao desenho atual do GitHub, com a proa
+      no topo, a acomodação na popa e o convés começando em y=44.
+- [x] A camada `ship_windows` foi retirada; o casco único mantém somente as
+      claraboias pintadas no próprio sprite e as luzes operacionais do runtime.
+- [x] O rastro do shader voltou a ler a proa em `-y`, sem o espelhamento criado
+      para a versão temporária de proa para baixo.
+- [x] **A carreta foi refeita do zero.** Eram dois bugs com a mesma raiz: o
+      caminhão andava na direção do próximo waypoint enquanto a rotação do corpo
+      só *tendia* pra lá, então em toda curva o corpo apontava pra um lado e o
+      veículo ia pro outro — a caixa em cima parecia deslizar um tempo atrás das
+      rodas. E carregava as caixas num sprite único cujo leito tinha 28 px pra
+      29 px de carga, então a segunda sobrava pra fora da traseira.
+- [x] Agora são **dois corpos**: cavalo e semirreboque com sprites próprios
+      (`veh_truck_cab`, `veh_truck_chassis`), articulados no quinto-roda — o
+      chassi arrasta o eixo traseiro e vira atrás do cavalo como um semirreboque
+      de verdade. E a velocidade é **sempre ao longo do nariz**, então o conjunto
+      fisicamente não consegue andar de lado: atraso de carga deixou de ser uma
+      coisa a calibrar e passou a ser uma coisa que não dá pra expressar.
+- [x] Freio de curva com antecedência (`_corner_throttle`) e aceite de waypoint
+      "passou por trás do nariz" — sem o segundo, uma marca que o veículo raspa
+      vira rotatória e ele gira nela pra sempre.
+- [x] **Tela inicial no formato do mockup**: placa grande, JOGAR / CONTINUAR —
+      DIA n / AJUSTES, quatro teclas de canto (FEEDBACK, SITE, COMUNIDADE,
+      CRÉDITOS) e o rodapé com versão e estúdio. CONTINUAR só existe quando existe
+      pra onde continuar; o terminal é lembrado em `UserPreferences`, não num save,
+      porque a tela tem que responder "continuar qual?" antes de carregar
+      qualquer perfil.
+
+Pendente nesta fase:
+
+- [ ] A arte de fundo da tela inicial (`ui_title_port.png`, 160×240) é bem menos
+      densa que o mockup e o recorte COVERED aperta o horizonte num telefone alto.
+- [ ] O reboque não tem para-choque traseiro articulado nem estabilizadores; o
+      chassi é uma peça só.
+
 ### Ordem de execução
 
-A → B → D → E → C → F → G → H.
+A → B → D → E → C → **P** → F → G → H.
 
 O cromo quebrado e a falta de tela inicial são o que o jogador vê primeiro, e
 automação com bônus de partida é o que muda o jogo com menos código. A frota
 múltipla (C) vem depois do polimento de movimento (E) de propósito: não faz
 sentido multiplicar por três um navio que ainda atraca de ré.
+
+A fase P entrou depois do segundo playtest e furou a fila do mapa-múndi (F).
+A razão está em [`docs/design/principios.md`](docs/design/principios.md): comprar
+sem ver o que mudou é o erro que mais mata clicker, e rota nova num porto onde a
+compra não tem corpo é conteúdo empilhado sobre um buraco. O que sobrou da P —
+lança do reach stacker, semirreboque articulado, prioridade no apron,
+empilhamento entre pilhas vizinhas — é polimento e pode andar em paralelo com F.
+
+### O que continua sendo a maior lacuna
+
+**Automação não abre decisão nenhuma.** Hoje ela só substitui o toque: não há
+auto-compra configurável, prioridade de berço, política de pátio nem build
+salvável. É a regra 5 de `docs/design/principios.md` e o item mais valioso ainda
+não planejado — vale mais que qualquer conteúdo novo, porque é o que transforma
+"esperar" em "decidir".

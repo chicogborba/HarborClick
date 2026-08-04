@@ -10,7 +10,6 @@ var shell: ResponsiveShell
 var bell: NoticeBell
 var notifications: NotificationCoordinator
 var settings: SettingsPanel
-var objective: ObjectiveChip
 var journal: PortJournal
 var routes: RouteMap
 var prestige_dialog: PrestigeDialog
@@ -84,13 +83,7 @@ func _ready() -> void:
 	rail.settings_requested.connect(settings.open)
 	rail.shop_requested.connect(func() -> void: shop.toggle())
 	rail.set_shop_alert_source(Callable(shop, "has_affordable"))
-
-	objective = ObjectiveChip.new()
-	objective.name = "ObjectiveChip"
-	objective.setup(Progression, {
-		"get_recommended": Callable(Progression, "get_recommended_objective"),
-	})
-	add_child(objective)
+	rail.set_shop_eta_source(Callable(shop, "next_purchase_eta"))
 
 	journal = PortJournal.new()
 	journal.name = "PortJournal"
@@ -101,18 +94,14 @@ func _ready() -> void:
 		"get_charters": Callable(self, "_journal_charters"),
 	})
 	add_child(journal)
-	objective.journal_requested.connect(journal.open)
 	rail.journal_requested.connect(func() -> void: journal.open())
-	# The rail asks for the objective on its own slow tick instead of once per
+	# The console asks for the objective on its own slow tick instead of once per
 	# progression event: recomputing the recommendation on every credited box
 	# made a burst of purchases visibly stall the frame.
-	rail.set_objective_source(Callable(objective, "_objective"))
-	Progression.objective_pinned.connect(func(_id: StringName, _item: Dictionary) -> void: objective.refresh())
+	rail.set_objective_source(Callable(self, "_next_objective"))
 	Progression.objective_progressed.connect(func(_id: StringName, _progress: float, _target: float) -> void:
-		objective.refresh()
 		journal.refresh())
 	Progression.achievement_unlocked.connect(func(id: StringName, item: Dictionary) -> void:
-		objective.refresh()
 		journal.refresh()
 		# Nothing sits over the port permanently any more, so this is the one
 		# moment that earns a banner: a goal actually completed.
@@ -283,11 +272,17 @@ func _refresh_berth_board() -> void:
 	if world.ships.size() > 1:
 		text = "Berço %d - %s" % [index + 1, text]
 	_set_berth_hint(text, index)
-	if rail != null:
-		var report := world.berth_report()
-		for row: Dictionary in report:
-			row["focused"] = int(row.get("index", -1)) == index
-		rail.set_fleet(report)
+	if world.ships.size() > 1:
+		# The tag names the berth it is talking about; the lamps beside it say how
+		# many others there are and which of them are under the cranes. Without
+		# them a second and third ship are invisible until one is tapped.
+		var quay: Array = []
+		for row: Dictionary in world.berth_report():
+			quay.append({
+				"working": float(row.get("total", 0.0)) > 0.0,
+				"focused": int(row.get("index", -1)) == index,
+			})
+		hud.set_quay(quay)
 
 
 func _journal_crew() -> Array:
@@ -352,9 +347,21 @@ func _refresh_inspected() -> void:
 	npc_card.set_objective(objective, stage)
 
 
+func _next_objective() -> Dictionary:
+	## What the console shows the player is working toward: whatever they pinned
+	## in the journal, and otherwise whatever progression recommends. Pinning is
+	## an explicit choice and always outranks the recommendation.
+	var pinned: Dictionary = Progression.get_pinned_objective()
+	if not pinned.is_empty():
+		pinned["pinned"] = true
+		return pinned
+	var recommended: Dictionary = Progression.get_recommended_objective()
+	return recommended
+
+
 func _set_berth_hint(text: String, index: int = 0) -> void:
-	## Portrait reads it over the port, desktop reads it in the rail. One call
-	## site so the two can never drift apart.
+	## One call site for the berth line, so the gantry tag and anything else that
+	## reads the berth can never drift apart.
 	if world == null or index < 0 or index >= world.ships.size():
 		return
 	var hull: Ship = world.ships[index]
@@ -365,9 +372,6 @@ func _set_berth_hint(text: String, index: int = 0) -> void:
 		# here on, and the player should be able to see that without counting
 		# boxes.
 		full = "%s  -  %.1f/s auto" % [text, rate]
-	# One measurement of the call, read by both profiles. The phone hangs it on
-	# the gantry's tag with a hairline bar; the wide screen spells it out on the
-	# rail's berth card.
 	var progress := hull.export_progress()
 	var capacity := hull.bay_capacity()
 	var done: float = float(capacity - hull.cargo_left()) \
@@ -377,46 +381,24 @@ func _set_berth_hint(text: String, index: int = 0) -> void:
 		"current": done if hull.is_working() else 0.0,
 		"total": float(capacity) if hull.is_working() else 0.0,
 	})
-	if rail != null:
-		# Keep the rail's card in step with the phase text even between the
-		# berth's own status emissions.
-		var silhouette := ShipCatalog.get_silhouette(
-			StringName(hull.ship_variant.get("silhouette_id", "")))
-		var vessel := str(silhouette.get("title", ""))
-		if world.ships.size() > 1:
-			vessel = "%s - berço %d/%d" % [vessel, index + 1, world.ships.size()]
-		rail.set_berth({
-			"text": text,
-			"vessel": vessel,
-			"current": done if hull.is_working() else 0.0,
-			"total": float(capacity) if hull.is_working() else 0.0,
-			"auto_rate": rate,
-		})
 
 
 func _apply_view_metrics(metrics: Dictionary) -> void:
 	world.apply_view_metrics(metrics)
 	cam.apply_view_metrics(metrics)
-	# The camera has to know what the HUD is standing on. The gantry always spans
-	# the top of the world; the key console only exists in portrait, because on a
-	# wide screen the keys are on the rail beside the port instead of over it.
-	cam.set_view_insets(Hud.BAR_H + Hud.TAG_DROP,
-		0.0 if str(metrics.get("profile", "")) == "desktop" \
-			else CommandRail.BAR_H + 12.0)
+	# The camera has to know what the chrome is standing on: the gantry spans the
+	# top of the world and the console sits on the bottom of it, and without this
+	# no amount of dragging brings the gate or the last row of sheds into view.
+	cam.set_view_insets(Hud.BAR_H + Hud.TAG_DROP, CommandRail.BAR_H + 12.0)
 	hud.apply_view_metrics(metrics)
 	rail.apply_view_metrics(metrics)
-	rail.set_yard_source(Callable(world.yard, "fill_ratio"))
 	shop.set_rail(rail)
 	shop.apply_view_metrics(metrics)
-	journal.set_rail(rail)
 	if routes != null:
-		routes.set_rail(rail)
 		routes.apply_view_metrics(metrics)
 
 	bell.apply_view_metrics(metrics)
 	settings.apply_view_metrics(metrics)
-	if objective != null:
-		objective.apply_view_metrics(metrics)
 	if journal != null:
 		journal.apply_view_metrics(metrics)
 	if prestige_dialog != null:
@@ -495,10 +477,8 @@ func _tutorial_target_rect(target: String) -> Rect2:
 				return Rect2(point - Vector2(20, 12), Vector2(100, 76))
 		"teu":
 			return hud.readout_rect() if hud != null else Rect2()
-		"rail":
-			return rail.content_rect if rail != null else Rect2()
-		"objective", "journal":
-			return objective._panel.get_global_rect() if objective != null else Rect2()
+		"rail", "objective", "journal":
+			return rail.head_rect() if rail != null else Rect2()
 		"shop":
 			return shop.launcher_rect() if shop != null else Rect2()
 		"prestige":

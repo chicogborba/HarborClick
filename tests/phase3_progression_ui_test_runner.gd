@@ -89,12 +89,19 @@ func _test_pin_and_objective_contract() -> void:
 		"refusing is a first-class answer")
 	alert._on_decline()
 	_expect(accepted.size() == 2, "a closed alert cannot answer twice")
-	var chip := ObjectiveChip.new()
-	chip.setup(null, {"get_objective": func() -> Dictionary: return {"title":"Movimente carga", "progress":4.0, "target":10.0, "pinned":true}})
-	viewport.add_child(chip)
+	# The objective used to live on a chip over the port, which was hidden, and
+	# on the desktop rail, which was unreachable — so it was visible nowhere. It
+	# is a line on the console now, and this is the test that says so.
+	var console := CommandRail.new()
+	viewport.add_child(console)
 	await get_tree().process_frame
-	_expect(chip._title.text.begins_with("FIXADA:"), "objective chip labels a pinned objective")
-	_expect(chip._progress.text == "4 / 10", "objective chip renders pinned progress")
+	console.set_objective_source(func() -> Dictionary:
+		return {"title": "Movimente carga", "progress": 4.0, "target": 10.0,
+			"pinned": true})
+	_expect(console._objective_label.text.begins_with("FIXADA:"),
+		"the console labels a pinned objective as pinned")
+	_expect(console._objective_value.text == "4/10",
+		"the console renders the pinned objective's progress")
 	viewport.queue_free()
 	await get_tree().process_frame
 

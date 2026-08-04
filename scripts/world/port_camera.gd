@@ -71,9 +71,9 @@ func apply_view_metrics(metrics: Dictionary) -> void:
 	_world_rect = metrics.get("world_rect", Rect2(Vector2.ZERO, _viewport_size))
 	_has_shell_metrics = true
 	var target_zoom := _target_zoom_for(_world_rect)
-	# Camera2D normally centers its canvas in the whole viewport. On desktop
-	# the command rail owns the right side, so offset the narrower world frame
-	# to the left instead of leaving symmetric empty gutters.
+	# Camera2D normally centres its canvas in the whole viewport. When the world
+	# frame is narrower than the viewport it is anchored left instead, so the
+	# leftover is one margin the chrome can own rather than two empty gutters.
 	offset = Vector2(
 		maxf(0.0, (_viewport_size.x - _world_rect.size.x) / (2.0 * target_zoom)),
 		0.0)
@@ -161,6 +161,6 @@ func focus_on(y: float, duration: float = 0.6) -> void:
 
 
 func _target_zoom_for(world_rect: Rect2) -> float:
-	## The terminal scrolls vertically, so width is the stable composition axis.
-	## Portrait stays at 1×; desktop enlarges 320 px into the allotted world rail.
+	## The terminal scrolls vertically, so width is the stable composition axis:
+	## the world's 320px design width is stretched to fill the frame it is given.
 	return world_rect.size.x / VIEW_W

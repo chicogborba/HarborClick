@@ -16,9 +16,7 @@ signal pressed_card(id: String)
 const DRAG_CANCEL_DISTANCE := 10.0
 const EMULATED_INPUT_DEDUPE_MSEC := 120
 const ART_SIZE := Vector2(54, 38)
-const ART_SIZE_COMPACT := Vector2(38, 32)
 const PRICE_WIDTH := 74.0
-const PRICE_WIDTH_COMPACT := 58.0
 
 var id: String = ""
 var kind: String = "structure"
@@ -32,7 +30,6 @@ var _count_label: Label
 var _price_stamp: PanelContainer
 var _price_label: Label
 var _price_col: VBoxContainer
-var _compact := false
 var _blurb := ""
 var _state: StringName = &""
 var _press_start := Vector2.ZERO
@@ -108,20 +105,10 @@ func setup(item_id: String, item_kind: String, art_key: String,
 	_price_stamp.size_flags_horizontal = Control.SIZE_FILL
 	_price_col.add_child(_price_stamp)
 	_price_label = UiTheme.stamp_label(_price_stamp)
-	set_compact(_compact)
+	_art_well.custom_minimum_size = ART_SIZE
+	_art.custom_minimum_size = ART_SIZE - Vector2(2, 2)
+	_price_col.custom_minimum_size.x = PRICE_WIDTH
 
-
-func set_compact(compact: bool) -> void:
-	## The desktop drawer is a third of the width of a phone sheet, so the art
-	## socket and the price column give room back to the name.
-	_compact = compact
-	if _art_well == null:
-		return
-	var art_size := ART_SIZE_COMPACT if compact else ART_SIZE
-	_art_well.custom_minimum_size = art_size
-	_art.custom_minimum_size = art_size - Vector2(2, 2)
-	_price_col.custom_minimum_size.x = \
-		PRICE_WIDTH_COMPACT if compact else PRICE_WIDTH
 
 
 func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false,

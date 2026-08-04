@@ -8,10 +8,9 @@ extends CanvasLayer
 ## into it. It replaced a tally of bare outlined text floating on a gradient,
 ## which had no edges, no material and nothing holding it to the port.
 ##
-## The bar frames the world rather than the window, so it spans the full screen
-## in portrait and stops at the command rail on a wide screen, and it is present
-## in both. `PortClock` mounts its dial into the right-hand end of this same bar;
-## `Hud.BAR_H` is the contract between them.
+## The bar frames the world rather than the window. `PortClock` mounts its dial
+## into the right-hand end of this same bar; `Hud.BAR_H` is the contract between
+## them.
 ##
 ## Whatever the berth is doing hangs under the bar on its own enamel tag. It is
 ## the only line of the interface that changes every few seconds, so it is a
@@ -26,6 +25,9 @@ signal job_tick
 const BAR_H := 40.0
 ## Where the tag hangs, measured from the bottom of the bar.
 const TAG_DROP := 3.0
+## A berth lamp and the space after it.
+const PIP_W := 5.0
+const PIP_GAP := 2.0
 
 var _bar: PanelContainer
 var _readout: Readout
@@ -35,10 +37,11 @@ var _led: TextureRect
 var _job_label: Label
 var _progress_bg: ColorRect
 var _progress_fill: ColorRect
+var _pips: Array[TextureRect] = []
+var _quay: Array = []
 var _progress := -1.0
 var _tick := 0.0
 var _blink := 0.0
-var _desktop := false
 var _safe_rect := Rect2()
 var _world_rect := Rect2()
 
@@ -81,9 +84,8 @@ func _build() -> void:
 	_job_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_berth_clip.add_child(_job_label)
 
-	# Portrait had no progress anywhere: the rail's berth card only exists on a
-	# wide screen, so a phone could see "Descarga" for a minute with no idea how
-	# much of the hull was left. Two rectangles buy that back.
+	# Without this the player could watch "Descarga" for a minute with no idea
+	# how much of the hull was left. Two rectangles buy that back.
 	_progress_bg = ColorRect.new()
 	_progress_bg.color = UiTheme.HULL_EDGE
 	_progress_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -126,6 +128,26 @@ func set_job_hint(text: String) -> void:
 	set_berth_status({"text": text})
 
 
+func set_quay(quay: Array) -> void:
+	## One lamp per berth, lit for the ones under the cranes and outlined for the
+	## one the tag is talking about.
+	##
+	## A second and third ship were invisible on a phone: the tag names its own
+	## berth, but nothing said how many others existed, so a player with three
+	## hulls alongside had no reason to believe there was more than the one they
+	## were tapping. Below two berths this draws nothing — a single lamp beside a
+	## line about the only berth there is says nothing at all.
+	_quay = quay.duplicate(true)
+	while _pips.size() < _quay.size():
+		var pip := UiTheme.led(UiTheme.Led.OFF)
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_berth_clip.add_child(pip)
+		_pips.append(pip)
+	for index in _pips.size():
+		_pips[index].visible = _quay.size() > 1 and index < _quay.size()
+	_fit_berth_chip()
+
+
 func set_berth_status(status: Dictionary) -> void:
 	## Public structured entry point for berth controllers. Common forms:
 	## {text}, {phase, current, total}, or {label, progress}.
@@ -163,15 +185,6 @@ func _layout() -> void:
 	_fit_berth_chip()
 
 
-func set_profile(profile: String) -> void:
-	## The shell knows the profile before the viewport ratio settles on mobile,
-	## so it is authoritative when supplied.
-	if profile.is_empty():
-		return
-	_desktop = profile == "desktop"
-	_fit_berth_chip()
-
-
 func _fit_berth_chip() -> void:
 	## The tag hugs its text instead of holding a fixed slab: a short phase like
 	## "Descarga 8/24" should not paint a bar across the port.
@@ -180,17 +193,15 @@ func _fit_berth_chip() -> void:
 	# to measure against.
 	if _berth_chip == null or _job_label == null or not is_inside_tree():
 		return
-	# On a wide screen the rail carries a full berth card with the vessel, the
-	# bar and the automation rate. A second copy of the same line hanging off the
-	# gantry would just be the same sentence twice.
-	_berth_chip.visible = not _desktop and not _job_label.text.is_empty()
+	_berth_chip.visible = not _job_label.text.is_empty()
 	if not _berth_chip.visible:
 		return
 	var area := _resolved_world_rect(get_viewport().get_visible_rect().size)
 	var text_width := UiTheme.FONT.get_string_size(_job_label.text,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, UiTheme.SIZE_SMALL).x
 	var lamp := _led.custom_minimum_size.x + 4.0
-	var width := clampf(text_width + lamp + 20.0, 96.0, area.size.x - 12.0)
+	var pips := _pip_strip_width()
+	var width := clampf(text_width + lamp + pips + 20.0, 96.0, area.size.x - 12.0)
 	var rows := 12.0 + (5.0 if _progress >= 0.0 else 0.0)
 	_job_label.custom_minimum_size = Vector2.ZERO
 	_berth_chip.size = Vector2(width, rows + 6.0)
@@ -203,7 +214,8 @@ func _fit_berth_chip() -> void:
 	var inner := Vector2(width - 10.0, rows)
 	_led.position = Vector2(0.0, floorf((12.0 - _led.custom_minimum_size.y) * 0.5))
 	_job_label.position = Vector2(lamp, 0.0)
-	_job_label.size = Vector2(maxf(0.0, inner.x - lamp), 12.0)
+	_job_label.size = Vector2(maxf(0.0, inner.x - lamp - pips), 12.0)
+	_place_pips(inner)
 	_progress_bg.visible = _progress >= 0.0
 	_progress_fill.visible = _progress >= 0.0
 	if _progress >= 0.0:
@@ -213,18 +225,42 @@ func _fit_berth_chip() -> void:
 		_progress_fill.size = Vector2(_progress_bg.size.x * _progress, 3.0)
 
 
+func _pip_strip_width() -> float:
+	if _quay.size() < 2:
+		return 0.0
+	return float(_quay.size()) * (PIP_W + PIP_GAP) + 2.0
+
+
+func _place_pips(inner: Vector2) -> void:
+	## Right-aligned on the tag's own line, so growing the status text pushes the
+	## text's own ellipsis rather than the lamps.
+	if _quay.size() < 2:
+		return
+	var x := inner.x - _pip_strip_width() + 2.0
+	for index in _quay.size():
+		var berth: Dictionary = _quay[index]
+		var pip := _pips[index]
+		# Lit under the cranes, dim when the berth is empty. The one the tag is
+		# describing is the brighter of the two states it could be in, which is
+		# the only distinction a 5px lamp can carry honestly.
+		var working := bool(berth.get("working", false))
+		pip.texture = UiTheme.led_texture(UiTheme.Led.ATTENTION if working \
+			else UiTheme.Led.RUNNING if bool(berth.get("focused", false)) \
+			else UiTheme.Led.OFF)
+		pip.position = Vector2(x, floorf((12.0 - pip.custom_minimum_size.y) * 0.5))
+		x += PIP_W + PIP_GAP
+
+
 func apply_view_metrics(metrics: Dictionary) -> void:
 	var view := get_viewport().get_visible_rect().size
 	_safe_rect = metrics.get("safe_rect", Rect2(Vector2.ZERO, view))
 	_world_rect = metrics.get("world_rect", _safe_rect)
-	set_profile(str(metrics.get("profile", "")))
 	_layout()
 
 
 func _resolved_world_rect(view: Vector2) -> Rect2:
-	## The bar belongs to the port, not to the window. On a wide screen the right
-	## of the window is the command rail, and a gantry running under it would be
-	## bolted across the keys.
+	## The bar belongs to the port, not to the window, so an inset on the world
+	## rect moves the gantry with it rather than leaving it spanning the glass.
 	var viewport_rect := Rect2(Vector2.ZERO, view)
 	var safe := _safe_rect.intersection(viewport_rect) if _safe_rect.size.x > 0.0 \
 		and _safe_rect.size.y > 0.0 else viewport_rect

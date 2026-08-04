@@ -16,7 +16,8 @@ something handed to you.
 
 - `title_screen.gd` — pixel panorama, logo and three profile cards.
 - `responsive_shell.gd` — portrait/landscape arrangement.
-- `hud.gd` and `command_rail.gd` — always-visible play state. `Hud.BAR_H` is the
+- `hud.gd` and `command_rail.gd` — always-visible play state: the gantry across
+  the top of the port and the console across the bottom of it. `Hud.BAR_H` is the
   gantry's height and the contract `port_clock.gd` mounts its dial against;
   `PortCamera.set_view_insets` is how the camera is told what the two panels are
   covering, so the port can still be scrolled out from under them.

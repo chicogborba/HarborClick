@@ -8,23 +8,18 @@ extends CanvasLayer
 ## of thing am I buying* (tabs), *how many at a time* (the bulk switch, which
 ## only appears on the tab where bulk means anything), then the list.
 ##
-## In portrait it is a bottom sheet under the thumb; on a wide screen it becomes
-## a side drawer so the port keeps at least two thirds of the window.
+## It is a bottom sheet under the thumb. It used to also have a side-drawer form
+## for a wide screen; the game is portrait-only now, and a second layout nobody
+## can open is a second layout that silently goes wrong.
 
 signal open_changed(opened: bool)
 
 const TABS := [
-	["structures", "EQUIPAMENTO", "EQUIP.", UiTheme.Icon.CRANE],
-	["upgrades", "MELHORIAS", "MELH.", UiTheme.Icon.STAR],
-	["land", "TERRENO", "TERRA", UiTheme.Icon.LAND],
+	["structures", "EQUIPAMENTO", UiTheme.Icon.CRANE],
+	["upgrades", "MELHORIAS", UiTheme.Icon.STAR],
+	["land", "TERRENO", UiTheme.Icon.LAND],
 ]
 const BUY_MODES: Array[StringName] = [&"x1", &"x10", &"x25", &"max"]
-## Min/max width of the desktop drawer. The world keeps
-## `ResponsiveShell.WORLD_DESKTOP_FRACTION` regardless, so the upper bound only
-## decides how much of the leftover rail the manifest is allowed to use — at
-## 300px the longer machine names were still being truncated on a 1080p screen.
-const DESKTOP_WIDTH := Vector2(240.0, 360.0)
-
 ## Which yard sprite stands for each purchase. Upgrades borrow the sprite of
 ## the machine they improve, so an upgrade never looks like a generic box.
 const UPGRADE_ART := {"click_mult": "estivador", "click_cps_pct": "estivador",
@@ -47,7 +42,6 @@ var _open := false
 var _active := "structures"
 var _refresh_timer := 0.0
 var _dirty := true
-var _desktop := false
 var _safe_rect := Rect2()
 var _profile := ""
 var _buy_mode: StringName = &"x1"
@@ -180,7 +174,7 @@ func _build_tabs() -> Control:
 	for tab: Array in TABS:
 		var button := Button.new()
 		button.text = str(tab[1])
-		button.icon = UiTheme.icon_texture(tab[3])
+		button.icon = UiTheme.icon_texture(tab[2])
 		button.clip_text = true
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		UiTheme.apply_font(button, UiTheme.SIZE_SMALL)
@@ -254,7 +248,6 @@ func _rebuild_upgrades() -> void:
 		var card := ShopCard.new()
 		card.setup(uid, "upgrade", _upgrade_art(item), item.name, item.desc,
 			UiTheme.Icon.STAR)
-		card.set_compact(_desktop)
 		card.pressed_card.connect(_on_buy_upgrade)
 		list.add_child(card)
 		_cards[uid] = card
@@ -293,7 +286,7 @@ func _update_tab_badges() -> void:
 	var button: Button = _tab_buttons.get("upgrades")
 	if button == null:
 		return
-	var base: String = TABS[1][2] if _desktop else TABS[1][1]
+	var base: String = TABS[1][1]
 	button.text = "%s %d" % [base, ready_upgrades] if ready_upgrades > 0 else base
 
 
@@ -386,58 +379,70 @@ func has_affordable() -> bool:
 	return not parcel.is_empty() and GameState.can_afford(float(parcel.cost))
 
 
+func next_purchase_eta() -> float:
+	## Seconds until the cheapest thing the player can see becomes affordable, or
+	## -1 when there is nothing to wait for.
+	##
+	## The console shows this so a wait always has a size. It answers with the
+	## *cheapest* purchase rather than the best one on purpose: the question it
+	## is standing in for is "is it worth staying?", and that is answered by the
+	## soonest thing that can happen, not the one with the best payback.
+	##
+	## Always priced at x1 regardless of the buy mode. The mode is a convenience
+	## for spending a full treasury; it must not make the countdown to the next
+	## decision look ten times further away than it is.
+	var cheapest := INF
+	for item in StructureDB.ITEMS:
+		var count := GameState.structure_count(item.id)
+		if count == 0 and GameState.lifetime_teus < float(item.cost) * 0.25:
+			continue
+		cheapest = minf(cheapest, GameState.structure_cost(item.id))
+	for item in UpgradeDB.ITEMS:
+		if not GameState.has_upgrade(item.id) and GameState.upgrade_unlocked(item):
+			cheapest = minf(cheapest, float(item.cost))
+	var parcel := LandDB.next_parcel()
+	if not parcel.is_empty():
+		cheapest = minf(cheapest, float(parcel.cost))
+	if is_inf(cheapest):
+		return -1.0
+	var missing := cheapest - GameState.teus
+	if missing <= 0.0:
+		return 0.0
+	# A port with no passive income never gets there by waiting, and a countdown
+	# that only moves when the player taps is a lie about what waiting does.
+	return missing / GameState.cps if GameState.cps > 0.0 else -1.0
+
+
 # -------------------------------------------------------------------- layout
 
 func _layout() -> void:
 	var view := get_viewport().get_visible_rect().size
 	var safe := _resolved_safe_rect(view)
-	_desktop = _profile == "desktop" if not _profile.is_empty() \
-		else view.x >= 700.0 and view.x / maxf(view.y, 1.0) >= 1.25
-	if _desktop:
-		var slot := _rail.content_rect if _rail != null \
-			and _rail.content_rect.size != Vector2.ZERO else Rect2()
-		if slot.size == Vector2.ZERO:
-			var width := clampf(safe.size.x * 0.30, DESKTOP_WIDTH.x, DESKTOP_WIDTH.y)
-			slot = Rect2(Vector2(safe.end.x - width - 8.0, safe.position.y + 8.0),
-				Vector2(width, safe.size.y - 16.0))
-		_board.size = slot.size
-		_board.position = slot.position
-	else:
-		var height := minf(safe.size.y * 0.70, 430.0)
-		_board.size = Vector2(safe.size.x - 12.0, height)
-		_board.position = Vector2(safe.position.x + 6.0, safe.end.y - height - 6.0)
+	var height := minf(safe.size.y * 0.70, 430.0)
+	_board.size = Vector2(safe.size.x - 12.0, height)
+	_board.position = Vector2(safe.position.x + 6.0, safe.end.y - height - 6.0)
 	for index in TABS.size():
 		var tab: Array = TABS[index]
 		var tab_button: Button = _tab_buttons.get(tab[0])
 		if tab_button != null:
-			tab_button.text = str(tab[2] if _desktop else tab[1])
+			tab_button.text = str(tab[1])
 	_update_tab_badges()
-	for card: ShopCard in _cards.values():
-		card.set_compact(_desktop)
-	if _teaser != null:
-		_teaser.set_compact(_desktop)
 
-	_backdrop.visible = _open and not _desktop
+	_backdrop.visible = _open
 	_board.visible = _open
 	UiTheme.place_clip(_clip, _board, safe)
-	# The rail owns the LOJA key in both profiles; the standalone launcher is
-	# only a fallback for a shop hosted without one (previews and tests).
+	# The console owns the LOJA key; the standalone launcher is only a fallback
+	# for a shop hosted without one (previews and tests).
 	_launcher.visible = not _open and _rail == null
-	if _desktop:
-		_launcher.size = Vector2(154.0, 40.0)
-		_launcher.position = Vector2(safe.end.x - 162.0, safe.end.y - 48.0)
-	else:
-		_launcher.size = Vector2(118.0, 38.0)
-		_launcher.position = Vector2(
-			safe.position.x + (safe.size.x - _launcher.size.x) * 0.5,
-			safe.end.y - 46.0)
+	_launcher.size = Vector2(118.0, 38.0)
+	_launcher.position = Vector2(
+		safe.position.x + (safe.size.x - _launcher.size.x) * 0.5,
+		safe.end.y - 46.0)
 
 
 func set_rail(rail: CommandRail) -> void:
-	## On a wide screen the board draws exactly where the rail is, so opening
-	## the shop reads as the rail turning a page rather than a drawer arriving
-	## from off screen — and the LOJA key belongs to the rail, not to a button
-	## floating on the grey.
+	## Only so the shop knows a console is hosting it and can drop its own
+	## fallback launcher.
 	_rail = rail
 
 
@@ -449,8 +454,6 @@ func toggle() -> void:
 
 
 func launcher_rect() -> Rect2:
-	if _rail != null and _rail.content_rect.size != Vector2.ZERO:
-		return _rail.content_rect
 	return _launcher.get_global_rect()
 
 

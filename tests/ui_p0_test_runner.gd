@@ -175,20 +175,21 @@ func _test_responsive_shell_profiles_without_main_scene() -> void:
 	_expect(_same_rect(portrait_world, Rect2(Vector2.ZERO, Vector2(360, 800))),
 		"ResponsiveShell leaves the full world rail available in portrait")
 
-	var desktop_viewport := _make_viewport(Vector2i(1000, 700))
-	var desktop_shell := ResponsiveShell.new()
-	desktop_viewport.add_child(desktop_shell)
+	# A wide window is pillarboxed by PortraitFrame, so the shell must not invent
+	# a second profile for it: the game has one layout, and this is the test that
+	# fails if a wide branch is ever reintroduced without a way to reach it.
+	var wide_viewport := _make_viewport(Vector2i(1000, 700))
+	var wide_shell := ResponsiveShell.new()
+	wide_viewport.add_child(wide_shell)
 	await get_tree().process_frame
-	_expect(desktop_shell.metrics.get("profile") == "desktop",
-		"ResponsiveShell classifies a wide viewport as desktop without Main")
-	var desktop_world: Rect2 = desktop_shell.metrics.get("world_rect", Rect2())
-	_expect(is_equal_approx(desktop_world.size.x, floorf(1000.0 * ResponsiveShell.WORLD_DESKTOP_FRACTION)),
-		"ResponsiveShell computes the desktop world rail from WORLD_DESKTOP_FRACTION")
-	_expect(is_equal_approx(desktop_world.size.y, 700.0) and is_zero_approx(desktop_world.position.x),
-		"ResponsiveShell keeps the desktop world rail aligned to the left safe area")
+	_expect(wide_shell.metrics.get("profile") == "portrait",
+		"ResponsiveShell reports one profile even for a wide viewport")
+	var wide_world: Rect2 = wide_shell.metrics.get("world_rect", Rect2())
+	_expect(_same_rect(wide_world, Rect2(Vector2.ZERO, Vector2(1000, 700))),
+		"the port keeps the whole safe area at any window size")
 
 	portrait_viewport.queue_free()
-	desktop_viewport.queue_free()
+	wide_viewport.queue_free()
 	await get_tree().process_frame
 
 
@@ -218,8 +219,8 @@ func _test_safe_area_reaches_primary_ui() -> void:
 	bell.apply_view_metrics(metrics)
 	await get_tree().process_frame
 
-	# The keys live on the command rail now, in both profiles, so that is what
-	# has to respect the gesture-safe inset.
+	# The keys live on the console, so that is what has to respect the
+	# gesture-safe inset.
 	var rail := CommandRail.new()
 	viewport.add_child(rail)
 	await get_tree().process_frame
@@ -229,8 +230,8 @@ func _test_safe_area_reaches_primary_ui() -> void:
 		"HUD tally stays inside an injected mobile safe area")
 	_expect(_rect_inside(safe, rail._bar.get_global_rect()),
 		"the portrait key bar stays above the gesture-safe inset")
-	_expect(rail._bar.visible and not rail._board.visible,
-		"portrait shows the key bar, not the desktop board")
+	_expect(_rect_inside(safe, rail.head_rect()),
+		"the console head stays above the gesture-safe inset")
 
 	shop.toggle()
 	settings.open()
