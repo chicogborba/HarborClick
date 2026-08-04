@@ -15,9 +15,10 @@ extends CanvasLayer
 signal open_changed(opened: bool)
 
 const TABS := [
-	["structures", "EQUIPAMENTO", UiTheme.Icon.CRANE],
-	["upgrades", "MELHORIAS", UiTheme.Icon.STAR],
-	["land", "TERRENO", UiTheme.Icon.LAND],
+	["structures", "EQUIP.", UiTheme.Icon.CRANE],
+	["upgrades", "MELH.", UiTheme.Icon.STAR],
+	["land", "TERRA", UiTheme.Icon.LAND],
+	["orders", "ORDENS", UiTheme.Icon.SHIP],
 ]
 const BUY_MODES: Array[StringName] = [&"x1", &"x10", &"x25", &"max"]
 ## Which yard sprite stands for each purchase. Upgrades borrow the sprite of
@@ -221,6 +222,7 @@ func _populate() -> void:
 	_lists["structures"].add_child(_teaser)
 	_rebuild_upgrades()
 	_rebuild_land()
+	_build_orders()
 
 
 func _upgrade_art(item: Dictionary) -> String:
@@ -276,6 +278,112 @@ func _rebuild_land() -> void:
 		_cards["land_" + item.id] = card
 
 
+func _build_orders() -> void:
+	## Standing orders: how the gang is divided between the berths.
+	##
+	## It lives on the purchase board rather than in the settings because it is
+	## not a preference — it changes what the port produces, and it is the answer
+	## to a question the player only starts having once they own machines.
+	var list: VBoxContainer = _lists["orders"]
+	var intro := UiTheme.label(
+		"A gangue é uma só. Com mais de um berço trabalhando, você decide quem leva as máquinas.",
+		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	intro.name = "Intro"
+	# Wrapped, not hard-broken: a Label without autowrap reports the width of its
+	# longest line as a minimum, and a Control cannot be laid out narrower than
+	# its minimum — one long caption in here was enough to push the whole board
+	# 18px wider than a 320px viewport.
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	list.add_child(intro)
+	list.add_child(UiTheme.divider())
+	for policy: StringName in CraneAllocation.POLICIES:
+		var card := PanelContainer.new()
+		card.name = "Order_%s" % policy
+		UiTheme.apply_panel(card, UiTheme.card_style(&"normal"))
+		list.add_child(card)
+		var button := Button.new()
+		button.flat = true
+		button.focus_mode = Control.FOCUS_ALL
+		button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		button.add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
+		UiTheme.describe(button, str(CraneAllocation.LABELS[policy]),
+			str(CraneAllocation.BLURBS[policy]))
+		button.pressed.connect(_on_pick_policy.bind(policy))
+		card.add_child(button)
+		var row := VBoxContainer.new()
+		# Named, because the lamp is looked up by path on every refresh, and an
+		# auto-named node turns that lookup into an error printed every time the
+		# board is opened.
+		row.name = "Row"
+		row.add_theme_constant_override(&"separation", 1)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT,
+			Control.PRESET_MODE_MINSIZE, 4)
+		card.add_child(row)
+		var head := HBoxContainer.new()
+		head.name = "Head"
+		head.add_theme_constant_override(&"separation", 4)
+		head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(head)
+		var lamp := UiTheme.led(UiTheme.Led.OFF)
+		lamp.name = "Lamp"
+		head.add_child(lamp)
+		var title := UiTheme.label(str(CraneAllocation.LABELS[policy]),
+			UiTheme.SIZE_SMALL, UiTheme.INK)
+		title.name = "Title"
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		head.add_child(title)
+		var blurb := UiTheme.label(str(CraneAllocation.BLURBS[policy]),
+			UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+		blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		blurb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(blurb)
+	_refresh_orders()
+
+
+func _on_pick_policy(policy: StringName) -> void:
+	if GameState.crane_policy == policy:
+		return
+	GameState.crane_policy = CraneAllocation.coerce(policy)
+	_refresh_orders()
+	AudioManager.play_sfx("tap")
+	SaveManager.request_save(&"orders")
+
+
+func _update_orders_tab() -> void:
+	## Rule 10: depth reveals itself. A port with one berth has no allocation to
+	## decide, so the tab that decides it is not there to be puzzled over yet.
+	##
+	## Driven from `_refresh` rather than only from `_layout`, because the quay
+	## grows when a parcel is bought and nothing about that resizes the window —
+	## the capture matrix caught the tab staying hidden on a two-berth port right
+	## up until something else happened to trigger a layout pass.
+	var tab: Button = _tab_buttons.get("orders")
+	if tab == null:
+		return
+	tab.visible = PortLayout.berth_count() > 1
+	if not tab.visible and _active == "orders":
+		_on_tab("structures")
+
+
+func _refresh_orders() -> void:
+	var list: VBoxContainer = _lists.get("orders")
+	if list == null:
+		return
+	for policy: StringName in CraneAllocation.POLICIES:
+		var card := list.get_node_or_null(NodePath("Order_%s" % policy)) \
+			as PanelContainer
+		if card == null:
+			continue
+		var chosen := GameState.crane_policy == policy
+		UiTheme.apply_panel(card, UiTheme.card_style(
+			&"ready" if chosen else &"normal"))
+		var lamp := card.get_node_or_null(^"Row/Head/Lamp") as TextureRect
+		if lamp != null:
+			lamp.texture = UiTheme.led_texture(
+				UiTheme.Led.ATTENTION if chosen else UiTheme.Led.OFF)
+
+
 func _update_tab_badges() -> void:
 	## A tab only shouts when something on it is actually buyable right now.
 	var ready_upgrades := 0
@@ -302,6 +410,8 @@ func _on_tab(tab_name: String) -> void:
 	for key: String in _tab_buttons:
 		UiTheme.style_tab(_tab_buttons[key], key == tab_name)
 	_bulk_row.visible = tab_name == "structures"
+	if tab_name == "orders":
+		_refresh_orders()
 	if not _open:
 		_open_sheet()
 	_refresh()
@@ -427,6 +537,7 @@ func _layout() -> void:
 		if tab_button != null:
 			tab_button.text = str(tab[1])
 	_update_tab_badges()
+	_update_orders_tab()
 
 	_backdrop.visible = _open
 	_board.visible = _open
@@ -520,6 +631,7 @@ func _on_buy_land(id: String) -> void:
 func _refresh() -> void:
 	if _balance != null:
 		_balance.text = GameState.fmt(GameState.teus)
+	_update_orders_tab()
 	var next_locked := {}
 	for item in StructureDB.ITEMS:
 		var card: ShopCard = _cards.get(item.id)

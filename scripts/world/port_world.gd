@@ -485,6 +485,7 @@ func _apply_water_quality(metrics: Dictionary) -> void:
 
 func _process(delta: float) -> void:
 	_feed_water_shader()
+	_allocate_cranes()
 	for controller in berths:
 		controller.tick(delta)
 	if specials != null:
@@ -601,6 +602,32 @@ func lane_clear_south(index: int) -> bool:
 
 func _request_arrivals() -> void:
 	_arrival_wait = minf(_arrival_wait, 0.4)
+
+
+func _allocate_cranes() -> void:
+	## One gang, divided by the player's standing order. Before this every berth
+	## was handed the whole port's rate independently, so a second and third hull
+	## multiplied the same machines and there was nothing to decide about them.
+	##
+	## Done here rather than inside the controller because it is the *quay* that
+	## has to be looked at to answer it: what a berth gets depends on what the
+	## other berths are doing.
+	var quay: Array = []
+	for index in berths.size():
+		var hull: Ship = ships[index] if index < ships.size() else null
+		var working := hull != null and hull.is_working()
+		var capacity := float(hull.bay_capacity()) if working else 0.0
+		var done := 0.0
+		if working:
+			done = float(hull.bay_capacity() - hull.cargo_left()) \
+				if hull.is_discharging() else float(hull.export_progress().x)
+		quay.append({"working": working, "progress": done, "capacity": capacity})
+	var rates := CraneAllocation.allocate(quay,
+		BerthCallController.pool_rate(),
+		CraneAllocation.coerce(GameState.crane_policy),
+		BerthCallController.AUTO_RATE_CAP)
+	for index in berths.size():
+		berths[index].set_auto_share(rates[index])
 
 
 func berth_report() -> Array[Dictionary]:

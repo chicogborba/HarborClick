@@ -1330,6 +1330,49 @@ Pendente nesta fase:
 - [ ] O reboque não tem para-choque traseiro articulado nem estabilizadores; o
       chassi é uma peça só.
 
+### Fase R — a gangue é uma só — P1, entregue em 04/08/2026
+
+A maior lacuna do jogo, e ela estava escondida atrás de um número que ninguém
+tinha conferido: `BerthCallController.auto_rate()` devolvia a taxa **inteira do
+porto para cada berço, independentemente**. Três navios atracados multiplicavam
+as mesmas máquinas por três. Não era só balanço furado — era a razão de a
+automação não abrir decisão nenhuma: se cada berço já ganha tudo, não existe
+pergunta sobre para onde mandar a gangue.
+
+Agora existe uma gangue só, e o jogador dá a ordem permanente:
+
+- **EQUILÍBRIO** — divide entre todos os berços trabalhando. É o padrão e
+  reproduz os números antigos exatamente, então nenhuma run existente foi
+  mexida.
+- **CONCLUIR** — quem está mais perto de zarpar leva tudo. Mais escalas por
+  hora, mais bônus de partida.
+- **MAIOR NAVIO** — o maior casco primeiro. Menos escalas, cada uma vale mais.
+
+- [x] `CraneAllocation` (`scripts/cargo/crane_allocation.gd`): classe pura e
+      estática. O total gasto é sempre `taxa × berços trabalhando` — concentrar
+      é escolha de **onde**, nunca multiplicador. Um pool maior que o teto de um
+      berço escorre para o próximo em vez de evaporar, senão concentrar seria
+      silenciosamente pior que dividir.
+- [x] Berço vazio nunca recebe guindaste: contá-lo diluiria a gangue num
+      pedaço de cais sem navio.
+- [x] `PortWorld._allocate_cranes` é o único chamador. O controlador de berço
+      só obedece a fatia — e um controlador tickado sozinho (as suítes, um porto
+      de um berço só) continua com a taxa inteira, então ordem permanente só
+      pode mudar como uma gangue **compartilhada** é gasta.
+- [x] Persistido no save e sobrevive ao prestígio: é como o porto é operado, não
+      progresso. Save anterior à feature continua fazendo o que fazia.
+- [x] Aba **ORDENS** na loja, que só aparece quando o cais tem mais de um berço.
+      Um porto de primeira hora não tem alocação pra decidir, e regra 10 diz que
+      profundidade se revela.
+- [x] A linha do berço mostra a taxa que **aquele** berço recebeu, então trocar
+      a ordem tem efeito visível na hora.
+- [x] Suíte `automation`: os três modos, o total conservado, o escorrimento no
+      teto, o berço vazio, a ordem desconhecida e o reload.
+
+O que continua aberto da regra 5: **auto-compra configurável** e **política de
+pátio**. A alocação era a primeira das três e a única que já tinha um número
+errado esperando.
+
 ### Ordem de execução
 
 A → B → D → E → C → **P** → F → G → H.
@@ -1348,8 +1391,15 @@ empilhamento entre pilhas vizinhas — é polimento e pode andar em paralelo com
 
 ### O que continua sendo a maior lacuna
 
-**Automação não abre decisão nenhuma.** Hoje ela só substitui o toque: não há
-auto-compra configurável, prioridade de berço, política de pátio nem build
-salvável. É a regra 5 de `docs/design/principios.md` e o item mais valioso ainda
-não planejado — vale mais que qualquer conteúdo novo, porque é o que transforma
-"esperar" em "decidir".
+**Automação abre uma decisão; deveria abrir três.** A Fase R entregou a
+alocação da gangue entre os berços — a primeira coisa no jogo que a automação
+manda o jogador escolher em vez de só substituir o toque. Faltam as outras duas
+da regra 5 de `docs/design/principios.md`:
+
+- **auto-compra configurável** — um capataz que compra sozinho acima de uma
+  reserva escolhida. É o que transforma a sessão longa de "clicar em comprar"
+  em "decidir a política de compra";
+- **política de pátio** — estoque contra giro, isto é, quantas caixas a coleta
+  rodoviária protege. O número existe (`RoadCargoPolicy.MIN_OPERATIONAL_STOCK`,
+  24 caixas) e é constante; virá do simulador de balanceamento, não de uma
+  edição de uma linha.

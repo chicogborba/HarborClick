@@ -68,9 +68,15 @@ Ao automatizar uma tarefa, abra uma decisão de ordem superior: prioridade,
 configuração, alocação, build. Automação que executa tudo perfeitamente elimina
 escolhas; automação deliberadamente incompetente vende conveniência.
 
-> **No HarborClick:** ⚠️ a automação hoje só substitui o toque. Não há
-> auto-compra configurável, prioridade de berço, nem escolha de política de
-> pátio. É a maior lacuna estratégica do jogo.
+> **No HarborClick:** ✅ ⚠️ parcialmente. `CraneAllocation` fez da gangue um
+> recurso único a ser dividido: com mais de um berço trabalhando o jogador dá a
+> ordem permanente — dividir por igual, mandar tudo para quem está mais perto de
+> zarpar, ou para o maior casco. Antes disso cada berço recebia a taxa inteira
+> do porto sozinho, então automatizar não abria pergunta nenhuma; era o sintoma
+> exato desta regra, escondido atrás de um número.
+>
+> Ainda faltam as outras duas: **auto-compra configurável** e **política de
+> pátio** (estoque contra giro).
 
 ### 6. A logística tem que ser real, não decorativa
 

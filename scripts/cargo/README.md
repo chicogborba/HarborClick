@@ -8,6 +8,15 @@
 - `berth_call_controller.gd` — ship-call workflow and rewards.
 - `gate_dock.gd` — public-road truck workflow.
 - `road_cargo_policy.gd` — pure non-deficit/reserve policy.
+- `crane_allocation.gd` — pure standing-order policy: how one gang of bought
+  equipment is divided between the berths being worked. Every berth used to be
+  handed the whole port's move rate independently, so three hulls alongside
+  multiplied the same machines by three and there was nothing to decide about
+  them. The pool is `pool_rate() x worked berths` and `EQUILIBRIO` divides it
+  back out evenly, so the default is the old numbers exactly; the other orders
+  concentrate it. `PortWorld._allocate_cranes` is the only caller —
+  `BerthCallController` merely obeys the share it is handed, and falls back to
+  the undivided rate when nobody hands it one.
 - `traffic_coordinator.gd` — lanes and minimum separation.
 
 ## Rules

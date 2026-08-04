@@ -32,6 +32,10 @@ var boost_time: float = 0.0      # remaining seconds of the cat boost
 var surge_mult: float = 1.0
 var surge_time: float = 0.0
 var flags: Dictionary = {}       # tutorial_done, seen milestones, ...
+## How the bought gang is divided between the berths. A standing order rather
+## than a preference: it changes what the port produces, so it belongs to the run
+## and travels with the save. See `CraneAllocation`.
+var crane_policy: StringName = CraneAllocation.EVEN
 
 const MILESTONES := [
 	{"id": "first_100", "teus": 100.0, "text": "100 TEUs! O porto saiu do papel."},
@@ -530,7 +534,8 @@ func to_save() -> Dictionary:
 		"last_run_summary": last_run_summary,
 		"owned": owned, "upgrades": upgrades.keys(), "land": land.keys(),
 		"routes": routes.keys(),
-		"flags": flags, "manual_quotes": _manual_quotes,
+		"flags": flags, "crane_policy": String(crane_policy),
+		"manual_quotes": _manual_quotes,
 		"manual_commits": _manual_commits.keys(),
 	}
 
@@ -558,6 +563,11 @@ func from_save(data: Dictionary) -> void:
 	last_run_summary = data.get("last_run_summary", {}).duplicate(true)
 	flags = data.get("flags", {})
 	flags["milestones"] = _normalized_milestones(flags.get("milestones", []))
+	# Absent in every save written before standing orders existed, which is the
+	# same answer an unknown policy gets: the default is what those ports were
+	# already doing.
+	crane_policy = CraneAllocation.coerce(
+		StringName(data.get("crane_policy", CraneAllocation.EVEN)))
 	owned = data.get("owned", {})
 	upgrades.clear()
 	for uid in data.get("upgrades", []):

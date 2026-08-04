@@ -78,10 +78,12 @@ func _run() -> void:
 	_test_rate_follows_the_equipment_bought()
 	await _test_a_full_call_completes_without_a_single_tap()
 	_test_departure_bonus_stays_in_its_band()
+	_test_standing_orders_divide_one_gang()
+	_test_standing_orders_survive_a_reload()
 
 	SaveManager.wipe()
 	if failures.is_empty():
-		print("AUTOMATION TESTS PASSED (rate, hands-off call, bonus band)")
+		print("AUTOMATION TESTS PASSED (rate, hands-off call, bonus band, orders)")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -177,6 +179,68 @@ func _test_departure_bonus_stays_in_its_band() -> void:
 		"a call with no refusals pays more than one with them")
 	_expect(perfect <= rate * BerthCallController.DEPARTURE_SECONDS * 2.0,
 		"even a perfect call cannot pay more than a short burst of income")
+
+
+func _test_standing_orders_divide_one_gang() -> void:
+	## The point of standing orders is that the gang is *one* gang. Before them
+	## every berth was handed the whole port's rate on its own, so three hulls
+	## alongside tripled the same machines and nothing about them was a decision.
+	var cap := BerthCallController.AUTO_RATE_CAP
+	var quay: Array = [
+		{"working": true, "progress": 2.0, "capacity": 24.0},   # barely started
+		{"working": true, "progress": 22.0, "capacity": 24.0},  # nearly sailing
+		{"working": false, "progress": 0.0, "capacity": 0.0},   # empty berth
+	]
+	var even := CraneAllocation.allocate(quay, 1.0, CraneAllocation.EVEN, cap)
+	_expect(is_equal_approx(even[0], 1.0) and is_equal_approx(even[1], 1.0),
+		"EQUILIBRIO gives every worked berth exactly what it had before orders")
+	_expect(is_zero_approx(even[2]),
+		"an empty berth is never allocated a crane")
+
+	var finish := CraneAllocation.allocate(quay, 1.0, CraneAllocation.FINISH, cap)
+	_expect(is_equal_approx(finish[1], 2.0) and is_zero_approx(finish[0]),
+		"CONCLUIR spends the whole pool on the hull closest to sailing")
+	var biggest := CraneAllocation.allocate(
+		[{"working": true, "progress": 0.0, "capacity": 12.0},
+		{"working": true, "progress": 0.0, "capacity": 48.0}],
+		1.0, CraneAllocation.BIGGEST, cap)
+	_expect(is_equal_approx(biggest[1], 2.0) and is_zero_approx(biggest[0]),
+		"MAIOR NAVIO spends the whole pool on the larger hull")
+
+	# Whatever the order, the port cannot move more boxes than it has machines
+	# for: concentrating is a choice about *where*, never a multiplier.
+	for policy: StringName in CraneAllocation.POLICIES:
+		var rates := CraneAllocation.allocate(quay, 1.7, policy, cap)
+		var total := 0.0
+		for rate: float in rates:
+			total += rate
+		_expect(is_equal_approx(total, 1.7 * 2.0),
+			"%s spends the whole gang and no more" % policy)
+
+	# A pool bigger than one berth can absorb spills down the order rather than
+	# evaporating, or concentrating would silently become the worse choice.
+	var spill := CraneAllocation.allocate(quay, cap, CraneAllocation.FINISH, cap)
+	_expect(is_equal_approx(spill[1], cap) and is_equal_approx(spill[0], cap),
+		"a pool past one berth's ceiling cascades instead of being thrown away")
+
+	_expect(CraneAllocation.coerce(&"nao_existe") == CraneAllocation.EVEN,
+		"an unknown standing order falls back to the default")
+
+
+func _test_standing_orders_survive_a_reload() -> void:
+	GameState.crane_policy = CraneAllocation.FINISH
+	var saved := GameState.to_save()
+	GameState.from_save({})
+	_expect(GameState.crane_policy == CraneAllocation.EVEN,
+		"a fresh terminal starts on the default standing order")
+	GameState.from_save(saved)
+	_expect(GameState.crane_policy == CraneAllocation.FINISH,
+		"a standing order survives a reload")
+	# A save written before orders existed has to keep doing what it was doing.
+	saved.erase("crane_policy")
+	GameState.from_save(saved)
+	_expect(GameState.crane_policy == CraneAllocation.EVEN,
+		"a save from before standing orders keeps the behaviour it had")
 
 
 func _expect(condition: bool, label: String) -> void:

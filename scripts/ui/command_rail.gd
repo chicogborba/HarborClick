@@ -301,6 +301,14 @@ func _set_next(text: String, ink: Color, lit: bool, control_name: String,
 	_next_label.add_theme_color_override(&"font_color", ink)
 	_next_pip.visible = lit
 	_next_button.visible = not text.is_empty()
+	# A Button is not a Container, so the row anchored inside it contributes
+	# nothing to its minimum size: left alone the chip is born zero pixels wide
+	# and its end-aligned contents spill off the side of the console. The width
+	# is measured from the string it is currently showing.
+	var glyph := _next_pip.custom_minimum_size.x + 3.0 if lit else 0.0
+	_next_button.custom_minimum_size = Vector2(
+		UiTheme.FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			UiTheme.SIZE_SMALL).x + glyph + 8.0, HEAD_H)
 	UiTheme.describe(_next_button, control_name, text)
 	# The chip changes what it does, not just what it says, so the old connection
 	# has to go with the old label — otherwise pressing "CAPITAL" opens the shop.

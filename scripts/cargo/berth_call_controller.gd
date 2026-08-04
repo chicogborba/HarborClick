@@ -23,6 +23,11 @@ var _active: Dictionary = {} # transfer id -> restart-reconciliation record
 var _variant_seed := 0
 var _variant_call_index := 0
 var _auto_carry := 0.0
+## The slice of the port's gang this berth has been given, or -1 when nobody has
+## divided it. A controller ticked on its own — the suites, a single-berth port
+## before the quay grew — keeps the whole rate, so standing orders can only ever
+## change how a *shared* gang is spent.
+var _auto_share := -1.0
 
 ## Gantries that actually reach a hull. Everything else in the yard feeds the
 ## stacks; these are the machines that work a berth, so they are the ones that
@@ -101,7 +106,21 @@ func arrive(open_channel: bool = true) -> void:
 
 
 func auto_rate() -> float:
-	## Moves per second the bought equipment performs on its own.
+	## Moves per second this berth actually gets — its slice of the gang once
+	## `PortWorld` has divided it, and the whole gang when nobody has.
+	return pool_rate() if _auto_share < 0.0 else _auto_share
+
+
+func set_auto_share(rate: float) -> void:
+	## Set every tick by `PortWorld` from `CraneAllocation`. Passing a negative
+	## rate hands the berth back the undivided gang.
+	_auto_share = rate
+
+
+static func pool_rate() -> float:
+	## Moves per second the bought equipment performs, per berth being worked.
+	## The port-wide pool is this times the number of hulls under the cranes;
+	## `CraneAllocation` is what decides who gets how much of it.
 	var rate := 0.0
 	for id: String in AUTO_MOVERS:
 		rate += float(AUTO_MOVERS[id]) * float(GameState.structure_count(id))

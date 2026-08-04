@@ -483,6 +483,28 @@ func _run(size: Vector2i) -> void:
 		_main.shop._on_tab("land")
 		await get_tree().create_timer(0.3).timeout
 		await _shot("shop_land")
+	if _wants("orders"):
+		# Standing orders only exist once the quay has more than one berth, so the
+		# parcels are bought first. A shot of a tab that is correctly hidden would
+		# prove nothing, and the tab silently never appearing is exactly the
+		# failure this is here to catch.
+		var guard := 0
+		while PortLayout.berth_count() < 2 and guard < 12:
+			var parcel := LandDB.next_parcel()
+			if parcel.is_empty():
+				break
+			GameState.teus = 1e18
+			_main.shop._on_buy_land(parcel.id)
+			guard += 1
+			await get_tree().create_timer(0.25).timeout
+		_main.shop._on_tab("orders")
+		await get_tree().create_timer(0.4).timeout
+		var tab: Button = _main.shop._tab_buttons.get("orders")
+		if tab == null or not tab.visible:
+			_failures.append("orders tab hidden at %dx%d with %d berths"
+				% [size.x, size.y, PortLayout.berth_count()])
+		_check("orders", _main.shop._board, size)
+		await _shot("shop_orders")
 	_main.shop._close()
 	await get_tree().create_timer(0.2).timeout
 	if _wants("settings"):
