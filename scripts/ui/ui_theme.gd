@@ -101,9 +101,10 @@ const TOUCH_MIN := 44.0
 enum Icon {
 	TEU, CRANE, SHIP, LAND, STAR, GEAR, SOUND, CLOCK, PAW,
 	GLOVE, GLOBE, LOCK, CHECK, CLOSE, CHEVRON, TRUCK, TROPHY, BELL,
+	CHAT, CREW,
 }
 
-const ICON_COUNT := 18
+const ICON_COUNT := 20
 
 
 # ---------------------------------------------------------------- typography
@@ -168,6 +169,23 @@ static func nine(sprite: String, margin: int,
 	box.axis_stretch_horizontal = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
 	box.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
 	return box
+
+
+static func title_plate_style() -> StyleBoxTexture:
+	## The board the wordmark is bolted to. Navy enamel with rivets and the same
+	## amber lip the gantry wears, so the first screen is made of the material the
+	## rest of the game's permanent chrome is made of.
+	return nine("ui_title_plate", 9, 7)
+
+
+static func title_key_style() -> StyleBoxTexture:
+	## The same enamel as the plate with a tighter inset, because a corner key is
+	## 78px wide and COMUNIDADE needs every one of them.
+	return nine("ui_title_plate", 9, 3)
+
+
+static func title_ribbon_style() -> StyleBoxTexture:
+	return nine("ui_title_ribbon", 6, 4)
 
 
 static func board_style(content: int = 12) -> StyleBoxTexture:

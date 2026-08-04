@@ -775,11 +775,13 @@ func arrive(open_channel: bool = true) -> void:
 		set_manifest(generated, generated.size())
 	_set_phase(Phase.ARRIVING)
 	visible = true
-	# The hull is drawn bow-down, so a ship can only travel **south** bow-first.
-	# The channel therefore runs north to south past the quay: in from the open
-	# water above, out past the bottom. Which end this is has to agree with
-	# `gen_ship.py`, or the ship reverses into its berth and reverses back out to
-	# sea — the exact complaint the whole flip came from.
+	# The hull is drawn bow **up**, so a ship can only travel north bow-first. The
+	# channel therefore runs south to north past the quay: in from the open water
+	# below, out past the top. Which end this is has to agree with `gen_ship.py`,
+	# or the ship reverses into its berth and reverses back out to sea — which is
+	# exactly what it did between the sprite being flipped back and this being
+	# noticed. `PortLayout.channel_entry_y/exit_y` own the two ends so the sign
+	# lives in one place with the reason attached.
 	var moored := berth_position()
 	var tween := create_tween()
 	if open_channel:
@@ -788,7 +790,7 @@ func arrive(open_channel: bool = true) -> void:
 		# around, and it is only available when nothing is moored between this berth
 		# and the open water above it.
 		_under_way = true
-		position = Vector2(PortLayout.FAIRWAY_X, -PortLayout.SHIP_H - 40.0)
+		position = Vector2(PortLayout.FAIRWAY_X, PortLayout.channel_entry_y())
 		tween.tween_property(self, "position:y", moored.y, 5.4) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 		tween.parallel().tween_property(self, "position:x", moored.x, 2.1) \
@@ -815,7 +817,7 @@ func depart(open_channel: bool = true) -> void:
 	AudioManager.play_sfx("horn", 0.04, -6.0)
 	var tween := create_tween()
 	# Lines let go, then off the wall. The sidestep is its own leg rather than
-	# something that happens while the ship is already running north: a hull that
+	# something that happens while the ship is already under way: a hull that
 	# starts up the channel the instant it is freed reads as sliding along the
 	# quay it was tied to.
 	tween.tween_interval(0.9)
@@ -825,11 +827,10 @@ func depart(open_channel: bool = true) -> void:
 		tween.tween_callback(func() -> void:
 			_under_way = true
 			_refresh_wake_state())
-		tween.tween_property(self, "position:y",
-			PortLayout.world_bottom() + PortLayout.SHIP_H * 0.5, 4.6) \
+		tween.tween_property(self, "position:y", PortLayout.channel_exit_y(), 4.6) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	else:
-		# The way south is somebody else's berth. Out to sea instead, the way the
+		# The way north is somebody else's berth. Out to sea instead, the way the
 		# tugs took it off the wall: no crossing, and nothing to slide through.
 		tween.tween_property(self, "position:x", PortLayout.OFFING_X, 3.4) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)

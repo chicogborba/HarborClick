@@ -303,9 +303,10 @@ func _channel_out_is_clear() -> bool:
 	## whoever is alongside between this berth and the open water below it. A
 	## focused harness with no world sails the full channel: there is nobody else
 	## on its quay to cross.
-	if world == null or not world.has_method("lane_clear_south"):
+	if world == null or not world.has_method("lane_clear_north"):
 		return true
-	return world.lane_clear_south(ship.berth_index)
+	# North is the way out: the hull is drawn bow-up and only steams bow-first.
+	return world.lane_clear_north(ship.berth_index)
 
 
 func _commit_reward(pos: Vector2) -> Dictionary:

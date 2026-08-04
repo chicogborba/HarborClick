@@ -21,10 +21,10 @@ extends Control
 const SLOT_HEIGHT := 70.0
 ## The four corner keys, and what each of them opens.
 const CORNERS := [
-	{"id": "feedback", "label": "FEEDBACK", "icon": UiTheme.Icon.BELL,
+	{"id": "feedback", "label": "FEEDBACK", "icon": UiTheme.Icon.CHAT,
 		"corner": "tl"},
 	{"id": "site", "label": "SITE", "icon": UiTheme.Icon.GLOBE, "corner": "tr"},
-	{"id": "comunidade", "label": "COMUNIDADE", "icon": UiTheme.Icon.GLOVE,
+	{"id": "comunidade", "label": "COMUNIDADE", "icon": UiTheme.Icon.CREW,
 		"corner": "bl"},
 	{"id": "creditos", "label": "CRÉDITOS", "icon": UiTheme.Icon.TROPHY,
 		"corner": "br"},
@@ -36,6 +36,9 @@ const STUDIO_LINE := "PORTSTACK STUDIOS"
 var _backdrop: TextureRect
 var _marquee: Control
 var _plate: PanelContainer
+var _ribbon: PanelContainer
+var _anchor: TextureRect
+var _continue_detail: Label
 var _actions: VBoxContainer
 var _continue_key: Button
 var _corner_keys: Dictionary = {}     # id -> Control
@@ -100,57 +103,111 @@ func _build_marquee() -> void:
 	_marquee.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_marquee)
 
-	_plate = UiTheme.panel(UiTheme.slate_style(true, 8))
+	_plate = UiTheme.panel(UiTheme.title_plate_style())
 	_plate.name = "TitlePlate"
 	_marquee.add_child(_plate)
 	var plate_column := VBoxContainer.new()
 	plate_column.alignment = BoxContainer.ALIGNMENT_CENTER
-	plate_column.add_theme_constant_override(&"separation", 2)
+	plate_column.add_theme_constant_override(&"separation", 0)
 	_plate.add_child(plate_column)
+	plate_column.add_child(_wordmark())
 
-	var logo_row := HBoxContainer.new()
-	logo_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	logo_row.add_theme_constant_override(&"separation", 3)
-	plate_column.add_child(logo_row)
-	# The anchor is the mark, so it leads the name rather than sitting over it —
-	# a glyph stacked above six-pixel type at this scale is a smudge.
-	logo_row.add_child(UiTheme.icon(UiTheme.Icon.SHIP, 2))
-	logo_row.add_child(UiTheme.label("HARBOR", UiTheme.SIZE_HUGE, UiTheme.PAPER))
-	logo_row.add_child(UiTheme.label("CLICK", UiTheme.SIZE_HUGE, UiTheme.AMBER))
-
-	# Stars as icons, not as text: the pixel font is drawn glyph by glyph in
-	# `tools/sprites/gen_font.py` and has no dingbats, so a literal star is a
-	# missing-glyph box.
+	# The ribbon hangs off the plate rather than sitting inside it, the way a
+	# painted board and its motto strip are two objects screwed to a wall.
+	_ribbon = UiTheme.panel(UiTheme.title_ribbon_style())
+	_ribbon.name = "Motto"
+	_marquee.add_child(_ribbon)
 	var motto_row := HBoxContainer.new()
 	motto_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	motto_row.add_theme_constant_override(&"separation", 4)
-	plate_column.add_child(motto_row)
+	motto_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ribbon.add_child(motto_row)
+	# Stars as icons, not as text: the pixel font is drawn glyph by glyph in
+	# `tools/sprites/gen_font.py` and has no dingbats, so a literal star is a
+	# missing-glyph box.
 	motto_row.add_child(UiTheme.icon(UiTheme.Icon.STAR, 1))
-	motto_row.add_child(UiTheme.label("CONSTRUA • EXPANDA • FATURE",
+	motto_row.add_child(UiTheme.label("CONSTRUA. EXPANDA. FATURE.",
 		UiTheme.SIZE_SMALL, UiTheme.AMBER))
 	motto_row.add_child(UiTheme.icon(UiTheme.Icon.STAR, 1))
+
+	# The mark, astride the top edge of the plate. Placed in the layout pass, not
+	# here: it straddles the plate, so it needs the plate's final rectangle.
+	_anchor = TextureRect.new()
+	_anchor.name = "Anchor"
+	_anchor.texture = preload("res://assets/sprites/ui_title_anchor.png")
+	_anchor.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_marquee.add_child(_anchor)
 
 	_actions = VBoxContainer.new()
 	_actions.name = "Actions"
 	_actions.add_theme_constant_override(&"separation", 6)
 	_marquee.add_child(_actions)
 
-	var play := UiTheme.button("JOGAR", &"amber", UiTheme.SIZE_BODY)
-	play.custom_minimum_size.y = 40.0
+	# JOGAR is the whole point of the screen, so it is the only amber thing on it
+	# and the only key wearing stars. Everything else is navy: a title with three
+	# equally loud buttons makes the player read all three.
+	var play := UiTheme.button("", &"amber", UiTheme.SIZE_TITLE)
+	play.custom_minimum_size.y = 46.0
 	UiTheme.describe(play, "Jogar", "Escolher um dos três terminais")
 	play.pressed.connect(_show_board)
 	_actions.add_child(play)
+	var play_row := HBoxContainer.new()
+	play_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	play_row.add_theme_constant_override(&"separation", 10)
+	play_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	play_row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	play.add_child(play_row)
+	var left_star := UiTheme.icon(UiTheme.Icon.STAR, 1)
+	left_star.modulate = UiTheme.AMBER_DEEP
+	left_star.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	play_row.add_child(left_star)
+	var play_word := UiTheme.label("JOGAR", UiTheme.SIZE_TITLE, UiTheme.INK)
+	play_word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	play_row.add_child(play_word)
+	var right_star := UiTheme.icon(UiTheme.Icon.STAR, 1)
+	right_star.modulate = UiTheme.AMBER_DEEP
+	right_star.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	play_row.add_child(right_star)
 
-	_continue_key = UiTheme.button("CONTINUAR", &"alt", UiTheme.SIZE_BODY)
-	_continue_key.custom_minimum_size.y = 34.0
+	# CONTINUAR carries a second line, because "continue" without "which day" is
+	# a promise the player has to press to find out the value of.
+	_continue_key = UiTheme.button("", &"steel", UiTheme.SIZE_BODY)
+	_continue_key.custom_minimum_size.y = 40.0
 	_continue_key.pressed.connect(_continue_last)
 	_actions.add_child(_continue_key)
+	var continue_column := VBoxContainer.new()
+	continue_column.alignment = BoxContainer.ALIGNMENT_CENTER
+	continue_column.add_theme_constant_override(&"separation", 0)
+	continue_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	continue_column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_continue_key.add_child(continue_column)
+	var continue_word := UiTheme.label("CONTINUAR", UiTheme.SIZE_BODY,
+		UiTheme.TEAL_LIGHT)
+	continue_word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	continue_column.add_child(continue_word)
+	_continue_detail = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.STEEL_DIM)
+	_continue_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	continue_column.add_child(_continue_detail)
 
-	var settings := UiTheme.button("AJUSTES", &"alt", UiTheme.SIZE_BODY)
-	settings.custom_minimum_size.y = 30.0
+	var settings := UiTheme.button("", &"steel", UiTheme.SIZE_BODY)
+	settings.custom_minimum_size.y = 36.0
 	UiTheme.describe(settings, "Ajustes", "Som, movimento e tela")
 	settings.pressed.connect(_open_options)
 	_actions.add_child(settings)
+	var settings_row := HBoxContainer.new()
+	settings_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	settings_row.add_theme_constant_override(&"separation", 6)
+	settings_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	settings_row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	settings.add_child(settings_row)
+	var gear := UiTheme.icon(UiTheme.Icon.GEAR, 1)
+	gear.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	settings_row.add_child(gear)
+	var settings_word := UiTheme.label("AJUSTES", UiTheme.SIZE_BODY,
+		UiTheme.STEEL_TEXT)
+	settings_word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	settings_row.add_child(settings_word)
 
 	for spec: Dictionary in CORNERS:
 		var key := _corner_key(spec)
@@ -163,18 +220,70 @@ func _build_marquee() -> void:
 	_footer.add_theme_constant_override(&"separation", 0)
 	_footer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_marquee.add_child(_footer)
-	var version := UiTheme.label(VERSION_LINE, UiTheme.SIZE_SMALL,
-		UiTheme.SLATE_DIM)
-	version.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_footer.add_child(version)
-	var studio := UiTheme.label(STUDIO_LINE, UiTheme.SIZE_SMALL, UiTheme.SLATE_DIM)
+	# An anchor either side of the version, which is the one place on the screen
+	# where a small ornament costs nothing and says "this is a harbour game".
+	var version_row := HBoxContainer.new()
+	version_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	version_row.add_theme_constant_override(&"separation", 5)
+	version_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_footer.add_child(version_row)
+	for side in 2:
+		if side == 1:
+			var version := UiTheme.label(VERSION_LINE, UiTheme.SIZE_SMALL,
+				UiTheme.STEEL_DIM)
+			version_row.add_child(version)
+		var mark := TextureRect.new()
+		mark.texture = preload("res://assets/sprites/ui_title_anchor.png")
+		mark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		mark.custom_minimum_size = Vector2(9, 10)
+		mark.modulate = Color(1, 1, 1, 0.5)
+		mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		version_row.add_child(mark)
+	var studio := UiTheme.label(STUDIO_LINE, UiTheme.SIZE_SMALL, UiTheme.STEEL_DIM)
 	studio.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_footer.add_child(studio)
 
 
+func _wordmark() -> Control:
+	## "HarborClick" at title size, drawn twice: a near-black copy offset down and
+	## right, then the real one on top.
+	##
+	## The pixel font has one weight and no outline, so flat 20px type on a navy
+	## plate reads as a caption rather than as a logo. A second pass costs two
+	## Labels and gives the letters a body — the same trick the yard's float text
+	## uses, for the same reason.
+	var stack := Control.new()
+	stack.name = "Wordmark"
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The stack is not a container, so its children sit at its origin: without
+	# this it fills the plate and the type is left-aligned in it.
+	stack.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var shadow := _wordmark_row(UiTheme.HULL_EDGE, UiTheme.HULL_EDGE)
+	shadow.position = Vector2(2, 2)
+	stack.add_child(shadow)
+	var face := _wordmark_row(UiTheme.CREAM, UiTheme.AMBER)
+	stack.add_child(face)
+	# The stack is not a container, so it reports nothing; the plate needs the
+	# type's real size or it collapses around it.
+	stack.custom_minimum_size = face.get_combined_minimum_size() + Vector2(2, 2)
+	return stack
+
+
+func _wordmark_row(harbor: Color, click: Color) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 0)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(UiTheme.label("Harbor", UiTheme.SIZE_HUGE, harbor))
+	row.add_child(UiTheme.label("Click", UiTheme.SIZE_HUGE, click))
+	return row
+
+
 func _corner_key(spec: Dictionary) -> PanelContainer:
-	var key := UiTheme.panel(UiTheme.slate_style(false, 4), false)
-	key.custom_minimum_size = Vector2(64, 46)
+	# Same navy enamel as the plate: four keys in a different material would read
+	# as belonging to a different screen.
+	var key := UiTheme.panel(UiTheme.title_key_style(), false)
+	key.custom_minimum_size = Vector2(78, 50)
 	key.focus_mode = Control.FOCUS_ALL
 	key.add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
 	key.set_meta("corner", str(spec.corner))
@@ -184,11 +293,13 @@ func _corner_key(spec: Dictionary) -> PanelContainer:
 	column.add_theme_constant_override(&"separation", 1)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	key.add_child(column)
-	var glyph := UiTheme.icon(spec.icon as UiTheme.Icon, 1)
+	# 2x, like the console's keys: a 12px glyph over a word is a bullet point.
+	var glyph := UiTheme.icon(spec.icon as UiTheme.Icon, 2)
 	glyph.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(glyph)
 	var caption := UiTheme.label(str(spec.label), UiTheme.SIZE_SMALL,
-		UiTheme.PAPER_DEEP)
+		UiTheme.STEEL_TEXT)
+	caption.clip_text = true
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(caption)
 	key.gui_input.connect(_corner_input.bind(str(spec.id)))
@@ -305,7 +416,9 @@ func _refresh_continue() -> void:
 	_continue_key.visible = playable
 	if not playable:
 		return
-	_continue_key.text = "CONTINUAR — DIA %d" % int(summary.get("day", 1))
+	# No em dashes: the pixel font is drawn glyph by glyph in `gen_font.py` and
+	# has no punctuation beyond ASCII, so anything fancier is a tofu box.
+	_continue_detail.text = "DIA %d" % int(summary.get("day", 1))
 	UiTheme.describe(_continue_key, "Continuar",
 		"Terminal %d, dia %d" % [slot, int(summary.get("day", 1))])
 
@@ -596,7 +709,9 @@ func _layout() -> void:
 
 func _layout_marquee(view: Vector2, width: float, left: float, tight: bool,
 		margin: float) -> void:
-	var corner_size := Vector2(64, 46) if not tight else Vector2(56, 40)
+	# Wide enough for the longest caption: COMUNIDADE is ten characters, and a key
+	# sized for FEEDBACK clips it to OMUNIDAD, which is worse than no word at all.
+	var corner_size := Vector2(78, 50) if not tight else Vector2(70, 44)
 	for id: String in _corner_keys:
 		var key: Control = _corner_keys[id]
 		key.custom_minimum_size = corner_size
@@ -606,21 +721,46 @@ func _layout_marquee(view: Vector2, width: float, left: float, tight: bool,
 			margin if corner.ends_with("l") else view.x - corner_size.x - margin,
 			margin if corner.begins_with("t") else view.y - corner_size.y - margin)
 
-	var plate_height := 62.0 if tight else 76.0
-	_plate.custom_minimum_size = Vector2(width, plate_height)
-	_plate.size = Vector2(width, plate_height)
+	var plate_height := 52.0 if tight else 60.0
+	var plate_width := clampf(width * 0.92, 220.0, 340.0)
+	_plate.custom_minimum_size = Vector2(plate_width, plate_height)
+	_plate.size = Vector2(plate_width, plate_height)
 	# Below the top corner keys, never under them: at 320x568 the keys and the
 	# plate both want the top of the frame and the plate is the one that can move.
-	_plate.position = Vector2(left,
+	_plate.position = Vector2((view.x - plate_width) * 0.5,
 		margin + corner_size.y + (6.0 if tight else 12.0))
+
+	# The ribbon hangs under the plate, narrower than it, so the two read as a
+	# board and a strip screwed to it rather than one tall panel.
+	var ribbon_size := Vector2(clampf(plate_width * 0.86, 180.0, 300.0),
+		16.0 if tight else 18.0)
+	_ribbon.custom_minimum_size = ribbon_size
+	_ribbon.size = ribbon_size
+	_ribbon.position = Vector2((view.x - ribbon_size.x) * 0.5,
+		_plate.position.y + plate_height - 3.0)
+
+	# The anchor straddles the plate's top edge: half on the enamel, half above
+	# it. Centred on the plate rather than on the screen, so it stays with the
+	# board when the board is narrower than the frame.
+	# Drawn at 1.5x, nearest-neighbour: it is the mark, and at native size it is a
+	# 28px ornament lost against a 340px board.
+	var anchor_size := Vector2(_anchor.texture.get_width(),
+		_anchor.texture.get_height()) * (1.2 if tight else 1.6)
+	_anchor.size = anchor_size
+	_anchor.custom_minimum_size = anchor_size
+	_anchor.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_anchor.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_anchor.position = Vector2(
+		_plate.position.x + (plate_width - anchor_size.x) * 0.5,
+		_plate.position.y - anchor_size.y * 0.66)
 
 	var action_width := clampf(width * 0.78, 180.0, 260.0)
 	_actions.custom_minimum_size.x = action_width
 	_actions.size.x = action_width
 	var action_height := _actions.get_combined_minimum_size().y
 	_actions.position = Vector2((view.x - action_width) * 0.5,
-		clampf(view.y * 0.60 - action_height * 0.5,
-			_plate.position.y + plate_height + 12.0,
+		clampf(view.y * 0.62 - action_height * 0.5,
+			_ribbon.position.y + _ribbon.size.y + 14.0,
 			view.y - action_height - corner_size.y - margin * 3.0))
 
 	var footer_height := _footer.get_combined_minimum_size().y

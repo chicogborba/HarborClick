@@ -15,6 +15,7 @@ func _run() -> void:
 	test_transformed_hull_bay_is_the_flight_destination()
 	test_wake_tracks_motion_phase()
 	test_two_hulls_never_share_the_channel()
+	test_the_channel_runs_the_way_the_bow_points()
 	test_moorings_follow_berth_state()
 	test_tug_escort_follows_maneuver()
 	await test_fleet_uses_the_single_github_hull()
@@ -218,13 +219,59 @@ func test_two_hulls_never_share_the_channel() -> void:
 		"and on its own berth's line, where nobody else is")
 	ship._set_phase(Ship.Phase.AWAY)
 	ship.arrive(true)
-	# The hull is drawn bow-down and can only travel bow-first, so the channel
-	# runs north to south: in from above the map, out past the bottom.
 	_expect(is_equal_approx(ship.position.x, PortLayout.FAIRWAY_X)
-			and ship.position.y < -PortLayout.SHIP_H,
-		"an open arrival comes down the fairway from the open water above (%.1f)"
+			and is_equal_approx(ship.position.y, PortLayout.channel_entry_y()),
+		"an open arrival picks the channel up from the open water below (%.1f)"
 			% ship.position.y)
+	_expect(ship.position.y > ship.berth_position().y,
+		"and therefore steams *up* to its berth rather than reversing down onto it")
 	ship.free()
+
+
+func test_the_channel_runs_the_way_the_bow_points() -> void:
+	## The one invariant nobody wrote down, and the one that broke.
+	##
+	## The hull sprite was flipped bow-down for a while and then flipped back to
+	## bow-up, and the manoeuvre was left driving the other way. Nothing failed:
+	## the geometry suite proved which berths block which lane, and the route
+	## suite proved the two routes were wired to the answer, but no test tied the
+	## *direction of travel* to the *direction the sprite points*. So the ship
+	## reversed into its berth and reversed back out to sea, in a game whose
+	## README already said "north is rotation zero", and only a player noticed.
+	##
+	## This measures the actual PNG. `gen_ship.py` tapers the bow, so the narrow
+	## end of the hull is the bow — and whichever end that is decides which way
+	## the channel has to run.
+	var image := preload("res://assets/sprites/ship_top.png").get_image()
+	var top := _opaque_width(image, int(image.get_height() * 0.06))
+	var bottom := _opaque_width(image, int(image.get_height() * 0.94))
+	_expect(top > 0 and bottom > 0,
+		"the hull sprite has a body at both ends (%d / %d)" % [top, bottom])
+	var bow_is_up := top < bottom
+	_expect(bow_is_up,
+		"ship_top.png is drawn bow-up: %dpx across the bow, %dpx across the stern"
+			% [top, bottom])
+	# Bow-first is the only way anything steams, so the bow decides the channel.
+	var berth := PortLayout.berth_y(0)
+	if bow_is_up:
+		_expect(PortLayout.channel_entry_y() > berth
+				and PortLayout.channel_exit_y() < berth,
+			"a bow-up hull enters from the south and leaves to the north")
+	else:
+		_expect(PortLayout.channel_entry_y() < berth
+				and PortLayout.channel_exit_y() > berth,
+			"a bow-down hull enters from the north and leaves to the south")
+	_expect(PortLayout.channel_entry_y() > PortLayout.world_bottom()
+			and PortLayout.channel_exit_y() < 0.0,
+		"both ends of the channel are off screen, so no hull pops into existence")
+
+
+func _opaque_width(image: Image, row: int) -> int:
+	var count := 0
+	for x in image.get_width():
+		if image.get_pixel(x, clampi(row, 0, image.get_height() - 1)).a > 0.5:
+			count += 1
+	return count
 
 
 func test_moorings_follow_berth_state() -> void:

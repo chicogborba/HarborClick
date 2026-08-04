@@ -108,6 +108,27 @@ const FAIRWAY_X := SHIP_X + 14.0
 ## Out to sea, past the seaward edge of the world: where a hull that cannot use
 ## the channel goes instead, and where one arriving that way comes from.
 const OFFING_X := WORLD_W + 26.0
+## How far off the top and bottom of the world the channel reaches, so a hull
+## enters and leaves out of frame rather than appearing on the water.
+const CHANNEL_MARGIN := 40.0
+
+
+static func channel_entry_y() -> float:
+	## Where a hull picks up the channel, and where it leaves it. `ship_top.png`
+	## is drawn **bow up** (see `tools/sprites/gen_ship.py`), so a ship can only
+	## steam bow-first toward **negative y** — the channel therefore runs
+	## south → north past the quay: in from below, out past the top.
+	##
+	## These are functions rather than raw arithmetic at the call site because
+	## getting the sign wrong is invisible in code and unmistakable on screen: the
+	## hull reverses into its berth and reverses back out to sea. It has happened
+	## once already, when the sprite was flipped back to bow-up and the manoeuvre
+	## was left driving the other way.
+	return world_bottom() + SHIP_H * 0.5 + CHANNEL_MARGIN
+
+
+static func channel_exit_y() -> float:
+	return -SHIP_H - CHANNEL_MARGIN
 
 
 static func bollard_position(index: int) -> Vector2:

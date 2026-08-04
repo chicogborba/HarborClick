@@ -17,7 +17,11 @@ only `ship` still works: `berth_hulls()` treats it as the one-berth port it is.
 Berths share one channel and **nothing ever passes in it**. An 80-px channel
 does not fit two 66-px hulls, and no offset makes it: a hull held clear of a
 moored one would end up off the map, so "passing outboard" is one ship sliding
-through another with its edges showing. `lane_clear_north/south` answer whether
+through another with its edges showing. The hull is drawn **bow up**, so it can
+only steam toward negative y: the channel runs south → north, `channel_entry_y`
+is below the world and `channel_exit_y` above it, and `phase4_ship` measures the
+actual PNG to keep those two facts tied together. They came apart once already.
+`lane_clear_north/south` answer whether
 the run is possible; when it is not, `Ship.arrive/depart` take the seaward route
 to `PortLayout.OFFING_X` instead, which stays on the berth's own line and so can
 never cross anybody. Only one hull manoeuvres at a time either way.

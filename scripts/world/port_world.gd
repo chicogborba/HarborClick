@@ -577,12 +577,13 @@ func is_moored(index: int) -> bool:
 
 
 func lane_clear_north(index: int) -> bool:
-	## Can this berth's hull make the run **in**, which comes down from the north?
+	## Is the water between this berth and the top of the world empty?
 	##
-	## The channel fits one hull, so anything moored between here and the top of
-	## the world is in the way — and being "outboard" of it is not a thing the
-	## geometry allows. When it is not clear the ship comes in off the offing
-	## instead, beam-on, which crosses nobody.
+	## The hull is drawn bow-up and can only steam bow-first, so north is the way
+	## **out**: this is the question a departure asks. The channel fits one hull,
+	## so anything moored above is in the way — being "outboard" of it is not
+	## something the geometry allows. When it is not clear the ship is taken off
+	## to the offing instead, beam-on, which crosses nobody.
 	for other in index:
 		if is_moored(other):
 			return false
@@ -590,10 +591,9 @@ func lane_clear_north(index: int) -> bool:
 
 
 func lane_clear_south(index: int) -> bool:
-	## The same question for the run **out**, which is southward past the berths
-	## below this one. A hull is drawn bow-down and can only travel bow-first, so
-	## in is from the north and out is to the south; these two answers are not
-	## interchangeable and swapping them sails a ship through a moored one.
+	## The same question below: south is the way **in**, so this is the one an
+	## arrival asks. These two answers are not interchangeable, and swapping them
+	## sails a ship straight through a moored one.
 	for other in range(index + 1, berth_hulls().size()):
 		if is_moored(other):
 			return false
@@ -736,7 +736,7 @@ func _drive_arrivals(delta: float) -> void:
 			var forced := specials.claim_variant(index)
 			if not forced.is_empty():
 				berths[index].seed_new(0, forced)
-		berths[index].arrive(lane_clear_north(index))
+		berths[index].arrive(lane_clear_south(index))
 		return
 
 

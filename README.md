@@ -1325,8 +1325,6 @@ Quatro pedidos do playtest de 30/07/2026, terceira passagem.
 
 Pendente nesta fase:
 
-- [ ] A arte de fundo da tela inicial (`ui_title_port.png`, 160×240) é bem menos
-      densa que o mockup e o recorte COVERED aperta o horizonte num telefone alto.
 - [ ] O reboque não tem para-choque traseiro articulado nem estabilizadores; o
       chassi é uma peça só.
 
@@ -1407,6 +1405,56 @@ já sabia de cor. Agora reconstruir contrata alguém.
 O que continua aberto da regra 5: **política de pátio** (estoque contra giro).
 `RoadCargoPolicy.MIN_OPERATIONAL_STOCK` é constante hoje, e virar decisão exige
 rodar o simulador de balanceamento, não editar uma linha.
+
+### Fase T — o navio andava de ré, e a tela de início — P0, 04/08/2026
+
+Duas coisas do playtest, e a primeira é a que dói.
+
+**O navio entrava e saía de ré.** A Fase E consertou isso; a Fase Q inverteu o
+sprite de volta pra proa no topo *e deixou a manobra dirigindo pro sul*. O
+comentário do próprio `arrive()` dizia "o casco é desenhado com a proa pra baixo"
+enquanto `gen_ship.py` dizia, na primeira linha, "bow pointing UP". Nada falhou:
+a suíte provava qual berço bloqueia qual lane, e provava que as duas rotas
+estavam ligadas à resposta — mas **nenhum teste amarrava o rumo de viagem ao
+lado pra onde o sprite aponta**. Num jogo cujo README já dizia "norte é rotação
+zero", só um jogador percebeu.
+
+- [x] O canal corre sul → norte. `PortLayout.channel_entry_y/exit_y` são donos
+      das duas pontas, com o motivo escrito junto, porque errar o sinal é
+      invisível no código e inconfundível na tela.
+- [x] `lane_clear_north` é a pergunta da **saída** e `lane_clear_south` a da
+      **entrada** — os corpos já estavam geometricamente certos, os dois locais
+      de chamada é que estavam trocados.
+- [x] `phase4_ship` ganhou o teste que faltava: ele **mede o PNG**. Conta os
+      pixels opacos perto do topo e perto da base do `ship_top.png`, decide de
+      que lado fica a proa pelo afunilamento, e daí exige que o canal corra pro
+      lado certo. Virar o sprite de novo sem virar a manobra agora quebra a
+      suíte.
+
+**A tela de início foi refeita no formato do mockup.**
+
+- [x] O fundo deixou de ser um panorama de fim de tarde — céu, sol, skyline,
+      água no horizonte — e virou o **porto visto de cima**, que é o que todas as
+      outras telas mostram. Mesmo vocabulário, mesma paleta, à noite e já
+      trabalhando: pátio com blocos empilhados, galpões acesos, transtêineres,
+      dois portêineres com a lança sobre o porão, carreta na estrada, gente,
+      mastros de luz com poça, e o navio atracado de proa pra cima.
+- [x] 320×720 em vez de 160×240. O recorte é COVERED, então uma fonte mais baixa
+      que o telefone mais alto é **ampliada** e as laterais somem — foi assim que
+      o navio ficou meio fora de quadro. A 720 o viewport mais alto é coberto sem
+      escala nenhuma e o corte é vertical, onde a composição aguenta.
+- [x] Placa, fita e âncora são nine-patches gerados (`ui_title_plate`,
+      `ui_title_ribbon`, `ui_title_anchor`), no mesmo esmalte azul-marinho com
+      filete âmbar do pórtico. A âncora monta na borda de cima da placa.
+- [x] O wordmark é desenhado duas vezes — uma cópia quase preta deslocada, e a
+      real por cima. A fonte tem um peso só e nenhum contorno, então tipo chapado
+      de 30px numa placa lê como legenda, não como logo.
+- [x] JOGAR é a única coisa âmbar da tela e a única com estrelas; CONTINUAR
+      carrega a segunda linha com o dia, e AJUSTES o glifo. Três teclas
+      igualmente altas obrigam a ler as três.
+- [x] Dois ícones novos, `CHAT` e `CREW`, porque FEEDBACK usava um sino e
+      COMUNIDADE uma luva. As teclas de canto passaram a 78px — a 64 a legenda
+      virava "OMUNIDAD", que é pior que não ter palavra.
 
 ### Ordem de execução
 

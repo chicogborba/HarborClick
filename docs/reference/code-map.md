@@ -39,7 +39,7 @@ Inventory: **157 authored code/config/scene files**.
 | `scripts/autoload/save_manager.gd` | 483 | 32 functions | Versioned, recoverable persistence.  The public yard/pending_yard API is |
 | `scripts/autoload/time_manager.gd` | 112 | 9 functions | Day/night cycle + weather. Full lighting arrives in the day/night phase; |
 | `scripts/autoload/user_preferences.gd` | 220 | 16 functions | Player-facing preferences kept separate from the progression save. |
-| `scripts/cargo/berth_call_controller.gd` | 464 | class `BerthCallController`; 30 functions | Authoritative, restart-safe berth workflow. Visual flights are transactions: |
+| `scripts/cargo/berth_call_controller.gd` | 465 | class `BerthCallController`; 30 functions | Authoritative, restart-safe berth workflow. Visual flights are transactions: |
 | `scripts/cargo/cargo_inventory.gd` | 82 | class `CargoInventory`; 11 functions | Small ownership ledger used by yards, ships and offline saves. |
 | `scripts/cargo/cargo_transfer.gd` | 41 | class `CargoTransfer`; 3 functions | One reversible movement.  Commit occurs only when the visual flight lands; |
 | `scripts/cargo/cargo_unit.gd` | 41 | class `CargoUnit`; 5 functions | A single traceable container.  Cargo is deliberately data first: the |
@@ -91,10 +91,10 @@ Inventory: **157 authored code/config/scene files**.
 | `scripts/ui/shop.gd` | 814 | class `Shop`; 41 functions | The purchase manifest, presented as the foreman's clipboard. |
 | `scripts/ui/shop_card.gd` | 257 | class `ShopCard`; 11 functions | One line torn off the purchase manifest. |
 | `scripts/ui/special_call_alert.gd` | 203 | class `SpecialCallAlert`; 14 functions | The interruption: a charter on the table, with what it pays and what it costs. |
-| `scripts/ui/title_screen.gd` | 662 | 25 functions | The first thing the game shows. |
+| `scripts/ui/title_screen.gd` | 802 | 27 functions | The first thing the game shows. |
 | `scripts/ui/tutorial.gd` | 228 | class `Tutorial`; 12 functions | Seu Waldemar walks new players through the first minute. |
 | `scripts/ui/tutorial_spotlight.gd` | 161 | class `TutorialSpotlight`; 13 functions | Seven data-driven harbour orientation steps. Target callbacks can return a |
-| `scripts/ui/ui_theme.gd` | 668 | class `UiTheme`; 50 functions | The one place the interface is described. |
+| `scripts/ui/ui_theme.gd` | 686 | class `UiTheme`; 53 functions | The one place the interface is described. |
 | `scripts/world/atmosphere.gd` | 222 | class `Atmosphere`; 13 functions | Day/night lighting for the top-down port: global tint, flood-light masts |
 | `scripts/world/cargo_relay.gd` | 312 | class `CargoRelay`; 19 functions | The visible chain of custody for one container. |
 | `scripts/world/container_yard.gd` | 578 | class `ContainerYard`; 47 functions | Physical, identity-preserving yard.  A reservation is capacity only; a box |
@@ -103,11 +103,11 @@ Inventory: **157 authored code/config/scene files**.
 | `scripts/world/ground_baker.gd` | 445 | class `GroundBaker`; 21 functions | Bakes the whole ground plane into one texture: grass verge, kerb, paved |
 | `scripts/world/harbour_signals.gd` | 104 | class `HarbourSignals`; 5 functions | The instruments a working port wears: windsocks on the quay and pennants over |
 | `scripts/world/port_camera.gd` | 166 | class `PortCamera`; 14 functions | Responsive terminal camera: touch/mouse drag, wheel zoom and keyboard pan. |
-| `scripts/world/port_layout.gd` | 442 | class `PortLayout`; 35 functions | Pure geometry for the top-down terminal. No nodes, no state — just the |
+| `scripts/world/port_layout.gd` | 463 | class `PortLayout`; 37 functions | Pure geometry for the top-down terminal. No nodes, no state — just the |
 | `scripts/world/port_world.gd` | 1411 | class `PortWorld`; 81 functions | Top-down terminal: yard on the left, quay and berth on the right. |
 | `scripts/world/rainfall.gd` | 132 | class `Rainfall`; 8 functions | Rain over the terminal: falling streaks, the splash where each one lands, and |
 | `scripts/world/road_truck.gd` | 519 | class `RoadTruck`; 30 functions | A city truck on the terminal's road: a tractor unit and the chassis it pulls. |
-| `scripts/world/ship.gd` | 941 | class `Ship`; 64 functions | View of the berth manifest.  BerthCallController owns the workflow; this |
+| `scripts/world/ship.gd` | 942 | class `Ship`; 64 functions | View of the berth manifest.  BerthCallController owns the workflow; this |
 | `scripts/world/skyscape.gd` | 168 | class `Skyscape`; 9 functions | Weather and sky, expressed the way a top-down camera can actually see them. |
 | `scripts/world/structure_actor.gd` | 1671 | class `StructureActor`; 93 functions | One visible instance of a bought structure. |
 | `scripts/world/structure_layer.gd` | 279 | class `StructureLayer`; 16 functions | Places the visible copies of bought structures around the terminal. |
@@ -141,7 +141,7 @@ Inventory: **157 authored code/config/scene files**.
 | `tests/phase3_progression_test_runner.gd` | 123 | 9 functions | Run with: Godot --headless --path . --script res://tests/phase3_progression_test_runner.gd |
 | `tests/phase3_progression_ui_test_runner.gd` | 168 | 9 functions | Run with: Godot --headless --path . res://tests/phase3_progression_ui_test_runner.tscn |
 | `tests/phase3_progression_ui_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/phase4_ship_test_runner.gd` | 311 | 12 functions | Run with: Godot --headless --path . res://tests/phase4_ship_test_runner.tscn |
+| `tests/phase4_ship_test_runner.gd` | 358 | 14 functions | Run with: Godot --headless --path . res://tests/phase4_ship_test_runner.tscn |
 | `tests/phase4_ship_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/phase4_water_test_runner.gd` | 66 | 6 functions | Run with: Godot --headless --path . res://tests/phase4_water_test_runner.tscn |
 | `tests/phase4_water_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -186,7 +186,7 @@ Inventory: **157 authored code/config/scene files**.
 | `tools/sprites/gen_people.py` | 270 | 14 functions | Top-down dock workers, Stardew-ish: hard hat and hi-vis vest seen from above. |
 | `tools/sprites/gen_props.py` | 629 | 24 functions | Top-down scenery props: lamps, bollards, greenery, wildlife, FX. |
 | `tools/sprites/gen_ship.py` | 146 | 6 functions | Top-down container ship, bow pointing UP, moored along a vertical quay. |
-| `tools/sprites/gen_title.py` | 133 | 3 functions | Generates the profile-screen harbour panorama. |
-| `tools/sprites/gen_ui.py` | 1020 | 31 functions | UI chrome, in the two materials the terminal is actually made of. |
+| `tools/sprites/gen_title.py` | 379 | 15 functions | Generates the title screen's harbour backdrop. |
+| `tools/sprites/gen_ui.py` | 1045 | 31 functions | UI chrome, in the two materials the terminal is actually made of. |
 | `tools/sprites/gen_vehicles.py` | 283 | 9 functions | Top-down port vehicles. All face UP (north); the game rotates/flips them. |
 | `tools/sprites/palette.py` | 131 | 0 functions | HarborClick palette — Stardew-flavoured: warm, earthy, softly shaded. |

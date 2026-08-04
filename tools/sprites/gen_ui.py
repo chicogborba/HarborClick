@@ -989,9 +989,34 @@ def gen_icons():
     px(i, 4, 2, AMBER_XL)
     icons["bell"] = i
 
+    # chat: the feedback key on the title screen. A speech bubble is the one
+    # shape that says "tell us" without a word in it, but only if the tail is
+    # unmistakable — a rounded box with three dots is a loading spinner.
+    i = _icon_base()
+    rect(i, 0, 0, 12, 9, (58, 42, 52, 255))
+    rect(i, 1, 1, 10, 7, (226, 218, 202, 255))
+    hline(i, 2, 1, 8, (250, 244, 232, 255))
+    hline(i, 2, 7, 8, (186, 176, 166, 255))
+    rect(i, 2, 9, 4, 2, (58, 42, 52, 255))     # the tail, stepping down left
+    rect(i, 2, 11, 2, 1, (58, 42, 52, 255))
+    for x in (3, 5, 7):                        # mid-sentence
+        px(i, x, 4, (110, 96, 100, 255))
+    icons["chat"] = i
+
+    # crew: the community key. Two figures, the near one overlapping the far one.
+    # Three at 12px is a smudge; two with a gap between them reads as people.
+    i = _icon_base()
+    for cx, top, tone in ((8, 1, (168, 160, 174, 255)),
+                          (4, 3, (236, 228, 212, 255))):
+        rect(i, cx - 2, top, 5, 4, (58, 42, 52, 255))       # head
+        rect(i, cx - 1, top + 1, 3, 2, tone)
+        rect(i, cx - 3, top + 4, 7, 8, (58, 42, 52, 255))   # shoulders
+        rect(i, cx - 2, top + 5, 5, 7, tone)
+    icons["crew"] = i
+
     order = ["teu", "crane", "ship", "land", "star", "gear", "sound", "clock",
              "paw", "glove", "globe", "lock", "check", "close", "chevron",
-             "truck", "trophy", "bell"]
+             "truck", "trophy", "bell", "chat", "crew"]
     save(sheet([icons[k] for k in order]), "ui_icons")
     print("    icon order:", ", ".join(order))
 
