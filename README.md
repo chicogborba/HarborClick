@@ -1369,9 +1369,44 @@ Agora existe uma gangue só, e o jogador dá a ordem permanente:
 - [x] Suíte `automation`: os três modos, o total conservado, o escorrimento no
       teto, o berço vazio, a ordem desconhecida e o reload.
 
-O que continua aberto da regra 5: **auto-compra configurável** e **política de
-pátio**. A alocação era a primeira das três e a única que já tinha um número
-errado esperando.
+### Fase S — o capataz — P1, entregue em 04/08/2026
+
+A segunda das três da regra 5, e ela resolve um buraco de outra regra junto: o
+prestígio não abria **conteúdo** nenhum. Reconstruir dava um multiplicador e a
+mesma primeira hora de novo, com os mesmos trinta toques de compra que o jogador
+já sabia de cor. Agora reconstruir contrata alguém.
+
+- [x] `Foreman` (`scripts/economy/foreman.gd`), puro e estático: **MELHOR
+      RETORNO** compra o que se paga mais rápido, **MAIS BARATO** compra o mais
+      barato. Não são dois nomes pra ganância — coisa que não produz não tem
+      retorno, então a linha gulosa nunca pega melhoria de toque e a barata pega.
+- [x] **Reserva** (nada / 25% / metade / 75%) é o desenho inteiro. Sem ela um
+      auto-comprador segura a carteira no zero pra sempre e terreno, melhorias e
+      escalas especiais deixam de ser alcançáveis. Escolher a reserva **é** a
+      estratégia.
+- [x] Uma compra por tick, a cada 0,5s. Esvaziar o caixa no instante em que ele
+      dá pra comprar apaga o momento em que o gênero inteiro se apoia: ver o
+      número passar de um preço que se estava esperando.
+- [x] Nunca compra terreno. Uma parcela muda a forma do terminal pra sempre, e é
+      a única compra que o jogador teria razão de não querer automatizada.
+- [x] Só existe depois da primeira reconstrução, e aparece **travado** em vez de
+      escondido — um motivo pra prestigiar que ninguém vê não é um motivo.
+- [x] Mora na mesma aba ORDENS da gangue, porque são a mesma pergunta feita
+      sobre dois recursos. Persistido, sobrevive ao prestígio, e reserva fora dos
+      presets encaixa na mais próxima em vez de virar um estado que a tela não
+      sabe mostrar.
+- [x] Ganho de melhoria é **derivado**, não simulado: comprar e desfazer chamaria
+      `recompute()`, que emite `cps_changed`, então medir cada candidato duas
+      vezes por segundo publicaria uma enxurrada de taxas hipotéticas que o
+      contador exibiria fielmente.
+- [x] Suíte `automation` cobre os dois modos, a reserva, o caixa insuficiente, o
+      candidato sem renda, o destravamento por prestígio e o reload. A captura
+      `orders` fotografa o quadro travado **e** destravado — uma seção que só é
+      fotografada cinza não prova nada sobre o estado em que ela passa o jogo.
+
+O que continua aberto da regra 5: **política de pátio** (estoque contra giro).
+`RoadCargoPolicy.MIN_OPERATIONAL_STOCK` é constante hoje, e virar decisão exige
+rodar o simulador de balanceamento, não editar uma linha.
 
 ### Ordem de execução
 
@@ -1391,15 +1426,13 @@ empilhamento entre pilhas vizinhas — é polimento e pode andar em paralelo com
 
 ### O que continua sendo a maior lacuna
 
-**Automação abre uma decisão; deveria abrir três.** A Fase R entregou a
-alocação da gangue entre os berços — a primeira coisa no jogo que a automação
-manda o jogador escolher em vez de só substituir o toque. Faltam as outras duas
-da regra 5 de `docs/design/principios.md`:
+**Automação abre duas decisões; deveria abrir três.** A Fase R entregou a
+alocação da gangue entre os berços e a Fase S o capataz que compra sozinho —
+as duas primeiras coisas no jogo que a automação manda o jogador *escolher* em
+vez de só substituir o toque. Falta a última da regra 5 de
+`docs/design/principios.md`:
 
-- **auto-compra configurável** — um capataz que compra sozinho acima de uma
-  reserva escolhida. É o que transforma a sessão longa de "clicar em comprar"
-  em "decidir a política de compra";
 - **política de pátio** — estoque contra giro, isto é, quantas caixas a coleta
   rodoviária protege. O número existe (`RoadCargoPolicy.MIN_OPERATIONAL_STOCK`,
-  24 caixas) e é constante; virá do simulador de balanceamento, não de uma
-  edição de uma linha.
+  24 caixas) e é constante; virar decisão exige rodar o simulador de
+  balanceamento, não editar uma linha.

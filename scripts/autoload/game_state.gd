@@ -36,6 +36,12 @@ var flags: Dictionary = {}       # tutorial_done, seen milestones, ...
 ## than a preference: it changes what the port produces, so it belongs to the run
 ## and travels with the save. See `CraneAllocation`.
 var crane_policy: StringName = CraneAllocation.EVEN
+## The other standing order: what gets bought when nobody is looking, and how
+## much of the treasury is off limits. Unlocked by the first rebuild — see
+## `foreman_unlocked()`.
+var foreman_mode: StringName = Foreman.OFF
+var foreman_reserve: float = 0.25
+var _foreman_tick: float = 0.0
 
 const MILESTONES := [
 	{"id": "first_100", "teus": 100.0, "text": "100 TEUs! O porto saiu do papel."},
@@ -73,6 +79,83 @@ func _process(delta: float) -> void:
 			recompute()
 	if cps > 0.0:
 		_earn(cps * delta)
+	_tick_foreman(delta)
+
+
+func foreman_unlocked() -> bool:
+	## Earned by rebuilding once. Rule 7 asks what a reset *opens*, and until now
+	## prestige opened nothing but a multiplier — the second run was the first run
+	## again, faster, with the same thirty taps to get through it. This is the
+	## thing you go back for.
+	return prestige_count > 0
+
+
+const FOREMAN_INTERVAL := 0.5
+
+
+func _tick_foreman(delta: float) -> void:
+	## Deliberately slow, and one purchase per tick. A foreman that clears the
+	## treasury the instant it can afford anything takes away the moment the whole
+	## genre is built on: watching the number climb past a price.
+	if foreman_mode == Foreman.OFF or not foreman_unlocked():
+		return
+	_foreman_tick += delta
+	if _foreman_tick < FOREMAN_INTERVAL:
+		return
+	_foreman_tick = 0.0
+	var choice := Foreman.pick(_foreman_candidates(), foreman_mode,
+		foreman_reserve, teus)
+	if choice.is_empty():
+		return
+	if str(choice.get("kind", "")) == "upgrade":
+		buy_upgrade(str(choice.id))
+	else:
+		buy_structure(str(choice.id))
+
+
+func _foreman_candidates() -> Array:
+	## Equipment and upgrades only. Land is never bought automatically: a parcel
+	## permanently changes the shape of the terminal, and a machine deciding to
+	## expand the port is the one purchase a player would be right to resent.
+	var out: Array = []
+	for item in StructureDB.ITEMS:
+		var quote := structure_purchase_quote(str(item.id), &"x1")
+		if not bool(quote.get("ok", false)):
+			continue
+		# Never reach for a machine the player has not been shown yet — the same
+		# reveal rule the shop uses, so the foreman cannot buy what is not on the
+		# board.
+		if structure_count(str(item.id)) == 0 \
+				and lifetime_teus < float(item.cost) * 0.25:
+			continue
+		out.append({"id": str(item.id), "kind": "structure",
+			"cost": float(quote.get("cost", 0.0)),
+			"cps_gain": float(quote.get("cps_gain", 0.0))})
+	for item in UpgradeDB.ITEMS:
+		if has_upgrade(str(item.id)) or not upgrade_unlocked(item):
+			continue
+		if not can_afford(float(item.cost)):
+			continue
+		out.append({"id": str(item.id), "kind": "upgrade",
+			"cost": float(item.cost),
+			"cps_gain": _upgrade_cps_gain(item)})
+	return out
+
+
+func _upgrade_cps_gain(item: Dictionary) -> float:
+	## Derived, not simulated. Buying the upgrade into `upgrades`, calling
+	## `recompute()` and rolling it back would be the general answer, but
+	## `recompute()` emits `cps_changed` — so measuring every candidate twice a
+	## second would publish a stream of hypothetical rates the counter would
+	## faithfully display.
+	##
+	## A click upgrade honestly scores zero here: it raises what a tap is worth,
+	## not what the port earns on its own. That is what makes MELHOR RETORNO and
+	## MAIS BARATO genuinely different orders rather than two spellings of greed —
+	## the greedy line never buys a tap upgrade, and the cheap line does.
+	if str(item.get("kind", "")) != "global_mult":
+		return 0.0
+	return cps * maxf(0.0, float(item.get("value", 1.0)) - 1.0)
 
 
 func grant_surge(multiplier: float, seconds: float) -> void:
@@ -535,6 +618,7 @@ func to_save() -> Dictionary:
 		"owned": owned, "upgrades": upgrades.keys(), "land": land.keys(),
 		"routes": routes.keys(),
 		"flags": flags, "crane_policy": String(crane_policy),
+		"foreman_mode": String(foreman_mode), "foreman_reserve": foreman_reserve,
 		"manual_quotes": _manual_quotes,
 		"manual_commits": _manual_commits.keys(),
 	}
@@ -568,6 +652,10 @@ func from_save(data: Dictionary) -> void:
 	# already doing.
 	crane_policy = CraneAllocation.coerce(
 		StringName(data.get("crane_policy", CraneAllocation.EVEN)))
+	foreman_mode = Foreman.coerce(StringName(data.get("foreman_mode", Foreman.OFF)))
+	foreman_reserve = Foreman.coerce_reserve(
+		float(data.get("foreman_reserve", 0.25)))
+	_foreman_tick = 0.0
 	owned = data.get("owned", {})
 	upgrades.clear()
 	for uid in data.get("upgrades", []):

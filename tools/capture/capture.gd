@@ -505,6 +505,22 @@ func _run(size: Vector2i) -> void:
 				% [size.x, size.y, PortLayout.berth_count()])
 		_check("orders", _main.shop._board, size)
 		await _shot("shop_orders")
+		# And the same board with the foreman hired, because a section that only
+		# ever photographs greyed out proves nothing about the state it spends the
+		# rest of the game in.
+		GameState.prestige_count = maxi(1, GameState.prestige_count)
+		GameState.foreman_mode = Foreman.PAYBACK
+		_main.shop._refresh()
+		await get_tree().create_timer(0.3).timeout
+		var modes: HBoxContainer = _main.shop._lists["orders"] \
+			.get_node_or_null(^"Foreman/Modes")
+		var greedy: Button = modes.get_node_or_null(
+			NodePath("Mode_%s" % Foreman.PAYBACK)) if modes != null else null
+		if greedy == null or greedy.disabled:
+			_failures.append("foreman still locked at %dx%d after a rebuild"
+				% [size.x, size.y])
+		_check("orders_foreman", _main.shop._board, size)
+		await _shot("shop_orders_foreman")
 	_main.shop._close()
 	await get_tree().create_timer(0.2).timeout
 	if _wants("settings"):

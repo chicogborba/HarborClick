@@ -75,8 +75,13 @@ escolhas; automação deliberadamente incompetente vende conveniência.
 > do porto sozinho, então automatizar não abria pergunta nenhuma; era o sintoma
 > exato desta regra, escondido atrás de um número.
 >
-> Ainda faltam as outras duas: **auto-compra configurável** e **política de
-> pátio** (estoque contra giro).
+> `Foreman` fez o mesmo com o dinheiro: depois da primeira reconstrução o porto
+> compra sozinho, e o que o jogador escolhe é *o que ele otimiza* e *quanto do
+> caixa ele nunca pode encostar*. A reserva é o desenho — sem ela a automação de
+> compra apaga o jogo em vez de elevá-lo, porque a carteira fica no zero e nada
+> que exija poupar volta a ser alcançável.
+>
+> Ainda falta a terceira: **política de pátio** (estoque contra giro).
 
 ### 6. A logística tem que ser real, não decorativa
 
@@ -99,8 +104,10 @@ antes de acontecer: o que se perde, o que fica, quanto se ganha, quanto tempo
 para recuperar, e **que conteúdo novo abre**.
 
 > **No HarborClick:** o diálogo de prestígio mostra o ganho e a árvore de
-> capital. ⚠️ Falta a estimativa "você recupera este ponto em ~N minutos" e uma
-> bifurcação real de estratégia após o primeiro reset.
+> capital, e desde o `Foreman` a primeira reconstrução **abre alguma coisa**: o
+> capataz, que é exatamente a dor que o segundo run tinha — refazer trinta
+> compras que o jogador já sabe de cor. ⚠️ Ainda falta a estimativa "você
+> recupera este ponto em ~N minutos".
 
 ### 8. Confiabilidade antes de infinito
 

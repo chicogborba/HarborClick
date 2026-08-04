@@ -80,10 +80,12 @@ func _run() -> void:
 	_test_departure_bonus_stays_in_its_band()
 	_test_standing_orders_divide_one_gang()
 	_test_standing_orders_survive_a_reload()
+	_test_the_foreman_respects_the_reserve()
+	_test_the_foreman_is_earned_and_persisted()
 
 	SaveManager.wipe()
 	if failures.is_empty():
-		print("AUTOMATION TESTS PASSED (rate, hands-off call, bonus band, orders)")
+		print("AUTOMATION TESTS PASSED (rate, hands-off call, bonus band, orders, foreman)")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -241,6 +243,70 @@ func _test_standing_orders_survive_a_reload() -> void:
 	GameState.from_save(saved)
 	_expect(GameState.crane_policy == CraneAllocation.EVEN,
 		"a save from before standing orders keeps the behaviour it had")
+
+
+func _test_the_foreman_respects_the_reserve() -> void:
+	var options: Array = [
+		{"id": "barato", "kind": "structure", "cost": 10.0, "cps_gain": 0.05},
+		{"id": "retorno", "kind": "structure", "cost": 40.0, "cps_gain": 1.0},
+		{"id": "caro", "kind": "structure", "cost": 500.0, "cps_gain": 50.0},
+	]
+	_expect(Foreman.pick(options, Foreman.OFF, 0.0, 1e9).is_empty(),
+		"a foreman who is off buys nothing at any price")
+	var greedy := Foreman.pick(options, Foreman.PAYBACK, 0.0, 100.0)
+	_expect(str(greedy.get("id", "")) == "retorno",
+		"MELHOR RETORNO buys what pays for itself soonest, not what is cheapest")
+	var thrifty := Foreman.pick(options, Foreman.CHEAPEST, 0.0, 100.0)
+	_expect(str(thrifty.get("id", "")) == "barato",
+		"MAIS BARATO buys the cheapest thing on the board")
+
+	# The reserve is the whole point: without it an auto-buyer holds the wallet at
+	# zero and land, upgrades and charters stop being reachable.
+	_expect(str(Foreman.pick(options, Foreman.PAYBACK, 0.75, 100.0)
+			.get("id", "")) == "barato",
+		"a reserve keeps the greedy line inside the share it is allowed to spend")
+	_expect(Foreman.pick(options, Foreman.PAYBACK, 1.0, 1e9).is_empty(),
+		"a full reserve means the foreman never spends anything")
+	_expect(Foreman.pick(options, Foreman.CHEAPEST, 0.0, 5.0).is_empty(),
+		"a foreman who cannot afford the cheapest thing waits")
+
+	# Something that adds no income has no payback, so the greedy line must not
+	# reach for it — otherwise a tap upgrade would rank alongside a crane.
+	var no_income: Array = [{"id": "toque", "kind": "upgrade", "cost": 10.0,
+		"cps_gain": 0.0}]
+	_expect(Foreman.pick(no_income, Foreman.PAYBACK, 0.0, 1e6).is_empty(),
+		"MELHOR RETORNO never buys something that produces nothing")
+	_expect(str(Foreman.pick(no_income, Foreman.CHEAPEST, 0.0, 1e6)
+			.get("id", "")) == "toque",
+		"MAIS BARATO still climbs the ladder a payback order would skip")
+
+
+func _test_the_foreman_is_earned_and_persisted() -> void:
+	GameState.from_save({})
+	_expect(not GameState.foreman_unlocked(),
+		"a first run has no foreman: rule 7 asks what a rebuild opens")
+	GameState.prestige_count = 1
+	_expect(GameState.foreman_unlocked(),
+		"rebuilding once is what hires him")
+	GameState.foreman_mode = Foreman.CHEAPEST
+	GameState.foreman_reserve = 0.5
+	var saved := GameState.to_save()
+	GameState.from_save({})
+	_expect(GameState.foreman_mode == Foreman.OFF,
+		"a fresh terminal has nobody buying for it")
+	GameState.from_save(saved)
+	_expect(GameState.foreman_mode == Foreman.CHEAPEST
+			and is_equal_approx(GameState.foreman_reserve, 0.5),
+		"the foreman's orders survive a reload")
+	# A hand-edited or future-build save must not produce a reserve the board has
+	# no way to show or change.
+	saved["foreman_reserve"] = 0.9
+	saved["foreman_mode"] = "nao_existe"
+	GameState.from_save(saved)
+	_expect(Foreman.RESERVES.has(GameState.foreman_reserve),
+		"an off-preset reserve snaps to one the board can display")
+	_expect(GameState.foreman_mode == Foreman.OFF,
+		"an unknown foreman order falls back to buying nothing")
 
 
 func _expect(condition: bool, label: String) -> void:

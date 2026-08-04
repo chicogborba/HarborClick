@@ -285,6 +285,7 @@ func _build_orders() -> void:
 	## not a preference — it changes what the port produces, and it is the answer
 	## to a question the player only starts having once they own machines.
 	var list: VBoxContainer = _lists["orders"]
+	list.add_child(_orders_caption("A GANGUE"))
 	var intro := UiTheme.label(
 		"A gangue é uma só. Com mais de um berço trabalhando, você decide quem leva as máquinas.",
 		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
@@ -338,7 +339,94 @@ func _build_orders() -> void:
 		blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		blurb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(blurb)
+	_build_foreman(list)
 	_refresh_orders()
+
+
+func _orders_caption(text: String) -> Control:
+	var caption := UiTheme.label(text, UiTheme.SIZE_SMALL, UiTheme.INK)
+	caption.name = "Caption_%s" % text
+	return caption
+
+
+func _build_foreman(list: VBoxContainer) -> void:
+	## The other half of the standing orders: what gets bought when nobody is
+	## looking. Same board as the gang, because they are the same question asked
+	## about two different resources.
+	var section := VBoxContainer.new()
+	section.name = "Foreman"
+	section.add_theme_constant_override(&"separation", 3)
+	list.add_child(section)
+	section.add_child(UiTheme.spacer(4.0))
+	section.add_child(UiTheme.divider())
+	section.add_child(_orders_caption("O CAPATAZ"))
+	var intro := UiTheme.label(
+		"Compra sozinho, uma de cada vez, e nunca encosta na reserva. Terreno é sempre seu.",
+		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	section.add_child(intro)
+
+	# Above the controls it disables, not below them: the reason has to arrive
+	# before the greyed-out row, or the row just reads as broken.
+	var locked := UiTheme.label(
+		"Ele só assume depois da primeira reconstrução. Abra capital e ele estará esperando.",
+		UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP)
+	locked.name = "Locked"
+	locked.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	section.add_child(locked)
+
+	var modes := HBoxContainer.new()
+	modes.name = "Modes"
+	modes.add_theme_constant_override(&"separation", 2)
+	section.add_child(modes)
+	for mode: StringName in Foreman.MODES:
+		var button := UiTheme.segment(str(Foreman.LABELS[mode]),
+			GameState.foreman_mode == mode)
+		button.name = "Mode_%s" % mode
+		button.clip_text = true
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		UiTheme.describe(button, str(Foreman.LABELS[mode]),
+			str(Foreman.BLURBS[mode]))
+		button.pressed.connect(_on_pick_foreman.bind(mode))
+		modes.add_child(button)
+	var blurb := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	blurb.name = "ModeBlurb"
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	section.add_child(blurb)
+
+	var reserve_row := HBoxContainer.new()
+	reserve_row.name = "Reserve"
+	reserve_row.add_theme_constant_override(&"separation", 2)
+	section.add_child(reserve_row)
+	var reserve_caption := UiTheme.label("RESERVA", UiTheme.SIZE_SMALL,
+		UiTheme.INK_SOFT)
+	reserve_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	reserve_row.add_child(reserve_caption)
+	for value: float in Foreman.RESERVES:
+		var button := UiTheme.segment(str(Foreman.RESERVE_LABELS[value]),
+			is_equal_approx(GameState.foreman_reserve, value))
+		button.name = "Reserve_%d" % roundi(value * 100.0)
+		button.clip_text = true
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		UiTheme.describe(button, "Reserva de %s"
+			% str(Foreman.RESERVE_LABELS[value]),
+			"O capataz nunca gasta esta parte do caixa.")
+		button.pressed.connect(_on_pick_reserve.bind(value))
+		reserve_row.add_child(button)
+
+
+func _on_pick_foreman(mode: StringName) -> void:
+	GameState.foreman_mode = Foreman.coerce(mode)
+	_refresh_orders()
+	AudioManager.play_sfx("tap")
+	SaveManager.request_save(&"orders")
+
+
+func _on_pick_reserve(value: float) -> void:
+	GameState.foreman_reserve = Foreman.coerce_reserve(value)
+	_refresh_orders()
+	AudioManager.play_sfx("tap")
+	SaveManager.request_save(&"orders")
 
 
 func _on_pick_policy(policy: StringName) -> void:
@@ -361,7 +449,7 @@ func _update_orders_tab() -> void:
 	var tab: Button = _tab_buttons.get("orders")
 	if tab == null:
 		return
-	tab.visible = PortLayout.berth_count() > 1
+	tab.visible = PortLayout.berth_count() > 1 or GameState.prestige_count > 0
 	if not tab.visible and _active == "orders":
 		_on_tab("structures")
 
@@ -382,6 +470,44 @@ func _refresh_orders() -> void:
 		if lamp != null:
 			lamp.texture = UiTheme.led_texture(
 				UiTheme.Led.ATTENTION if chosen else UiTheme.Led.OFF)
+	_refresh_foreman(list)
+
+
+func _refresh_foreman(list: VBoxContainer) -> void:
+	var section := list.get_node_or_null(^"Foreman") as VBoxContainer
+	if section == null:
+		return
+	var unlocked := GameState.foreman_unlocked()
+	# Shown locked rather than hidden: the point of it is to be a reason to
+	# rebuild, and a reason nobody can see is not one.
+	for name_path in ["Modes", "Reserve"]:
+		var row := section.get_node_or_null(NodePath(name_path)) as Control
+		if row != null:
+			row.modulate = Color(1, 1, 1, 1) if unlocked else Color(1, 1, 1, 0.45)
+	var locked := section.get_node_or_null(^"Locked") as Label
+	if locked != null:
+		locked.visible = not unlocked
+	var modes := section.get_node_or_null(^"Modes") as HBoxContainer
+	if modes != null:
+		for mode: StringName in Foreman.MODES:
+			var button := modes.get_node_or_null(
+				NodePath("Mode_%s" % mode)) as Button
+			if button != null:
+				button.disabled = not unlocked
+				UiTheme.style_segment(button, GameState.foreman_mode == mode)
+	var reserve := section.get_node_or_null(^"Reserve") as HBoxContainer
+	if reserve != null:
+		for value: float in Foreman.RESERVES:
+			var button := reserve.get_node_or_null(
+				NodePath("Reserve_%d" % roundi(value * 100.0))) as Button
+			if button != null:
+				button.disabled = not unlocked \
+					or GameState.foreman_mode == Foreman.OFF
+				UiTheme.style_segment(button,
+					is_equal_approx(GameState.foreman_reserve, value))
+	var blurb := section.get_node_or_null(^"ModeBlurb") as Label
+	if blurb != null:
+		blurb.text = str(Foreman.BLURBS.get(GameState.foreman_mode, ""))
 
 
 func _update_tab_badges() -> void:
@@ -632,6 +758,11 @@ func _refresh() -> void:
 	if _balance != null:
 		_balance.text = GameState.fmt(GameState.teus)
 	_update_orders_tab()
+	if _active == "orders":
+		# The board is live: rebuilding the port while it is open hires the
+		# foreman, and the row that was greyed out has to stop being greyed out
+		# without the player closing and reopening it.
+		_refresh_orders()
 	var next_locked := {}
 	for item in StructureDB.ITEMS:
 		var card: ShopCard = _cards.get(item.id)
