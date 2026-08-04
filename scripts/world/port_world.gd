@@ -10,13 +10,55 @@ extends Node2D
 ## The gate barrier, across the road and swung back alongside it.
 const ARM_CLOSED := PI
 const ARM_OPEN := PI * 1.5
+## Seconds between one hull clearing the fairway and the next one entering it.
+const ARRIVAL_SPACING := 6.0
+## How long a berth stays empty after a departure before it books its next call.
+const TURNAROUND := 3.0
+## Seconds between interaction-outline refreshes.
+const OUTLINE_INTERVAL := 0.12
+## Hold this long on somebody and you pick them up instead of opening their
+## badge. Long enough that a tap never lifts anybody by accident, short enough
+## that it does not feel like waiting.
+const GRAB_HOLD := 0.26
+## The pointer travel that turns a press into a camera pan rather than a tap or
+## a grab.
+const GRAB_SLOP := 10.0
+## How many hulls the water shader is told about. One per berth.
+const WATER_HULLS := PortLayout.BERTH_MAX
 
+## How many containers may be crossing the terminal on a chassis at once. Past
+## this the relays overlap into a queue nobody can follow, and the tail of it is
+## holding yard reservations open for no visual gain, so the rest of the moves
+## take the plain arc.
+const MAX_LIVE_RELAYS := 8
+
+## Somebody tapped a person. The UI owns the dossier; the world only knows who
+## was touched and what they are doing.
+signal npc_inspected(profile: NpcProfile, dossier: Dictionary)
+## Somebody is in the player's hand. The camera has to stop panning while they
+## are, or dragging a person across the yard drags the terminal with them.
+signal npc_grab_changed(held: bool)
+
+## Every berth on the quay, north to south, and the controller that works it.
+## `ship` and `berth` are berth 0 — the names the rest of the game and every
+## focused suite already use.
+var ships: Array[Ship] = []
+var berths: Array[BerthCallController] = []
 var ship: Ship
 var yard: ContainerYard
 var structures: StructureLayer
+## The crew and the work they are assigned. Both are optional as far as every
+## actor is concerned: focused test harnesses build a world without them.
+var crew: NpcRoster
+var tasks: TaskBoard
+## Rare charters: the scheduler, not the screens. Optional like the crew, so a
+## focused harness can build a world without one.
+var specials: SpecialCallDirector
 var atmosphere: Atmosphere
 var skyscape: Skyscape
 var critters: Critters
+var rain: Rainfall
+var signals: HarbourSignals
 var berth: BerthCallController
 var gate: GateDock
 var traffic: TrafficCoordinator
@@ -36,7 +78,23 @@ var _marks: Node2D
 var _props: Node2D
 var _pressed := false
 var _drag_accum := 0.0
+## How long the finger has been down on somebody, and where it went down. A
+## negative timer means this press can no longer become a grab.
+var _hold_t := -1.0
+var _press_at := Vector2.ZERO
+var _held_actor: StructureActor
+var _hover_world_pos := Vector2(INF, INF)
+var _input_enabled := true
 var _traffic_in_transit: Dictionary = {} # token -> taken IMPORT record
+var _arrival_wait := 1.0
+var _outline_due := 0.0
+var _turnaround: Dictionary = {}         # berth index -> seconds until it books again
+var _live_relays := 0
+var _relay_claimed_crane := false
+## Off only for the capture harness's endpoint-alignment shots, which time
+## themselves off a flight's own duration and need the box's arrival to be a
+## function of the clock rather than of where a tractor happens to be.
+var relays_enabled := true
 
 
 @onready var _containers: Texture2D = preload("res://assets/sprites/container_sheet.png")
@@ -82,6 +140,19 @@ func _ready() -> void:
 	yard.y_sort_enabled = true
 	entities.add_child(yard)
 
+	# The payroll comes before the machines, because a machine asks who is
+	# operating it while it is being built.
+	crew = NpcRoster.new()
+	crew.hired.connect(_on_crew_hired)
+	tasks = TaskBoard.new()
+	tasks.setup(self, crew)
+	SaveManager.register_section(
+		&"npc_roster", crew.snapshot, crew.restore, crew.seed_new)
+	specials = SpecialCallDirector.new()
+	specials.setup(self)
+	SaveManager.register_section(&"special_calls",
+		specials.snapshot, specials.restore, specials.seed_new)
+
 	structures = StructureLayer.new()
 	structures.world = self
 	add_child(structures)
@@ -103,6 +174,12 @@ func _ready() -> void:
 	critters = Critters.new()
 	add_child(critters)
 	critters.setup(self)
+
+	rain = Rainfall.new()
+	rain.setup(self)
+
+	signals = HarbourSignals.new()
+	signals.setup(self)
 
 	EventBus.land_bought.connect(_on_land_bought)
 	EventBus.prestiged.connect(_on_prestiged)
@@ -152,19 +229,15 @@ func _build_water() -> void:
 
 
 func _spawn_ship() -> void:
-	ship = Ship.new()
-	ship.name = "Ship"
-	ship.z_index = 8
-	ship.z_as_relative = false
-	add_child(ship)
-	ship.departed.connect(_on_ship_departed)
-	berth = BerthCallController.new()
-	berth.setup(self, ship, yard)
 	# Named sections coexist with Main's legacy compact-yard handoff.  The
 	# manifest section keeps every outbound UID, while ContainerYard ignores the
 	# old flattened restore once this richer section has been applied.
-	SaveManager.register_section(&"cargo_yard", yard.snapshot, yard.restore)
-	SaveManager.register_section(&"berth_call", berth.snapshot, berth.restore, berth.seed_new)
+	SaveManager.register_section(
+		&"cargo_yard", yard.snapshot, yard.restore_saved, yard.seed_new)
+	for index in PortLayout.berth_count():
+		_add_berth(index)
+	ship = ships[0]
+	berth = berths[0]
 	traffic = TrafficCoordinator.new()
 	SaveManager.register_section(
 		&"traffic_cargo", _traffic_snapshot, _traffic_restore, _traffic_seed)
@@ -179,8 +252,44 @@ func _spawn_ship() -> void:
 				"text": notice.get("text", "")}))
 	SaveManager.register_section(
 		&"gate_dock", gate.snapshot, gate.restore, gate.seed_new)
-	if ship.phase == Ship.Phase.AWAY:
-		berth.arrive()
+	_request_arrivals()
+
+
+func _add_berth(index: int) -> void:
+	## One berth: a hull, its controller, and its own persisted section. Berth 0
+	## keeps the original section name so existing saves restore untouched.
+	var hull := Ship.new()
+	hull.name = "Ship" if index == 0 else "Ship%d" % (index + 1)
+	hull.berth_index = index
+	hull.z_index = 8
+	hull.z_as_relative = false
+	hull.position = hull.berth_position()
+	hull.visible = false
+	add_child(hull)
+	var controller := BerthCallController.new()
+	controller.setup(self, hull, yard)
+	hull.departed.connect(_on_ship_departed.bind(index))
+	hull.phase_changed.connect(_on_hull_phase.bind(index))
+	controller.move_started.connect(_on_berth_move_started)
+	ships.append(hull)
+	berths.append(controller)
+	SaveManager.register_section(
+		&"berth_call" if index == 0 else StringName("berth_call%d" % (index + 1)),
+		controller.snapshot, controller.restore, controller.seed_new)
+
+
+func _ensure_berths() -> void:
+	## Buying land lengthens the quay. A berth is never taken away again: a ship
+	## alongside one that vanished would take its manifest with it.
+	var wanted := PortLayout.berth_count()
+	while ships.size() < wanted:
+		var index := ships.size()
+		_add_berth(index)
+		EventBus.notification_requested.emit({
+			"id": "berth_open_%d" % index, "kind": &"unlock", "priority": 2,
+			"text": "Berço %d liberado. Mais um navio pode atracar." % (index + 1),
+		})
+	_request_arrivals()
 
 
 func _rebuild_decals() -> void:
@@ -194,15 +303,24 @@ func _rebuild_decals() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 776655
 
-	# bollards along the quay edge
-	var y := PortLayout.TOP_MARGIN + 10.0
-	while y < PortLayout.world_bottom():
+	# Bollards along the quay edge. `PortLayout` owns where they are, because the
+	# ships' mooring lines are made fast to these exact ones.
+	var bollard_tex: Texture2D = preload("res://assets/sprites/prop_bollard.png")
+	for index in PortLayout.bollard_count():
+		var spot := PortLayout.bollard_position(index)
+		# Light falls from the upper left everywhere in this game, so everything
+		# standing on the concrete drops something to the lower right.
+		var shade := Sprite2D.new()
+		shade.texture = bollard_tex
+		shade.centered = false
+		shade.modulate = Color(0.06, 0.07, 0.11, 0.30)
+		shade.position = spot + Vector2(1.0, 2.0)
+		_decals.add_child(shade)
 		var b := Sprite2D.new()
-		b.texture = preload("res://assets/sprites/prop_bollard.png")
+		b.texture = bollard_tex
 		b.centered = false
-		b.position = Vector2(PortLayout.WATER_X0 - 20.0, y)
+		b.position = spot
 		_decals.add_child(b)
-		y += 46.0
 
 
 	# puddles and oil marks on the pavement
@@ -237,6 +355,37 @@ func _rebuild_decals() -> void:
 		c.position = Vector2(rng.randf_range(PortLayout.BLOCK_X0, PortLayout.QUAY_X1 - 16.0),
 			rng.randf_range(PortLayout.YARD_Y0, PortLayout.world_bottom() - 70.0))
 		_props.add_child(c)
+	_build_harbor_furniture()
+
+
+func _build_harbor_furniture() -> void:
+	## Functional clutter is grouped where real crews need it: fire and rescue
+	## points along the berth, spare parts by the workshop apron. It never sits
+	## in a truck lane or on a container stack.
+	var y := PortLayout.TOP_MARGIN + 58.0
+	var station := 0
+	while y < PortLayout.world_bottom() - 28.0:
+		var prop := Sprite2D.new()
+		prop.texture = preload("res://assets/sprites/prop_hydrant.png") \
+			if station % 2 == 0 else preload("res://assets/sprites/prop_lifebuoy.png")
+		prop.centered = true
+		prop.position = Vector2(PortLayout.WATER_X0 - 6.0, y)
+		_props.add_child(prop)
+		y += 92.0
+		station += 1
+
+	var pallet := Sprite2D.new()
+	pallet.texture = preload("res://assets/sprites/prop_pallet.png")
+	pallet.centered = false
+	pallet.position = Vector2(PortLayout.QUAY_X0 + 5.0,
+		PortLayout.service_y() - 24.0)
+	_props.add_child(pallet)
+	var reel := Sprite2D.new()
+	reel.texture = preload("res://assets/sprites/prop_cable_reel.png")
+	reel.centered = true
+	reel.position = Vector2(PortLayout.QUAY_X0 + 27.0,
+		PortLayout.service_y() - 18.0)
+	_props.add_child(reel)
 
 
 func _build_channel_marks() -> void:
@@ -263,6 +412,8 @@ func _build_channel_marks() -> void:
 
 func _on_land_bought(_id: String) -> void:
 	yard.resize()
+	# A longer quay may have room for another berth.
+	_ensure_berths()
 	_rebake_ground()
 	_water.size.y = PortLayout.world_bottom() + 220.0
 	if _water_foam != null:
@@ -272,6 +423,10 @@ func _on_land_bought(_id: String) -> void:
 	atmosphere.rebuild_lamps()
 	if skyscape != null:
 		skyscape.rebuild()
+	if rain != null:
+		rain.rebuild()
+	if signals != null:
+		signals.rebuild()
 	for i in 6:
 		spawn_dust(Vector2(randf_range(40.0, 180.0),
 			PortLayout.yard_bottom() - randf_range(10.0, 80.0)))
@@ -299,14 +454,22 @@ func visible_bottom() -> float:
 
 
 func set_input_enabled(input_allowed: bool) -> void:
-	if berth != null:
-		berth.set_input_enabled(input_allowed)
+	_input_enabled = input_allowed
+	for controller in berths:
+		controller.set_input_enabled(input_allowed)
+	if not input_allowed:
+		_pressed = false
+		_hold_t = -1.0
+		# An overlay opening with somebody in the air would leave them there, in
+		# front of the board, with nothing able to put them down.
+		drop_held()
+	_refresh_interaction_outlines()
 
 
 func apply_view_metrics(metrics: Dictionary) -> void:
 	_apply_water_quality(metrics)
-	if berth != null:
-		berth.apply_view_metrics(metrics)
+	for controller in berths:
+		controller.apply_view_metrics(metrics)
 
 
 func _apply_water_quality(metrics: Dictionary) -> void:
@@ -322,11 +485,241 @@ func _apply_water_quality(metrics: Dictionary) -> void:
 
 func _process(delta: float) -> void:
 	_feed_water_shader()
-	if berth != null:
-		berth.tick(delta)
+	for controller in berths:
+		controller.tick(delta)
+	if specials != null:
+		specials.tick(delta)
 	if gate != null:
 		gate.tick(delta)
 	_drive_gate_arm(delta)
+	_drive_arrivals(delta)
+	_tick_hold(delta)
+	# The outlines are a hover affordance, and answering "can this be worked?"
+	# walks the whole yard once per ship and once per truck. At sixty hertz on a
+	# bought-out port that was the frame; nobody can see the difference at eight.
+	_outline_due -= delta
+	if _outline_due <= 0.0:
+		_outline_due = OUTLINE_INTERVAL
+		_refresh_interaction_outlines()
+
+
+# ---------- the berths ----------
+
+func berth_hulls() -> Array[Ship]:
+	## Every hull on the quay. A focused harness may build a single `ship` without
+	## the berth arrays at all; treat that as the one-berth port it is, so nothing
+	## downstream has to know which kind of world it is running in.
+	if not ships.is_empty():
+		return ships
+	var single: Array[Ship] = []
+	if ship != null:
+		single.append(ship)
+	return single
+
+
+func berth_controller(index: int) -> BerthCallController:
+	if index >= 0 and index < berths.size():
+		return berths[index]
+	return berth
+
+
+func any_ship_working() -> bool:
+	for hull in berth_hulls():
+		if hull.is_working():
+			return true
+	return false
+
+
+func manoeuvring_ship() -> Ship:
+	## The hull currently on the move, which is the one the tugs are on and the one
+	## the water is reacting to. At most one, by design.
+	for hull in berth_hulls():
+		if hull.visible and (hull.phase == Ship.Phase.ARRIVING
+				or hull.phase == Ship.Phase.DEPARTING):
+			return hull
+	return null
+
+
+func focus_berth() -> int:
+	## Which berth the HUD talks about: one being worked, else one manoeuvring,
+	## else the first. With three ships alongside the board follows the work.
+	var hulls := berth_hulls()
+	for index in hulls.size():
+		if hulls[index].is_working():
+			return index
+	for index in hulls.size():
+		if hulls[index].phase != Ship.Phase.AWAY:
+			return index
+	return 0
+
+
+func working_ships() -> Array[Ship]:
+	var busy: Array[Ship] = []
+	for hull in berth_hulls():
+		if hull.is_working():
+			busy.append(hull)
+	return busy
+
+
+func _fairway_busy() -> bool:
+	return manoeuvring_ship() != null
+
+
+func is_moored(index: int) -> bool:
+	## Alongside and in the way. A berth counts from the moment its hull is on
+	## screen, including while it is still being worked.
+	var hulls := berth_hulls()
+	if index < 0 or index >= hulls.size():
+		return false
+	var hull := hulls[index]
+	return hull.visible and hull.phase != Ship.Phase.AWAY
+
+
+func lane_clear_north(index: int) -> bool:
+	## Can this berth's hull make the run **in**, which comes down from the north?
+	##
+	## The channel fits one hull, so anything moored between here and the top of
+	## the world is in the way — and being "outboard" of it is not a thing the
+	## geometry allows. When it is not clear the ship comes in off the offing
+	## instead, beam-on, which crosses nobody.
+	for other in index:
+		if is_moored(other):
+			return false
+	return true
+
+
+func lane_clear_south(index: int) -> bool:
+	## The same question for the run **out**, which is southward past the berths
+	## below this one. A hull is drawn bow-down and can only travel bow-first, so
+	## in is from the north and out is to the south; these two answers are not
+	## interchangeable and swapping them sails a ship through a moored one.
+	for other in range(index + 1, berth_hulls().size()):
+		if is_moored(other):
+			return false
+	return true
+
+
+func _request_arrivals() -> void:
+	_arrival_wait = minf(_arrival_wait, 0.4)
+
+
+func berth_report() -> Array[Dictionary]:
+	## One row per berth for the board: what it is doing, on which vessel, how far
+	## through, and — when it is empty — how long until the next one ties up.
+	##
+	## The ETA is the real one the sequencer will honour, not an estimate: with a
+	## shared fairway an empty berth may be waiting on its own turnaround, on the
+	## spacing, or on another hull still under way, and the player should be able
+	## to see which.
+	var rows: Array[Dictionary] = []
+	var hulls := berth_hulls()
+	for index in hulls.size():
+		var hull := hulls[index]
+		var controller := berth_controller(index)
+		var capacity := hull.bay_capacity()
+		var done := capacity - hull.cargo_left() if hull.is_discharging() \
+			else hull.export_progress().x
+		var silhouette := ShipCatalog.get_silhouette(
+			StringName(hull.ship_variant.get("silhouette_id", "")))
+		rows.append({
+			"index": index,
+			"phase": int(hull.phase),
+			"state": _berth_state_text(hull),
+			"vessel": str(silhouette.get("title", "")),
+			"special": hull.is_special(),
+			"current": float(done) if hull.is_working() else 0.0,
+			"total": float(capacity) if hull.is_working() else 0.0,
+			"auto_rate": controller.auto_rate() if controller != null else 0.0,
+			"eta": _berth_eta(index),
+		})
+	return rows
+
+
+func _berth_state_text(hull: Ship) -> String:
+	match hull.phase:
+		Ship.Phase.DISCHARGING:
+			return "Descarga"
+		Ship.Phase.WAITING_EXPORT:
+			return "Aguardando exportação"
+		Ship.Phase.LOADING:
+			return "Embarque"
+		Ship.Phase.ARRIVING:
+			return "Atracando"
+		Ship.Phase.DEPARTING:
+			return "Saindo"
+	return "Livre"
+
+
+func _berth_eta(index: int) -> float:
+	## Seconds until this berth's next hull can start its run. Negative means it is
+	## not waiting for one — there is already a ship on it.
+	if index < 0 or index >= ships.size() or ships[index].phase != Ship.Phase.AWAY:
+		return -1.0
+	var wait := maxf(0.0, float(_turnaround.get(index, 0.0)))
+	wait = maxf(wait, maxf(0.0, _arrival_wait))
+	if _fairway_busy():
+		# Whatever is under way has to be alongside first. Its own tween is the
+		# floor, and it is the same 5.4 s for every class.
+		wait = maxf(wait, 1.5)
+	# Berths ahead of this one in the queue sail first, one spacing apart.
+	var ahead := 0
+	for other in index:
+		if ships[other].phase == Ship.Phase.AWAY \
+				and float(_turnaround.get(other, 0.0)) <= wait:
+			ahead += 1
+	return wait + float(ahead) * ARRIVAL_SPACING
+
+
+func _sort_hull_depth() -> void:
+	## A hull under way passes outboard of the moored ones, so it has to draw over
+	## them for those few seconds. Everything else keeps the berth depth.
+	for hull in berth_hulls():
+		var moving := hull.phase == Ship.Phase.ARRIVING \
+			or hull.phase == Ship.Phase.DEPARTING
+		hull.z_index = 10 if moving else 8
+
+
+func _drive_arrivals(delta: float) -> void:
+	## The berths share one fairway, so arrivals are sequenced: exactly one hull is
+	## ever under way. Without this two ships would slide through each other in a
+	## channel only wide enough for one.
+	if berths.is_empty():
+		return
+	_sort_hull_depth()
+	for index: int in _turnaround.keys():
+		var left := float(_turnaround[index]) - delta
+		if left <= 0.0:
+			_turnaround.erase(index)
+			if index < berths.size():
+				berths[index].seed_new()
+		else:
+			_turnaround[index] = left
+	_arrival_wait -= delta
+	if _arrival_wait > 0.0 or _fairway_busy():
+		return
+	_arrival_wait = ARRIVAL_SPACING
+	for index in berths.size():
+		if ships[index].phase != Ship.Phase.AWAY or _turnaround.has(index):
+			continue
+		# A booked charter takes the next hull to sail, whichever berth that is, so
+		# the special vessel *arrives* up the fairway. Claiming it here rather than
+		# at the previous departure means a charter accepted on a quiet quay — or
+		# restored into one — still turns up.
+		if specials != null:
+			var forced := specials.claim_variant(index)
+			if not forced.is_empty():
+				berths[index].seed_new(0, forced)
+		berths[index].arrive(lane_clear_north(index))
+		return
+
+
+func _on_ship_departed(index: int) -> void:
+	EventBus.ship_departed.emit()
+	# The berth stays empty for a moment, then books its next call. Counted down in
+	# `_drive_arrivals` rather than awaited on a timer, so the wait is a number the
+	# board can show as an ETA instead of a promise nothing can read.
+	_turnaround[index] = TURNAROUND
+	_request_arrivals()
 
 
 func _build_gate() -> void:
@@ -386,6 +779,11 @@ func _sync_gate_view() -> void:
 		var truck: RoadTruck = _gate_trucks.get(bay)
 		if truck == null or not is_instance_valid(truck):
 			truck = RoadTruck.new()
+			# The same handful of hauliers serve this port, one per bay, so a
+			# driver is a face the player sees again rather than a new stranger
+			# every nine seconds.
+			if crew != null:
+				truck.driver = crew.profile_for("road_truck", bay)
 			truck.setup(self, bay, _bed_colors(record),
 				int(record.get("stage", GateDock.Stage.DOCKED))
 					!= int(GateDock.Stage.ARRIVING))
@@ -435,29 +833,139 @@ func _feed_water_shader() -> void:
 	if _water == null or ship == null or not (_water.material is ShaderMaterial):
 		return
 	var mat := _water.material as ShaderMaterial
-	var strength := ship.wake_strength() if ship.visible else 0.0
+	var driver := ship
+	var strength := 0.0
+	for hull in berth_hulls():
+		if not hull.visible:
+			continue
+		if hull.wake_strength() > strength:
+			strength = hull.wake_strength()
+			driver = hull
 	mat.set_shader_parameter("ship_speed", strength)
 	if strength > 0.0:
-		# Shader space is world space offset by the water rect's own origin.
+		# Shader space is world space offset by the water rect's own origin, and
+		# the half-length is *this* hull's. It used to be the berth envelope, so
+		# once classes had their own lengths the bow wave was drawn up to forty
+		# pixels off the end of the ship it belonged to.
 		mat.set_shader_parameter("ship_centre",
-			ship.hull_centre() - _water.position)
+			driver.hull_centre() - _water.position)
 		mat.set_shader_parameter("ship_half",
-			Vector2(PortLayout.SHIP_W, PortLayout.SHIP_H) * 0.5)
+			Vector2(PortLayout.SHIP_W, driver.hull_height()) * 0.5)
+	# Every hull on the water, moving or not: a ship lying alongside still works
+	# the water around it, and a berth is what the player is looking at almost all
+	# of the time. Without this the surface only ever moved during the five
+	# seconds of an arrival.
+	var rects := PackedVector4Array()
+	for hull in berth_hulls():
+		if not hull.visible or rects.size() >= WATER_HULLS:
+			continue
+		var centre := hull.hull_centre() - _water.position
+		rects.append(Vector4(centre.x, centre.y,
+			PortLayout.SHIP_W * 0.5, hull.hull_height() * 0.5))
+	mat.set_shader_parameter("hull_count", rects.size())
+	if rects.size() > 0:
+		while rects.size() < WATER_HULLS:
+			rects.append(Vector4(-9999.0, -9999.0, 1.0, 1.0))
+		mat.set_shader_parameter("hulls", rects)
 
 
 # ---------- input ----------
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not _input_enabled:
+		return
 	if event is InputEventScreenTouch:
 		if event.pressed:
-			_pressed = true
-			_drag_accum = 0.0
+			_begin_press(_to_world(event.position))
 		else:
-			if _pressed and _drag_accum < 10.0:
-				_try_tap(_to_world(event.position))
-			_pressed = false
+			_end_press(_to_world(event.position))
 	elif event is InputEventScreenDrag and _pressed:
 		_drag_accum += event.relative.length()
+		_move_press(_to_world(event.position))
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		_hover_world_pos = _to_world(event.position)
+		if event.pressed:
+			_begin_press(_hover_world_pos)
+		elif _pressed:
+			_end_press(_hover_world_pos)
+	elif event is InputEventMouseMotion:
+		_hover_world_pos = _to_world(event.position)
+		if _pressed:
+			_drag_accum += event.relative.length()
+			_move_press(_hover_world_pos)
+		# A moving pointer refreshes on its own event rather than waiting out the
+		# tick, so the outline still feels immediate under the cursor.
+		_outline_due = OUTLINE_INTERVAL
+		_refresh_interaction_outlines()
+
+
+func _begin_press(world_pos: Vector2) -> void:
+	_pressed = true
+	_drag_accum = 0.0
+	_press_at = world_pos
+	# Only somebody under the finger starts a hold. Everything else in the port is
+	# worked by tapping, and arming a timer over cargo would mean the yard behaved
+	# differently depending on how long a tap took.
+	_hold_t = 0.0 if _person_at(world_pos) != null else -1.0
+
+
+func _move_press(world_pos: Vector2) -> void:
+	if _held_actor != null and is_instance_valid(_held_actor):
+		_held_actor.drag_to(world_pos)
+	elif _drag_accum >= GRAB_SLOP:
+		# A drag is the camera's, not a grab's. Once the pointer has travelled the
+		# player is panning the terminal and holding still afterwards must not
+		# suddenly lift somebody off the ground.
+		_hold_t = -1.0
+
+
+func _end_press(world_pos: Vector2) -> void:
+	_hold_t = -1.0
+	if _held_actor != null:
+		drop_held()
+	elif _pressed and _drag_accum < GRAB_SLOP:
+		_try_tap(world_pos)
+	_pressed = false
+
+
+func drop_held() -> void:
+	if _held_actor != null and is_instance_valid(_held_actor):
+		_held_actor.release()
+	_held_actor = null
+	npc_grab_changed.emit(false)
+
+
+func _tick_hold(delta: float) -> void:
+	## A tap opens somebody's badge; keeping the finger down picks them up. The
+	## two cannot both fire, so the hold is timed here and the tap on release only
+	## happens when the hold never matured.
+	if _held_actor != null and not is_instance_valid(_held_actor):
+		# Buying land rebuilds every actor in the yard, and the one in the air
+		# goes with them.
+		_held_actor = null
+		npc_grab_changed.emit(false)
+	if _hold_t < 0.0 or _held_actor != null or not _pressed:
+		return
+	_hold_t += delta
+	if _hold_t < GRAB_HOLD:
+		return
+	_hold_t = -1.0
+	var subject := _person_at(_press_at)
+	if subject == null or not subject.grab():
+		return
+	_held_actor = subject
+	_held_actor.drag_to(_press_at)
+	AudioManager.play_sfx("tap", 0.14)
+	npc_grab_changed.emit(true)
+
+
+func _person_at(world_pos: Vector2) -> StructureActor:
+	if structures == null:
+		return null
+	for actor in structures.crew():
+		if actor.hit_test(world_pos):
+			return actor
+	return null
 
 
 func _to_world(screen_pos: Vector2) -> Vector2:
@@ -465,15 +973,91 @@ func _to_world(screen_pos: Vector2) -> Vector2:
 
 
 func _try_tap(world_pos: Vector2) -> void:
-	if ship != null and ship.is_working() and ship.hit_test(world_pos):
-		if berth != null and berth.handle_tap(world_pos):
-			AudioManager.play_sfx("click", 0.12)
+	## Cargo first, people second. Working the ship and working a parked carreta
+	## are the game; a dossier is something you go and look at, and it must never
+	## eat the tap that moves a box.
+	if _tap_a_berth(world_pos):
+		AudioManager.play_sfx("click", 0.12)
 	elif critters != null and critters.tap_cat(world_pos):
 		AudioManager.play_sfx("meow", 0.10)
 	elif gate != null and gate.handle_tap(world_pos):
 		AudioManager.play_sfx("click", 0.12)
+	elif _inspect_npc(world_pos):
+		AudioManager.play_sfx("tap", 0.10)
 	elif atmosphere != null and atmosphere.tap_lamp(world_pos):
 		pass
+
+
+func _inspect_npc(world_pos: Vector2) -> bool:
+	## Whoever was touched, and what they are doing right now.
+	##
+	## People on foot only. A carreteiro's card used to open by tapping the lorry
+	## he drives, and every crewed machine in the yard behaved the same way, so
+	## reaching for equipment opened a personnel file instead. Their dossiers live
+	## in the journal's EQUIPE tab, where the whole shift is listed.
+	if crew == null or structures == null:
+		return false
+	for actor in structures.crew():
+		if actor.hit_test(world_pos):
+			npc_inspected.emit(actor.profile, {
+				"actor": actor,
+				"objective": actor.objective_text(),
+				"stage": actor.stage_text(),
+			})
+			return true
+	return false
+
+
+func _on_crew_hired(profile: NpcProfile) -> void:
+	## The first hire is the one moment to say that the people on the terminal can
+	## be tapped. Nothing else in the game teaches it, and a dossier nobody knows
+	## about may as well not exist.
+	if profile == null or GameState.flags.get("crew_intro", false):
+		return
+	GameState.flags["crew_intro"] = true
+	# The world is built before Main's notification coordinator exists, so this
+	# cannot be emitted inline on the very first hire.
+	_announce_crew.call_deferred(profile.display_name, profile.title())
+
+
+func _announce_crew(display_name: String, title: String) -> void:
+	EventBus.notification_requested.emit({
+		"id": "crew_intro", "kind": &"crew", "priority": 2,
+		"text": "%s assumiu como %s. Toque em alguém no pátio pra ver a ficha."
+			% [display_name, title.to_lower()],
+	})
+
+
+func _on_berth_move_started(move: Dictionary) -> void:
+	## The relay already put a crane on this box — it claims one leg at a time,
+	## for the exact stretch the box is on. Dispatching here as well would set a
+	## second gantry running a phantom load for the same transfer.
+	##
+	## The flag is exact: `BerthCallController._begin_flight` calls `fly_cargo`
+	## and emits `move_started` in the same statement block, with nothing in
+	## between that could start another flight.
+	if _relay_claimed_crane:
+		return
+	if structures != null:
+		structures.dispatch_berth_move(move)
+
+
+func _refresh_interaction_outlines() -> void:
+	var hulls := berth_hulls()
+	for index in hulls.size():
+		var hull := hulls[index]
+		var controller := berth_controller(index)
+		var actionable := _input_enabled and controller != null \
+			and controller.can_work()
+		hull.set_interaction_state(actionable,
+			actionable and hull.hit_test(_hover_world_pos))
+	for bay: int in _gate_trucks.keys():
+		var truck: RoadTruck = _gate_trucks[bay]
+		if truck == null or not is_instance_valid(truck):
+			continue
+		var actionable := _input_enabled and gate != null and gate.can_work_bay(bay)
+		truck.set_interaction_state(actionable,
+			actionable and truck.hit_test(_hover_world_pos))
 
 
 # ---------- cargo flow ----------
@@ -481,8 +1065,7 @@ func _try_tap(world_pos: Vector2) -> void:
 func _on_container_unloaded(_world_pos: Vector2, _value: float, _crit: bool) -> void:
 	## Legacy compatibility only; the berth controller now owns cargo/reward
 	## ordering and calls this flow directly from input.
-	if berth != null:
-		berth.handle_tap(_world_pos)
+	_tap_a_berth(_world_pos)
 
 
 func _move_ship_to_yard(_value: float, _crit: bool) -> void:
@@ -496,10 +1079,42 @@ func _move_yard_to_ship(_value: float, _crit: bool) -> void:
 
 
 func fly_cargo(color: int, from: Vector2, to: Vector2) -> FlyingContainer:
-	var fly := FlyingContainer.new()
-	fly.setup(_containers, color, from, to)
+	## Every container the terminal moves comes through here, and this is where
+	## it is decided whether the box crosses on its own or is handed from machine
+	## to machine.
+	##
+	## A relay is only planned when the port owns a chassis that is free right
+	## now. Before the first machine there is nobody to hand a box to, and a relay
+	## would make every transfer stand on the apron waiting for a tractor that
+	## does not exist — so an empty terminal keeps the plain arc it always had,
+	## and buying the first tractor is the moment containers start being *driven*.
+	var fly := CargoRelay.new()
+	# Controllers exchange global visual centres. The traveller belongs to the
+	# Overhead layer, so convert once at this boundary; this remains correct if
+	# the world or cargo layer later receives a transform of its own.
+	var start := overhead.to_local(from)
+	var end := overhead.to_local(to)
+	fly.setup(_containers, color, start, end)
+	_relay_claimed_crane = relays_enabled and _live_relays < MAX_LIVE_RELAYS \
+		and structures != null and fly.plan(self, start, end)
+	if _relay_claimed_crane:
+		_live_relays += 1
+		fly.tree_exiting.connect(func() -> void:
+			_live_relays = maxi(0, _live_relays - 1))
 	overhead.add_child(fly)
 	return fly
+
+
+func gate_bed_slot_position(bay: int, slot: int) -> Vector2:
+	var truck: RoadTruck = _gate_trucks.get(bay)
+	if truck != null and is_instance_valid(truck):
+		return truck.bed_slot_global_position(slot)
+	# No truck on the bay: aim at where the slot would be on a rig parked nose-out
+	# in it. The offsets are the chassis's own, so the fallback and the real thing
+	# never disagree by more than the suspension.
+	var fallback := PortLayout.gate_bay_centre(bay) + Vector2(
+		0.0, RoadTruck.HITCH_BACK + RoadTruck.slot_offset(slot))
+	return to_global(fallback)
 
 
 func _fly(color: int, from: Vector2, to: Vector2, on_land: Callable) -> void:
@@ -534,18 +1149,48 @@ func spawn_dust(pos: Vector2) -> void:
 	puff.play()
 
 
+func show_world_badge(pos: Vector2, text: String) -> void:
+	## A caption over a place in the terminal rather than over a number in the
+	## chrome. Used to point at the machine a purchase just paid for, so the
+	## answer to "what did that buy me?" is somewhere the player is already
+	## looking instead of only in a shop they are about to close.
+	if not UserPreferences.floating_numbers:
+		return
+	var badge := FloatText.new()
+	badge.setup(text, pos, false)
+	overhead.add_child(badge)
+
+
 func _spawn_float_text(pos: Vector2, value: float, crit: bool) -> void:
 	var ft := FloatText.new()
 	ft.setup("+" + GameState.fmt(value), pos, crit)
 	overhead.add_child(ft)
 
 
-func _on_ship_departed() -> void:
-	EventBus.ship_departed.emit()
-	await get_tree().create_timer(3.0).timeout
-	if berth != null:
-		berth.seed_new()
-		berth.arrive()
+func _on_hull_phase(phase: int, index: int) -> void:
+	## A special charter is worked when its vessel is actually alongside: the player
+	## agreed to it, then watched it come up the fairway, and only now is asked to
+	## do the job. A vessel that leaves without being played was interrupted, and an
+	## interruption pays nothing either way.
+	if specials == null or not specials.is_special_berth(index):
+		return
+	if phase == Ship.Phase.DISCHARGING:
+		specials.notify_alongside(index)
+	elif phase == Ship.Phase.AWAY:
+		specials.abandon()
+
+
+func _tap_a_berth(world_pos: Vector2) -> bool:
+	## Whichever hull was touched works its own call. With three ships alongside
+	## the tap has to reach the one under the finger, not always berth 0.
+	var hulls := berth_hulls()
+	for index in hulls.size():
+		var hull := hulls[index]
+		if hull.is_working() and hull.hit_test(world_pos):
+			var controller := berth_controller(index)
+			if controller != null:
+				return controller.handle_tap(world_pos)
+	return false
 
 
 # ---------- yard traffic dispatch ----------
@@ -557,13 +1202,17 @@ func target_fill() -> float:
 	return clampf(0.08 + log(cps) / log(10.0) / 11.0, 0.08, 0.95)
 
 
-func request_job() -> Dictionary:
+func request_job(excluded_uids: PackedStringArray = PackedStringArray()) -> Dictionary:
 	## Machines ask for work here. Returns a pickup (box leaves by gate) or a
 	## delivery (box arrives from the city), whichever the yard needs.
+	##
+	## `excluded_uids` are the boxes another driver is already on their way to
+	## collect. Without it two vehicles are offered the same top-of-stack, the
+	## second one finds nothing when it gets there, and drives home empty.
 	var fill := yard.fill_ratio()
 	var target := target_fill()
-	if fill > target + 0.04 and yard.has_sector(CargoUnit.IMPORT):
-		var slot := yard.fullest_slot(CargoUnit.IMPORT)
+	if fill > target + 0.04:
+		var slot := road_pickup_slot(excluded_uids)
 		if slot >= 0:
 			return {"type": "pickup", "slot": slot,
 				"pos": yard.slot_position(slot)}
@@ -571,19 +1220,27 @@ func request_job() -> Dictionary:
 		var landing := yard.pick_landing_slot(CargoUnit.EXPORT)
 		if landing.is_empty():
 			return {}
+		var unit := CargoUnit.new(CargoUnit.new_uid("road_service"),
+			CargoUnit.EXPORT, randi() % 8, "cidade")
 		return {"type": "deliver", "slot": landing.slot, "level": landing.level,
-			"pos": landing.pos, "color": randi() % 8, "token": landing.token}
+			"pos": landing.pos, "color": unit.color, "unit": unit,
+			"token": landing.token}
 	return {}
 
 
 func complete_pickup(slot: int) -> Dictionary:
-	return yard.take_import(slot)
+	return take_road_pickup(PackedStringArray(), slot)
 
 
-func begin_hauler_pickup(slot: int) -> Dictionary:
+func begin_hauler_pickup(slot: int,
+		excluded_uids: PackedStringArray = PackedStringArray()) -> Dictionary:
 	## The box leaves the rendered stack now, but remains in a persisted transit
 	## ledger until the vehicle clears the gate.
-	var taken := yard.take_import(slot)
+	##
+	## The exclusions are the boxes other drivers hold a claim on: without them the
+	## yard's own "best top of stack" answer can be somebody else's box, and this
+	## driver — standing at the right stack — is told there is nothing to lift.
+	var taken := take_road_pickup(excluded_uids, slot)
 	if taken.is_empty():
 		return {}
 	var return_token := yard.reserve_taken_return(taken)
@@ -597,8 +1254,11 @@ func begin_hauler_pickup(slot: int) -> Dictionary:
 	return taken
 
 
-func complete_delivery(slot: int, level: int, color: int, token: String = "") -> bool:
-	var unit := CargoUnit.new("", CargoUnit.EXPORT, color)
+func complete_delivery(slot: int, level: int, unit: CargoUnit,
+		token: String = "") -> bool:
+	if unit == null or unit.origin_uid != "cidade":
+		yard.release_landing(token)
+		return false
 	var placed := yard.place_unit(slot, level, unit, token)
 	if placed:
 		spawn_dust(yard.level_position(slot, level) + Vector2(4, 4))
@@ -639,6 +1299,45 @@ func commit_job(job: Dictionary) -> void:
 	yard.release_landing(str(tracked.get("return_token", "")))
 	_traffic_in_transit.erase(token)
 	SaveManager.request_save(&"traffic_pickup_committed")
+
+
+func _road_priority_uids() -> PackedStringArray:
+	## Cargo from the hull currently being worked is ideal road freight because
+	## that same hull is forbidden to reload it. Between calls there is no
+	## priority set, so the full 24-box reserve is protected.
+	var priority := PackedStringArray()
+	for hull in working_ships():
+		for uid in hull.import_manifest_uids():
+			priority.append(uid)
+	if not priority.is_empty():
+		return priority
+	return PackedStringArray()
+
+
+func road_pickup_slot(excluded_uids: PackedStringArray = PackedStringArray()) -> int:
+	return yard.road_pickup_slot(
+		_road_priority_uids(), excluded_uids,
+		RoadCargoPolicy.MIN_OPERATIONAL_STOCK)
+
+
+func has_road_pickup(excluded_uids: PackedStringArray = PackedStringArray()) -> bool:
+	return road_pickup_slot(excluded_uids) >= 0
+
+
+func take_road_pickup(excluded_uids: PackedStringArray = PackedStringArray(),
+		preferred_slot: int = -1) -> Dictionary:
+	var priority := _road_priority_uids()
+	var approved_slot := yard.road_pickup_slot(
+		priority, excluded_uids, RoadCargoPolicy.MIN_OPERATIONAL_STOCK)
+	if approved_slot < 0:
+		return {}
+	# A structure actor reserved a visual route to this slot. If the approved
+	# top changed in the meantime, reject the stale job instead of taking a
+	# different box invisibly.
+	if preferred_slot >= 0 and approved_slot != preferred_slot:
+		return {}
+	return yard.take_for_road(
+		excluded_uids, priority, RoadCargoPolicy.MIN_OPERATIONAL_STOCK)
 
 
 func _traffic_snapshot() -> Dictionary:

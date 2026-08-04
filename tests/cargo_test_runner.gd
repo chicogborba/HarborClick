@@ -17,12 +17,12 @@ var _committed_transfers := 0
 class CargoTestShip:
 	extends Ship
 
-	func arrive() -> void:
+	func arrive(_open_channel: bool = true) -> void:
 		visible = true
 		position = Vector2(PortLayout.SHIP_X, PortLayout.SHIP_Y)
 		_set_phase(Ship.Phase.DISCHARGING)
 
-	func depart() -> void:
+	func depart(_open_channel: bool = true) -> void:
 		if phase == Ship.Phase.DEPARTING or phase == Ship.Phase.AWAY \
 				or not ready_to_depart():
 			return
@@ -53,7 +53,8 @@ class CargoTestWorld:
 
 		berth = BerthCallController.new()
 		berth.setup(self, ship, yard)
-		SaveManager.register_section(&"cargo_yard", yard.snapshot, yard.restore)
+		SaveManager.register_section(
+			&"cargo_yard", yard.snapshot, yard.restore_saved, yard.seed_new)
 		SaveManager.register_section(
 			&"berth_call", berth.snapshot, berth.restore, berth.seed_new)
 		SaveManager.register_section(
@@ -86,8 +87,11 @@ func _run() -> void:
 	add_child(_world)
 	await get_tree().process_frame
 
+	_test_inaugural_road_manifest()
+	_test_v2_yard_gets_one_time_road_retrofit()
 	await _test_capacity_and_hud_format()
 	_test_full_call_and_no_import_export()
+	_test_next_ship_can_take_previous_ship_cargo()
 	_test_invalid_click_has_no_reward()
 	_test_full_yard_preserves_ship_and_reward()
 	await _test_traffic_denial_and_actor_teardown_release_delivery()
@@ -111,6 +115,66 @@ func _run() -> void:
 			push_error(failure)
 		print("CARGO TESTS FAILED: %d assertion(s)" % failures.size())
 		get_tree().quit(1)
+
+
+func _test_inaugural_road_manifest() -> void:
+	var expected := ContainerYard.INITIAL_EXPORT_STOCK
+	var initial_uids := _yard_uids(_world)
+	_expect(initial_uids.size() == expected,
+		"a new profile starts with one complete export manifest")
+	var unique := {}
+	var all_traceable := true
+	for stack in _world.yard.snapshot().get("slots", []):
+		for raw in stack:
+			if not raw is Dictionary:
+				all_traceable = false
+				continue
+			var uid := str(raw.get("uid", ""))
+			all_traceable = all_traceable and not uid.is_empty() \
+				and not unique.has(uid) \
+				and StringName(raw.get("sector", &"")) == CargoUnit.EXPORT \
+				and str(raw.get("origin_uid", "")) == ContainerYard.INITIAL_ORIGIN_UID
+			unique[uid] = true
+	_expect(all_traceable and unique.size() == expected,
+		"every inaugural box has a unique road UID and city provenance")
+
+	var capacity := _world.ship.bay_capacity()
+	var result := _complete_call("inaugural manifest call")
+	var exports: Array[String] = result.exports
+	# A class now decides how many boxes a call moves, so the first vessel loads
+	# *its own* capacity — not necessarily the whole inaugural manifest. What must
+	# still hold is that every box it leaves with was already ashore: a call may
+	# not invent an identity to fill its deck.
+	var from_inaugural := true
+	for uid in exports:
+		from_inaugural = from_inaugural and initial_uids.has(uid)
+	_expect(exports.size() == capacity and from_inaugural,
+		"the first vessel loads its own capacity (%d of %d) from the already-delivered inaugural road manifest"
+			% [exports.size(), capacity])
+	_expect(capacity <= expected,
+		"no class can out-stow the inaugural manifest on the first call (%d vs %d)"
+			% [capacity, expected])
+	_expect(_intersection(result.imports, exports).is_empty(),
+		"the inaugural call never reloads its own imports")
+
+	# An explicitly restored empty yard stays empty. Only the new-profile seed
+	# may create the inaugural convoy; regular restore/runtime cannot restock it.
+	_world.yard.restore({"version": 2, "slots": []})
+	var empty_snapshot := _world.yard.snapshot()
+	_world.yard.restore(empty_snapshot)
+	_expect(not _world.yard.has_boxes(),
+		"restoring an empty active run never creates replacement containers")
+
+
+func _test_v2_yard_gets_one_time_road_retrofit() -> void:
+	_world.yard.restore_saved({"version": 2, "slots": []})
+	_expect(_world.yard.unit_count() == ContainerYard.INITIAL_EXPORT_STOCK,
+		"a drained v2 profile receives the one-time city road retrofit")
+	var migrated := _world.yard.snapshot()
+	_world.yard.restore_saved({"version": 3, "slots": []})
+	_expect(not _world.yard.has_boxes(),
+		"a v3 empty save is never replenished during normal restore")
+	_world.yard.restore(migrated)
 
 
 func _test_capacity_and_hud_format() -> void:
@@ -162,6 +226,30 @@ func _test_full_call_and_no_import_export() -> void:
 	_assert_unique_ownership(_world, capacity * 2, "full call ownership")
 
 
+func _test_next_ship_can_take_previous_ship_cargo() -> void:
+	_reset_call(1012)
+	var first := _complete_call("first transhipment call")
+	var first_imports: Array[String] = first.imports
+
+	# Do not clear the yard: ship B must work with the identities ship A left.
+	_world.berth.seed_new(1013)
+	_world.ship.position = Vector2(PortLayout.SHIP_X, PortLayout.SHIP_Y)
+	_world.ship.visible = true
+	_world.ship._set_phase(Ship.Phase.DISCHARGING)
+	var second_imports := _ship_uids(_world)
+	_complete_discharge("second transhipment call")
+	for index in _world.ship.bay_capacity():
+		var accepted := _world.berth.handle_tap(_world.ship.global_position)
+		_expect(accepted, "ship B accepts ship A cargo %d" % (index + 1))
+		if accepted:
+			_finish_all_flights("ship B transhipment load")
+	var second_exports := _ship_uids(_world)
+	_expect(_intersection(second_imports, second_exports).is_empty(),
+		"ship B never reloads a box it just discharged")
+	_expect(_same_uid_set(first_imports, second_exports),
+		"ship B may load every box previously discharged by ship A")
+
+
 func _test_invalid_click_has_no_reward() -> void:
 	_reset_call(1003)
 	GameState.from_save({})
@@ -205,7 +293,7 @@ func _test_traffic_denial_and_actor_teardown_release_delivery() -> void:
 	_world.traffic.join(blocker)
 
 	var denied := StructureActor.new()
-	denied.setup("tt", 0, _world)
+	denied.setup("reach_stacker", 0, _world)
 	_world.entities.add_child(denied)
 	var reservations_before := _world.yard._reservations.size()
 	denied._try_take_job()
@@ -227,7 +315,7 @@ func _test_traffic_denial_and_actor_teardown_release_delivery() -> void:
 		lane_holders.append(holder)
 	var held_reservations := _world.yard._reservations.size()
 	var blocked := StructureActor.new()
-	blocked.setup("tt", 2, _world)
+	blocked.setup("reach_stacker", 2, _world)
 	_world.entities.add_child(blocked)
 	blocked._try_take_job()
 	_expect(blocked._job_data.is_empty() and blocked._lane_key.is_empty(),
@@ -241,7 +329,7 @@ func _test_traffic_denial_and_actor_teardown_release_delivery() -> void:
 	_world.traffic.clear()
 
 	var cancelled := StructureActor.new()
-	cancelled.setup("tt", 1, _world)
+	cancelled.setup("reach_stacker", 1, _world)
 	_world.entities.add_child(cancelled)
 	cancelled._try_take_job()
 	_expect(cancelled._job_data.get("type", "") == "deliver" \
@@ -251,11 +339,23 @@ func _test_traffic_denial_and_actor_teardown_release_delivery() -> void:
 	_expect(_world.yard._reservations.size() == reservations_before,
 		"freeing an active hauler returns its EXPORT reservation")
 
+	var delivered_job := _world.request_job()
+	var road_unit := delivered_job.get("unit") as CargoUnit
+	_expect(road_unit != null and road_unit.origin_uid == "cidade" \
+			and not _yard_uids(_world).has(road_unit.uid),
+		"road delivery owns its UID before the vehicle reaches the yard")
+	if road_unit != null:
+		_expect(_world.complete_delivery(int(delivered_job.slot),
+			int(delivered_job.level), road_unit, str(delivered_job.token)),
+			"the arriving road vehicle commits its existing cargo identity")
+		_expect(_yard_uids(_world).has(road_unit.uid),
+			"the yard receives that same road UID instead of spawning a box")
+
 	_world.yard.restore({"version": 2, "slots": []})
 	_fill_import_sector()
 	_world.traffic.clear()
 	var pickup_actor := StructureActor.new()
-	pickup_actor.setup("tt", 2, _world)
+	pickup_actor.setup("reach_stacker", 2, _world)
 	_world.entities.add_child(pickup_actor)
 	pickup_actor._try_take_job()
 	_expect(pickup_actor._job_data.get("type", "") == "pickup",
@@ -275,7 +375,7 @@ func _test_traffic_denial_and_actor_teardown_release_delivery() -> void:
 
 	var before_reload := _yard_uids(_world)
 	var persisted_actor := StructureActor.new()
-	persisted_actor.setup("tt", 3, _world)
+	persisted_actor.setup("reach_stacker", 3, _world)
 	_world.entities.add_child(persisted_actor)
 	persisted_actor._try_take_job()
 	persisted_actor._finish_work()
@@ -334,6 +434,10 @@ func _test_reload_mid_discharge_and_loading() -> void:
 
 func _test_one_hundred_accelerated_calls() -> void:
 	var all_seen: Dictionary = {}
+	# A call is as big as the class working it, so the total is a sum rather than
+	# a product. What has to hold is that no identity is ever reused and none goes
+	# missing — not that every hull is the same size.
+	var expected := 0
 	for call_index in 100:
 		_reset_call(2000 + call_index)
 		var result := _complete_call("accelerated call %03d" % call_index)
@@ -346,6 +450,7 @@ func _test_one_hundred_accelerated_calls() -> void:
 		_expect(_intersection(imports, exports).is_empty(),
 			"accelerated call %03d never embarks an import UID" % call_index)
 		_committed_transfers += imports.size() + exports.size()
+		expected += imports.size() + exports.size()
 		_assert_unique_ownership(
 			_world, _world.ship.bay_capacity() * 2, "accelerated call %03d ownership" % call_index)
 		for uid in imports + exports:
@@ -353,13 +458,16 @@ func _test_one_hundred_accelerated_calls() -> void:
 				"accelerated call %03d reuses historical UID %s" % [call_index, uid])
 			all_seen[uid] = true
 		var drained := _drain_imports_via_gate()
-		_expect(drained == _world.ship.bay_capacity(),
-			"accelerated call %03d drains its imports via the gate" % call_index)
-		_expect(_world.yard.sector_count(CargoUnit.IMPORT) == 0,
-			"accelerated call %03d leaves import sector drained" % call_index)
+		_expect(drained == 0,
+			"accelerated call %03d protects its next outbound manifest" % call_index)
+		_expect(_world.yard.sector_count(CargoUnit.IMPORT) == _world.ship.bay_capacity(),
+			"accelerated call %03d keeps 24 boxes for the next hull" % call_index)
 		await get_tree().process_frame
-	_expect(all_seen.size() == 100 * _world.ship.bay_capacity() * 2,
-		"100 calls produce 4800 globally distinct cargo UIDs")
+	_expect(all_seen.size() == expected,
+		"100 calls produce %d globally distinct cargo UIDs (saw %d)"
+			% [expected, all_seen.size()])
+	_expect(expected >= 100 * PortLayout.SHIP_BAY_COLS * 4,
+		"and the run really did move a hundred full calls (%d boxes)" % expected)
 
 
 func _reset_call(test_seed: int) -> void:
@@ -371,8 +479,25 @@ func _reset_call(test_seed: int) -> void:
 	_world.ship.set_flights_in_progress(0)
 	_world.reward_visuals = 0
 	_expect(_world.ship.cargo_left() == _world.ship.bay_capacity(), "reset seeds a full import manifest")
+	_expect(not _world.yard.has_boxes(),
+		"starting a ship call never spawns containers in the yard")
+	_deliver_road_exports(_world.ship.bay_capacity(), test_seed)
 	_expect(_world.yard.sector_count(CargoUnit.EXPORT) == _world.ship.bay_capacity(),
-		"reset seeds a full export manifest")
+		"the export manifest reaches the yard from the road")
+
+
+func _deliver_road_exports(count: int, test_seed: int) -> void:
+	## Test fixture for already-arrived road cargo. Every identity is created at
+	## the city origin before being committed to a reserved yard landing.
+	for index in count:
+		var landing := _world.yard.pick_landing_slot(CargoUnit.EXPORT)
+		_expect(not landing.is_empty(), "road cargo has a reserved landing")
+		if landing.is_empty():
+			return
+		var unit := CargoUnit.new("test_road_%d_%d" % [test_seed, index],
+			CargoUnit.EXPORT, index % 8, "cidade")
+		_expect(_world.yard.place_unit(int(landing.slot), int(landing.level),
+			unit, str(landing.token)), "road cargo lands with its original UID")
 
 
 func _complete_call(label: String) -> Dictionary:
@@ -380,24 +505,25 @@ func _complete_call(label: String) -> Dictionary:
 	_complete_discharge(label)
 	for index in _world.ship.bay_capacity():
 		var accepted := _world.berth.handle_tap(_world.ship.global_position)
-		_expect(accepted, "%s accepts load %d/24" % [label, index + 1])
+		_expect(accepted, "%s accepts load %d/%d" % [label, index + 1, _world.ship.bay_capacity()])
 		if accepted:
 			_finish_all_flights(label + " load")
 	_expect(_world.ship.phase == Ship.Phase.DEPARTING,
 		"%s reaches departing after final export" % label)
-	_expect(_world.ship.cargo_left() == _world.ship.bay_capacity(), "%s leaves with 24 exports" % label)
+	_expect(_world.ship.cargo_left() == _world.ship.bay_capacity(),
+		"%s leaves with a full deck of exports" % label)
 	return {"imports": imports, "exports": _ship_uids(_world)}
 
 
 func _complete_discharge(label: String) -> void:
 	for index in _world.ship.bay_capacity():
 		var accepted := _world.berth.handle_tap(_world.ship.global_position)
-		_expect(accepted, "%s accepts discharge %d/24" % [label, index + 1])
+		_expect(accepted, "%s accepts discharge %d/%d" % [label, index + 1, _world.ship.bay_capacity()])
 		if accepted:
 			_finish_all_flights(label + " discharge")
 	_expect(_world.ship.phase == Ship.Phase.WAITING_EXPORT,
 		"%s reaches waiting export after discharge" % label)
-	_expect(_world.ship.cargo_left() == 0, "%s discharges all 24 imports" % label)
+	_expect(_world.ship.cargo_left() == 0, "%s discharges every inbound box" % label)
 
 
 func _finish_all_flights(label: String) -> void:
@@ -407,7 +533,11 @@ func _finish_all_flights(label: String) -> void:
 			flights.append(child)
 	_expect(flights.size() == 1, "%s creates exactly one visual flight" % label)
 	for flight in flights:
-		flight._land()
+		# Accelerated tests skip the travel and impact tweens, but must finish
+		# through the same hand-off used by the real animation. Calling `_land`
+		# and freeing immediately used to work only while `landed` was emitted
+		# before the impact squash.
+		flight._finish_landing()
 		if is_instance_valid(flight):
 			flight.free()
 
@@ -443,7 +573,6 @@ func _drain_imports_via_gate() -> int:
 			break
 		var taken := _world.complete_pickup(slot)
 		if taken.is_empty():
-			_expect(false, "gate pickup returns an IMPORT unit")
 			break
 		var unit: CargoUnit = taken.get("unit")
 		_expect(unit != null and unit.sector == CargoUnit.IMPORT,
@@ -521,6 +650,14 @@ func _intersection(left: Array[String], right: Array[String]) -> Array[String]:
 		if right_set.has(uid):
 			common.append(uid)
 	return common
+
+
+func _same_uid_set(left: Array[String], right: Array[String]) -> bool:
+	var sorted_left := left.duplicate()
+	var sorted_right := right.duplicate()
+	sorted_left.sort()
+	sorted_right.sort()
+	return sorted_left == sorted_right
 
 
 func _expect(condition: bool, label: String) -> void:

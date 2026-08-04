@@ -30,6 +30,10 @@ const MIN_GAP := 15.0
 const CROSS_GAP := 10.0
 const SAME_WAY := 0.3
 const GATE_GAP := 26.0
+## Vehicles converging from different yard rows briefly retain their old
+## horizontal heading after joining the same vertical exit column. Geometry,
+## not that stale heading, identifies that they are now in one lane.
+const SAME_LANE_WIDTH := 7.0
 
 var _vehicles: Array = []          # Array[WeakRef] of Node2D
 var _lanes: Dictionary = {}        # lane key -> WeakRef of the holder
@@ -93,20 +97,27 @@ func can_advance(actor: Node2D, to: Vector2, gap: float = MIN_GAP) -> bool:
 		if other == actor:
 			continue
 		var offset := other.global_position - actor.global_position
-		if offset.dot(heading) <= 0.0:
-			continue                              # behind us; not our problem
+		var other_to_next := other.global_position.distance_to(to)
+		var directly_ahead := offset.dot(heading) > 0.0 \
+			and absf(offset.cross(heading)) < SAME_LANE_WIDTH
+		if directly_ahead and other_to_next < gap:
+			return false
 		var other_heading: Vector2 = _headings.get(other.get_instance_id(), heading)
 		var same_way := other_heading.dot(heading) > SAME_WAY
-		if other.global_position.distance_to(to) >= (gap if same_way else CROSS_GAP):
-			continue
 		if same_way:
-			return false
+			# A follower only yields to the vehicle ahead. Applying this to the
+			# one behind makes both stop and freezes the whole column.
+			if offset.dot(heading) > 0.0 and other_to_next < gap:
+				return false
+			continue
+		if other_to_next >= CROSS_GAP:
+			continue
 		# Two vehicles converging on a junction each have the other in front of
-		# them, so a plain "yield to whatever is ahead" freezes both for ever.
-		# One of them has to take the junction, and which one has to be decided
-		# the same way by both: the lower instance id goes, the other waits.
-		var mutual := offset.dot(other_heading) < 0.0
-		if mutual and actor.get_instance_id() < other.get_instance_id():
+		# them only until their noses cross. Testing "ahead" before recognising
+		# the crossing used to let the second half of that manoeuvre overlap by
+		# several pixels. The same stable priority applies on both sides of the
+		# crossing: the lower instance id clears it, the other waits.
+		if actor.get_instance_id() < other.get_instance_id():
 			continue
 		return false
 	return true

@@ -197,11 +197,11 @@ func _test_safe_area_reaches_primary_ui() -> void:
 	var hud := Hud.new()
 	var shop := Shop.new()
 	var settings := SettingsPanel.new()
-	var toasts := ToastLayer.new()
+	var bell := NoticeBell.new()
 	viewport.add_child(hud)
 	viewport.add_child(shop)
 	viewport.add_child(settings)
-	viewport.add_child(toasts)
+	viewport.add_child(bell)
 	await get_tree().process_frame
 	await get_tree().process_frame
 
@@ -215,7 +215,7 @@ func _test_safe_area_reaches_primary_ui() -> void:
 	hud.apply_view_metrics(metrics)
 	shop.apply_view_metrics(metrics)
 	settings.apply_view_metrics(metrics)
-	toasts.apply_view_metrics(metrics)
+	bell.apply_view_metrics(metrics)
 	await get_tree().process_frame
 
 	# The keys live on the command rail now, in both profiles, so that is what
@@ -239,9 +239,18 @@ func _test_safe_area_reaches_primary_ui() -> void:
 		"Shop sheet stays inside an injected mobile safe area")
 	_expect(_rect_inside(safe, settings._panel.get_global_rect()),
 		"Settings panel stays inside an injected mobile safe area")
-	_expect(toasts._stack.position.x >= safe.position.x \
-			and toasts._stack.position.x + toasts._stack.custom_minimum_size.x <= safe.end.x,
-		"Toast stack stays horizontally inside an injected mobile safe area")
+	# Notices no longer land on the port. The bell is a key on the gantry, so what
+	# has to hold is that it stays reachable inside the safe area and that its log
+	# opens under the bar rather than over it.
+	_expect(_rect_inside(safe, bell._button.get_global_rect()),
+		"the notice bell stays inside an injected mobile safe area")
+	bell.open_log()
+	await get_tree().process_frame
+	_expect(_rect_inside(safe, bell._board.get_global_rect()),
+		"the notice log stays inside an injected mobile safe area")
+	_expect(bell._board.get_global_rect().position.y >= safe.position.y + Hud.BAR_H,
+		"the notice log hangs below the gantry")
+	bell.close_log()
 
 	viewport.queue_free()
 	await get_tree().process_frame

@@ -5,6 +5,9 @@ extends RefCounted
 
 signal status_changed(status: Dictionary)
 signal transfer_committed(transfer: Dictionary)
+## A box has just left one side and is in the air. The world hands this to a quay
+## crane so the machine seen moving is the machine that moved this box.
+signal move_started(move: Dictionary)
 signal notice_requested(notice: Dictionary)
 signal call_completed(summary: Dictionary)
 
@@ -16,7 +19,6 @@ var input_enabled := true
 var _in_flight := 0
 var _imports: Array[CargoUnit] = []
 var _exported: Array[CargoUnit] = [] # committed outbound ledger only
-var _seeded_exports: Array[CargoUnit] = []
 var _active: Dictionary = {} # transfer id -> restart-reconciliation record
 var _variant_seed := 0
 var _variant_call_index := 0
@@ -43,7 +45,10 @@ func setup(p_world: PortWorld, p_ship: Ship, p_yard: ContainerYard) -> void:
 	ship.departed.connect(_on_ship_departed)
 
 
-func seed_new(p_seed: int = 0) -> void:
+func seed_new(p_seed: int = 0, forced_variant: Dictionary = {}) -> void:
+	## `forced_variant` is how a special charter takes over a call: the hull is
+	## given rather than rolled, and everything after it — capacity, manifest,
+	## history — follows from that one substitution.
 	if p_seed != 0:
 		seed(p_seed)
 	call_id = CargoUnit.new_uid("call")
@@ -54,10 +59,13 @@ func seed_new(p_seed: int = 0) -> void:
 		# second global random draw solely for presentation.
 		_variant_seed = call_id.hash()
 	if ship != null:
-		# Two gates on which hull turns up: the lanes the port trades on, and
-		# whether there is enough yard to work the class those lanes bring.
-		ship.select_variant(_variant_seed, _variant_call_index,
-			PortLayout.block_count(), RouteDB.class_pool(GameState.routes))
+		if forced_variant.is_empty():
+			# Two gates on which hull turns up: the lanes the port trades on, and
+			# whether there is enough yard to work the class those lanes bring.
+			ship.select_variant(_variant_seed, _variant_call_index,
+				PortLayout.block_count(), RouteDB.class_pool(GameState.routes))
+		else:
+			ship.apply_variant(forced_variant)
 	_variant_call_index += 1
 	_imports.clear()
 	_exported.clear()
@@ -67,29 +75,28 @@ func seed_new(p_seed: int = 0) -> void:
 	for i in capacity:
 		_imports.append(CargoUnit.new("%s_i_%02d" % [call_id, i], CargoUnit.IMPORT,
 			randi() % 8, "", call_id))
-	# A new call always has a complete, distinct outbound manifest waiting in
-	# the EXPORT zone. No import UID can ever be recycled as an export UID.
-	_seeded_exports = yard.ensure_export_manifest(call_id, capacity)
-	if yard.sector_count(CargoUnit.EXPORT) < capacity:
-		_notice("export_capacity", "Área de exportação sem espaço para o manifesto completo.")
+	# Nothing is seeded into the yard here. Exports must already have arrived
+	# on a road vehicle or on an earlier ship; the new call only owns the boxes
+	# visibly travelling on its inbound deck.
 	ship.set_manifest(_imports, capacity)
 	ship.set_flights_in_progress(0)
 	_emit_status()
 
 
 func ensure_export_stock() -> void:
-	var capacity := ship.bay_capacity() if ship != null \
-		else PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS
-	_seeded_exports.append_array(yard.ensure_export_manifest(call_id, capacity))
-	if yard.sector_count(CargoUnit.EXPORT) < capacity:
-		_notice("export_capacity", "Área de exportação sem espaço para o manifesto completo.")
+	## Legacy migration hook. Old saves called this after restoring a flattened
+	## yard; it deliberately creates nothing now. Road and sea are the only
+	## sources of physical cargo.
 	_emit_status()
 
 
-func arrive() -> void:
+func arrive(open_channel: bool = true) -> void:
+	## `open_channel` is the sequencer's answer to "is there a hull moored between
+	## this berth and the sea?". False sends the ship in off the offing instead of
+	## up the fairway, because the channel is one hull wide.
 	if _imports.is_empty():
 		seed_new()
-	ship.arrive()
+	ship.arrive(open_channel)
 	_emit_status()
 
 
@@ -139,6 +146,17 @@ func handle_tap(pos: Vector2) -> bool:
 	if not input_enabled or ship == null or not ship.is_working():
 		return false
 	return _discharge(pos) if ship.is_discharging() else _load(pos)
+
+
+func can_work() -> bool:
+	## Read-only interaction state for the ship outline.
+	if not input_enabled or ship == null or yard == null or not ship.is_working():
+		return false
+	if ship.is_discharging():
+		return ship.cargo_left() > 0 and yard.can_accept(CargoUnit.IMPORT)
+	var progress := ship.export_progress()
+	return progress.x < progress.y \
+		and yard.has_exportable(ship.import_manifest_uids())
 
 
 func _discharge(pos: Vector2) -> bool:
@@ -204,6 +222,11 @@ func _begin_flight(color: int, from: Vector2, to: Vector2, transfer: CargoTransf
 	_active[transfer.id] = record
 	_in_flight += 1
 	var flight := world.fly_cargo(color, from, to)
+	move_started.emit({
+		"loading": str(record.get("origin", "")) == "yard",
+		"color": color, "duration": flight.duration(),
+		"from": from, "to": to, "id": transfer.id,
+	})
 	flight.landed.connect(func() -> void:
 		if transfer.state != CargoTransfer.State.PREPARED:
 			return
@@ -225,7 +248,13 @@ func _begin_flight(color: int, from: Vector2, to: Vector2, transfer: CargoTransf
 			}
 			transfer_committed.emit(payload)
 			EventBus.cargo_transfer_committed.emit(payload)
-			ship.nudge()
+			# Only a box *arriving* on the deck shakes the hull, and it shakes the
+			# side whose bay took the weight. A discharge lifts a box clear of the
+			# ship and must leave it perfectly still.
+			var loading := str(record.get("origin", "")) == "yard"
+			if loading:
+				var bay: Dictionary = record.get("bay", {})
+				ship.nudge(int(bay.get("col", -1)), true)
 		else:
 			_notice("transfer_reverted", "Movimento cancelado; o contêiner voltou à origem.")
 		if ship.is_discharging():
@@ -246,8 +275,18 @@ func _begin_flight(color: int, from: Vector2, to: Vector2, transfer: CargoTransf
 
 func _maybe_depart() -> void:
 	if ship.ready_to_depart():
-		ship.depart()
+		ship.depart(_channel_out_is_clear())
 	_emit_status()
+
+
+func _channel_out_is_clear() -> bool:
+	## The run out is southward — the hull is drawn bow-down — so what matters is
+	## whoever is alongside between this berth and the open water below it. A
+	## focused harness with no world sails the full channel: there is nobody else
+	## on its quay to cross.
+	if world == null or not world.has_method("lane_clear_south"):
+		return true
+	return world.lane_clear_south(ship.berth_index)
 
 
 func _commit_reward(pos: Vector2) -> Dictionary:
@@ -351,12 +390,10 @@ func snapshot() -> Dictionary:
 	for unit in _imports: imports.append(unit.snapshot())
 	var exported: Array = []
 	for unit in _exported: exported.append(unit.snapshot())
-	var seeded: Array = []
-	for unit in _seeded_exports: seeded.append(unit.snapshot())
 	var active: Array = []
 	for record: Dictionary in _active.values(): active.append(record.duplicate(true))
 	return {"call_id": call_id, "imports": imports, "exports": exported,
-		"seeded_exports": seeded, "active_transfers": active,
+		"active_transfers": active,
 		"variant_seed": _variant_seed, "variant_call_index": _variant_call_index,
 		"ship": ship.snapshot() if ship != null else {}}
 
@@ -365,7 +402,6 @@ func restore(data: Dictionary) -> void:
 	call_id = str(data.get("call_id", ""))
 	_imports = _units_from(data.get("imports", []))
 	_exported = _units_from(data.get("exports", []))
-	_seeded_exports = _units_from(data.get("seeded_exports", []))
 	_variant_seed = int(data.get("variant_seed", 0))
 	_variant_call_index = maxi(0, int(data.get("variant_call_index", 0)))
 	if ship != null:
@@ -380,7 +416,7 @@ func restore(data: Dictionary) -> void:
 		ship.set_flights_in_progress(0)
 		ship.normalize_after_restore()
 		if ship.phase == Ship.Phase.LOADING and ship.ready_to_depart():
-			ship.depart()
+			ship.depart(_channel_out_is_clear())
 		elif ship.phase == Ship.Phase.AWAY:
 			seed_new()
 	_emit_status()

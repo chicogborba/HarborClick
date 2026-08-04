@@ -26,6 +26,11 @@ var best_owned_by_structure: Dictionary = {}
 var rebuild_targets: Dictionary = {}
 var last_run_summary: Dictionary = {}
 var boost_time: float = 0.0      # remaining seconds of the cat boost
+## A special call's prize or its forfeit: one multiplier over everything the port
+## earns, for a fixed number of seconds. Session-scoped like the cat boost — it is
+## a burst, and a burst that survives a reload could be banked.
+var surge_mult: float = 1.0
+var surge_time: float = 0.0
 var flags: Dictionary = {}       # tutorial_done, seen milestones, ...
 
 const MILESTONES := [
@@ -57,8 +62,40 @@ func _process(delta: float) -> void:
 		boost_time = maxf(0.0, boost_time - delta)
 		if boost_time == 0.0:
 			recompute()
+	if surge_time > 0.0:
+		surge_time = maxf(0.0, surge_time - delta)
+		if surge_time == 0.0:
+			surge_mult = 1.0
+			recompute()
 	if cps > 0.0:
 		_earn(cps * delta)
+
+
+func grant_surge(multiplier: float, seconds: float) -> void:
+	## A prize (or a forfeit) on everything the port earns. The strongest one wins
+	## rather than stacking: two overlapping rewards multiplying into each other is
+	## how a clicker economy gets away from its own balance.
+	var wanted := maxf(0.01, multiplier)
+	if surge_time > 0.0 and surge_mult >= wanted and wanted >= 1.0:
+		surge_time = maxf(surge_time, seconds)
+	else:
+		surge_mult = wanted
+		surge_time = maxf(0.0, seconds)
+	recompute()
+	EventBus.teus_changed.emit(teus)
+
+
+func surge_remaining() -> float:
+	return surge_time
+
+
+func apply_fine(amount: float) -> float:
+	## A forfeit paid out of the wallet, never into debt. Returns what was actually
+	## taken so the message can be honest about it.
+	var taken := clampf(amount, 0.0, maxf(0.0, teus))
+	teus -= taken
+	EventBus.teus_changed.emit(teus)
+	return taken
 
 
 func grant_cat_boost() -> bool:
@@ -381,13 +418,15 @@ func recompute() -> void:
 				click_mult *= up.value
 			"click_cps_pct":
 				click_cps_pct += up.value
-	cps = total * global_mult * TimeManager.weather_cps_mult()
+	cps = total * global_mult * TimeManager.weather_cps_mult() * surge_mult
 	var manual_meta := _tree_scope_multiplier(&"manual", &"click_multiplier")
 	var tree_cps_per_tap := _tree_scope_additive(&"manual", &"cps_per_tap")
 	click_power = (1.0 * click_mult * manual_meta) \
 		+ cps * (click_cps_pct + tree_cps_per_tap)
 	if boost_time > 0.0:
 		click_power *= CAT_BOOST_MULT
+	# A surge is on everything the port earns, taps included.
+	click_power *= surge_mult
 	EventBus.cps_changed.emit(cps)
 
 
@@ -500,6 +539,8 @@ func from_save(data: Dictionary) -> void:
 	teus = data.get("teus", 0.0)
 	# Boosts are session-scoped and never survive a wipe/reload.
 	boost_time = 0.0
+	surge_mult = 1.0
+	surge_time = 0.0
 	# v1's lifetime was the only earned-total field, so it seeds both totals.
 	var legacy_lifetime := float(data.get("lifetime", data.get("lifetime_teus", 0.0)))
 	run_teus = float(data.get("run_teus", legacy_lifetime))

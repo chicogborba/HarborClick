@@ -18,6 +18,10 @@ var reduce_motion := false
 var floating_numbers := true
 var ui_scale := 1.00
 var fullscreen := false
+## Which terminal the player was last in. Lives here rather than in a save file
+## because it is a fact about the *player*, not about any one run — and the title
+## screen has to answer "continue where?" before any profile is loaded.
+var last_profile := 0
 var _config_path := CONFIG_PATH
 var _temp_path := TEMP_PATH
 var _backup_path := BACKUP_PATH
@@ -45,6 +49,8 @@ func load_preferences() -> void:
 	floating_numbers = bool(config.get_value("preferences", "floating_numbers", floating_numbers))
 	ui_scale = _safe_ui_scale(float(config.get_value("preferences", "ui_scale", ui_scale)))
 	fullscreen = bool(config.get_value("preferences", "fullscreen", fullscreen))
+	last_profile = clampi(int(config.get_value("preferences", "last_profile",
+		last_profile)), 0, 9)
 	if source != _config_path:
 		var result := save_preferences()
 		if result != OK:
@@ -107,6 +113,13 @@ func set_fullscreen(value: bool) -> void:
 	_commit(&"fullscreen")
 
 
+func set_last_profile(slot: int) -> void:
+	if last_profile == slot:
+		return
+	last_profile = slot
+	_commit(&"last_profile")
+
+
 func can_animate() -> bool:
 	return not reduce_motion
 
@@ -123,12 +136,24 @@ func _safe_ui_scale(value: float) -> float:
 
 
 func _apply_ui_scale() -> void:
-	## Window.content_scale_factor is the supported Godot 4.7 scaling API. The
-	## small fixed presets avoid fractional extremes that would crop the compact
-	## mobile layout or make pixel artwork unreadable.
+	## Configure the root Window explicitly instead of relying only on imported
+	## project defaults. Web builds can keep a root window alive while a new PWA
+	## package activates; in that case its old integer-stretch policy survived
+	## and centred a 320px game inside a wider phone canvas. Reasserting the
+	## complete contract here makes every boot fractional and edge-to-edge.
 	if DisplayServer.get_name() == "headless":
 		return
-	get_tree().root.content_scale_factor = ui_scale
+	var root := get_tree().root
+	# Desktop/headed QA can resize the root window after autoloads enter the
+	# tree. Replacing all of its content-scale properties there would restore
+	# the authored 640×960 override during title captures. The stale-root issue
+	# is specific to the long-lived browser/PWA runtime.
+	if OS.has_feature("web"):
+		root.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+		root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
+		root.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
+		root.content_scale_size = Vector2i(320, 480)
+	root.content_scale_factor = ui_scale
 
 
 func _apply_fullscreen() -> void:
@@ -153,6 +178,7 @@ func save_preferences() -> Error:
 	config.set_value("preferences", "floating_numbers", floating_numbers)
 	config.set_value("preferences", "ui_scale", ui_scale)
 	config.set_value("preferences", "fullscreen", fullscreen)
+	config.set_value("preferences", "last_profile", last_profile)
 	var result := config.save(_temp_path)
 	if result != OK:
 		return result

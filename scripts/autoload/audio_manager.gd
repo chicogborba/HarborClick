@@ -7,6 +7,17 @@ const MUSIC_DB := -20.0        # the music sits well under the effects
 const FADE_TIME := 3.0
 const SETTINGS_PATH := "user://audio.cfg"
 
+## Sounds that exist as a family of near-identical takes, and how many of them
+## `tools/audio/gen_sfx.py` writes. A container landing fires several times a
+## second once the yard is automated: one sample at that rate stops reading as a
+## port and starts reading as a stuck buffer. Families are drawn from a shuffle
+## bag, so no take is ever heard twice running and all of them are used before
+## any repeats.
+const VARIANTS := {"thunk": 6, "click": 4, "horn": 4, "tap": 3}
+## The pitch ladder a family walks, on top of `play_sfx`'s own jitter. Drawn from
+## its own bag for the same reason: two consecutive plays never share a step.
+const PITCH_STEPS := [0.94, 0.97, 1.0, 1.04, 1.08]
+
 var music_on := true
 var sfx_on := true
 
@@ -16,6 +27,8 @@ var _cache: Dictionary = {}
 var _music: Array[AudioStreamPlayer] = []
 var _music_active := 0
 var _current_track := ""
+var _bags: Dictionary = {}     # bag key -> remaining draws, already shuffled
+var _last_draw: Dictionary = {} # bag key -> the value handed out last
 
 
 func _ready() -> void:
@@ -53,15 +66,75 @@ func _exit_tree() -> void:
 func play_sfx(sfx_name: String, pitch_jitter: float = 0.06, volume_db: float = 0.0) -> void:
 	if not sfx_on or DisplayServer.get_name() == "headless" or _pool.is_empty():
 		return
-	var stream := _load(sfx_name)
+	var take := pick_variant(sfx_name)
+	var stream := _load(take)
+	if stream == null and take != sfx_name:
+		# A family whose takes have not been generated yet still makes a sound.
+		stream = _load(sfx_name)
 	if stream == null:
 		return
 	var p := _pool[_next]
 	_next = (_next + 1) % SFX_POOL_SIZE
 	p.stream = stream
-	p.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
+	p.pitch_scale = family_pitch(sfx_name) \
+		* (1.0 + randf_range(-pitch_jitter, pitch_jitter))
 	p.volume_db = volume_db
 	p.play()
+
+
+func play_sfx_pitched(sfx_name: String, pitch: float,
+		volume_db: float = 0.0) -> void:
+	## An exact pitch instead of a drawn one. The stacking minigame walks a rising
+	## scale as the tower grows, and a ladder that means something cannot be a
+	## shuffle bag.
+	if not sfx_on or DisplayServer.get_name() == "headless" or _pool.is_empty():
+		return
+	var take := pick_variant(sfx_name)
+	var stream := _load(take)
+	if stream == null and take != sfx_name:
+		stream = _load(sfx_name)
+	if stream == null:
+		return
+	var p := _pool[_next]
+	_next = (_next + 1) % SFX_POOL_SIZE
+	p.stream = stream
+	p.pitch_scale = clampf(pitch, 0.25, 4.0)
+	p.volume_db = volume_db
+	p.play()
+
+
+func pick_variant(sfx_name: String) -> String:
+	## The file to play for this event. Single sounds are returned untouched;
+	## families hand back the next take in their shuffle bag.
+	var count := int(VARIANTS.get(sfx_name, 0))
+	if count <= 1:
+		return sfx_name
+	return "%s_%d" % [sfx_name, _draw(sfx_name + ":take", count) + 1]
+
+
+func family_pitch(sfx_name: String) -> float:
+	## A step off the ladder, so two takes of the same family are also two
+	## pitches. Sounds outside a family keep their exact recorded pitch.
+	if not VARIANTS.has(sfx_name):
+		return 1.0
+	return float(PITCH_STEPS[_draw(sfx_name + ":pitch", PITCH_STEPS.size())])
+
+
+func _draw(bag_key: String, count: int) -> int:
+	## One value from a shuffle bag: every value is used once before the bag is
+	## refilled, and a refill never opens on the value the last bag closed with —
+	## which is the single repeat a bag exists to prevent.
+	var bag: Array = _bags.get(bag_key, [])
+	if bag.is_empty():
+		for index in count:
+			bag.append(index)
+		bag.shuffle()
+		if bag.size() > 1 and int(bag[0]) == int(_last_draw.get(bag_key, -1)):
+			bag.append(bag.pop_front())
+	var value := int(bag.pop_front())
+	_bags[bag_key] = bag
+	_last_draw[bag_key] = value
+	return value
 
 
 func update_music() -> void:

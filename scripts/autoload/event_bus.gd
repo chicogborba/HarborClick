@@ -16,6 +16,7 @@ signal ship_arrived
 signal ship_departed
 signal day_phase_changed(phase: StringName)
 signal fog_changed(active: bool)
+signal rain_changed(active: bool)
 signal new_day(day: int)
 signal prestiged(shares: int)
 signal toast(text: String)

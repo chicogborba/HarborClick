@@ -21,7 +21,7 @@ var _world: TrafficTestWorld
 class TrafficTestShip:
 	extends Ship
 
-	func arrive() -> void:
+	func arrive(_open_channel: bool = true) -> void:
 		visible = true
 		position = Vector2(PortLayout.SHIP_X, PortLayout.SHIP_Y)
 		_set_phase(Ship.Phase.DISCHARGING)
@@ -85,10 +85,13 @@ func _run() -> void:
 	add_child(_world)
 	await get_tree().process_frame
 
-	# Every hauler type at once, which is also the busiest the terminal ever
-	# gets: three tractors, two forklifts and two reach stackers on one gate.
+	# Every *road-plated* machine at once, which is also the busiest the gate
+	# ever gets: three forklifts and four reach stackers sharing one carriageway.
+	# The terminal tractor is deliberately absent — it has no road plates and
+	# never leaves the fence, so its traffic is relay legs on the apron and the
+	# driving lanes, covered by `relay_test_runner.gd`.
 	var haulers: Array[StructureActor] = []
-	for spec in [["tt", 3], ["empilhadeira", 2], ["reach_stacker", 2]]:
+	for spec in [["empilhadeira", 3], ["reach_stacker", 4]]:
 		for index in int(spec[1]):
 			var actor := StructureActor.new()
 			actor.setup(str(spec[0]), index, _world)
@@ -98,6 +101,7 @@ func _run() -> void:
 
 	var worked := {}
 	var closest := INF
+	var closest_detail := ""
 	var lane_conflicts := 0
 	for step in STEPS:
 		for actor in haulers:
@@ -114,14 +118,19 @@ func _run() -> void:
 				lanes[actor._lane_key] = true
 		for i in busy.size():
 			for j in range(i + 1, busy.size()):
-				closest = minf(closest,
-					busy[i].position.distance_to(busy[j].position))
+				var distance := busy[i].position.distance_to(busy[j].position)
+				if distance < closest:
+					closest = distance
+					closest_detail = "%s[%d] %s job=%s / %s[%d] %s job=%s" % [
+						busy[i].id, busy[i].index, busy[i].position,
+						busy[i]._job, busy[j].id, busy[j].index,
+						busy[j].position, busy[j]._job]
 
 	_expect(lane_conflicts == 0,
 		"no two haulers ever hold the same driving lane")
 	_expect(closest >= CLEARANCE,
-		"haulers never overlap on the road (closest approach %.1f px, floor %.1f)"
-			% [closest, CLEARANCE])
+		"haulers never overlap on the road (closest approach %.1f px, floor %.1f; %s)"
+			% [closest, CLEARANCE, closest_detail])
 	_expect(worked.size() == haulers.size(),
 		"every hauler gets on site at least once (%d of %d) — no starvation"
 			% [worked.size(), haulers.size()])

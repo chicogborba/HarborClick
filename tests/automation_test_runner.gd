@@ -20,7 +20,7 @@ var _world: AutoTestWorld
 class AutoTestShip:
 	extends Ship
 
-	func arrive() -> void:
+	func arrive(_open_channel: bool = true) -> void:
 		visible = true
 		position = Vector2(PortLayout.SHIP_X, PortLayout.SHIP_Y)
 		_set_phase(Ship.Phase.DISCHARGING)
@@ -71,6 +71,7 @@ func _run() -> void:
 	add_child(_world)
 	await get_tree().process_frame
 	_world.berth.seed_new(4242)
+	_deliver_road_exports(_world.ship.bay_capacity())
 	_world.ship.arrive()
 	await get_tree().process_frame
 
@@ -146,6 +147,21 @@ func _test_a_full_call_completes_without_a_single_tap() -> void:
 		recycled += 1 if imports.has(uid) else 0
 	_expect(recycled == 0,
 		"automation never reloads the cargo it just discharged")
+
+
+func _deliver_road_exports(count: int) -> void:
+	## The automation under test works the berth, not the public road. Give it
+	## a manifest that has already arrived through that road, preserving the
+	## same provenance rule as live play.
+	for index in count:
+		var landing := _world.yard.pick_landing_slot(CargoUnit.EXPORT)
+		_expect(not landing.is_empty(), "automated call reserves road cargo")
+		if landing.is_empty():
+			return
+		var unit := CargoUnit.new("auto_road_%02d" % index,
+			CargoUnit.EXPORT, index % 8, "cidade")
+		_expect(_world.yard.place_unit(int(landing.slot), int(landing.level),
+			unit, str(landing.token)), "road cargo exists before berth automation")
 
 
 func _test_departure_bonus_stays_in_its_band() -> void:

@@ -29,6 +29,7 @@ var _fog_rect: ColorRect
 var _fog_mat: ShaderMaterial
 var _fog_amount := 0.0
 var _foghorn_timer := 0.0
+var _wet := 0.0
 
 
 func setup(port: PortWorld) -> void:
@@ -56,7 +57,7 @@ func rebuild_lamps() -> void:
 	## and picked a runway per row by modulo, which put masts in the middle of
 	## the road and left the pattern looking like spilt change.
 	for spot: Dictionary in PortLayout.lamp_spots():
-		_add_lamp(spot.pos, bool(spot.quay))
+		_add_lamp(spot)
 
 
 func tap_lamp(world_pos: Vector2) -> bool:
@@ -86,6 +87,10 @@ func _lamp_natural_target() -> float:
 	return target
 
 
+func wet_factor() -> float:
+	return _wet
+
+
 func set_berth_active(active: bool) -> void:
 	## A working berth is lit whatever the clock says — that is what a real
 	## terminal does, and it makes the one place the player should be tapping
@@ -93,9 +98,9 @@ func set_berth_active(active: bool) -> void:
 	_berth_active = active
 
 
-func _add_lamp(pos: Vector2, quay: bool) -> void:
+func _add_lamp(spot: Dictionary) -> void:
 	var root := Node2D.new()
-	root.position = pos
+	root.position = spot.pos
 	_lamps_root.add_child(root)
 
 	var post := Sprite2D.new()
@@ -112,13 +117,23 @@ func _add_lamp(pos: Vector2, quay: bool) -> void:
 	var light := PointLight2D.new()
 	light.texture = preload("res://assets/sprites/prop_glow.png")
 	light.position = Vector2(6, 6)
-	light.texture_scale = 1.5
+	var tone := str(spot.get("tone", "yard"))
+	var light_color := Color8(255, 228, 172)
+	if tone == "service":
+		light_color = Color8(194, 224, 255)
+	elif tone == "road":
+		light_color = Color8(255, 205, 138)
+	elif tone == "quay":
+		light_color = Color8(255, 218, 158)
+	light.texture_scale = 1.42 if tone == "road" else 1.58
 	light.energy = 0.0
-	light.color = Color8(255, 228, 172)
+	light.color = light_color
 	root.add_child(light)
 
 	_lamps.append({"lit": lit, "light": light, "phase": randf() * 10.0,
-		"quay": quay, "root": root, "override": 0})
+		"quay": bool(spot.quay), "root": root, "override": 0,
+		"energy": float(spot.get("energy", 1.0)),
+		"base_scale": light.texture_scale})
 
 
 func _build_fog() -> void:
@@ -149,12 +164,19 @@ func _process(delta: float) -> void:
 	var tint := _sample(TimeManager.time_of_day)
 	if _fog_amount > 0.0:
 		tint = tint.lerp(Color(0.80, 0.84, 0.88), _fog_amount * 0.30)
+	_wet = move_toward(_wet, 1.0 if TimeManager.rain_active else 0.0, delta * 0.25)
+	if _wet > 0.0:
+		# Overcast: the whole port loses a little light and gains a cold cast,
+		# which is what makes the lamps below worth striking in the afternoon.
+		tint = tint.lerp(Color(0.52, 0.58, 0.72), _wet * 0.34)
 	_tint.color = tint
 
 	var night := _night_factor(TimeManager.time_of_day)
 	var target := clampf(night * 1.25, 0.0, 1.0)
 	if _fog_amount > 0.0:
 		target = maxf(target, _fog_amount * 0.5)
+	# Rain strikes the masts too: a wet afternoon is a lit one.
+	target = maxf(target, _wet * 0.62)
 	for lamp: Dictionary in _lamps:
 		var lit: Sprite2D = lamp.lit
 		var light: PointLight2D = lamp.light
@@ -173,8 +195,9 @@ func _process(delta: float) -> void:
 			flicker = 0.4 + 0.6 * absf(sin(lamp.phase + Time.get_ticks_msec() * 0.02))
 		lit.modulate.a = move_toward(lit.modulate.a, lamp_target, delta * 0.8)
 		light.energy = move_toward(light.energy,
-			lamp_target * LAMP_ENERGY * flicker, delta * 1.1)
-		light.texture_scale = 1.5 + _fog_amount * 0.9
+			lamp_target * LAMP_ENERGY * float(lamp.energy) * flicker,
+			delta * 1.1)
+		light.texture_scale = float(lamp.base_scale) + _fog_amount * 0.9
 
 	if _fog_amount > 0.5:
 		_foghorn_timer -= delta

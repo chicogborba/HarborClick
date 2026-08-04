@@ -55,21 +55,40 @@ func _test_pin_and_objective_contract() -> void:
 	var pinned: Array[StringName] = []
 	var accepted: Array[StringName] = []
 	var objectives := [{"id": "quay", "title": "Movimente carga", "progress": 4.0, "target": 10.0, "reward": {"capital": 1}, "complete": false}]
-	var contract := {"id": "turn_1", "title": "Giro", "status": &"offered", "progress": 0.0, "target": 12.0, "reward": {"amount": 30.0}}
 	var journal := PortJournal.new()
 	journal.setup(null, {
 		"get_objectives": func() -> Array: return objectives,
 		"pin": func(id: StringName) -> bool: pinned.append(id); return true,
-		"get_contract": func() -> Dictionary: return contract,
-		"accept_contract": func(item: Dictionary) -> bool: accepted.append(StringName(item.id)); return true,
 	})
 	viewport.add_child(journal)
 	journal.open()
 	await get_tree().process_frame
 	journal._pin(&"quay")
 	_expect(pinned == [&"quay"], "journal invokes injected objective pin callback")
-	journal._accept_contract(contract)
-	_expect(accepted == [&"turn_1"], "journal accepts the deterministic contract offer")
+	# Charters are events now, not a card on this board. The Diário must not carry
+	# one at all, and the alert is what answers for them.
+	_expect(not journal.has_method("_accept_contract"),
+		"the objective board no longer owns contracts")
+	var alert := SpecialCallAlert.new()
+	viewport.add_child(alert)
+	await get_tree().process_frame
+	alert.accepted.connect(func() -> void: accepted.append(&"aceita"))
+	alert.declined.connect(func() -> void: accepted.append(&"recusada"))
+	var offer := SpecialCallDB.materialize(4242, 0)
+	alert.open(offer, 30.0)
+	_expect(alert.is_open() and alert._title.text == str(offer.title),
+		"the charter alert states which charter it is")
+	_expect(alert._reward.text.length() > 12 and alert._penalty.text.length() > 12,
+		"the alert states the prize and the forfeit before an answer")
+	alert._on_accept()
+	_expect(accepted == [&"aceita"] and not alert.is_open(),
+		"accepting answers once and closes the board")
+	alert.open(offer, 30.0)
+	alert._on_decline()
+	_expect(accepted == [&"aceita", &"recusada"],
+		"refusing is a first-class answer")
+	alert._on_decline()
+	_expect(accepted.size() == 2, "a closed alert cannot answer twice")
 	var chip := ObjectiveChip.new()
 	chip.setup(null, {"get_objective": func() -> Dictionary: return {"title":"Movimente carga", "progress":4.0, "target":10.0, "pinned":true}})
 	viewport.add_child(chip)

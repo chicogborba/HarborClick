@@ -7,56 +7,71 @@ class_name RouteDB
 ## a long ocean lane pays several times as much and keeps the berth busy for
 ## ages. There is never a strictly best one, which is the point.
 ##
-## `chart` is the pin's position on the map, in the 0..1 space of the chart
-## sheet, so the drawing and the data cannot drift apart.
+## `chart` is the final pin and `ports` is the complete painted lane, both in
+## the map's 0..1 equirectangular space, so the drawing and data cannot drift.
 
 const ITEMS: Array[Dictionary] = [
 	{
 		"id": "cabotagem", "name": "Cabotagem Sul",
 		"where": "Rio Grande - Itajaí", "cost": 0.0,
-		"chart": Vector2(0.42, 0.78), "classes": ["coastal_feeder"],
+		"chart": Vector2(0.32, 0.78),
+		"ports": [Vector2(0.32, 0.78)],
+		"classes": ["coastal_feeder"],
 		"interval": 0.75, "reward": 1.0,
 		"desc": "Curta e constante. Sempre tem navio.",
 	},
 	{
 		"id": "prata", "name": "Bacia do Prata",
 		"where": "Buenos Aires - Montevidéu", "cost": 25_000.0,
-		"chart": Vector2(0.33, 0.86), "classes": ["coastal_feeder", "coastal"],
+		"chart": Vector2(0.31, 0.82),
+		"ports": [Vector2(0.31, 0.82)],
+		"classes": ["coastal_feeder", "panamax"],
 		"interval": 0.9, "reward": 1.25,
 		"desc": "Mais volume sem sair de casa.",
 	},
 	{
 		"id": "caribe", "name": "Corredor do Caribe",
 		"where": "Cartagena - Colón", "cost": 900_000.0,
-		"chart": Vector2(0.26, 0.44), "classes": ["coastal", "panamax"],
+		"chart": Vector2(0.25, 0.49),
+		"ports": [Vector2(0.25, 0.49)],
+		"classes": ["coastal_feeder", "panamax"],
 		"interval": 1.15, "reward": 1.7,
 		"desc": "Panamax começa a encostar no berço.",
 	},
 	{
 		"id": "atlantico", "name": "Travessia Atlântica",
 		"where": "Roterdã - Antuérpia", "cost": 40e6,
-		"chart": Vector2(0.55, 0.24), "classes": ["panamax", "new_panamax"],
+		"chart": Vector2(0.50, 0.29),
+		"ports": [Vector2(0.50, 0.29)],
+		"classes": ["panamax", "new_panamax"],
 		"interval": 1.5, "reward": 2.6,
 		"desc": "Escala longa, frete alto, berço ocupado.",
 	},
 	{
 		"id": "cabo", "name": "Rota do Cabo",
 		"where": "Durban - Singapura", "cost": 3e9,
-		"chart": Vector2(0.72, 0.66), "classes": ["panamax", "new_panamax"],
+		"chart": Vector2(0.79, 0.58),
+		"ports": [Vector2(0.58, 0.70), Vector2(0.79, 0.58)],
+		"classes": ["panamax", "new_panamax"],
 		"interval": 1.7, "reward": 3.4,
 		"desc": "A mais longa que um porto deste tamanho aguenta.",
 	},
 	{
 		"id": "transpacifico", "name": "Transpacífico",
 		"where": "Xangai - Los Angeles", "cost": 500e12,
-		"chart": Vector2(0.86, 0.36), "classes": ["new_panamax"],
+		"chart": Vector2(0.12, 0.39),
+		"ports": [
+			Vector2(0.58, 0.70), Vector2(0.79, 0.58),
+			Vector2(0.86, 0.38), Vector2(0.12, 0.39),
+		],
+		"classes": ["new_panamax"],
 		"interval": 2.0, "reward": 5.0,
-		"desc": "Só New Panamax. O porto vira referência.",
+		"desc": "New Panamax e ULCV. O porto vira referência.",
 	},
 ]
 
 ## Where the terminal itself sits on the chart.
-const HOME := Vector2(0.46, 0.70)
+const HOME := Vector2(0.34, 0.72)
 
 
 static func get_item(id: String) -> Dictionary:
@@ -121,6 +136,16 @@ static func is_valid() -> bool:
 			return false
 		if (item.get("classes", []) as Array).is_empty():
 			return false
+		var chart: Vector2 = item.get("chart", Vector2(-1, -1))
+		if chart.x < 0.0 or chart.x > 1.0 or chart.y < 0.0 or chart.y > 1.0:
+			return false
+		var ports: Array = item.get("ports", [])
+		if ports.is_empty():
+			return false
+		for point: Vector2 in ports:
+			if point.x < 0.0 or point.x > 1.0 \
+					or point.y < 0.0 or point.y > 1.0:
+				return false
 		var cost := float(item.get("cost", -1.0))
 		if cost < previous_cost:
 			return false

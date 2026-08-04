@@ -28,6 +28,7 @@ func _run() -> void:
 	_test_buying_a_lane_widens_the_fleet_and_the_freight()
 	_test_lanes_open_outward_in_order()
 	_test_lanes_survive_a_save()
+	_test_every_class_can_actually_be_reached()
 
 	SaveManager.wipe()
 	if failures.is_empty():
@@ -38,6 +39,30 @@ func _run() -> void:
 			push_error(failure)
 		print("ROUTE TESTS FAILED: %d assertion(s)" % failures.size())
 		get_tree().quit(1)
+
+
+func _test_every_class_can_actually_be_reached() -> void:
+	## A lane is the only way a class gets to call here. Adding a hull to the
+	## catalogue without adding it to a lane makes a ship nobody can ever see.
+	var reachable := {}
+	for route: Dictionary in RouteDB.ITEMS:
+		for id in route.get("classes", []):
+			reachable[str(id)] = true
+			_expect(not ShipCatalog.get_silhouette(StringName(id)).is_empty(),
+				"lane %s asks for a class that exists (%s)" % [route.id, id])
+	for silhouette: Dictionary in ShipCatalog.SILHOUETTES:
+		_expect(reachable.has(str(silhouette.id)),
+			"%s is on at least one lane, so it can actually call here"
+				% silhouette.id)
+
+	# And owning every lane really does put every class in the pool.
+	var all_routes := {}
+	for route: Dictionary in RouteDB.ITEMS:
+		all_routes[str(route.id)] = true
+	var pool := RouteDB.class_pool(all_routes)
+	_expect(pool.size() == ShipCatalog.SILHOUETTES.size(),
+		"a port on every lane can be called by the whole fleet (%d of %d)"
+			% [pool.size(), ShipCatalog.SILHOUETTES.size()])
 
 
 func _test_the_data_is_ordered_and_the_home_lane_is_free() -> void:

@@ -3,6 +3,11 @@ extends CanvasLayer
 ## The career board. The optional callbacks are deliberately tiny adapters:
 ## get_objectives() -> Array[Dictionary], pin(id) -> bool.
 ##
+## Contracts used to live here as a card at the top of the "next" tab, and they
+## were the worst thing on it: a quiet counter you had to remember to come and
+## look at, sitting above the goals it had nothing to do with. Charters are events
+## now — see `SpecialCallAlert` and `CraneMinigame`. This board is goals only.
+##
 ## The first version printed `245413 / 1000000` and, next to it, the literal
 ## contents of the reward dictionary — the player read "recompensa: cosmetic".
 ## Every row now carries a filled bar, formatted numbers and reward text
@@ -11,9 +16,9 @@ extends CanvasLayer
 
 signal open_changed(opened: bool)
 signal objective_pinned(id: StringName)
-signal contract_accepted(id: StringName)
 
-const TABS := [["next", "PRÓXIMAS"], ["all", "TODAS"], ["done", "CONCLUÍDAS"]]
+const TABS := [["next", "PRÓXIMAS"], ["all", "TODAS"], ["done", "CONCLUÍDAS"],
+	["crew", "EQUIPE"]]
 
 var _source: Variant
 var _callbacks: Dictionary = {}
@@ -153,6 +158,84 @@ func _on_backdrop_input(event: InputEvent) -> void:
 		close()
 
 
+func _build_crew_page() -> void:
+	## Who works here, what each of them is on right now, and the charter record.
+	## The whole crew in one place was the thing the individual dossiers could not
+	## give: you can tap one person in the yard, but not compare the shift.
+	var record := _charter_record()
+	if not record.is_empty():
+		_list.add_child(_make_record_card(record))
+	for member: Dictionary in _crew():
+		_list.add_child(_make_crew_card(member))
+
+
+func _make_record_card(record: Dictionary) -> PanelContainer:
+	var card := PanelContainer.new()
+	UiTheme.apply_panel(card, UiTheme.card_style(&"ready"))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 5)
+	card.add_child(row)
+	row.add_child(UiTheme.icon(UiTheme.Icon.STAR))
+	var text := VBoxContainer.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.add_theme_constant_override(&"separation", 1)
+	row.add_child(text)
+	text.add_child(UiTheme.label("ESCALAS ESPECIAIS", UiTheme.SIZE_SMALL,
+		UiTheme.INK))
+	var played := int(record.get("played", 0))
+	var won := int(record.get("won", 0))
+	var detail := "nenhuma ainda" if played == 0 \
+		else "%d de %d concluídas" % [won, played]
+	text.add_child(UiTheme.label(detail, UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP))
+	return card
+
+
+func _make_crew_card(member: Dictionary) -> PanelContainer:
+	var card := PanelContainer.new()
+	UiTheme.apply_panel(card, UiTheme.card_style(
+		&"ready" if bool(member.get("special", false)) else &"normal"))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 5)
+	card.add_child(row)
+	row.add_child(UiTheme.icon(UiTheme.Icon.GLOVE))
+	var text := VBoxContainer.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.add_theme_constant_override(&"separation", 1)
+	row.add_child(text)
+	var name_label := UiTheme.label("%s  -  %s" % [str(member.get("name", "")),
+		str(member.get("title", ""))], UiTheme.SIZE_SMALL, UiTheme.INK)
+	name_label.clip_text = true
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	text.add_child(name_label)
+	var task := str(member.get("objective", ""))
+	var task_label := UiTheme.label(task if not task.is_empty() \
+		else "Sem tarefa agora.", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	task_label.clip_text = true
+	task_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	text.add_child(task_label)
+	var tally := UiTheme.stamp(str(int(member.get("moves", 0))), UiTheme.AMBER,
+		UiTheme.SIZE_SMALL)
+	tally.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(tally)
+	return card
+
+
+func _crew() -> Array:
+	var getter: Callable = _callbacks.get("get_crew", Callable())
+	if getter.is_valid():
+		var value: Variant = getter.call()
+		return value if value is Array else []
+	return []
+
+
+func _charter_record() -> Dictionary:
+	var getter: Callable = _callbacks.get("get_charters", Callable())
+	if getter.is_valid():
+		var value: Variant = getter.call()
+		return value if value is Dictionary else {}
+	return {}
+
+
 func _select_tab(tab: String) -> void:
 	_active_tab = tab
 	_refresh()
@@ -165,30 +248,21 @@ func _refresh() -> void:
 		child.queue_free()
 	for key: String in _tab_buttons:
 		UiTheme.style_tab(_tab_buttons[key], key == _active_tab)
-	if _active_tab == "next":
-		var contract := _contract()
-		if not contract.is_empty():
-			_list.add_child(_make_contract_card(contract))
-	for objective: Dictionary in _objectives():
-		var done := bool(objective.get("complete", false))
-		if (_active_tab == "done" and not done) or (_active_tab == "next" and done):
-			continue
-		_list.add_child(_make_card(objective))
+	if _active_tab == "crew":
+		_build_crew_page()
+	else:
+		for objective: Dictionary in _objectives():
+			var done := bool(objective.get("complete", false))
+			if (_active_tab == "done" and not done) \
+					or (_active_tab == "next" and done):
+				continue
+			_list.add_child(_make_card(objective))
 	if _list.get_child_count() == 0:
-		var empty := UiTheme.label("Nenhuma meta nesta página.",
+		var empty := UiTheme.label("Nenhuma meta nesta página."
+			if _active_tab != "crew" else "Ninguém contratado ainda.",
 			UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_list.add_child(empty)
-
-
-func _contract() -> Dictionary:
-	var getter: Callable = _callbacks.get("get_contract", Callable())
-	if getter.is_valid():
-		var supplied: Variant = getter.call()
-		return supplied.duplicate(true) if supplied is Dictionary else {}
-	if _source != null and _source.has_method("get_active_contract"):
-		return _source.get_active_contract()
-	return {}
 
 
 func _objectives() -> Array:
@@ -272,58 +346,6 @@ func _make_card(objective: Dictionary) -> PanelContainer:
 	return card
 
 
-func _make_contract_card(contract: Dictionary) -> PanelContainer:
-	var card := PanelContainer.new()
-	card.custom_minimum_size.y = 52.0
-	UiTheme.apply_panel(card, UiTheme.card_style(&"ready"))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 5)
-	card.add_child(row)
-	var mark := UiTheme.icon(UiTheme.Icon.TRUCK)
-	mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(mark)
-
-	var text := VBoxContainer.new()
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	text.add_theme_constant_override(&"separation", 2)
-	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(text)
-	var contract_title := UiTheme.label(
-		"CONTRATO: " + str(contract.get("title", "Turno")),
-		UiTheme.SIZE_SMALL, UiTheme.INK)
-	contract_title.clip_text = true
-	contract_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	text.add_child(contract_title)
-
-	var active := StringName(contract.get("status", &"offered")) == &"active"
-	var progress := float(contract.get("progress", 0.0))
-	var target := float(contract.get("target", 0.0))
-	var reward: Dictionary = contract.get("reward", {})
-	if active:
-		text.add_child(_progress_bar(progress, target))
-	var detail := "%s / %s  -  +%s TEU" % [GameState.fmt(progress),
-		GameState.fmt(target), GameState.fmt(float(reward.get("amount", 0.0)))]
-	if active:
-		var elapsed := float(contract.get("active_elapsed", 0.0))
-		var duration := float(contract.get("active_duration", 0.0))
-		var remaining_seconds := int(maxf(0.0, duration - elapsed))
-		detail += "  -  %d:%02d" % [int(remaining_seconds / 60.0), remaining_seconds % 60]
-	var detail_label := UiTheme.label(detail, UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP)
-	detail_label.clip_text = true
-	text.add_child(detail_label)
-
-	var action := UiTheme.button("ATIVO" if active else "ACEITAR",
-		&"off" if active else &"amber", UiTheme.SIZE_SMALL)
-	action.custom_minimum_size = Vector2(58, 30)
-	action.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	action.disabled = active
-	if not active:
-		action.pressed.connect(_accept_contract.bind(contract.duplicate(true)))
-	row.add_child(action)
-	return card
-
-
 func _pin(id: StringName) -> void:
 	if id.is_empty():
 		return
@@ -333,18 +355,6 @@ func _pin(id: StringName) -> void:
 	elif _source != null and _source.has_method("pin_objective"):
 		_source.pin_objective(id)
 	objective_pinned.emit(id)
-	_refresh()
-
-
-func _accept_contract(contract: Dictionary) -> void:
-	var accept_callback: Callable = _callbacks.get("accept_contract", Callable())
-	var accepted := false
-	if accept_callback.is_valid():
-		accepted = bool(accept_callback.call(contract))
-	elif _source != null and _source.has_method("accept_contract"):
-		accepted = bool(_source.accept_contract(contract))
-	if accepted:
-		contract_accepted.emit(StringName(contract.get("id", "")))
 	_refresh()
 
 

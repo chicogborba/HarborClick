@@ -46,6 +46,16 @@ func _run() -> void:
 		[UiTheme.INK, surfaces.btn_off, "label on a muted key"],
 		[UiTheme.INK_SOFT, surfaces.seg_off, "label on an inactive segment"],
 		[Color8(66, 52, 44), surfaces.tab_off, "label on an inactive tab"],
+		# The steel half of the interface: the gantry over the port, the glass
+		# the tally is lit behind, the berth tag and the console keys.
+		[UiTheme.DIGIT, surfaces.glass, "the tally lit behind glass"],
+		[UiTheme.DIGIT, surfaces.gantry, "the hour on the gantry"],
+		[UiTheme.STEEL_TEXT, surfaces.gantry, "a caption on the gantry"],
+		[UiTheme.STEEL_DIM, surfaces.gantry, "the day on the gantry"],
+		[UiTheme.STEEL_TEXT, surfaces.tag, "the berth state on its tag"],
+		[UiTheme.TEAL_LIGHT, surfaces.tag, "the rate on its tag"],
+		[UiTheme.STEEL_DIM, surfaces.tag, "the cat timer on its tag"],
+		[UiTheme.STEEL_TEXT, surfaces.btn_steel, "label on a console key"],
 	]
 	for pair in pairs:
 		var ratio := _contrast(pair[0], pair[1])

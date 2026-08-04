@@ -29,6 +29,15 @@ var _failures: PackedStringArray = []
 
 
 func _ready() -> void:
+	# Captures drive purchases, time and berth state aggressively. Keep that
+	# synthetic run on its own save path so visual QA can never alter whichever
+	# player profile was used most recently.
+	DirAccess.make_dir_recursive_absolute(
+		ProjectSettings.globalize_path("user://capture"))
+	SaveManager.set_save_path_for_tests("user://capture/harborclick_capture.json")
+	SaveManager.active_slot = -1
+	GameState.from_save({})
+	TimeManager.from_save({})
 	DirAccess.make_dir_recursive_absolute(SHOT_DIR)
 	for arg in OS.get_cmdline_user_args():
 		if arg == "matrix":
@@ -51,9 +60,19 @@ func _ready() -> void:
 			DisplayServer.window_set_size(size)
 			get_window().size = size
 			await get_tree().create_timer(0.4).timeout
-			_check("title", title.get_node(^"../Title/PanelContainer")
-				if title.has_node(^"../Title/PanelContainer") else title._board, size)
+			# Two pages, so two checks. Measuring only the terminal board while the
+			# marquee is on screen tests a panel nobody is looking at and misses
+			# the one they are.
+			_check("title marquee", title._actions, size)
+			_check("title plate", title._plate, size)
 			await _shot("title")
+			title._show_board()
+			await get_tree().process_frame
+			await get_tree().process_frame
+			_check("title board", title._board, size)
+			await _shot("title_board")
+			title._show_marquee()
+			await get_tree().process_frame
 		if not _failures.is_empty():
 			for failure in _failures:
 				printerr("[capture] FAIL: ", failure)
@@ -93,18 +112,40 @@ func _prepare() -> void:
 	var offline := _main.get_node_or_null(^"OfflinePopup")
 	if offline != null:
 		offline.queue_free()
+	# Every visible cap has to be present in the world capture. Set the synthetic
+	# inventory directly: buying each unit used to trigger dozens of immediate
+	# disk saves and still stopped at the mid-game equipment when the fake
+	# budget ran out.
 	GameState.teus = 4.2e7
 	GameState.lifetime_teus = 4.2e7
 	GameState.all_time_teus = 4.2e7
-	EventBus.teus_changed.emit(GameState.teus)
 	for item in StructureDB.ITEMS:
-		for n in 3:
-			GameState.buy_structure(item.id)
+		GameState.owned[item.id] = 3
+		GameState.best_owned_by_structure[item.id] = maxi(
+			int(GameState.best_owned_by_structure.get(item.id, 0)), 3)
+	GameState.recompute()
+	_main.world.structures.rebuild()
+	EventBus.teus_changed.emit(GameState.teus)
 
 
 func _run(size: Vector2i) -> void:
 	if _wants("world"):
+		_check_hud(size)
 		await _shot("world")
+	if _wants("clock"):
+		# The clock reads the real clock, so the shot is driven to a known hour
+		# rather than to whatever the run happens to be at.
+		var was_time := TimeManager.time_of_day
+		var was_wind := TimeManager.wind
+		TimeManager.time_of_day = 0.62
+		TimeManager.wind = 0.85
+		TimeManager.overcast = true
+		await get_tree().create_timer(0.35).timeout
+		_check("clock", _main.clock._board, size)
+		await _shot("clock")
+		TimeManager.time_of_day = was_time
+		TimeManager.wind = was_wind
+		TimeManager.overcast = false
 	# Night and the wake are about the world, not the layout, so across a whole
 	# matrix run they are captured once rather than at all seven sizes — they
 	# were more than half the wall clock of a full sweep.
@@ -127,12 +168,77 @@ func _run(size: Vector2i) -> void:
 		ship.visible = true
 		ship._set_phase(Ship.Phase.ARRIVING)
 		ship.position = Vector2(PortLayout.SHIP_X, PortLayout.SHIP_Y + 210.0)
+		# Follow the hull, or the shot is a photograph of empty water while the
+		# ship it is about sits off the bottom of the frame.
+		_main.cam.focus_on(ship.position.y + ship.hull_height() * 0.4, 0.2)
+		await get_tree().create_timer(0.4).timeout
 		for step in 40:
 			ship.position.y -= 2.6
 			ship._process(1.0 / 60.0)
 			_main.world._feed_water_shader()
+			_main.cam.position.y = ship.position.y + ship.hull_height() * 0.4
 			await get_tree().process_frame
 		await _shot("wake")
+	if _wants("reward") and world_pass:
+		# The "+N TEU" that pops when a box lands. It is the game's only feedback
+		# that a tap paid, so it has to be on screen and readable.
+		var paid: Ship = _main.world.ship
+		paid.visible = true
+		paid.position = paid.berth_position()
+		paid._set_phase(Ship.Phase.DISCHARGING)
+		_main.cam.focus_on(paid.position.y + paid.hull_height() * 0.5, 0.2)
+		await get_tree().create_timer(0.5).timeout
+		for tap in 5:
+			_main.world.berth.handle_tap(
+				paid.global_position + Vector2(30.0, 40.0 + tap * 18.0))
+			await get_tree().create_timer(0.08).timeout
+		# Land them all, which is when the reward commits and the text spawns.
+		for child in _main.world.overhead.get_children():
+			if child is FlyingContainer:
+				(child as FlyingContainer)._finish_landing()
+		await get_tree().create_timer(0.25).timeout
+		var floats := 0
+		for child in _main.world.overhead.get_children():
+			if child is FloatText:
+				floats += 1
+		print("[capture] reward floats alive: %d" % floats)
+		await _shot("reward")
+		if floats == 0:
+			_failures.append("reward at %dx%d showed no floating TEU"
+				% [size.x, size.y])
+	if _wants("rain") and world_pass:
+		# Rain, the wet grade and the lamps it strikes, on a hull tied up with its
+		# lines out — everything that is only ever seen together.
+		var wet_ship: Ship = _main.world.ship
+		wet_ship.visible = true
+		wet_ship.position = wet_ship.berth_position()
+		wet_ship._set_phase(Ship.Phase.DISCHARGING)
+		TimeManager.rain_active = true
+		EventBus.rain_changed.emit(true)
+		_main.world.rain._amount = 1.0
+		_main.cam.focus_on(wet_ship.position.y + wet_ship.hull_height() * 0.5, 0.3)
+		await get_tree().create_timer(3.2).timeout
+		await _shot("rain")
+		TimeManager.rain_active = false
+		EventBus.rain_changed.emit(false)
+		_main.world.rain._amount = 0.0
+		await get_tree().create_timer(0.4).timeout
+	if _wants("moorings") and world_pass:
+		var moored: Ship = _main.world.ship
+		moored.visible = true
+		moored.position = moored.berth_position()
+		moored._set_phase(Ship.Phase.AWAY)
+		moored._set_phase(Ship.Phase.DISCHARGING)
+		_main.cam.focus_on(moored.position.y + moored.hull_height() * 0.5, 0.3)
+		await get_tree().create_timer(1.6).timeout
+		await _shot("moorings")
+		if moored._mooring_throw < 0.9:
+			_failures.append("moorings at %dx%d never finished being thrown (%.2f)"
+				% [size.x, size.y, moored._mooring_throw])
+	if _wants("relay") and world_pass:
+		await _capture_relay()
+	if _wants("transfer") and world_pass:
+		await _capture_transfer_alignment()
 	if _wants("gate") and world_pass:
 		# The road is only worth anything if a truck is seen using it, so this
 		# drives the whole cycle — in through the gate, parked on a bay, back
@@ -156,6 +262,214 @@ func _run(size: Vector2i) -> void:
 			gate.send_away(bay)
 		await get_tree().create_timer(1.5).timeout
 		await _shot("gate_leaving")
+	if _wants("fleet") and world_pass:
+		# Three berths only exist once the quay is long enough, so the parcels are
+		# bought here and the hulls forced alongside: an empty second berth proves
+		# nothing about whether two ships can be worked at once.
+		var world: PortWorld = _main.world
+		var guard := 0
+		while PortLayout.berth_count() < PortLayout.BERTH_MAX and guard < 12:
+			var parcel := LandDB.next_parcel()
+			if parcel.is_empty():
+				break
+			GameState.teus = 1e18
+			_main.shop._on_buy_land(parcel.id)
+			guard += 1
+			await get_tree().create_timer(0.25).timeout
+		_main.shop._close()
+		for index in world.ships.size():
+			var hull: Ship = world.ships[index]
+			hull.visible = true
+			hull.position = hull.berth_position()
+			hull._set_phase(Ship.Phase.DISCHARGING)
+		await get_tree().create_timer(0.6).timeout
+		_main.cam.focus_on(PortLayout.berth_y(1) + 40.0, 0.3)
+		await get_tree().create_timer(0.6).timeout
+		print("[capture] berths: %d, hulls alongside: %d" % [
+			PortLayout.berth_count(), world.working_ships().size()])
+		await _shot("fleet")
+		if world.working_ships().size() < PortLayout.berth_count():
+			_failures.append("fleet at %dx%d has %d hulls for %d berths"
+				% [size.x, size.y, world.working_ships().size(),
+					PortLayout.berth_count()])
+		# And the same quay with berths empty, which is when the ETA is the only
+		# thing the board can usefully say.
+		for index in world.ships.size():
+			if index == 0:
+				continue
+			var idle: Ship = world.ships[index]
+			idle._set_phase(Ship.Phase.AWAY)
+			idle.visible = false
+		world._turnaround[1] = 9.0
+		_main._refresh_berth_board()
+		await get_tree().create_timer(0.4).timeout
+		await _shot("fleet_waiting")
+
+		# The manoeuvre that used to slide one hull through another: the middle
+		# berth sailing with both its neighbours alongside. There is no channel for
+		# it, so the tugs take it straight out to sea instead, and this is the shot
+		# that says so. The export ledger is forced because `depart` refuses a call
+		# that is not finished, and the point here is the track, not the cargo.
+		for index in world.ships.size():
+			var alongside: Ship = world.ships[index]
+			alongside.visible = true
+			alongside.position = alongside.berth_position()
+			alongside._set_phase(Ship.Phase.DISCHARGING)
+		await get_tree().create_timer(0.5).timeout
+		var sailing: Ship = world.ships[1]
+		sailing._export_target = 1
+		sailing._exported = 1
+		sailing.set_flights_in_progress(0)
+		_main.cam.focus_on(sailing.position.y + 60.0, 0.3)
+		sailing.depart(world.lane_clear_north(1))
+		# Long enough to be off the wall and on the way out, short enough to still
+		# be in frame.
+		await get_tree().create_timer(3.6).timeout
+		print("[capture] blocked departure at x=%.1f, berth line x=%.1f"
+			% [sailing.position.x, PortLayout.SHIP_X])
+		await _shot("unberth")
+		if sailing.position.x <= PortLayout.SHIP_X + 1.0:
+			_failures.append("unberth at %dx%d never came off the wall"
+				% [size.x, size.y])
+	if _wants("charter"):
+		# The interruption, and then the game it turns into. Both are full-screen
+		# boards over a live port, so both have to fit at every size.
+		var offer := SpecialCallDB.materialize(4242, 0)
+		_main.special_alert.open(offer, SpecialCallDirector.OFFER_TIMEOUT)
+		await get_tree().create_timer(0.35).timeout
+		_check("charter", _main.special_alert._board, size)
+		await _shot("charter")
+		_main.special_alert.close()
+		await get_tree().create_timer(0.2).timeout
+	if _wants("maze"):
+		# The second charter game: a different verb, so it gets its own shot.
+		_main.maze.open(SpecialCallDB.get_offer(&"carga_perdida"))
+		await get_tree().create_timer(0.5).timeout
+		# Walk it a little so the shot shows a route taken, not a fresh grid.
+		for step in 6:
+			for direction in [MazeGame.EAST, MazeGame.SOUTH,
+					MazeGame.NORTH, MazeGame.WEST]:
+				if _main.maze.game.can_move(direction):
+					_main.maze._step(direction)
+					break
+			await get_tree().create_timer(0.12).timeout
+		_check("maze", _main.maze._board, size)
+		await _shot("maze")
+		if _main.maze.game.moves < 3:
+			_failures.append("maze at %dx%d only moved %d times"
+				% [size.x, size.y, _main.maze.game.moves])
+		_main.maze.visible = false
+		await get_tree().create_timer(0.2).timeout
+	if _wants("minigame"):
+		var game_offer := SpecialCallDB.get_offer(&"gala_relampago")
+		_main.minigame.open(game_offer)
+		await get_tree().create_timer(0.4).timeout
+		# Stack a few by hand so the shot shows a tower rather than an empty well.
+		for placed in 4:
+			_main.minigame.game.trolley_x = _main.minigame.game.tower_x
+			_main.minigame._on_drop()
+			# The next box cannot be let go until this one has landed, so wait for
+			# the fall rather than guessing at a delay.
+			var fall_deadline := Time.get_ticks_msec() + 2000
+			while _main.minigame._falling != null \
+					and Time.get_ticks_msec() < fall_deadline:
+				await get_tree().process_frame
+		_check("minigame", _main.minigame._board, size)
+		await _shot("minigame")
+		if _main.minigame.game.placed < 4:
+			_failures.append("minigame at %dx%d stacked %d of 4"
+				% [size.x, size.y, _main.minigame.game.placed])
+		_main.minigame.visible = false
+		await get_tree().create_timer(0.2).timeout
+	if _wants("crew"):
+		# The dossier is opened by tapping somebody in the yard, so it has to fit
+		# over a live port at every size in the matrix — not just on a phone.
+		var people: Array[StructureActor] = _main.world.structures.crew()
+		var subject: StructureActor = null
+		for candidate in people:
+			if candidate.profile == null:
+				continue
+			# Prefer somebody with a helmet of their own: their dossier is the
+			# longest, so it is the hardest to lay out, and the shot doubles as
+			# the check that the tinted helmet reaches the screen.
+			if subject == null or candidate.profile.wears_special_hat():
+				subject = candidate
+		if subject != null:
+			# Bring the person on screen behind their own card: a dossier for
+			# somebody the shot does not contain is half a review.
+			_main.cam.focus_on(subject.global_position.y - 40.0, 0.2)
+			await get_tree().create_timer(0.4).timeout
+			# Where they ended up on screen, so a reviewer can crop straight to
+			# them instead of hunting a nine-pixel figure in a full frame.
+			print("[capture] crew subject %s (%s) at %s" % [
+				subject.profile.display_name, subject.id,
+				subject.get_global_transform_with_canvas().origin])
+			_main.npc_card.show_profile(subject.profile, {
+				"actor": subject,
+				"objective": subject.objective_text(),
+				"stage": subject.stage_text(),
+			})
+			await get_tree().create_timer(0.35).timeout
+			_check("crew", _main.npc_card._card, size)
+			await _shot("crew")
+			_main.npc_card.close()
+			await get_tree().create_timer(0.2).timeout
+		else:
+			_failures.append("crew at %dx%d has nobody to inspect"
+				% [size.x, size.y])
+	if _wants("grab") and world_pass:
+		# Press and hold lifts somebody off the ground. Driven through the world's
+		# own press handlers rather than through synthetic InputEvents, because
+		# what is worth proving is the hold-versus-tap decision and the dangle,
+		# not Godot's event routing.
+		var world: PortWorld = _main.world
+		var lifted: StructureActor = null
+		for candidate in world.structures.crew():
+			if candidate.is_person():
+				lifted = candidate
+				break
+		if lifted == null:
+			_failures.append("grab at %dx%d has nobody on foot to pick up"
+				% [size.x, size.y])
+		else:
+			_main.cam.focus_on(lifted.global_position.y, 0.2)
+			await get_tree().create_timer(0.4).timeout
+			var from := lifted.global_position + Vector2(4.0, 6.0)
+			world._begin_press(from)
+			world._tick_hold(PortWorld.GRAB_HOLD + 0.01)
+			if not lifted.is_held():
+				_failures.append("grab at %dx%d did not pick anybody up"
+					% [size.x, size.y])
+			# Carry them a little way, so the shot is somebody in transit rather
+			# than somebody standing where they already were.
+			for step in 12:
+				world._move_press(from + Vector2(-2.0 * step, -1.5 * step))
+				await get_tree().process_frame
+			await get_tree().create_timer(0.45).timeout
+			await _shot("grab")
+			var carried := lifted.global_position
+			world._end_press(carried)
+			await get_tree().create_timer(0.4).timeout
+			if lifted.is_held():
+				_failures.append("grab at %dx%d never let go" % [size.x, size.y])
+			await _shot("grab_dropped")
+	if _wants("notices"):
+		# Nothing interrupts the port any more, so the notice log is the only
+		# place a notice is ever seen. It hangs off the bell at the end of the
+		# gantry and has to stay inside the world at every size.
+		var bell: NoticeBell = _main.bell
+		for index in 4:
+			EventBus.notification_requested.emit({
+				"id": "capture_notice_%d" % index, "kind": &"milestone",
+				"priority": 1, "text": "Aviso de teste %d do terminal" % (index + 1),
+			})
+			await get_tree().create_timer(0.15).timeout
+		bell.open_log()
+		await get_tree().create_timer(0.35).timeout
+		_check("notices", bell._board, size)
+		await _shot("notices")
+		bell.close_log()
+		await get_tree().create_timer(0.2).timeout
 	if _wants("shop"):
 		_main.shop._on_tab("structures")
 		await get_tree().create_timer(0.4).timeout
@@ -190,6 +504,13 @@ func _run(size: Vector2i) -> void:
 		await get_tree().create_timer(0.3).timeout
 		_check("journal", _main.journal._sheet, size)
 		await _shot("journal")
+		# The crew page is the same board with a very different list on it, so it
+		# gets its own layout check.
+		_main.journal._select_tab("crew")
+		await get_tree().create_timer(0.3).timeout
+		_check("journal_crew", _main.journal._sheet, size)
+		await _shot("journal_crew")
+		_main.journal._select_tab("next")
 		_main.journal.close()
 		await get_tree().create_timer(0.2).timeout
 	if _wants("prestige"):
@@ -207,6 +528,121 @@ func _docked(gate: GateDock) -> int:
 		if int(gate.bays[bay].stage) == int(GateDock.Stage.DOCKED):
 			count += 1
 	return count
+
+
+func _capture_transfer_alignment() -> void:
+	## Freeze both problematic approaches just before impact. These use the
+	## production endpoint APIs, including the selected hull transform and the
+	## actual longitudinal bed slot.
+	var world: PortWorld = _main.world
+	# These two shots time themselves off the flight's own duration to freeze the
+	# frame before impact. A relay's arrival is decided by where a tractor is, not
+	# by a clock, so the alignment check takes the direct arc.
+	world.relays_enabled = false
+	var live_ship: Ship = world.ship
+	live_ship.visible = false
+	# The live vessel may still own its arrival tween when the harness starts;
+	# use an isolated moored hull so a background tween cannot drag the target
+	# away while the screenshot is being timed.
+	var ship := Ship.new()
+	world.add_child(ship)
+	ship.select_variant(42017, 2)
+	ship.position = Vector2(PortLayout.SHIP_X, PortLayout.SHIP_Y)
+	ship._set_phase(Ship.Phase.LOADING)
+	ship.set_manifest([], 1)
+	var bay := ship.reserve_bay()
+	var yard_point := world.to_global(
+		PortLayout.block_origin(2) + Vector2(12.0, 18.0))
+	var ship_flight := world.fly_cargo(2, yard_point, bay.pos)
+	await get_tree().create_timer(ship_flight._duration * 0.92).timeout
+	await _shot("transfer_ship_approach")
+	await get_tree().create_timer(0.28).timeout
+	ship.queue_free()
+	live_ship.visible = true
+
+	var truck := RoadTruck.new()
+	truck.setup(world, 0, [], true)
+	world.entities.add_child(truck)
+	await get_tree().process_frame
+	var truck_flight := world.fly_cargo(5, yard_point,
+		truck.bed_slot_global_position(0))
+	truck_flight.set_rotations(0.0, PI / 2.0)
+	await get_tree().create_timer(truck_flight._duration * 0.92).timeout
+	await _shot("transfer_truck_approach")
+	await get_tree().create_timer(0.28).timeout
+	truck.queue_free()
+	world.relays_enabled = true
+
+
+func _capture_relay() -> void:
+	## The chain of custody, photographed at the moment it is a chain: a box on a
+	## tractor's chassis, between the crane that lifted it and the block it is
+	## going to. Waiting for that state is the point — an empty apron proves the
+	## relay exists exactly as much as an empty road proves a truck does.
+	var world: PortWorld = _main.world
+	world.relays_enabled = true
+	var hull: Ship = world.ship
+	hull.visible = true
+	hull.position = Vector2(PortLayout.SHIP_X, PortLayout.berth_y(0))
+	hull._set_phase(Ship.Phase.DISCHARGING)
+	# Wait for a box that is not only on a chassis but has been driven a way on
+	# it: photographing the instant of the pick-up shows a tractor and a box in
+	# the same place as the crane, which is the one frame that proves nothing.
+	var deadline := Time.get_ticks_msec() + 20000
+	var driven := 0.0
+	while Time.get_ticks_msec() < deadline and driven < 26.0:
+		world.berth.handle_tap(hull.global_position)
+		for child in world.overhead.get_children():
+			if not (child is CargoRelay):
+				continue
+			var relay := child as CargoRelay
+			var carrier: Node = relay._carrier
+			if carrier == null or not is_instance_valid(carrier) \
+					or int(carrier.call("relay_stage")) \
+						!= StructureActor.RELAY_CARRY:
+				continue
+			driven = maxf(driven, relay.position.distance_to(relay._leg_from))
+		await get_tree().process_frame
+	if driven < 26.0:
+		_failures.append(
+			"no container was driven on a chassis in 20s (best %.0f px)" % driven)
+	await _shot("relay_hand_off")
+
+
+func _check_hud(size: Vector2i) -> void:
+	## The permanent chrome, which no overlay check covers because it is never
+	## opened. The gantry carries two instruments that are laid out by two
+	## different scripts against one shared constant, so the thing worth proving
+	## is that they are still inside the steel they are supposed to be bolted to.
+	var hud: Hud = _main.hud
+	var rail: CommandRail = _main.rail
+	var bar := hud.bar_rect()
+	_check("gantry", hud._bar, size)
+	if not _inside(bar, hud.readout_rect()):
+		_failures.append("the tally at %dx%d is not inside the gantry (%s vs %s)"
+			% [size.x, size.y, hud.readout_rect(), bar])
+	var clock: PortClock = _main.clock
+	var dial: Rect2 = clock._board.get_global_rect()
+	if not _inside(bar, dial):
+		_failures.append("the clock at %dx%d is not inside the gantry (%s vs %s)"
+			% [size.x, size.y, dial, bar])
+	if hud._berth_chip.visible:
+		var tag := hud._berth_chip.get_global_rect()
+		_check("berth tag", hud._berth_chip, size)
+		if tag.position.y < bar.end.y:
+			_failures.append("the berth tag at %dx%d is under the gantry (%s vs %s)"
+				% [size.x, size.y, tag, bar])
+		# The tag hangs over the port and the console sits on it; if the two ever
+		# meet, the phone has lost the one line that says what the berth is doing.
+		if rail._bar.visible and tag.end.y > rail._bar.get_global_rect().position.y:
+			_failures.append("the berth tag at %dx%d collides with the key console"
+				% [size.x, size.y])
+
+
+func _inside(outer: Rect2, inner: Rect2) -> bool:
+	return inner.position.x >= outer.position.x - 0.5 \
+		and inner.position.y >= outer.position.y - 0.5 \
+		and inner.end.x <= outer.end.x + 0.5 and inner.end.y <= outer.end.y + 0.5
 
 
 func _check(what: String, panel: Control, size: Vector2i) -> void:

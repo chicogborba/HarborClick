@@ -23,6 +23,7 @@ Progression="*res://scripts/progression/progression_manager.gd"
 SaveManager="*res://scripts/autoload/save_manager.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
 UserPreferences="*res://scripts/autoload/user_preferences.gd"
+PortraitFrame="*res://scripts/autoload/portrait_frame.gd"
 
 [display]
 
@@ -32,7 +33,7 @@ window/size/window_width_override=640
 window/size/window_height_override=960
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
-window/stretch/scale_mode="integer"
+window/stretch/scale_mode="fractional"
 window/handheld/orientation=1
 
 [input]
@@ -69,3 +70,7 @@ pointing/emulate_touch_from_mouse=true
 textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+; The pillarbox either side of the portrait frame on a wide window. Deep harbour
+; water rather than black, so the bars read as a frame around the game instead of
+; as the screen having failed to fill.
+environment/defaults/default_clear_color=Color(0.043, 0.063, 0.101, 1)

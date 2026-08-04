@@ -363,6 +363,29 @@ func is_open() -> bool:
 	return _open
 
 
+func has_affordable() -> bool:
+	## Is there anything on any tab the player could buy right now?
+	##
+	## The console lights a lamp on the LOJA key from this. It deliberately asks
+	## the shop rather than the economy, because "affordable" here has to mean
+	## the same thing the player will see when the board opens — a machine that
+	## has not been revealed yet, or an upgrade still locked behind progression,
+	## is not something to send them in for.
+	for item in StructureDB.ITEMS:
+		var count := GameState.structure_count(item.id)
+		if count == 0 and GameState.lifetime_teus < float(item.cost) * 0.25:
+			continue
+		if bool(GameState.structure_purchase_quote(item.id, _buy_mode)
+				.get("ok", false)):
+			return true
+	for item in UpgradeDB.ITEMS:
+		if not GameState.has_upgrade(item.id) and GameState.upgrade_unlocked(item) \
+				and GameState.can_afford(item.cost):
+			return true
+	var parcel := LandDB.next_parcel()
+	return not parcel.is_empty() and GameState.can_afford(float(parcel.cost))
+
+
 # -------------------------------------------------------------------- layout
 
 func _layout() -> void:

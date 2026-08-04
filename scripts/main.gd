@@ -7,7 +7,7 @@ var shop: Shop
 var hud: Hud
 var rail: CommandRail
 var shell: ResponsiveShell
-var toasts: ToastLayer
+var bell: NoticeBell
 var notifications: NotificationCoordinator
 var settings: SettingsPanel
 var objective: ObjectiveChip
@@ -15,8 +15,20 @@ var journal: PortJournal
 var routes: RouteMap
 var prestige_dialog: PrestigeDialog
 var tutorial: TutorialSpotlight
+var npc_card: NpcCard
+var clock: PortClock
+var special_alert: SpecialCallAlert
+var minigame: CraneMinigame
+var maze: MazeMinigame
 var _overlay_state := {"shop": false, "settings": false, "journal": false,
-	"prestige": false, "routes": false}
+	"prestige": false, "routes": false, "crew": false, "special": false,
+	"minigame": false, "notices": false}
+## Whoever's dossier is open, so the objective on it keeps up with the yard.
+var _inspected: Object
+## The two reasons the camera stops answering a drag: a board is up over the
+## port, or somebody is being carried across it.
+var _input_blocked := false
+var _carrying := false
 
 
 func _ready() -> void:
@@ -25,6 +37,9 @@ func _ready() -> void:
 	# first terminal so the game is never left with no save path at all.
 	if SaveManager.active_slot == 0:
 		SaveManager.use_profile(1)
+	# Running this scene directly skips the title, so the engine-drawn chrome is
+	# themed here too rather than only on the way in.
+	UiTheme.install_window_theme(get_window())
 
 	shell = ResponsiveShell.new()
 	shell.name = "ResponsiveShell"
@@ -56,10 +71,11 @@ func _ready() -> void:
 	notifications.name = "Notifications"
 	add_child(notifications)
 
-	toasts = ToastLayer.new()
-	toasts.name = "Toasts"
-	add_child(toasts)
-	toasts.setup(notifications)
+	bell = NoticeBell.new()
+	bell.name = "NoticeBell"
+	add_child(bell)
+	bell.setup(notifications)
+	bell.open_changed.connect(_on_overlay_changed.bind("notices"))
 
 	settings = SettingsPanel.new()
 	settings.name = "Settings"
@@ -67,6 +83,7 @@ func _ready() -> void:
 	settings.tutorial_replay_requested.connect(_replay_tutorial)
 	rail.settings_requested.connect(settings.open)
 	rail.shop_requested.connect(func() -> void: shop.toggle())
+	rail.set_shop_alert_source(Callable(shop, "has_affordable"))
 
 	objective = ObjectiveChip.new()
 	objective.name = "ObjectiveChip"
@@ -80,8 +97,8 @@ func _ready() -> void:
 	journal.setup(Progression, {
 		"get_objectives": Callable(Progression, "get_all_objectives"),
 		"pin": Callable(Progression, "pin_objective"),
-		"get_contract": Callable(self, "_journal_contract"),
-		"accept_contract": Callable(Progression, "accept_contract"),
+		"get_crew": Callable(self, "_journal_crew"),
+		"get_charters": Callable(self, "_journal_charters"),
 	})
 	add_child(journal)
 	objective.journal_requested.connect(journal.open)
@@ -103,8 +120,6 @@ func _ready() -> void:
 			"id": "achievement_%s" % id, "kind": &"milestone", "priority": 2,
 			"text": "Conquista: %s" % str(item.get("title", "meta cumprida")),
 		}))
-	Progression.contract_updated.connect(func(_contract: Dictionary) -> void: journal.refresh())
-	Progression.contract_finished.connect(func(_contract: Dictionary, _completed: bool) -> void: journal.refresh())
 
 	routes = RouteMap.new()
 	routes.name = "RouteMap"
@@ -126,6 +141,43 @@ func _ready() -> void:
 	settings.open_changed.connect(_on_overlay_changed.bind("settings"))
 	journal.open_changed.connect(_on_overlay_changed.bind("journal"))
 	prestige_dialog.open_changed.connect(_on_overlay_changed.bind("prestige"))
+
+	clock = PortClock.new()
+	clock.name = "PortClock"
+	add_child(clock)
+
+	npc_card = NpcCard.new()
+	npc_card.name = "NpcCard"
+	add_child(npc_card)
+	npc_card.open_changed.connect(_on_overlay_changed.bind("crew"))
+	npc_card.open_changed.connect(func(opened: bool) -> void:
+		if not opened:
+			_inspected = null)
+	world.npc_inspected.connect(_on_npc_inspected)
+	world.npc_grab_changed.connect(_on_npc_grabbed)
+
+	special_alert = SpecialCallAlert.new()
+	special_alert.name = "SpecialCallAlert"
+	add_child(special_alert)
+	special_alert.open_changed.connect(_on_overlay_changed.bind("special"))
+	special_alert.accepted.connect(func() -> void: world.specials.accept())
+	special_alert.declined.connect(func() -> void: world.specials.decline())
+
+	# One board per kind of game, and the charter says which one it is played on.
+	minigame = CraneMinigame.new()
+	minigame.name = "CraneMinigame"
+	add_child(minigame)
+	maze = MazeMinigame.new()
+	maze.name = "MazeMinigame"
+	add_child(maze)
+	for board: MinigameBoard in [minigame, maze]:
+		board.open_changed.connect(_on_overlay_changed.bind("minigame"))
+		board.finished.connect(func(won: bool, _summary: Dictionary) -> void:
+			world.specials.resolve(won))
+	world.specials.offer_ready.connect(func(offer: Dictionary) -> void:
+		special_alert.open(offer, SpecialCallDirector.OFFER_TIMEOUT))
+	world.specials.offer_closed.connect(special_alert.close)
+	world.specials.minigame_requested.connect(_open_minigame)
 
 	var offline := OfflinePopup.new()
 	offline.name = "OfflinePopup"
@@ -151,8 +203,11 @@ func _ready() -> void:
 		})
 		cam.focus_on(PortLayout.yard_bottom() - 120.0, 0.9))
 
-	world.berth.status_changed.connect(hud.set_berth_status)
-	world.berth.status_changed.connect(_on_berth_status)
+	# Every berth reports in; the board shows whichever one is being worked.
+	for controller in world.berths:
+		controller.status_changed.connect(_on_any_berth_status)
+	for hull in world.ships:
+		hull.phase_changed.connect(func(_phase: int) -> void: _refresh_berth_board())
 	world.berth.notice_requested.connect(
 		func(notice: Dictionary) -> void:
 			# Berth notices are refusals — full yard, invalid box, reverted
@@ -163,9 +218,10 @@ func _ready() -> void:
 				"kind": &"blocked", "priority": 1,
 				"text": notice.get("text", ""),
 			}))
-	world.ship.phase_changed.connect(_on_ship_phase)
-	hud.job_tick.connect(func() -> void: _on_ship_phase(world.ship.phase))
-	_on_ship_phase(world.ship.phase)
+	hud.job_tick.connect(func() -> void:
+		_refresh_berth_board()
+		_refresh_inspected())
+	_refresh_berth_board()
 
 	tutorial = TutorialSpotlight.new()
 	tutorial.name = "TutorialSpotlight"
@@ -193,60 +249,147 @@ func _ready() -> void:
 		_dev_probe()
 
 
-func _on_ship_phase(phase: int) -> void:
-	## The board tells you what the berth needs, so tapping always has a point.
-	if world != null and world.atmosphere != null:
-		world.atmosphere.set_berth_active(world.ship.is_working())
-	match phase:
+func _on_any_berth_status(_status: Dictionary) -> void:
+	_refresh_berth_board()
+
+
+func _refresh_berth_board() -> void:
+	## The board follows the work. With three berths it names the one it is talking
+	## about, and it says how many others are alongside so the player knows there is
+	## more than one ship to tap.
+	if world == null or world.ships.is_empty():
+		return
+	var index := world.focus_berth()
+	var hull: Ship = world.ships[index]
+	if world.atmosphere != null:
+		world.atmosphere.set_berth_active(world.any_ship_working())
+	var text := ""
+	match hull.phase:
 		Ship.Phase.DISCHARGING:
-			_set_berth_hint("Descarga: toque no navio")
+			text = "Descarga: toque no navio"
 		Ship.Phase.WAITING_EXPORT:
-			_set_berth_hint("Aguardando exportação")
+			text = "Aguardando exportação"
 		Ship.Phase.LOADING:
-			var progress := world.ship.export_progress()
-			_set_berth_hint("Embarque %d/%d: toque no navio"
-				% [progress.x, progress.y])
+			var progress := hull.export_progress()
+			text = "Embarque %d/%d: toque no navio" % [progress.x, progress.y]
 		Ship.Phase.ARRIVING:
-			_set_berth_hint("Navio se aproximando")
+			text = "Navio se aproximando"
 		Ship.Phase.DEPARTING:
-			_set_berth_hint("Navio partindo")
+			text = "Navio partindo"
 		_:
-			_set_berth_hint("Aguardando próximo navio")
+			text = "Aguardando próximo navio"
+	# The chip is one narrow line, so the berth number goes on it and the rest of
+	# the quay goes on the rail, where there is room for it.
+	if world.ships.size() > 1:
+		text = "Berço %d - %s" % [index + 1, text]
+	_set_berth_hint(text, index)
+	if rail != null:
+		var report := world.berth_report()
+		for row: Dictionary in report:
+			row["focused"] = int(row.get("index", -1)) == index
+		rail.set_fleet(report)
 
 
-func _on_berth_status(status: Dictionary) -> void:
-	## The rail draws a card, so it wants the numbers, not a sentence.
-	var payload := status.duplicate()
-	payload["auto_rate"] = world.berth.auto_rate() if world != null \
-		and world.berth != null else 0.0
-	rail.set_berth(payload)
+func _journal_crew() -> Array:
+	## The whole shift in one list: who they are, and what each is on right now.
+	var rows: Array = []
+	if world == null or world.crew == null:
+		return rows
+	var live := {}
+	if world.structures != null:
+		for actor in world.structures.crew():
+			if actor.profile != null:
+				live[actor.profile.slot] = actor
+	for bay: int in world._gate_trucks.keys():
+		var truck: RoadTruck = world._gate_trucks[bay]
+		if is_instance_valid(truck) and truck.driver != null:
+			live[truck.driver.slot] = truck
+	for profile in world.crew.all():
+		var objective := ""
+		var actor: Object = live.get(profile.slot)
+		if actor != null and actor.has_method("objective_text"):
+			objective = str(actor.call("objective_text"))
+		rows.append({
+			"name": profile.display_name, "title": profile.title(),
+			"objective": objective, "moves": profile.moves,
+			"special": profile.is_special(),
+		})
+	return rows
 
 
-func _set_berth_hint(text: String) -> void:
+func _journal_charters() -> Dictionary:
+	return world.specials.stats() if world != null and world.specials != null \
+		else {}
+
+
+func _open_minigame(offer: Dictionary) -> void:
+	## The charter names its own game. An unknown one falls back to the stacker
+	## rather than accepting a charter the player can never work.
+	var board: MinigameBoard = minigame
+	if StringName(offer.get("game", &"")) == SpecialCallDB.GAME_MAZE:
+		board = maze
+	board.open(offer)
+
+
+func _on_npc_inspected(profile: NpcProfile, dossier: Dictionary) -> void:
+	_inspected = dossier.get("actor")
+	npc_card.show_profile(profile, dossier)
+
+
+func _refresh_inspected() -> void:
+	## The open card follows the person: a conferente who finishes a round and
+	## walks to the next block says so while you are still reading about him.
+	if npc_card == null or not npc_card.is_open():
+		return
+	if _inspected == null or not is_instance_valid(_inspected):
+		return
+	var objective := ""
+	var stage := ""
+	if _inspected.has_method("objective_text"):
+		objective = str(_inspected.call("objective_text"))
+	if _inspected.has_method("stage_text"):
+		stage = str(_inspected.call("stage_text"))
+	npc_card.set_objective(objective, stage)
+
+
+func _set_berth_hint(text: String, index: int = 0) -> void:
 	## Portrait reads it over the port, desktop reads it in the rail. One call
 	## site so the two can never drift apart.
+	if world == null or index < 0 or index >= world.ships.size():
+		return
+	var hull: Ship = world.ships[index]
 	var full := text
-	var rate := world.berth.auto_rate() if world != null and world.berth != null else 0.0
-	if rate > 0.0 and world.ship != null and world.ship.is_working():
+	var rate := world.berths[index].auto_rate()
+	if rate > 0.0 and hull.is_working():
 		# Once equipment is working the ship, say so: the tap is a boost from
 		# here on, and the player should be able to see that without counting
 		# boxes.
 		full = "%s  -  %.1f/s auto" % [text, rate]
-	hud.set_job_hint(full)
-	if rail != null and world != null and world.berth != null:
+	# One measurement of the call, read by both profiles. The phone hangs it on
+	# the gantry's tag with a hairline bar; the wide screen spells it out on the
+	# rail's berth card.
+	var progress := hull.export_progress()
+	var capacity := hull.bay_capacity()
+	var done: float = float(capacity - hull.cargo_left()) \
+		if hull.is_discharging() else float(progress.x)
+	hud.set_berth_status({
+		"text": full,
+		"current": done if hull.is_working() else 0.0,
+		"total": float(capacity) if hull.is_working() else 0.0,
+	})
+	if rail != null:
 		# Keep the rail's card in step with the phase text even between the
 		# berth's own status emissions.
-		var progress := world.ship.export_progress()
-		var capacity := world.ship.bay_capacity()
-		var done: float = float(capacity - world.ship.cargo_left()) \
-			if world.ship.is_discharging() else float(progress.x)
 		var silhouette := ShipCatalog.get_silhouette(
-			StringName(world.ship.ship_variant.get("silhouette_id", "")))
+			StringName(hull.ship_variant.get("silhouette_id", "")))
+		var vessel := str(silhouette.get("title", ""))
+		if world.ships.size() > 1:
+			vessel = "%s - berço %d/%d" % [vessel, index + 1, world.ships.size()]
 		rail.set_berth({
 			"text": text,
-			"vessel": str(silhouette.get("title", "")),
-			"current": done if world.ship.is_working() else 0.0,
-			"total": float(capacity) if world.ship.is_working() else 0.0,
+			"vessel": vessel,
+			"current": done if hull.is_working() else 0.0,
+			"total": float(capacity) if hull.is_working() else 0.0,
 			"auto_rate": rate,
 		})
 
@@ -254,6 +397,12 @@ func _set_berth_hint(text: String) -> void:
 func _apply_view_metrics(metrics: Dictionary) -> void:
 	world.apply_view_metrics(metrics)
 	cam.apply_view_metrics(metrics)
+	# The camera has to know what the HUD is standing on. The gantry always spans
+	# the top of the world; the key console only exists in portrait, because on a
+	# wide screen the keys are on the rail beside the port instead of over it.
+	cam.set_view_insets(Hud.BAR_H + Hud.TAG_DROP,
+		0.0 if str(metrics.get("profile", "")) == "desktop" \
+			else CommandRail.BAR_H + 12.0)
 	hud.apply_view_metrics(metrics)
 	rail.apply_view_metrics(metrics)
 	rail.set_yard_source(Callable(world.yard, "fill_ratio"))
@@ -264,7 +413,7 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		routes.set_rail(rail)
 		routes.apply_view_metrics(metrics)
 
-	toasts.apply_view_metrics(metrics)
+	bell.apply_view_metrics(metrics)
 	settings.apply_view_metrics(metrics)
 	if objective != null:
 		objective.apply_view_metrics(metrics)
@@ -274,6 +423,16 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		prestige_dialog.apply_view_metrics(metrics)
 	if tutorial != null:
 		tutorial.apply_view_metrics(metrics)
+	if clock != null:
+		clock.apply_view_metrics(metrics)
+	if npc_card != null:
+		npc_card.apply_view_metrics(metrics)
+	if special_alert != null:
+		special_alert.apply_view_metrics(metrics)
+	if minigame != null:
+		minigame.apply_view_metrics(metrics)
+	if maze != null:
+		maze.apply_view_metrics(metrics)
 	var offline := get_node_or_null(^"OfflinePopup")
 	if offline != null and offline.has_method("apply_view_metrics"):
 		offline.apply_view_metrics(metrics)
@@ -289,25 +448,31 @@ func _on_overlay_changed(opened: bool, source: String) -> void:
 	shell.set_world_input_blocked(
 		bool(_overlay_state.shop) or bool(_overlay_state.settings)
 			or bool(_overlay_state.journal) or bool(_overlay_state.prestige)
-			or bool(_overlay_state.routes))
+			or bool(_overlay_state.routes) or bool(_overlay_state.crew)
+			or bool(_overlay_state.special) or bool(_overlay_state.minigame)
+			or bool(_overlay_state.notices))
 
 
 func _on_world_input_blocked(blocked: bool) -> void:
+	_input_blocked = blocked
 	world.set_input_enabled(not blocked)
-	cam.set_input_enabled(not blocked)
+	_apply_camera_input()
+
+
+func _on_npc_grabbed(held: bool) -> void:
+	## Somebody in the hand owns the drag. Without this the camera pans under the
+	## person being carried, so the yard slides one way and they slide the other
+	## and the terminal ends up somewhere nobody asked for.
+	_carrying = held
+	_apply_camera_input()
+
+
+func _apply_camera_input() -> void:
+	cam.set_input_enabled(not _input_blocked and not _carrying)
 
 
 func _prestige_quote() -> Dictionary:
 	return GameState.get_prestige_quote()
-
-
-func _journal_contract() -> Dictionary:
-	var active := Progression.get_active_contract()
-	if not active.is_empty():
-		return active
-	return Progression.materialize_contract_offer(Progression.career_seed, TimeManager.day, {
-		"projected_rate": GameState.cps,
-	})
 
 
 func _commit_prestige() -> Variant:

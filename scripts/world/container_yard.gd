@@ -4,11 +4,22 @@ extends Node2D
 ## is not present until its flight commits, so interrupted animation is safe.
 
 const SLOTS_PER_BLOCK := PortLayout.BLOCK_COLS * PortLayout.BLOCK_ROWS
+## One complete berth exchange is already ashore before the player's first
+## shift. These are road units from the city, not a runtime refill: this
+## initializer is called only for a new profile or an explicit save wipe.
+const INITIAL_EXPORT_STOCK := PortLayout.SHIP_BAY_COLS * PortLayout.SHIP_BAY_ROWS
+const INITIAL_ORIGIN_UID := "cidade"
+const INITIAL_COLORS := [2, 4, 1, 7, 0, 5, 3, 6]
 
 var _levels: Array[int] = []
 var _sprites: Dictionary = {} # slot -> Array[Node2D]
 var _units: Dictionary = {} # slot -> Array[CargoUnit], bottom to top
 var _reservations: Dictionary = {} # token -> {slot, level}
+## How many reservations each slot carries. `_slot_is_reserved` is asked once per
+## slot inside loops that already walk every slot, so scanning the reservation
+## list there made those loops O(slots x reservations) — with a bought-out port
+## that is the single most expensive thing in the frame.
+var _reserved_slots: Dictionary = {} # slot -> count
 var _restored_manifest := false
 var _shadow_tex: Texture2D = preload("res://assets/sprites/container_shadow.png")
 var _containers: Texture2D = preload("res://assets/sprites/container_sheet.png")
@@ -16,6 +27,38 @@ var _containers: Texture2D = preload("res://assets/sprites/container_sheet.png")
 
 func _ready() -> void:
 	resize()
+
+
+func seed_new() -> void:
+	## Reset/new-profile seed. The inaugural city convoy is considered to have
+	## reached the terminal before play begins, so the first vessel can exchange
+	## a full manifest without any box appearing during the live simulation.
+	_clear_visuals()
+	resize()
+	for slot in _levels.size():
+		_levels[slot] = 0
+	_restored_manifest = false
+	_seed_city_exports(INITIAL_EXPORT_STOCK, "road_inaugural")
+
+
+func _seed_city_exports(count: int, uid_prefix: String) -> void:
+	## Save initialization/migration only. Live traffic must use a CargoUnit
+	## already carried by a visible road vehicle.
+	for index in maxi(0, count):
+		var landing := pick_landing_slot(CargoUnit.EXPORT)
+		if landing.is_empty():
+			push_error("Initial road manifest exceeds EXPORT yard capacity")
+			break
+		var unit := CargoUnit.new(
+			CargoUnit.new_uid(uid_prefix),
+			CargoUnit.EXPORT,
+			INITIAL_COLORS[index % INITIAL_COLORS.size()],
+			INITIAL_ORIGIN_UID)
+		if not place_unit(
+				int(landing.slot), int(landing.level), unit, str(landing.token)):
+			release_landing(str(landing.token))
+			push_error("Initial road manifest could not commit its reserved landing")
+			break
 
 
 func resize() -> void:
@@ -79,7 +122,10 @@ func pick_landing_slot(sector: StringName = CargoUnit.IMPORT) -> Dictionary:
 	var token := CargoUnit.new_uid("yard")
 	_levels[chosen] = best + 1
 	_reservations[token] = {"slot": chosen, "level": best}
-	return {"slot": chosen, "level": best, "pos": level_position(chosen, best), "token": token}
+	_hold_slot(chosen)
+	return {"slot": chosen, "level": best,
+		"pos": to_global(level_position(chosen, best) + BOX_VISUAL_CENTRE),
+		"token": token}
 
 
 func release_landing(token: String) -> void:
@@ -89,6 +135,7 @@ func release_landing(token: String) -> void:
 	var slot := int(landing.slot)
 	_levels[slot] = maxi(_settled(slot), _levels[slot] - 1)
 	_reservations.erase(token)
+	_free_slot(slot)
 
 
 func place_unit(slot: int, level: int, unit: CargoUnit, token: String = "") -> bool:
@@ -104,6 +151,7 @@ func place_unit(slot: int, level: int, unit: CargoUnit, token: String = "") -> b
 	if stack.size() != level:
 		return false
 	_reservations.erase(token)
+	_free_slot(slot)
 	stack.append(unit)
 	_units[slot] = stack
 	_levels[slot] = maxi(_levels[slot], stack.size())
@@ -132,6 +180,15 @@ func _materialize(slot: int, level: int, color_idx: int) -> void:
 		shadow.position = Vector2(0, lift + PortLayout.BOX_LIFT - 1)
 		shadow.modulate.a = 0.5
 		root.add_child(shadow)
+	else:
+		# The bottom box casts onto the pavement too. Without it a full stack has
+		# depth and a single box looks painted on the ground.
+		var contact := Sprite2D.new()
+		contact.texture = _shadow_tex
+		contact.centered = false
+		contact.position = Vector2(1, 2)
+		contact.modulate = Color(0.06, 0.07, 0.11, 0.30)
+		root.add_child(contact)
 	var box := Sprite2D.new()
 	var at := AtlasTexture.new()
 	at.atlas = _containers
@@ -153,6 +210,61 @@ func take_import(preferred_slot: int = -1) -> Dictionary:
 	return _take_top(preferred_slot, CargoUnit.IMPORT, PackedStringArray())
 
 
+func road_pickup_slot(priority_uids: PackedStringArray = PackedStringArray(),
+		excluded_uids: PackedStringArray = PackedStringArray(),
+		minimum_exportable: int = 0) -> int:
+	## Prefer boxes discharged by the vessel currently alongside: that hull
+	## cannot reload them anyway. Once those are gone, protect one complete
+	## outbound manifest so road traffic can never strand the next ship.
+	## Walked in one pass per rule rather than by building and sorting every
+	## occupied slot: this is asked once per truck per frame by the interaction
+	## outlines, and sorting six hundred slots for it is most of a frame.
+	var best_priority := -1
+	var best_priority_height := 0
+	var best_import := -1
+	var best_import_height := 0
+	var best_any := -1
+	var best_any_height := 0
+	for slot in _levels.size():
+		if _slot_is_reserved(slot):
+			continue
+		var stack: Array = _units.get(slot, [])
+		if stack.is_empty():
+			continue
+		var unit: CargoUnit = stack.back()
+		if excluded_uids.has(unit.uid):
+			continue
+		var height := stack.size()
+		if priority_uids.has(unit.uid):
+			if height > best_priority_height:
+				best_priority_height = height
+				best_priority = slot
+			continue
+		if unit.sector == CargoUnit.IMPORT and height > best_import_height:
+			best_import_height = height
+			best_import = slot
+		if height > best_any_height:
+			best_any_height = height
+			best_any = slot
+	if best_priority >= 0:
+		return best_priority
+	if count_excluding(priority_uids) <= minimum_exportable:
+		return -1
+	return best_import if best_import >= 0 else best_any
+
+
+func take_for_road(excluded_uids: PackedStringArray = PackedStringArray(),
+		priority_uids: PackedStringArray = PackedStringArray(),
+		minimum_exportable: int = 0) -> Dictionary:
+	## What goes home by truck. A box a ship discharged is the whole reason a
+	## truck comes here, but a complete shipload is protected from collection.
+	## Exclusions stop a lorry dropping a box and immediately taking that exact
+	## same identity home.
+	var slot := road_pickup_slot(priority_uids, excluded_uids,
+		minimum_exportable)
+	return {} if slot < 0 else _take_top(slot, &"", excluded_uids)
+
+
 func take_exportable(import_uids: PackedStringArray = PackedStringArray()) -> Dictionary:
 	## Anything standing in the yard can be shipped out, except the boxes this
 	## same call just landed.
@@ -166,19 +278,58 @@ func take_exportable(import_uids: PackedStringArray = PackedStringArray()) -> Di
 	return _take_top(-1, &"", import_uids)
 
 
+func can_accept(sector: StringName = CargoUnit.IMPORT) -> bool:
+	## Read-only partner to `pick_landing_slot`, used by hover affordances.
+	for slot in _levels.size():
+		if slot_sector(slot) == sector and not _slot_is_reserved(slot) \
+				and _levels[slot] < PortLayout.STACK_MAX:
+			return true
+	return false
+
+
+func has_exportable(excluded_uids: PackedStringArray = PackedStringArray()) -> bool:
+	return _has_top(&"", excluded_uids)
+
+
+func has_for_road(excluded_uids: PackedStringArray = PackedStringArray(),
+		priority_uids: PackedStringArray = PackedStringArray(),
+		minimum_exportable: int = 0) -> bool:
+	return road_pickup_slot(priority_uids, excluded_uids,
+		minimum_exportable) >= 0
+
+
+func _has_top(required_sector: StringName,
+		excluded_uids: PackedStringArray) -> bool:
+	for slot in _levels.size():
+		if _slot_is_reserved(slot):
+			continue
+		var stack: Array = _units.get(slot, [])
+		if stack.is_empty():
+			continue
+		var unit: CargoUnit = stack.back()
+		if required_sector != &"" and unit.sector != required_sector:
+			continue
+		if not excluded_uids.has(unit.uid):
+			return true
+	return false
+
+
 func _take_top(preferred_slot: int, required_sector: StringName, import_uids: PackedStringArray) -> Dictionary:
 	var choices: Array[int] = []
 	if preferred_slot >= 0 and preferred_slot < _levels.size() and not _slot_is_reserved(preferred_slot) \
 			and _settled(preferred_slot) > 0:
 		choices.append(preferred_slot)
 	else:
-		var best := 0
+		## Tallest stack first, then down through the rest. Only the tallest
+		## used to be considered, which was fine until a caller could refuse
+		## what was on top of it — a sector it will not take, or a box the same
+		## ship call has just landed — and then the yard reported itself empty
+		## with a hundred boxes standing in it.
 		for slot in _levels.size():
-			if not _slot_is_reserved(slot) and _settled(slot) > best:
-				best = _settled(slot)
-		for slot in _levels.size():
-			if not _slot_is_reserved(slot) and _settled(slot) == best and best > 0:
+			if not _slot_is_reserved(slot) and _settled(slot) > 0:
 				choices.append(slot)
+		choices.sort_custom(func(a: int, b: int) -> bool:
+			return _settled(a) > _settled(b))
 	for slot in choices:
 		var stack: Array = _units.get(slot, [])
 		if stack.is_empty():
@@ -197,8 +348,9 @@ func _take_top(preferred_slot: int, required_sector: StringName, import_uids: Pa
 		_sprites[slot] = sprites
 		var level := stack.size()
 		_levels[slot] = maxi(level, _levels[slot] - 1)
-		return {"slot": slot, "level": level, "pos": level_position(slot, level), "unit": unit,
-			"color": unit.color}
+		return {"slot": slot, "level": level,
+			"pos": to_global(level_position(slot, level) + BOX_VISUAL_CENTRE),
+			"unit": unit, "color": unit.color}
 	return {}
 
 
@@ -242,10 +394,19 @@ func _settled(slot: int) -> int:
 
 
 func _slot_is_reserved(slot: int) -> bool:
-	for reservation: Dictionary in _reservations.values():
-		if int(reservation.get("slot", -1)) == slot:
-			return true
-	return false
+	return _reserved_slots.has(slot)
+
+
+func _hold_slot(slot: int) -> void:
+	_reserved_slots[slot] = int(_reserved_slots.get(slot, 0)) + 1
+
+
+func _free_slot(slot: int) -> void:
+	var held := int(_reserved_slots.get(slot, 0)) - 1
+	if held > 0:
+		_reserved_slots[slot] = held
+	else:
+		_reserved_slots.erase(slot)
 
 
 func _reserve_exact(slot: int, level: int, prefix: String = "yard") -> String:
@@ -254,25 +415,9 @@ func _reserve_exact(slot: int, level: int, prefix: String = "yard") -> String:
 		return ""
 	var token := CargoUnit.new_uid(prefix)
 	_reservations[token] = {"slot": slot, "level": level}
+	_hold_slot(slot)
 	_levels[slot] = level + 1
 	return token
-
-
-func ensure_export_manifest(p_call_id: String, count: int) -> Array[CargoUnit]:
-	var seeded: Array[CargoUnit] = []
-	var missing := maxi(0, count - sector_count(CargoUnit.EXPORT))
-	for i in missing:
-		var landing := pick_landing_slot(CargoUnit.EXPORT)
-		if landing.is_empty():
-			break
-		var unit := CargoUnit.new("%s_e_%02d" % [
-			p_call_id, count - missing + i], CargoUnit.EXPORT,
-			randi() % 8, "", p_call_id)
-		if place_unit(int(landing.slot), int(landing.level), unit, str(landing.token)):
-			seeded.append(unit)
-		else:
-			release_landing(str(landing.token))
-	return seeded
 
 
 func sector_count(sector: StringName) -> int:
@@ -280,6 +425,22 @@ func sector_count(sector: StringName) -> int:
 	for stack: Array in _units.values():
 		for unit: CargoUnit in stack:
 			if unit.sector == sector:
+				total += 1
+	return total
+
+
+func unit_count() -> int:
+	var total := 0
+	for stack: Array in _units.values():
+		total += stack.size()
+	return total
+
+
+func count_excluding(excluded_uids: PackedStringArray) -> int:
+	var total := 0
+	for stack: Array in _units.values():
+		for unit: CargoUnit in stack:
+			if not excluded_uids.has(unit.uid):
 				total += 1
 	return total
 
@@ -313,6 +474,16 @@ func block_top_color(block_index: int) -> int:
 	return -1
 
 
+func top_uid(slot: int) -> String:
+	## The identity currently on top of this stack, or "" for an empty slot. The
+	## task board needs it to tell `road_pickup_slot` which box is already
+	## somebody else's job.
+	if slot < 0 or slot >= _levels.size():
+		return ""
+	var stack: Array = _units.get(slot, [])
+	return "" if stack.is_empty() else (stack.back() as CargoUnit).uid
+
+
 func fullest_slot(sector: StringName = &"") -> int:
 	var best := -1
 	var best_level := 0
@@ -341,7 +512,19 @@ func snapshot() -> Dictionary:
 		for unit: CargoUnit in _units.get(slot, []):
 			units.append(unit.snapshot())
 		slots.append(units)
-	return {"version": 2, "slots": slots}
+	return {"version": 3, "slots": slots}
+
+
+func restore_saved(data: Dictionary) -> void:
+	## v3 introduces the non-deficit road contract. A v2 profile may already
+	## have been drained by the old 1-in/2-out rule, so it receives one
+	## traceable city retrofit before the scene becomes visible. From v3 on,
+	## even an intentionally empty saved yard remains empty.
+	restore(data)
+	if int(data.get("version", 1)) < 3:
+		var missing := maxi(0,
+			INITIAL_EXPORT_STOCK - sector_count(CargoUnit.EXPORT))
+		_seed_city_exports(missing, "road_v3_retrofit")
 
 
 func restore(data: Dictionary) -> void:
@@ -368,6 +551,7 @@ func _clear_visuals() -> void:
 	_sprites.clear()
 	_units.clear()
 	_reservations.clear()
+	_reserved_slots.clear()
 
 
 func to_save() -> Array:
@@ -391,3 +575,4 @@ func from_save(data: Array) -> void:
 	for slot in mini(data.size(), _levels.size()):
 		for level in clampi(int(data[slot]), 0, PortLayout.STACK_MAX):
 			place(slot, level, randi() % 8)
+const BOX_VISUAL_CENTRE := Vector2(12.0, 6.5)

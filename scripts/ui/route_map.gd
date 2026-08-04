@@ -10,7 +10,7 @@ extends CanvasLayer
 
 signal open_changed(opened: bool)
 
-const CHART_HEIGHT := 132.0
+const CHART_HEIGHT := 156.0
 
 var _backdrop: ColorRect
 var _sheet: PanelContainer
@@ -52,7 +52,7 @@ func _ready() -> void:
 	var badge := UiTheme.icon(UiTheme.Icon.SHIP)
 	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	header.add_child(badge)
-	var title := UiTheme.label("ROTAS", UiTheme.SIZE_BODY, UiTheme.INK)
+	var title := UiTheme.label("MAPA-MÚNDI DE ROTAS", UiTheme.SIZE_BODY, UiTheme.INK)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	header.add_child(title)
@@ -254,32 +254,91 @@ func _layout() -> void:
 
 
 class RouteChart extends Control:
-	## The chart itself. Drawn rather than blitted so the pins always land where
-	## the data says, whatever width the board ends up.
-	##
-	## The landmasses are deliberately crude — a chart on a clipboard is an
-	## abstraction, not an atlas — but without any coast at all the pins float
-	## on an empty grid and none of the destinations mean anything.
+	## A compact equirectangular world chart. Coast points are quantized to the
+	## rendered pixel grid, so even on a wide desktop panel it keeps the stepped
+	## silhouette of a printed 16-bit atlas instead of becoming smooth vector
+	## blobs.
 
-	## Coastlines in the same 0..1 chart space the routes use. A plain array of
-	## arrays rather than a const of PackedVector2Array, which GDScript will not
-	## accept as a constant expression.
-	static var LANDS: Array[PackedVector2Array] = [
-		# north america
-		PackedVector2Array([Vector2(0.02, 0.06), Vector2(0.30, 0.04),
-			Vector2(0.34, 0.22), Vector2(0.24, 0.38), Vector2(0.13, 0.34),
-			Vector2(0.04, 0.20)]),
-		# south america
-		PackedVector2Array([Vector2(0.27, 0.46), Vector2(0.42, 0.44),
-			Vector2(0.50, 0.62), Vector2(0.44, 0.84), Vector2(0.34, 0.96),
-			Vector2(0.28, 0.74)]),
-		# europe and africa
-		PackedVector2Array([Vector2(0.52, 0.10), Vector2(0.68, 0.08),
-			Vector2(0.74, 0.30), Vector2(0.78, 0.58), Vector2(0.66, 0.80),
-			Vector2(0.58, 0.56), Vector2(0.54, 0.28)]),
-		# asia
-		PackedVector2Array([Vector2(0.76, 0.06), Vector2(0.99, 0.08),
-			Vector2(0.98, 0.34), Vector2(0.86, 0.46), Vector2(0.78, 0.26)]),
+	static var LANDMASSES: Array[PackedVector2Array] = [
+		# North America, including Alaska, Mexico and Florida.
+		PackedVector2Array([
+			Vector2(0.01, 0.14), Vector2(0.05, 0.09), Vector2(0.12, 0.08),
+			Vector2(0.16, 0.11), Vector2(0.23, 0.09), Vector2(0.29, 0.13),
+			Vector2(0.31, 0.19), Vector2(0.27, 0.23), Vector2(0.25, 0.29),
+			Vector2(0.23, 0.34), Vector2(0.21, 0.39), Vector2(0.19, 0.41),
+			Vector2(0.17, 0.38), Vector2(0.15, 0.43), Vector2(0.12, 0.39),
+			Vector2(0.11, 0.33), Vector2(0.07, 0.30), Vector2(0.04, 0.24),
+			Vector2(0.01, 0.22),
+		]),
+		# Central America.
+		PackedVector2Array([
+			Vector2(0.15, 0.41), Vector2(0.18, 0.42), Vector2(0.20, 0.47),
+			Vector2(0.24, 0.49), Vector2(0.23, 0.52), Vector2(0.19, 0.49),
+			Vector2(0.16, 0.46),
+		]),
+		# South America.
+		PackedVector2Array([
+			Vector2(0.22, 0.49), Vector2(0.28, 0.47), Vector2(0.34, 0.51),
+			Vector2(0.38, 0.58), Vector2(0.37, 0.67), Vector2(0.34, 0.75),
+			Vector2(0.32, 0.84), Vector2(0.28, 0.93), Vector2(0.25, 0.85),
+			Vector2(0.24, 0.75), Vector2(0.21, 0.66), Vector2(0.20, 0.56),
+		]),
+		# Greenland.
+		PackedVector2Array([
+			Vector2(0.29, 0.08), Vector2(0.34, 0.05), Vector2(0.38, 0.10),
+			Vector2(0.37, 0.21), Vector2(0.33, 0.27), Vector2(0.30, 0.19),
+		]),
+		# Europe.
+		PackedVector2Array([
+			Vector2(0.43, 0.27), Vector2(0.46, 0.22), Vector2(0.50, 0.24),
+			Vector2(0.53, 0.21), Vector2(0.57, 0.25), Vector2(0.58, 0.31),
+			Vector2(0.55, 0.35), Vector2(0.51, 0.33), Vector2(0.48, 0.37),
+			Vector2(0.45, 0.34),
+		]),
+		# Africa.
+		PackedVector2Array([
+			Vector2(0.44, 0.35), Vector2(0.51, 0.33), Vector2(0.58, 0.37),
+			Vector2(0.61, 0.45), Vector2(0.59, 0.55), Vector2(0.56, 0.65),
+			Vector2(0.52, 0.74), Vector2(0.48, 0.66), Vector2(0.46, 0.56),
+			Vector2(0.43, 0.46),
+		]),
+		# Asia, with Arabia, India, Indochina and the eastern coast.
+		PackedVector2Array([
+			Vector2(0.54, 0.22), Vector2(0.61, 0.14), Vector2(0.72, 0.12),
+			Vector2(0.82, 0.15), Vector2(0.91, 0.13), Vector2(0.99, 0.19),
+			Vector2(0.98, 0.30), Vector2(0.94, 0.35), Vector2(0.90, 0.42),
+			Vector2(0.85, 0.45), Vector2(0.83, 0.51), Vector2(0.80, 0.58),
+			Vector2(0.77, 0.55), Vector2(0.75, 0.47), Vector2(0.71, 0.52),
+			Vector2(0.68, 0.46), Vector2(0.64, 0.48), Vector2(0.61, 0.42),
+			Vector2(0.57, 0.38), Vector2(0.58, 0.31),
+		]),
+		# Australia.
+		PackedVector2Array([
+			Vector2(0.78, 0.68), Vector2(0.84, 0.64), Vector2(0.91, 0.68),
+			Vector2(0.94, 0.76), Vector2(0.90, 0.85), Vector2(0.82, 0.84),
+			Vector2(0.77, 0.78),
+		]),
+	]
+
+	static var RELIEF: Array[PackedVector2Array] = [
+		# Rockies, Andes, Atlas/East Africa and Himalaya.
+		PackedVector2Array([Vector2(0.10, 0.18), Vector2(0.13, 0.27),
+			Vector2(0.15, 0.36)]),
+		PackedVector2Array([Vector2(0.25, 0.55), Vector2(0.27, 0.69),
+			Vector2(0.29, 0.84)]),
+		PackedVector2Array([Vector2(0.46, 0.42), Vector2(0.52, 0.44),
+			Vector2(0.56, 0.58)]),
+		PackedVector2Array([Vector2(0.65, 0.35), Vector2(0.74, 0.37),
+			Vector2(0.82, 0.35)]),
+	]
+
+	static var ISLANDS := [
+		Vector2(0.43, 0.27), # Iceland
+		Vector2(0.45, 0.31), # Britain
+		Vector2(0.61, 0.68), # Madagascar
+		Vector2(0.88, 0.40), # Japan
+		Vector2(0.80, 0.61), Vector2(0.84, 0.63), # Indonesia
+		Vector2(0.96, 0.84), Vector2(0.97, 0.89), # New Zealand
 	]
 
 	var _routes: Dictionary = {}
@@ -293,40 +352,123 @@ class RouteChart extends Control:
 
 	func _draw() -> void:
 		var rect := Rect2(Vector2.ZERO, size)
-		draw_rect(rect, UiTheme.PAPER_DEEP)
-		# lat/long grid, faint enough to sit under the ink
-		var grid := Color(UiTheme.INK_SOFT, 0.16)
-		for gx in range(1, 8):
-			var x := size.x * float(gx) / 8.0
-			draw_line(Vector2(x, 0.0), Vector2(x, size.y), grid, 1.0)
-		for gy in range(1, 5):
-			var y := size.y * float(gy) / 5.0
-			draw_line(Vector2(0.0, y), Vector2(size.x, y), grid, 1.0)
+		var ocean := Color8(33, 82, 108)
+		var ocean_deep := Color8(24, 60, 84)
+		var shelf := Color8(73, 125, 132)
+		var coast := Color8(43, 58, 52)
+		var land := Color8(126, 145, 91)
+		var land_light := Color8(154, 164, 105)
+		var relief := Color8(91, 101, 67)
+		draw_rect(rect, ocean)
 
-		# land first, so the grid reads as printed under the coastline
-		for outline: PackedVector2Array in LANDS:
-			var shape := PackedVector2Array()
-			for point in outline:
-				shape.append(Vector2(point.x * size.x, point.y * size.y))
-			draw_colored_polygon(shape, Color8(196, 178, 146))
-			draw_polyline(shape + PackedVector2Array([shape[0]]),
-				Color(UiTheme.INK_SOFT, 0.7), 1.0)
-		draw_rect(rect, UiTheme.INK_SOFT, false, 1.0)
+		# Stepped bathymetry and sparse wave pixels make the water read as
+		# deliberate pixel art without competing with route lines.
+		for band in 4:
+			var y := roundf(size.y * (0.18 + band * 0.19))
+			for x in range((band % 2) * 9, int(size.x), 23):
+				draw_rect(Rect2(Vector2(x, y), Vector2(6, 1)),
+					Color(ocean_deep, 0.32))
 
-		var home := Vector2(RouteDB.HOME.x * size.x, RouteDB.HOME.y * size.y)
+		var grid := Color(0.66, 0.84, 0.84, 0.14)
+		for gx in range(1, 12):
+			var x := roundf(size.x * float(gx) / 12.0)
+			draw_line(Vector2(x, 0), Vector2(x, size.y), grid, 1.0)
+		for gy in range(1, 6):
+			var y := roundf(size.y * float(gy) / 6.0)
+			draw_line(Vector2(0, y), Vector2(size.x, y), grid, 1.0)
+		var equator_y := roundf(size.y * 0.50)
+		for x in range(0, int(size.x), 8):
+			draw_rect(Rect2(Vector2(x, equator_y), Vector2(4, 1)),
+				Color(0.78, 0.91, 0.82, 0.32))
+
+		for outline: PackedVector2Array in LANDMASSES:
+			var shape := _shape(outline)
+			var shelf_shape := PackedVector2Array()
+			for point in shape:
+				shelf_shape.append(point + Vector2(1, 1))
+			draw_colored_polygon(shelf_shape, shelf)
+			draw_colored_polygon(shape, land)
+			draw_polyline(shape + PackedVector2Array([shape[0]]), coast, 1.0)
+
+		# Polar cap, deserts and a few raised plateaus add geographic structure.
+		draw_rect(Rect2(Vector2(0, size.y - 5), Vector2(size.x, 5)),
+			Color8(198, 213, 193))
+		_patch(Rect2(Vector2(0.45, 0.42), Vector2(0.12, 0.07)),
+			land_light)
+		_patch(Rect2(Vector2(0.79, 0.72), Vector2(0.10, 0.05)),
+			Color8(164, 139, 88))
+		for ridge: PackedVector2Array in RELIEF:
+			var points := _shape(ridge)
+			draw_polyline(points, relief, 2.0)
+			for point in points:
+				draw_rect(Rect2(point - Vector2.ONE, Vector2(2, 2)),
+					land_light)
+		for island: Vector2 in ISLANDS:
+			draw_rect(Rect2(_pixel(island) - Vector2.ONE, Vector2(3, 3)),
+				land)
+
+		# Tiny compass rose in open South Pacific water.
+		var compass := Vector2(size.x * 0.70, size.y * 0.80).round()
+		draw_line(compass + Vector2(0, -6), compass + Vector2(0, 6),
+			Color(0.88, 0.94, 0.83, 0.55), 1.0)
+		draw_line(compass + Vector2(-6, 0), compass + Vector2(6, 0),
+			Color(0.88, 0.94, 0.83, 0.55), 1.0)
+		draw_colored_polygon(PackedVector2Array([
+			compass + Vector2(0, -7), compass + Vector2(-2, -2),
+			compass + Vector2(2, -2)]), Color8(237, 197, 85))
+		draw_rect(rect, coast, false, 1.0)
+
+		var home := _pixel(RouteDB.HOME)
 		for route in RouteDB.ITEMS:
 			var id := str(route.id)
 			var is_owned := id == str(RouteDB.ITEMS[0].id) or _routes.has(id)
-			var at := Vector2(float(route.chart.x) * size.x,
-				float(route.chart.y) * size.y)
+			var points: Array[Vector2] = [RouteDB.HOME]
+			for raw_point in route.get("ports", [route.chart]):
+				points.append(raw_point)
+			var at := _pixel(points.back())
 			if is_owned:
-				# A lane the port trades on is inked in; the rest are pencilled
-				# destinations it has not reached yet.
-				draw_line(home, at, UiTheme.TEAL_DEEP, 1.0)
-				draw_circle(at, 3.0, UiTheme.TEAL_DEEP)
-				draw_circle(at, 1.0, UiTheme.CREAM)
+				for index in points.size() - 1:
+					_draw_wrapped_lane(points[index], points[index + 1],
+						Color8(255, 208, 80))
+				draw_circle(at, 3.0, Color8(22, 54, 66))
+				draw_circle(at, 2.0, Color8(255, 220, 92))
 			else:
-				draw_circle(at, 2.0, Color(UiTheme.INK_SOFT, 0.55))
-		# home last, so nothing is drawn over the terminal
-		draw_circle(home, 4.0, UiTheme.AMBER_DEEP)
-		draw_circle(home, 2.0, UiTheme.AMBER)
+				draw_circle(at, 2.0, Color(0.82, 0.90, 0.78, 0.72))
+				draw_circle(at, 1.0, ocean_deep)
+		draw_circle(home, 4.0, Color8(22, 54, 66))
+		draw_circle(home, 2.0, Color8(255, 112, 62))
+
+	func _pixel(point: Vector2) -> Vector2:
+		return Vector2(roundf(point.x * size.x), roundf(point.y * size.y))
+
+	func _shape(points: PackedVector2Array) -> PackedVector2Array:
+		var result := PackedVector2Array()
+		for point in points:
+			result.append(_pixel(point))
+		return result
+
+	func _patch(normalized: Rect2, color: Color) -> void:
+		var top_left := _pixel(normalized.position)
+		var patch_size := Vector2(
+			roundf(normalized.size.x * size.x),
+			roundf(normalized.size.y * size.y))
+		draw_rect(Rect2(top_left, patch_size), color)
+
+	func _draw_wrapped_lane(a: Vector2, b: Vector2, color: Color) -> void:
+		## A Pacific leg exits one chart edge and enters the other instead of
+		## drawing straight across Eurasia.
+		if absf(a.x - b.x) <= 0.5:
+			draw_line(_pixel(a), _pixel(b), color, 2.0)
+			return
+		var left := a
+		var right := b
+		if left.x > right.x:
+			left = b
+			right = a
+		var wrapped_left := Vector2(left.x + 1.0, left.y)
+		var t := (1.0 - right.x) / maxf(wrapped_left.x - right.x, 0.001)
+		var crossing_y := lerpf(right.y, wrapped_left.y, t)
+		draw_line(_pixel(right), Vector2(size.x, roundf(crossing_y * size.y)),
+			color, 2.0)
+		draw_line(Vector2(0, roundf(crossing_y * size.y)), _pixel(left),
+			color, 2.0)

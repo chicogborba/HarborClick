@@ -35,6 +35,7 @@ const ICONS := {
 	&"prestige": UiTheme.Icon.STAR,
 	&"blocked": UiTheme.Icon.LOCK,
 	&"cat": UiTheme.Icon.PAW,
+	&"crew": UiTheme.Icon.GLOVE,
 	&"tutorial": UiTheme.Icon.CHECK,
 }
 

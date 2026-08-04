@@ -1,14 +1,29 @@
 class_name RoadTruck
 extends Node2D
-## A city truck on the terminal's road.
+## A city truck on the terminal's road: a tractor unit and the chassis it pulls.
 ##
 ## It exists so that nothing on the apron appears out of nowhere. A bay's cargo
 ## is only ever on screen because a truck drove it in through the gate, and it
 ## only ever leaves because a truck drove it out again — the box is visible on
 ## the bed for the whole trip in both directions.
 ##
-## A road chassis takes one forty-foot box or two twenty-foot ones, so the bed
-## is drawn for exactly `GateDock.TRUCK_CAPACITY` and nothing else fits.
+## A road chassis takes one forty-foot box or two twenty-foot ones, so the bed is
+## drawn for exactly `GateDock.TRUCK_CAPACITY` and nothing else fits.
+##
+## **It is two bodies, not one, and it drives on its nose.** Both of those are
+## rewrites of the first version and both are the same bug seen from different
+## ends. That truck moved along the direction of the next waypoint while its
+## sprite rotation eased towards it, so through every corner the body was still
+## pointing one way while the vehicle travelled another — the box on the bed
+## looked like it was sliding a beat behind the wheels. And it carried its boxes
+## on a single 20x52 sprite whose bed was 28 px long for 29 px of cargo, so the
+## second box hung off the tail.
+##
+## Now: velocity is always along the nose, so the rig physically cannot move
+## sideways and a load cannot lag; and the chassis is a separate body pivoting on
+## the fifth wheel, so it swings out through a corner the way a real semitrailer
+## does. The boxes are rigid children of that chassis, which makes lag not a
+## thing that has to be tuned — it is a thing that cannot be expressed.
 ##
 ## The route comes from `PortLayout`, which is one-way end to end: the truck
 ## never reverses and never meets anything head-on. Traffic is deferred to the
@@ -18,34 +33,76 @@ extends Node2D
 signal arrived
 signal departed
 
-const BODY_SCALE := 0.70
-const BOX_SCALE := 0.62
-## Offsets inside the sprite: veh_tt is a cab over a flat bed, and the boxes
-## belong on the bed rather than on the driver.
-const BED_HEAD := -4.9
-const BOX_PITCH := 8.1
+## One scale for cab and chassis: they are one vehicle cut in two, and any
+## mismatch reads as a toy towing a lorry.
+const RIG_SCALE := 0.72
+const BOX_SCALE := 0.60
+
+# --- geometry read straight off `tools/sprites/gen_vehicles.py` -------------
+## Cab sprite is 18x24 centred; its fifth wheel is drawn at y=19.
+const CAB_H := 24.0
+const CAB_FIFTH_WHEEL_Y := 19.0
+## Chassis sprite is 18x48 centred; kingpin at y=2, rear axle and box slots as
+## drawn. Everything below is those numbers in node space.
+const CHASSIS_H := 48.0
+const CHASSIS_KINGPIN_Y := 2.0
+const CHASSIS_AXLE_Y := 34.0
+const BOX_SLOT_Y := [14.0, 34.0]
+
+## How far behind the cab's centre the fifth wheel sits.
+const HITCH_BACK := (CAB_FIFTH_WHEEL_Y - CAB_H * 0.5) * RIG_SCALE
+## Kingpin to the chassis sprite's own centre, and kingpin to its rear axle. The
+## second one is the lever the trailer swings on.
+const KINGPIN_TO_CENTRE := (CHASSIS_H * 0.5 - CHASSIS_KINGPIN_Y) * RIG_SCALE
+const TRAILER_LEN := (CHASSIS_AXLE_Y - CHASSIS_KINGPIN_Y) * RIG_SCALE
 
 const SPEED := 42.0
 const ACCELERATION := 44.0
 const BRAKING := 72.0
+## How close counts as reaching a waypoint. A steered vehicle arcs into its mark
+## instead of landing on it exactly, so a zero-radius test never fires.
+const ARRIVE_RADIUS := 2.0
+## A mark that has gone behind the nose this close counts as taken. Comfortably
+## larger than the tightest turning circle the rig can hold.
+const PASS_RADIUS := 16.0
+## How far ahead of a corner the rig starts shedding speed for it.
+const CORNER_LOOKAHEAD := 26.0
 const BRAKE_DISTANCE := 18.0
-const TURN_RATE := 6.0
-## A truck wedged behind something that will never move must not hold its bay
-## for ever, so after this long it stops giving way and crawls on through.
+## Radians per second the cab can turn. With the corner throttle below this puts
+## the rig's turning circle inside a driving lane.
+const TURN_RATE := 3.4
+## Slowest a corner may be taken, as a fraction of `SPEED`. A rig that keeps full
+## speed into a right angle either drifts wide across a parking bay or needs a
+## turn rate so high it snaps.
+const CORNER_FLOOR := 0.22
+## A truck wedged behind something that will never move must not hold its bay for
+## ever, so after this long it stops giving way and crawls on through.
 const STALL_TIMEOUT := 9.0
 
 var bay := 0
+## Who is driving. Assigned by `PortWorld` before the truck enters the tree, from
+## the same small pool of hauliers each time, so the player meets the same people.
+var driver: NpcProfile
 
 var _world: PortWorld
-var _body: Node2D
+var _cab: Node2D
+var _trailer: Node2D
 var _boxes: Array[Sprite2D] = []
+var _box_outlines: Array[Node2D] = []
+var _outline_parts: Array[Node2D] = []
+var _light_glows: Array[Sprite2D] = []
 var _waypoints: Array[Vector2] = []
 var _cruise := 0.0
 var _facing := 0.0
+var _trailer_facing := 0.0
+## Where the chassis's rear axle currently sits, in the same space as `position`.
+## The trailer's heading is solved from this each frame; see `_articulate`.
+var _trailer_axle := Vector2.ZERO
 var _stalled := 0.0
 var _leaving := false
 var _leave_on_arrival := false
 var _done := false
+var _wheel_phase := 0.0
 
 
 func setup(world: PortWorld, bay_index: int, colors: Array[int],
@@ -59,10 +116,10 @@ func setup(world: PortWorld, bay_index: int, colors: Array[int],
 		# a truck that had already docked is still docked when the game comes
 		# back, rather than driving in a second time.
 		position = PortLayout.gate_bay_centre(bay)
-		_face(Vector2.UP)
+		_snap_heading(0.0)
 	else:
 		position = PortLayout.gate_entry()
-		_face(Vector2.DOWN)
+		_snap_heading(PI)
 		_waypoints = PortLayout.gate_arrival_route(bay)
 
 
@@ -72,19 +129,28 @@ func set_colors(colors: Array[int]) -> void:
 	for index in _boxes.size():
 		var box := _boxes[index]
 		box.visible = index < colors.size()
+		_box_outlines[index].visible = box.visible and _outline_parts[0].visible
 		if box.visible:
 			var atlas := box.texture as AtlasTexture
 			atlas.region = Rect2(posmod(colors[index], 8) * 24, 0, 24, 13)
+
+
+func bed_slot_global_position(slot: int) -> Vector2:
+	## The transfer follows the chassis, including its articulation, and lands on
+	## the actual longitudinal slot rather than the painted bay centre.
+	if slot >= 0 and slot < _boxes.size() and is_instance_valid(_boxes[slot]):
+		return _boxes[slot].global_position
+	return global_position
 
 
 func depart() -> void:
 	if _leaving or _done:
 		return
 	if not _waypoints.is_empty():
-		# Turned away while still on its way in. It finishes the run first
-		# rather than cutting the corner: the routes are axis-aligned one-way
-		# legs, and a truck that beelines from halfway along the approach to
-		# the exit lane drives diagonally across the parking bays to get there.
+		# Turned away while still on its way in. It finishes the run first rather
+		# than cutting the corner: the routes are axis-aligned one-way legs, and a
+		# truck that beelines from halfway along the approach to the exit lane
+		# drives diagonally across the parking bays to get there.
 		_leave_on_arrival = true
 		return
 	_start_departure()
@@ -101,26 +167,98 @@ func is_leaving() -> bool:
 	return _leaving
 
 
+func hit_test(world_pos: Vector2) -> bool:
+	## Covers the whole rig, not just the cab: the boxes are the reason to tap it,
+	## and they are at the far end from the node's own position.
+	var centre := global_position + _heading(_facing) \
+		* (-(HITCH_BACK + KINGPIN_TO_CENTRE) * 0.5)
+	return Rect2(centre - Vector2(15.0, 30.0),
+		Vector2(30.0, 60.0)).has_point(world_pos)
+
+
+func objective_text() -> String:
+	## What this run is for, in the driver's own terms.
+	if _world == null or _world.tasks == null:
+		return ""
+	return _world.tasks.label_of(self)
+
+
+func stage_text() -> String:
+	if _leaving:
+		return "voltando"
+	return "a caminho" if not _waypoints.is_empty() else "na baia"
+
+
+func set_interaction_state(actionable: bool, hovered: bool) -> void:
+	var color := Color(1.0, 1.0, 1.0, 0.98) if hovered \
+		else Color(0.20, 0.22, 0.26, 0.92)
+	var width := 2.0 if hovered else 1.0
+	for part in _outline_parts:
+		part.visible = actionable
+		for child in part.get_children():
+			var copy := child as Sprite2D
+			copy.position = copy.get_meta("outline_direction", Vector2.ZERO) * width
+			(copy.material as ShaderMaterial).set_shader_parameter(
+				"outline_color", color)
+	for index in _box_outlines.size():
+		_box_outlines[index].visible = actionable and _boxes[index].visible
+
+
 # ---------------------------------------------------------------- building
 
 func _build() -> void:
-	_body = Node2D.new()
-	add_child(_body)
+	# The trailer is a sibling of the cab, never a child: a child would inherit
+	# the cab's rotation and the articulation would be a lie drawn on top of a
+	# rigid rig.
+	_trailer = Node2D.new()
+	_trailer.name = "Chassis"
+	add_child(_trailer)
+	_cab = Node2D.new()
+	_cab.name = "Cab"
+	add_child(_cab)
 
+	_build_trailer()
+	_build_cab()
+	_build_vehicle_lights()
+
+
+func _build_cab() -> void:
 	var shadow := Sprite2D.new()
 	shadow.texture = preload("res://assets/sprites/prop_shadow.png")
 	shadow.centered = true
-	shadow.scale = Vector2(14.0 / 32.0, 34.0 / 20.0)
+	shadow.scale = Vector2(13.0 / 32.0, 18.0 / 20.0)
 	shadow.modulate.a = 0.34
-	# Inside the body, so it turns with the truck instead of staying a
-	# north-south smudge while the truck drives east.
-	_body.add_child(shadow)
+	shadow.position = Vector2(1.5, 2.0)
+	_cab.add_child(shadow)
 
 	var cab := Sprite2D.new()
-	cab.texture = preload("res://assets/sprites/veh_tt.png")
+	cab.texture = preload("res://assets/sprites/veh_truck_cab.png")
 	cab.centered = true
-	cab.scale = Vector2(BODY_SCALE, BODY_SCALE)
-	_body.add_child(cab)
+	cab.scale = Vector2(RIG_SCALE, RIG_SCALE)
+	var cab_outline := _outline_for(cab)
+	_cab.add_child(cab_outline)
+	_outline_parts.append(cab_outline)
+	_cab.add_child(cab)
+
+
+func _build_trailer() -> void:
+	var shadow := Sprite2D.new()
+	shadow.texture = preload("res://assets/sprites/prop_shadow.png")
+	shadow.centered = true
+	shadow.scale = Vector2(13.0 / 32.0, 34.0 / 20.0)
+	shadow.modulate.a = 0.30
+	shadow.position = Vector2(1.5, KINGPIN_TO_CENTRE + 2.0)
+	_trailer.add_child(shadow)
+
+	var chassis := Sprite2D.new()
+	chassis.texture = preload("res://assets/sprites/veh_truck_chassis.png")
+	chassis.centered = true
+	chassis.scale = Vector2(RIG_SCALE, RIG_SCALE)
+	chassis.position = Vector2(0.0, KINGPIN_TO_CENTRE)
+	var chassis_outline := _outline_for(chassis)
+	_trailer.add_child(chassis_outline)
+	_outline_parts.append(chassis_outline)
+	_trailer.add_child(chassis)
 
 	for slot in GateDock.TRUCK_CAPACITY:
 		var box := Sprite2D.new()
@@ -130,52 +268,232 @@ func _build() -> void:
 		box.texture = atlas
 		box.centered = true
 		box.scale = Vector2(BOX_SCALE, BOX_SCALE)
-		box.position = Vector2(0.0, BED_HEAD + BOX_PITCH * (slot + 0.5))
+		# Container art is drawn landscape; the chassis is nose-up. Rotating the
+		# box makes a bitrem read as two lengthwise boxes in a row rather than as
+		# cargo laid sideways across the trailer.
+		box.rotation = PI / 2.0
+		box.position = Vector2(0.0, slot_offset(slot))
 		box.visible = false
-		_body.add_child(box)
+		var box_outline := _outline_for(box)
+		box_outline.visible = false
+		_trailer.add_child(box_outline)
+		_outline_parts.append(box_outline)
+		_box_outlines.append(box_outline)
+		_trailer.add_child(box)
 		_boxes.append(box)
 
 
+static func slot_offset(slot: int) -> float:
+	## A box slot in trailer space: measured from the drawing, then shifted so the
+	## trailer's own origin is the kingpin rather than the sprite's centre.
+	var index := clampi(slot, 0, BOX_SLOT_Y.size() - 1)
+	return (float(BOX_SLOT_Y[index]) - CHASSIS_KINGPIN_Y) * RIG_SCALE
+
+
+func _outline_for(source: Sprite2D) -> Node2D:
+	var root := Node2D.new()
+	root.position = source.position
+	root.rotation = source.rotation
+	root.scale = source.scale
+	root.visible = false
+	for direction in [
+		Vector2(-1, -1), Vector2(0, -1), Vector2(1, -1),
+		Vector2(-1, 0), Vector2(1, 0),
+		Vector2(-1, 1), Vector2(0, 1), Vector2(1, 1),
+	]:
+		var copy := Sprite2D.new()
+		copy.texture = source.texture
+		copy.centered = source.centered
+		copy.position = direction
+		copy.set_meta("outline_direction", direction)
+		var material := ShaderMaterial.new()
+		material.shader = preload("res://assets/shaders/interaction_outline.gdshader")
+		copy.material = material
+		root.add_child(copy)
+	return root
+
+
+func _build_vehicle_lights() -> void:
+	# Headlamps on the cab, tail lamps on the chassis: they belong to different
+	# bodies and must swing with the one they are bolted to.
+	_add_vehicle_light(_cab, Vector2(-3.8, -9.0), Color8(255, 247, 214), 0.07)
+	_add_vehicle_light(_cab, Vector2(3.8, -9.0), Color8(255, 247, 214), 0.07)
+	var tail := KINGPIN_TO_CENTRE + (CHASSIS_H * 0.5 - 2.0) * RIG_SCALE
+	_add_vehicle_light(_trailer, Vector2(-3.4, tail), Color8(255, 45, 38), 0.055)
+	_add_vehicle_light(_trailer, Vector2(3.4, tail), Color8(255, 45, 38), 0.055)
+
+
+func _add_vehicle_light(parent: Node2D, pos: Vector2, color: Color,
+		scale_value: float) -> void:
+	var glow := Sprite2D.new()
+	glow.texture = preload("res://assets/sprites/prop_glow.png")
+	glow.position = pos
+	glow.scale = Vector2.ONE * scale_value
+	glow.modulate = color
+	glow.modulate.a = 0.0
+	var additive := CanvasItemMaterial.new()
+	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	glow.material = additive
+	parent.add_child(glow)
+	_light_glows.append(glow)
+
+
 func _enter_tree() -> void:
-	if _world != null and _world.traffic != null:
+	if _world == null:
+		return
+	if _world.traffic != null:
 		_world.traffic.join(self)
+	# The trip itself is this driver's task, keyed on the bay, so the card can say
+	# what the run is for and no two drivers share a bay.
+	if _world.tasks != null and driver != null:
+		_world.tasks.claim(self, NpcCatalog.STATION_CITY, "cidade:baia%d" % bay)
 
 
 func _exit_tree() -> void:
-	if _world != null and _world.traffic != null:
+	if _world == null:
+		return
+	if _world.traffic != null:
 		_world.traffic.leave(self)
+	if _world.tasks != null:
+		# A completed round trip counts for the driver: it came in loaded and it
+		# is leaving loaded.
+		if _done and driver != null:
+			_world.tasks.complete(self)
+		else:
+			_world.tasks.release(self)
 
 
 # ----------------------------------------------------------------- driving
 
+static func _heading(facing: float) -> Vector2:
+	## Nose direction. Every vehicle sprite in this game is drawn nose-up, so
+	## heading north is rotation zero.
+	return Vector2(sin(facing), -cos(facing))
+
+
+static func _bearing_to(delta: Vector2) -> float:
+	return atan2(delta.x, -delta.y)
+
+
+func _snap_heading(facing: float) -> void:
+	## Place the rig straight, cab and trailer in line. Used on spawn and on a
+	## restore, where there is no previous frame to articulate from.
+	_facing = facing
+	_trailer_facing = facing
+	_cab.rotation = _facing
+	_trailer.rotation = _trailer_facing
+	_trailer.position = -_heading(_facing) * HITCH_BACK
+	_trailer_axle = position + _trailer.position \
+		- _heading(_facing) * TRAILER_LEN
+
+
 func _process(delta: float) -> void:
-	if _done or _waypoints.is_empty():
-		return
+	_update_vehicle_lights()
+	_animate_suspension(delta)
+	if not _done and not _waypoints.is_empty():
+		_drive(delta)
+	_articulate()
+
+
+func _drive(delta: float) -> void:
 	var target: Vector2 = _waypoints[0]
 	var to_target := target - position
-	var wanted := SPEED
-	if _waypoints.size() == 1 and not _leaving:
-		# Pull up into the bay rather than stopping dead on the mark.
-		wanted = SPEED * clampf(to_target.length() / BRAKE_DISTANCE, 0.2, 1.0)
-	_cruise = move_toward(_cruise, wanted,
-		(ACCELERATION if wanted > _cruise else BRAKING) * delta)
-	var step := _cruise * delta
-	if to_target.length() <= maxf(step, 0.5):
-		position = target
+	var heading := _heading(_facing)
+	# Reached, **or passed**. A steered vehicle cannot land on a point: if the
+	# only test is a small radius, a mark the rig sweeps past just outside it
+	# becomes a roundabout it circles for ever. Accepting a mark that has gone
+	# behind the nose is what makes the route finite.
+	if to_target.length() <= ARRIVE_RADIUS \
+			or (to_target.length() < PASS_RADIUS and heading.dot(to_target) <= 0.0):
 		_waypoints.pop_front()
 		if _waypoints.is_empty():
+			# Park **on** the mark. A steered vehicle arrives near a point, never
+			# on it, and the last point of a route is a painted bay or the edge of
+			# the map — both of which want to be exact. It brakes into the last
+			# leg, so this is a pixel or two, not a jump.
+			position = target
 			_finish()
 		return
-	var dir := to_target.normalized()
+
+	# Steer first, then drive along wherever the nose ended up. This is the whole
+	# rewrite in two lines: a vehicle that only ever moves forwards cannot slide
+	# out from under its own load.
+	var wanted_facing := _bearing_to(to_target)
+	_facing = rotate_toward(_facing, wanted_facing, TURN_RATE * delta)
+	heading = _heading(_facing)
+
+	# A right angle cannot be taken at road speed, and braking *in* the corner is
+	# too late — the rig is already past the mark by the time it has slowed. So
+	# the throttle looks at the turn coming up and how close it is, and the rig
+	# arrives at the corner already slow enough to take it.
+	var wanted := SPEED * minf(_corner_throttle(target, to_target),
+		_alignment_throttle(heading, to_target))
+	if _waypoints.size() == 1 and not _leaving:
+		# Pull up into the bay rather than stopping dead on the mark.
+		wanted *= clampf(to_target.length() / BRAKE_DISTANCE, 0.2, 1.0)
+	_cruise = move_toward(_cruise, wanted,
+		(ACCELERATION if wanted > _cruise else BRAKING) * delta)
+
+	var step := heading * _cruise * delta
 	if _stalled < STALL_TIMEOUT and _world != null and _world.traffic != null \
-			and not _world.traffic.can_advance(self, position + dir * step):
+			and not _world.traffic.can_advance(self, position + step):
 		_cruise = move_toward(_cruise, 0.0, BRAKING * delta)
-		_face(dir, delta)
 		_stalled += delta
 		return
 	_stalled = 0.0
-	position += dir * step
-	_face(dir, delta)
+	position += step
+	_cab.rotation = _facing
+
+
+func _corner_throttle(target: Vector2, to_target: Vector2) -> float:
+	## How fast the rig may still be going when it reaches this mark, given how
+	## sharp the turn after it is. Full speed until `CORNER_LOOKAHEAD` out, then
+	## down to the floor for a right angle.
+	if _waypoints.size() < 2:
+		return 1.0
+	var next_leg: Vector2 = (_waypoints[1] - target)
+	if next_leg.length_squared() < 0.01 or to_target.length_squared() < 0.01:
+		return 1.0
+	var turn := clampf(next_leg.normalized().dot(to_target.normalized()),
+		0.0, 1.0)
+	var approach := clampf(to_target.length() / CORNER_LOOKAHEAD, 0.0, 1.0)
+	return lerpf(CORNER_FLOOR + (1.0 - CORNER_FLOOR) * turn, 1.0, approach)
+
+
+func _alignment_throttle(heading: Vector2, to_target: Vector2) -> float:
+	## And once inside the turn, speed follows how far off the nose still is.
+	var alignment := maxf(0.0, heading.dot(to_target.normalized()))
+	return clampf(alignment * alignment, CORNER_FLOOR, 1.0)
+
+
+func _articulate() -> void:
+	## The chassis pivots on the fifth wheel and drags its axle behind it.
+	##
+	## The axle is **state**, not something derived from the trailer's heading —
+	## that was the first attempt and it is a fixed point: recomputing the axle
+	## from the heading and then the heading from the axle leaves the trailer
+	## permanently in line with the cab. What actually makes a semitrailer cut in
+	## through a corner is that the axle stays where it was while the hitch moves
+	## on, and the body between them turns to follow.
+	var hitch := position - _heading(_facing) * HITCH_BACK
+	var span := hitch - _trailer_axle
+	if span.length_squared() > 0.0001:
+		_trailer_facing = _bearing_to(span)
+	_trailer_axle = hitch - _heading(_trailer_facing) * TRAILER_LEN
+	_trailer.position = hitch - position
+	_trailer.rotation = _trailer_facing
+
+
+func _animate_suspension(delta: float) -> void:
+	## A sub-pixel vibration gives the truck weight without moving its route,
+	## collision or traffic reservation. Cab only — a loaded chassis on air
+	## suspension does not bounce, and a shaking container reads as a bug.
+	var rolling := not _waypoints.is_empty() and _cruise > 2.0
+	if rolling:
+		_wheel_phase += delta * (5.0 + _cruise * 0.16)
+	var target := Vector2(sin(_wheel_phase) * 0.24,
+		cos(_wheel_phase * 0.5) * 0.16) if rolling else Vector2.ZERO
+	_cab.position = _cab.position.lerp(target, minf(1.0, delta * 10.0))
 
 
 func _finish() -> void:
@@ -192,18 +510,10 @@ func _finish() -> void:
 		_start_departure()
 
 
-func _face(dir: Vector2, delta: float = 0.0) -> void:
-	## Four sides, like every other vehicle here, but turned into rather than
-	## snapped to — a truck that pivots 90 degrees in one frame reads as a
-	## sliding box, not as something with mass.
-	##
-	## Every vehicle sprite in the game is drawn nose-up, so heading north is
-	## rotation zero.
-	var wanted: float
-	if absf(dir.x) > absf(dir.y):
-		wanted = PI / 2.0 if dir.x > 0.0 else -PI / 2.0
-	else:
-		wanted = PI if dir.y > 0.0 else 0.0
-	_facing = wanted if delta <= 0.0 \
-		else rotate_toward(_facing, wanted, TURN_RATE * delta)
-	_body.rotation = _facing
+func _update_vehicle_lights() -> void:
+	var night := Skyscape._night_factor(TimeManager.time_of_day)
+	var target := maxf(clampf(night * 1.2, 0.0, 1.0),
+		0.32 if not _waypoints.is_empty() else 0.14)
+	for index in _light_glows.size():
+		var tail := index >= 2
+		_light_glows[index].modulate.a = target * (0.72 if tail else 0.55)

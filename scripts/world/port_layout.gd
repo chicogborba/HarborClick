@@ -60,10 +60,90 @@ const QUAY_X0 := 196.0
 const QUAY_X1 := 240.0
 const WATER_X0 := 240.0
 
+## Bollards down the quay edge. The ship's mooring lines and the decal that
+## draws them read the same numbers, so a rope always lands on an actual bollard
+## instead of near one.
+const BOLLARD_X := WATER_X0 - 20.0
+const BOLLARD_Y0 := TOP_MARGIN + 10.0
+const BOLLARD_PITCH := 46.0
+## The centre of the bollard sprite, from its top-left anchor.
+const BOLLARD_CENTRE := Vector2(4.0, 4.0)
+
 const SHIP_X := 244.0
-const SHIP_Y := 60.0
+## The first berth starts below the gate apron rather than level with it. The
+## bow used to tie up at the very top of the world, where the HUD gantry and the
+## approach road are, so the hull was half chrome and half off-frame exactly when
+## the player was meant to be tapping it.
+const SHIP_Y := 96.0
 const SHIP_W := 66.0
 const SHIP_H := 232.0
+
+# --- the berths ------------------------------------------------------------
+## Berths run down the quay, north to south, and share one fairway. The world is
+## 320 px wide: the water is 80 and a hull is 66, so **two hulls cannot pass**.
+## There is no offset that clears one moored ship — a passing hull would have to
+## start at x 310 and end at 376, which is off the map. Holding it a few pixels
+## outboard and drawing it on top only makes one ship slide through another with
+## its edges showing, which is what the quay used to look like.
+##
+## So nothing ever passes. A hull can only travel north bow-first, so the channel
+## runs south to north: in from the open water below, out past the top. Whether
+## that run is possible depends on who is already alongside:
+##
+##   * the way is clear — the ship makes the full run up or down the fairway,
+##     which is the arrival and the departure the port is built around;
+##   * somebody is moored in the way — the tugs take it **straight out to sea**
+##     instead, beam-on, off the seaward edge of the frame. Which is how a ship
+##     leaves a berth anyway: warped off sideways before it is under way at all.
+##
+## `PortWorld.lane_clear_north/south` decide, and `OFFING_X` is where the
+## sideways route ends up.
+const BERTH_MAX := 3
+const BERTH_GAP := 26.0
+const BERTH_PITCH := SHIP_H + BERTH_GAP
+## The lane a moving hull uses, held off the quay so coming off the berth is a
+## move the player can see. Its outboard edge is a few pixels past the frame,
+## which the camera never shows.
+const FAIRWAY_X := SHIP_X + 14.0
+## Out to sea, past the seaward edge of the world: where a hull that cannot use
+## the channel goes instead, and where one arriving that way comes from.
+const OFFING_X := WORLD_W + 26.0
+
+
+static func bollard_position(index: int) -> Vector2:
+	return Vector2(BOLLARD_X, BOLLARD_Y0 + maxi(0, index) * BOLLARD_PITCH)
+
+
+static func bollard_count() -> int:
+	return maxi(1, ceili((world_bottom() - BOLLARD_Y0) / BOLLARD_PITCH))
+
+
+static func nearest_bollard(y: float, forward: bool) -> Vector2:
+	## The bollard a line should be led to: forward of the fairlead for a head or
+	## after spring, aft of it for the other pair. Clamped to the quay, so a hull
+	## at either end still finds something to make fast to.
+	var raw := (y - BOLLARD_Y0) / BOLLARD_PITCH
+	var index := floori(raw) if forward else ceili(raw)
+	if forward and is_equal_approx(float(index), raw):
+		index -= 1
+	elif not forward and is_equal_approx(float(index), raw):
+		index += 1
+	return bollard_position(clampi(index, 0, bollard_count() - 1))
+
+
+static func berth_y(index: int) -> float:
+	return SHIP_Y + maxi(0, index) * BERTH_PITCH
+
+
+static func berth_count() -> int:
+	## As many berths as there is quay to put them on. Derived from the world's own
+	## depth rather than from a parcel count, so buying land is what lengthens the
+	## quay and the two can never disagree.
+	var count := 1
+	while count < BERTH_MAX \
+			and berth_y(count) + SHIP_H + 20.0 <= world_bottom():
+		count += 1
+	return count
 
 # --- container yard geometry ---
 const BOX_W := 23.0
@@ -215,20 +295,33 @@ static func lamp_spots() -> Array[Dictionary]:
 
 	var lanes := lane_ys()
 	for row in lanes.size():
-		if row % 2 == 1:
-			continue
 		for runway_x: float in runway_xs():
 			spots.append({"pos": Vector2(runway_x - 6.0, lanes[row] - 8.0),
-				"quay": false})
+				"quay": false, "tone": "yard", "energy": 0.92})
+
+	# Road verge and workshop band bridge the dark gaps between gate, stacks
+	# and service buildings without putting a pole in a driven lane.
+	var road_y := YARD_Y0 + 28.0
+	while road_y < service_y() - 20.0:
+		spots.append({"pos": Vector2(YARD_X0 - 8.0, road_y),
+			"quay": false, "tone": "road", "energy": 0.70})
+		road_y += BLOCK_H + BLOCK_GAP_Y
+	for row in slot_rows():
+		var service_lamp_y := service_y() + 28.0 + row * SLOT_ROW_H
+		spots.append({"pos": Vector2(BLOCK_X0 - 8.0, service_lamp_y),
+			"quay": false, "tone": "service", "energy": 0.78})
+		spots.append({"pos": Vector2(QUAY_X0 - 12.0, service_lamp_y),
+			"quay": true, "tone": "service", "energy": 0.84})
 
 	# The quay keeps the same rhythm, carried up past the yard so the berth is
 	# lit even before the first block row exists.
-	var pitch := (BLOCK_H + BLOCK_GAP_Y) * 2.0
+	var pitch := BLOCK_H + BLOCK_GAP_Y
 	var quay_y: float = lanes[0] - 8.0
 	while quay_y - pitch > TOP_MARGIN:
 		quay_y -= pitch
 	while quay_y < world_bottom() - 30.0:
-		spots.append({"pos": Vector2(QUAY_X0 - 12.0, quay_y), "quay": true})
+		spots.append({"pos": Vector2(QUAY_X0 - 12.0, quay_y),
+			"quay": true, "tone": "quay", "energy": 1.0})
 		quay_y += pitch
 	return spots
 
@@ -268,8 +361,78 @@ static func quay_lane_x() -> float:
 	return QUAY_X0 + 8.0
 
 
+# --- the interchange -------------------------------------------------------
+## A container never crosses this terminal by itself. It is lifted by whatever
+## machine reaches its current home, set down where a chassis can take it,
+## driven, and lifted again by the machine that owns the stacks it is going to.
+##
+## These are the three places a hand-off can happen, and they are geometry, not
+## taste: the apron under the crane rail, the driving lane at the seaward end of
+## a block, and the approach in front of a parking bay. `CargoRelay` builds every
+## itinerary out of them, so a box is only ever in one of two states — held by a
+## named machine, or standing on ground a machine can reach.
+
+## The quay apron, which is also the terminal's north-south trunk road: it runs
+## the whole depth of the map under the crane rail and crosses no stacking slot,
+## so it is the one road a tractor can always use to get from any berth to any
+## block row.
+static func interchange_spine_x() -> float:
+	return quay_lane_x()
+
+
+static func quay_interchange(y: float) -> Vector2:
+	## Where a portainer sets a box down on the apron, in line with the bay it
+	## came out of.
+	return Vector2(quay_lane_x(), y)
+
+
+static func block_interchange(block_index: int) -> Vector2:
+	## The chassis position a transtainer or reach stacker reaches for: in the
+	## driving lane, at the seaward end of the block it serves.
+	var origin := block_origin(maxi(0, block_index))
+	return Vector2(origin.x + BLOCK_W + 4.0, block_lane_y(maxi(0, block_index)))
+
+
+static func gate_interchange(x: float) -> Vector2:
+	## In front of a parking bay, on the approach. The empty handler works the
+	## road chassis from here and hands the box to a tractor on the same lane.
+	return Vector2(clampf(x, GATE_BAY_X, GATE_BAY_X
+		+ GATE_BAY_COUNT * (GATE_BAY_W + GATE_BAY_GAP)), GATE_QUEUE_Y)
+
+
+static func nearest_block(pos: Vector2) -> int:
+	## Which block a yard position belongs to, asked of a point rather than of a
+	## slot index so the relay can stay ignorant of the yard's slot numbering.
+	var best := 0
+	var best_distance := INF
+	var centre := Vector2(BLOCK_W, BLOCK_H) * 0.5
+	for index in block_count():
+		var distance := (block_origin(index) + centre).distance_squared_to(pos)
+		if distance < best_distance:
+			best_distance = distance
+			best = index
+	return best
+
+
+static func depot_slot(index: int) -> Vector2:
+	## Where idle plant stands. A machine the player paid for has to be somewhere
+	## they can see it between jobs — parking the fleet off-map is why buying a
+	## tractor used to change nothing on screen.
+	##
+	## The ranks sit on the interchange spine, one per driving lane, which is
+	## both clear ground and exactly where a tractor waiting for work belongs.
+	var lanes := lane_ys()
+	var lane: float = lanes[index % lanes.size()]
+	@warning_ignore("integer_division") var rank: int = index / lanes.size()
+	return Vector2(interchange_spine_x() + float(rank % 2) * 13.0, lane)
+
+
 static func sts_y(index: int, count: int) -> float:
-	var span := SHIP_H - 80.0
+	## Cranes spread along the whole worked quay, not just the first berth: with
+	## three ships alongside, three portainers bunched at the top would leave two
+	## hulls with nothing over them.
+	var quay := berth_y(berth_count() - 1) + SHIP_H - SHIP_Y
+	var span := maxf(SHIP_H - 80.0, quay - 80.0)
 	if count <= 1:
 		return SHIP_Y + 46.0
 	return SHIP_Y + 30.0 + span * (float(index) / float(count - 1))

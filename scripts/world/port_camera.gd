@@ -14,6 +14,12 @@ var _zoom_floor := 1.0
 var _zoom_ceiling := 2.5
 var _has_shell_metrics := false
 var _input_enabled := true
+## Screen-space strips the HUD covers at the top and the bottom of the world.
+## Without them the gantry sits on the gate and the console sits on the last row
+## of buildings, and no amount of dragging can bring either out — the camera
+## stops at the edge of the terminal, not at the edge of what can be seen.
+var _inset_top := 0.0
+var _inset_bottom := 0.0
 
 
 func _ready() -> void:
@@ -101,12 +107,25 @@ func _set_zoom(value: float) -> void:
 	_clamp_position()
 
 
+func set_view_insets(top: float, bottom: float) -> void:
+	## How much of the viewport the HUD is covering, in screen pixels.
+	_inset_top = maxf(0.0, top)
+	_inset_bottom = maxf(0.0, bottom)
+	set_world_bottom(_world_bottom)
+
+
+func _world_inset(screen_pixels: float) -> float:
+	return screen_pixels / maxf(zoom.y, 0.01)
+
+
 func _clamp_position() -> void:
 	var half_view := Vector2(_world_rect.size.x, _viewport_size.y) / (zoom * 2.0)
 	var min_x := minf(VIEW_W * 0.5, half_view.x)
 	var max_x := maxf(VIEW_W * 0.5, VIEW_W - half_view.x)
-	var min_y := half_view.y
-	var max_y := maxf(half_view.y, _world_bottom - half_view.y)
+	# The travel is measured against the *visible* port, so scrolling to the top
+	# puts the gate just under the gantry rather than behind it.
+	var min_y := half_view.y - _world_inset(_inset_top)
+	var max_y := maxf(min_y, _world_bottom - half_view.y + _world_inset(_inset_bottom))
 	position.x = clampf(position.x, min_x, max_x)
 	position.y = clampf(position.y, min_y, max_y)
 
@@ -115,8 +134,12 @@ func set_world_bottom(bottom: float) -> void:
 	_world_bottom = bottom
 	limit_left = 0
 	limit_right = int(VIEW_W)
-	limit_top = 0
-	limit_bottom = int(maxf(bottom, VIEW_H))
+	# Camera2D limits are world units and are not recomputed on zoom, so they are
+	# taken at the widest possible view — `_clamp_position` is what actually holds
+	# the edge at any given zoom.
+	var widest := 1.0 / maxf(_zoom_floor, 0.01)
+	limit_top = -int(ceilf(_inset_top * widest))
+	limit_bottom = int(maxf(bottom + _inset_bottom * widest, VIEW_H))
 	_clamp_position()
 
 
@@ -129,7 +152,9 @@ func set_input_enabled(input_allowed: bool) -> void:
 
 func focus_on(y: float, duration: float = 0.6) -> void:
 	var half_height := _viewport_size.y / (zoom.y * 2.0)
-	var target := clampf(y, half_height, maxf(half_height, _world_bottom - half_height))
+	var low := half_height - _world_inset(_inset_top)
+	var target := clampf(y, low,
+		maxf(low, _world_bottom - half_height + _world_inset(_inset_bottom)))
 	var tween := create_tween()
 	tween.tween_property(self, "position:y", target, duration) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)

@@ -1,10 +1,22 @@
 class_name UiTheme
 ## The one place the interface is described.
 ##
-## Every overlay in HarborClick is the same physical object: the foreman's
-## clipboard. A weathered wooden board, a steel spring clip, and manifest paper
-## underneath. Numbers are stamped on dark slate, keys are amber, service tags
-## are teal — the two accents the machines already wear out in the yard.
+## The interface is made of two materials, and which one a thing is made of says
+## what kind of thing it is.
+##
+## **Steel** is the terminal itself: the gantry bolted across the top of the port
+## carrying the tally and the clock, the console the keys sit on, the dark glass
+## a lit number sits behind. Navy enamel, a brushed pinstripe, one amber hairline
+## along the edge that faces the water. Anything permanently over the port is
+## steel, so it reads as part of the terminal rather than a panel floating on it.
+##
+## **Paper** is the paperwork: every overlay is the foreman's clipboard — a
+## weathered wooden board, a steel spring clip, manifest sheets underneath, and
+## cards torn off them. Anything you *open* is paper, so it reads as something
+## handed to you rather than part of the scenery.
+##
+## Numbers are lit amber behind glass, keys are amber, service tags are teal —
+## the two accents the machines already wear out in the yard.
 ##
 ## Nothing here draws a rounded rectangle at runtime: every surface is a
 ## nine-patch on the pixel grid, so the UI is made of the same material as the
@@ -12,7 +24,8 @@ class_name UiTheme
 
 const FONT := preload("res://assets/fonts/harbor_font.fnt")
 const ICONS := preload("res://assets/sprites/ui_icons.png")
-const TOP_FADE := preload("res://assets/sprites/ui_topfade.png")
+const LEDS := preload("res://assets/sprites/ui_led.png")
+const PIP := preload("res://assets/sprites/ui_pip.png")
 const CLIP := preload("res://assets/sprites/ui_clip.png")
 
 ## The bitmap font is authored at 10px; only integer multiples stay crisp.
@@ -39,6 +52,22 @@ const TEAL_DEEP := Color8(28, 80, 80)
 const TEAL_LIGHT := Color8(104, 194, 176)
 const DANGER := Color8(150, 60, 48)
 
+# --- enamelled navy steel: the HUD's own material ---
+## The gantry, the console and the keys bolted to them. Dark enough that cream
+## and amber both clear AA on it, blue enough that it never reads as a grey box
+## over the warm greys of the yard.
+const HULL := Color8(42, 54, 74)
+const HULL_DEEP := Color8(28, 37, 54)
+const HULL_EDGE := Color8(16, 22, 34)
+## The dark glass a lit number sits behind, and the two inks that light up on it.
+const GLASS := Color8(25, 31, 46)
+const DIGIT := Color8(252, 202, 96)
+## Text on steel. `STEEL_DIM` is the quiet one — deliberately lighter than
+## `SLATE_DIM`, which is tuned for the near-black slate of a price stamp and
+## drops under AA on the lighter navy.
+const STEEL_TEXT := Color8(226, 232, 242)
+const STEEL_DIM := Color8(176, 190, 212)
+
 ## Surfaces text is allowed to land on, keyed by the sprite that draws them.
 ## Kept next to the ink so a palette change and its contrast proof stay in one
 ## place.
@@ -55,6 +84,10 @@ const SURFACE := {
 	&"btn_off": Color8(176, 166, 154),
 	&"seg_off": Color8(224, 210, 184),
 	&"tab_off": Color8(196, 178, 150),
+	&"gantry": Color8(42, 54, 74),
+	&"glass": Color8(25, 31, 46),
+	&"tag": Color8(28, 37, 54),
+	&"btn_steel": Color8(42, 54, 74),
 }
 
 # --- the slate a number is stamped on ---
@@ -67,10 +100,10 @@ const TOUCH_MIN := 44.0
 
 enum Icon {
 	TEU, CRANE, SHIP, LAND, STAR, GEAR, SOUND, CLOCK, PAW,
-	GLOVE, GLOBE, LOCK, CHECK, CLOSE, CHEVRON, TRUCK, TROPHY,
+	GLOVE, GLOBE, LOCK, CHECK, CLOSE, CHEVRON, TRUCK, TROPHY, BELL,
 }
 
-const ICON_COUNT := 17
+const ICON_COUNT := 18
 
 
 # ---------------------------------------------------------------- typography
@@ -171,6 +204,158 @@ static func well_style(content: int = 3) -> StyleBoxTexture:
 	return nine("ui_well", 5, content)
 
 
+static func gantry_style() -> StyleBoxTexture:
+	## The enamel panel bolted across the top of the port. Its amber hairline is
+	## on the bottom edge, so the content margin there is thicker: text sitting on
+	## the stripe would read as an underline nobody asked for.
+	var box := nine("ui_gantry", 11, 4)
+	box.content_margin_bottom = 6
+	return box
+
+
+static func console_style() -> StyleBoxTexture:
+	## The same panel at the bottom of the screen, with the hairline on the top
+	## edge instead. It is what the keys are bolted to.
+	var box := nine("ui_console", 11, 4)
+	box.content_margin_top = 6
+	return box
+
+
+static func glass_style(content: int = 4) -> StyleBoxTexture:
+	## Dark glass set into steel. A tally is an instrument, not a caption, so its
+	## digits are lit behind this rather than printed on the panel.
+	return nine("ui_glass", 5, content)
+
+
+static func tag_style(content: int = 4) -> StyleBoxTexture:
+	## The enamel job tag that hangs off the gantry, with a teal service spine.
+	## Whatever the berth is doing is the one line that changes every few seconds,
+	## so it gets an object of its own instead of a slab of the bar.
+	var box := nine("ui_tag", 5, content)
+	box.content_margin_left = 7
+	return box
+
+
+enum Led { OFF, RUNNING, ATTENTION }
+
+
+static func led(state: Led = Led.OFF) -> TextureRect:
+	## The lamp a control panel uses when there is no room for a word.
+	var node := TextureRect.new()
+	node.texture = led_texture(state)
+	node.custom_minimum_size = Vector2(8, 8)
+	node.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return node
+
+
+static func led_texture(state: Led) -> AtlasTexture:
+	var at := AtlasTexture.new()
+	at.atlas = LEDS
+	at.region = Rect2(int(state) * 8, 0, 8, 8)
+	return at
+
+
+static func pip() -> TextureRect:
+	## The amber dot that says a key has something waiting behind it.
+	var node := TextureRect.new()
+	node.texture = PIP
+	node.custom_minimum_size = Vector2(6, 6)
+	node.size = node.custom_minimum_size
+	node.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return node
+
+
+const PORTRAITS := preload("res://assets/sprites/portrait_sheet.png")
+const PORTRAIT_HAT := preload("res://assets/sprites/portrait_hat.png")
+const BADGE_CLIP := preload("res://assets/sprites/ui_badge_clip.png")
+const PORTRAIT_SIZE := Vector2(24, 28)
+const PORTRAIT_COUNT := 6
+
+
+static func badge_style(content: int = 6) -> StyleBoxTexture:
+	## The laminated staff card. The one overlay that is not paper off the
+	## manifest, because it is not paperwork: it is the thing clipped to the
+	## person's vest.
+	return nine("ui_badge", 5, content)
+
+
+static func badge_head_style() -> StyleBoxTexture:
+	return nine("ui_badge_head", 4, 4)
+
+
+static func photo_style() -> StyleBoxTexture:
+	## The white print border a badge photograph is mounted in. The content inset
+	## is what makes it a border: at zero the picture is laid over the frame and
+	## the mount may as well not be drawn.
+	return nine("ui_photo", 4, 4)
+
+
+static func portrait(index: int, hat: Color = Color(0, 0, 0, 0),
+		wears_hat: bool = true, scale: int = 2) -> Control:
+	## One staff photograph, at an integer multiple of its authored size.
+	##
+	## The hard hat is a separate greyscale overlay so a named crew member's
+	## helmet colour multiplies into a shaded hat instead of flattening it. An
+	## unset colour means the standard yellow everybody else wears; `wears_hat`
+	## is for the two roles that never put one on.
+	var frame := Control.new()
+	frame.custom_minimum_size = PORTRAIT_SIZE * scale
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var face := _portrait_layer(PORTRAITS,
+		Rect2(Vector2(posmod(index, PORTRAIT_COUNT) * PORTRAIT_SIZE.x, 0.0),
+			PORTRAIT_SIZE), scale)
+	frame.add_child(face)
+	if not wears_hat:
+		return frame
+	var helmet := _portrait_layer(PORTRAIT_HAT,
+		Rect2(Vector2.ZERO, PORTRAIT_SIZE), scale)
+	helmet.modulate = hat if hat.a > 0.0 else Color8(240, 196, 66)
+	frame.add_child(helmet)
+	return frame
+
+
+static func _portrait_layer(atlas: Texture2D, region: Rect2,
+		scale: int) -> TextureRect:
+	var at := AtlasTexture.new()
+	at.atlas = atlas
+	at.region = region
+	var node := TextureRect.new()
+	node.texture = at
+	node.custom_minimum_size = PORTRAIT_SIZE * scale
+	node.size = node.custom_minimum_size
+	node.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	node.stretch_mode = TextureRect.STRETCH_SCALE
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return node
+
+
+static func portrait_index(profile: NpcProfile) -> int:
+	## Stable per person: the same operator has the same face for the whole run,
+	## and across a reload, because it is derived from the identity rather than
+	## rolled when the card opens.
+	if profile == null:
+		return 0
+	var key := profile.uid if not profile.uid.is_empty() else profile.slot
+	return posmod(key.hash(), PORTRAIT_COUNT)
+
+
+static func badge_clip() -> TextureRect:
+	## The bulldog clip the card hangs from.
+	var node := TextureRect.new()
+	node.texture = BADGE_CLIP
+	node.custom_minimum_size = BADGE_CLIP.get_size()
+	node.size = BADGE_CLIP.get_size()
+	node.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return node
+
+
 static func tab_style(active: bool) -> StyleBoxTexture:
 	return nine("ui_tab_on" if active else "ui_tab_off", 5, 5)
 
@@ -198,18 +383,6 @@ static func scrim(alpha: float = 0.74) -> ColorRect:
 	node.color = Color(0.055, 0.045, 0.078, alpha)
 	node.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	node.mouse_filter = Control.MOUSE_FILTER_STOP
-	return node
-
-
-static func top_fade(height: float = 72.0) -> TextureRect:
-	## Legibility for HUD text without wrapping it in a box.
-	var node := TextureRect.new()
-	node.texture = TOP_FADE
-	node.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	node.stretch_mode = TextureRect.STRETCH_SCALE
-	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	node.custom_minimum_size.y = height
-	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return node
 
 
@@ -260,12 +433,16 @@ static func place_clip(clip: TextureRect, board: Control, safe: Rect2) -> void:
 
 const _BUTTON_SPRITES := {
 	&"amber": "ui_btn", &"alt": "ui_btn_alt", &"ghost": "ui_btn_ghost",
-	&"off": "ui_btn_off", &"danger": "ui_btn_danger",
+	&"off": "ui_btn_off", &"danger": "ui_btn_danger", &"steel": "ui_btn_steel",
 }
 const _BUTTON_TEXT := {
 	&"amber": INK, &"alt": CREAM, &"ghost": INK,
-	&"off": INK, &"danger": CREAM,
+	&"off": INK, &"danger": CREAM, &"steel": STEEL_TEXT,
 }
+## A key sinks into its own material when pressed. Amber sinking into amber is
+## the default; a steel key on a steel console needs its own darker face, or
+## pressing it flashes an unrelated colour.
+const _BUTTON_DOWN := {&"steel": "ui_btn_steel_down"}
 
 
 static func button(text: String, kind: StringName = &"amber",
@@ -277,6 +454,31 @@ static func button(text: String, kind: StringName = &"amber",
 	apply_font(node, size)
 	style_button(node, kind)
 	return node
+
+
+static func install_window_theme(window: Window) -> void:
+	## The engine draws a few things for itself, and until now they were the only
+	## parts of the interface the game had not drawn: Godot's stock tooltip is a
+	## grey rounded slab in the default sans font, which over a pixel port reads
+	## as a screenshot of a different program.
+	##
+	## A Theme on the `Window` is the only place that reaches them, because a
+	## tooltip is a popup the engine parents to the window rather than to the
+	## control that asked for it.
+	if window == null or window.theme != null:
+		return
+	var theme := Theme.new()
+	theme.set_stylebox(&"panel", &"TooltipPanel", nine("ui_tag", 5, 5))
+	theme.set_font(&"font", &"TooltipLabel", FONT)
+	theme.set_font_size(&"font_size", &"TooltipLabel", SIZE_SMALL)
+	theme.set_color(&"font_color", &"TooltipLabel", STEEL_TEXT)
+	# The default label draws a soft drop shadow, which on a bitmap font is a
+	# smear one pixel off the glyph rather than a shadow.
+	theme.set_color(&"font_shadow_color", &"TooltipLabel", Color(0, 0, 0, 0))
+	theme.set_constant(&"shadow_offset_x", &"TooltipLabel", 0)
+	theme.set_constant(&"shadow_offset_y", &"TooltipLabel", 0)
+	theme.set_constant(&"outline_size", &"TooltipLabel", 0)
+	window.theme = theme
 
 
 static func describe(control: Control, control_name: String,
@@ -318,7 +520,8 @@ static func style_button(node: Button, kind: StringName) -> void:
 	var normal := nine(str(_BUTTON_SPRITES.get(kind, "ui_btn")), 5, 5)
 	node.add_theme_stylebox_override(&"normal", normal)
 	node.add_theme_stylebox_override(&"hover", normal)
-	node.add_theme_stylebox_override(&"pressed", nine("ui_btn_down", 5, 5))
+	node.add_theme_stylebox_override(&"pressed",
+		nine(str(_BUTTON_DOWN.get(kind, "ui_btn_down")), 5, 5))
 	node.add_theme_stylebox_override(&"disabled", nine("ui_btn_off", 5, 5))
 	node.add_theme_stylebox_override(&"focus", _focus_style())
 	var text_color: Color = _BUTTON_TEXT.get(kind, INK)

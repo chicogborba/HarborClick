@@ -54,6 +54,11 @@ static func bake(world_h: int) -> ImageTexture:
 				src = yard_tiles[rng.randi() % yard_tiles.size()]
 			_blit(img, src, tx, ty)
 
+	# A real terminal is zoned before it is populated. The subtle amber/teal
+	# washes make import and export blocks readable even when a row is empty,
+	# instead of leaving one undifferentiated rectangle of asphalt.
+	_paint_sector_washes(img)
+
 	# --- kerb + gutter along the grass/yard seam, with grass creeping over ---
 	var curb := _img("gr_curb")
 	for ty in range(paved_top - TILE, world_h, TILE):
@@ -114,6 +119,7 @@ static func bake(world_h: int) -> ImageTexture:
 	var dash_v := _rot90(dash)
 	for ty in range(0, paved_bottom, TILE):
 		_blend(img, dash_v, int(PortLayout.GATE_ROAD_X) - 2, ty)
+	_paint_road_signage(img, paved_bottom)
 
 	# --- gate apron: the one-way loop the trucks run, and the bays ---
 	# Both apron lanes are painted, because a bay you cannot see the way into
@@ -135,17 +141,29 @@ static func bake(world_h: int) -> ImageTexture:
 		for edge in range(bh):
 			_pixel(img, bx, by + edge, Color8(226, 182, 78))
 			_pixel(img, bx + bw, by + edge, Color8(226, 182, 78))
+	_paint_gate_details(img, apron_end)
 
 	# --- RTG runway paint down each gap between block columns ---
 	for runway_x in PortLayout.runway_xs():
 		for ty in range(int(PortLayout.YARD_Y0) - 8, int(PortLayout.yard_bottom()), TILE):
 			_blend(img, solid, int(runway_x) - 3, ty)
 			_blend(img, solid, int(runway_x), ty)
+	_paint_yard_details(img)
+
+	# --- maintenance/service pads below the stacks ---
+	_paint_service_band(img)
 
 	# --- crane rails on the quay ---
 	for ty in range(paved_top, world_h, TILE):
 		_blend(img, solid, int(PortLayout.QUAY_X0) + 4, ty)
 		_blend(img, solid, int(PortLayout.QUAY_X1) - 7, ty)
+	_paint_quay_safety(img, world_h)
+
+	# --- intermodal rail corridor ---
+	# The train actor has always crossed this coordinate. Giving it ballast,
+	# sleepers and two steel rails makes it a real transport connection rather
+	# than a locomotive sliding over an empty dirt strip.
+	_paint_rail_corridor(img)
 
 	# --- quay coping where the concrete meets the water ---
 	var edge := _img("gr_quay_edge")
@@ -153,6 +171,230 @@ static func bake(world_h: int) -> ImageTexture:
 		_blend(img, edge, int(PortLayout.WATER_X0) - 10, ty)
 
 	return ImageTexture.create_from_image(img)
+
+
+static func _paint_sector_washes(img: Image) -> void:
+	for block_index in PortLayout.block_count():
+		var origin := PortLayout.block_origin(block_index)
+		var col := block_index % PortLayout.BLOCK_COLUMNS
+		var export_sector := col == PortLayout.BLOCK_COLUMNS - 1
+		var tint := Color8(52, 144, 134) if export_sector else Color8(211, 151, 56)
+		var x0 := int(origin.x)
+		var y0 := int(origin.y)
+		for y in range(y0, int(origin.y + PortLayout.BLOCK_H)):
+			for x in range(x0, int(origin.x + PortLayout.BLOCK_W)):
+				if (x + y) % 3 == 0:
+					_mix_pixel(img, x, y, tint, 0.14)
+		@warning_ignore("integer_division")
+		var row: int = block_index / PortLayout.BLOCK_COLUMNS
+		_draw_stencil(img, ("E" if export_sector else "I") + str(row + 1),
+			x0 + 3, y0 - 10, tint.lightened(0.28))
+
+
+static func _paint_road_signage(img: Image, paved_bottom: int) -> void:
+	var white := Color8(224, 220, 204)
+	# Crosswalk immediately inside the perimeter gate.
+	for x in range(int(PortLayout.ROAD_X0) + 3, int(PortLayout.ROAD_X1) - 2, 5):
+		for yy in range(int(PortLayout.FENCE_Y) + 3, int(PortLayout.FENCE_Y) + 9):
+			for xx in range(x, mini(x + 3, int(PortLayout.ROAD_X1) - 2)):
+				_pixel(img, xx, yy, white.darkened(0.08))
+	# Direction arrows repeat down both one-way lanes, so traffic flow reads
+	# without the player having to watch a whole truck cycle.
+	var y := 142
+	while y < paved_bottom - 26:
+		_draw_vertical_arrow(img, int(PortLayout.ROAD_IN_X), y, false, white)
+		_draw_vertical_arrow(img, int(PortLayout.ROAD_OUT_X), y + 34, true, white)
+		y += 116
+	# Drain covers along the gutter, positioned outside the driven tyre paths.
+	for drain_y in range(72, paved_bottom - 12, 92):
+		_draw_drain(img, int(PortLayout.ROAD_X1) - 3, drain_y)
+
+
+static func _paint_gate_details(img: Image, apron_end: int) -> void:
+	var amber := Color8(232, 176, 78)
+	var white := Color8(224, 220, 204)
+	# Chevron arrows carry the one-way loop east on approach and west on exit.
+	for x in range(int(PortLayout.ROAD_X1) + 12, apron_end - 3, 22):
+		_draw_horizontal_chevron(img, x, int(PortLayout.GATE_QUEUE_Y), true, white)
+		_draw_horizontal_chevron(img, x, int(PortLayout.GATE_EXIT_Y), false, white)
+	for bay in PortLayout.GATE_BAY_COUNT:
+		var pos := PortLayout.gate_bay_position(bay)
+		_draw_stencil(img, "G" + str(bay + 1), int(pos.x) + 5,
+			int(pos.y) + 3, amber.lightened(0.18))
+		# Stop line across each loading bay.
+		for x in range(int(pos.x) + 2, int(pos.x + PortLayout.GATE_BAY_W) - 1):
+			if x % 2 == 0:
+				_pixel(img, x, int(pos.y) + 24, amber)
+
+
+static func _paint_yard_details(img: Image) -> void:
+	var pale := Color8(192, 190, 178)
+	# Storm drains at the low side of each cross-lane and small numbered
+	# intersection boxes give the apron believable civil infrastructure.
+	var lanes := PortLayout.lane_ys()
+	for row in lanes.size():
+		var lane_y := int(lanes[row])
+		_draw_drain(img, int(PortLayout.QUAY_X0) - 5, lane_y - 2)
+		_draw_stencil(img, str(row + 1), int(PortLayout.BLOCK_X0) - 9,
+			lane_y - 3, pale.darkened(0.06))
+	# A broken safety line separates container traffic from the quay crane lane.
+	for y in range(int(PortLayout.YARD_Y0), int(PortLayout.yard_bottom()), 9):
+		for yy in range(y, mini(y + 5, int(PortLayout.yard_bottom()))):
+			_pixel(img, int(PortLayout.QUAY_X0) - 2, yy, Color8(222, 169, 68))
+
+
+static func _paint_service_band(img: Image) -> void:
+	var line := Color8(184, 180, 166)
+	for slot in PortLayout.slot_count():
+		var pos := PortLayout.slot_position(slot)
+		var x0 := int(pos.x) - 3
+		var y0 := int(pos.y) - 4
+		var x1 := x0 + int(PortLayout.SLOT_W) - 4
+		var y1 := y0 + int(PortLayout.SLOT_H) + 6
+		for x in range(x0, x1):
+			if (x - x0) % 7 < 4:
+				_pixel(img, x, y0, line)
+				_pixel(img, x, y1, line.darkened(0.20))
+		for y in range(y0, y1):
+			if (y - y0) % 7 < 4:
+				_pixel(img, x0, y, line)
+				_pixel(img, x1, y, line.darkened(0.20))
+		_draw_stencil(img, "M" + str(slot + 1), x0 + 4, y0 + 4,
+			Color8(214, 205, 178))
+	# Painted pedestrian spine between the workshops and the quay.
+	var spine_x := int(PortLayout.QUAY_X0) - 9
+	for y in range(int(PortLayout.service_y()), int(PortLayout.world_bottom()
+			- PortLayout.RAIL_MARGIN), 8):
+		for yy in range(y, y + 4):
+			_pixel(img, spine_x, yy, Color8(84, 166, 151))
+
+
+static func _paint_quay_safety(img: Image, world_h: int) -> void:
+	var edge_x := int(PortLayout.WATER_X0) - 7
+	# Alternating black/yellow edge cells are a universal real-world warning
+	# and give the long berth a stronger visual rhythm.
+	for y in range(int(PortLayout.TOP_MARGIN), world_h):
+		var stripe := posmod(y, 16) < 8
+		var color := Color8(232, 176, 62) if stripe else Color8(72, 67, 62)
+		_pixel(img, edge_x, y, color)
+		_pixel(img, edge_x + 1, y, color.darkened(0.18))
+	# Quay station labels align with the bollard rhythm.
+	var station := 1
+	for y in range(int(PortLayout.TOP_MARGIN) + 18, world_h - 16, 92):
+		_draw_stencil(img, "Q" + str(station), int(PortLayout.QUAY_X0) + 12,
+			y, Color8(180, 174, 162))
+		station += 1
+
+
+static func _paint_rail_corridor(img: Image) -> void:
+	var rail_y := int(PortLayout.rail_y())
+	var x1 := int(PortLayout.WATER_X0) - 11
+	# Ballast bed with a rough, non-repeating shoulder.
+	for y in range(rail_y - 11, rail_y + 12):
+		for x in range(0, x1):
+			var edge_distance := absi(y - rail_y)
+			if edge_distance <= 8 or (x * 7 + y * 3) % 5 < 3:
+				var ballast := Color8(112, 105, 96) if (x + y) % 4 \
+					else Color8(143, 132, 116)
+				_pixel(img, x, y, ballast)
+	# Timber sleepers first, steel rails over them.
+	for x in range(2, x1, 8):
+		for y in range(rail_y - 8, rail_y + 9):
+			_pixel(img, x, y, Color8(92, 68, 52))
+			_pixel(img, x + 1, y, Color8(126, 91, 62))
+	for ry in [rail_y - 5, rail_y + 5]:
+		for x in range(0, x1):
+			_pixel(img, x, ry, Color8(64, 64, 68))
+			_pixel(img, x, ry - 1, Color8(190, 188, 178))
+	# Road crossing panels keep the public-road connection plausible.
+	for x in range(int(PortLayout.ROAD_X0), int(PortLayout.ROAD_X1)):
+		for y in range(rail_y - 8, rail_y + 9):
+			_mix_pixel(img, x, y, Color8(74, 74, 74), 0.62)
+	for x in range(int(PortLayout.ROAD_X0) + 2, int(PortLayout.ROAD_X1) - 2, 5):
+		_pixel(img, x, rail_y - 10, Color8(232, 176, 62))
+		_pixel(img, x, rail_y + 10, Color8(232, 176, 62))
+
+
+static func _draw_vertical_arrow(img: Image, cx: int, cy: int,
+		up: bool, color: Color) -> void:
+	var direction := -1 if up else 1
+	for step in 5:
+		_pixel(img, cx, cy - direction * step, color)
+		_pixel(img, cx + 1, cy - direction * step, color)
+	for wing in 4:
+		_pixel(img, cx - wing, cy + direction * wing, color)
+		_pixel(img, cx + 1 + wing, cy + direction * wing, color)
+
+
+static func _draw_horizontal_chevron(img: Image, cx: int, cy: int,
+		right: bool, color: Color) -> void:
+	var direction := 1 if right else -1
+	for step in 4:
+		_pixel(img, cx + direction * step, cy - step, color)
+		_pixel(img, cx + direction * step, cy + step, color)
+
+
+static func _draw_drain(img: Image, cx: int, cy: int) -> void:
+	for y in range(cy, cy + 5):
+		for x in range(cx - 2, cx + 3):
+			_pixel(img, x, y, Color8(58, 62, 64))
+	for x in range(cx - 1, cx + 2, 2):
+		for y in range(cy + 1, cy + 4):
+			_pixel(img, x, y, Color8(130, 134, 130))
+
+
+static func _draw_stencil(img: Image, text: String, x0: int, y0: int,
+		color: Color) -> void:
+	var cursor := x0
+	for character in text:
+		var rows := _glyph_rows(character)
+		for y in rows.size():
+			var row: String = rows[y]
+			for x in row.length():
+				if row[x] == "1":
+					_pixel(img, cursor + x, y0 + y, color)
+		cursor += 4
+
+
+static func _glyph_rows(character: String) -> Array[String]:
+	match character:
+		"I":
+			return ["111", "010", "010", "010", "111"]
+		"E":
+			return ["111", "100", "110", "100", "111"]
+		"G":
+			return ["111", "100", "101", "101", "111"]
+		"M":
+			return ["101", "111", "111", "101", "101"]
+		"Q":
+			return ["111", "101", "101", "111", "001"]
+		"1":
+			return ["010", "110", "010", "010", "111"]
+		"2":
+			return ["110", "001", "010", "100", "111"]
+		"3":
+			return ["110", "001", "010", "001", "110"]
+		"4":
+			return ["101", "101", "111", "001", "001"]
+		"5":
+			return ["111", "100", "110", "001", "110"]
+		"6":
+			return ["011", "100", "111", "101", "111"]
+		"7":
+			return ["111", "001", "010", "010", "010"]
+		"8":
+			return ["111", "101", "111", "101", "111"]
+		"9":
+			return ["111", "101", "111", "001", "110"]
+		_:
+			return ["000", "000", "000", "000", "000"]
+
+
+static func _mix_pixel(dst: Image, x: int, y: int, color: Color,
+		weight: float) -> void:
+	if x < 0 or y < 0 or x >= dst.get_width() or y >= dst.get_height():
+		return
+	dst.set_pixel(x, y, dst.get_pixel(x, y).lerp(color, weight))
 
 
 static func _pixel(dst: Image, x: int, y: int, color: Color) -> void:

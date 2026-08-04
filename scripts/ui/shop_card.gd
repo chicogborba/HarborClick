@@ -138,10 +138,21 @@ func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false,
 	_count_stamp.visible = count > 0
 	_count_label.text = "x%d" % count
 
-	# Owned machines report output; new ones still get their sales pitch.
-	if count > 0 and cps_gain > 0.0:
-		_sub_label.text = "+%s TEU/s%s" % [GameState.fmt(cps_gain),
-			"  (x%d)" % quantity if quantity > 1 else ""]
+	# A machine you already run, or one you could buy right now, is a number
+	# being compared — so the line says what the purchase changes and how long it
+	# takes to pay for itself. A machine you cannot afford yet is still being
+	# discovered, so it keeps its sales pitch.
+	#
+	# Payback is the one figure that makes two very differently priced machines
+	# comparable at a glance, and without it "+25%" of an unstated base is a
+	# number the player has to take on faith.
+	if cps_gain > 0.0 and (count > 0 or affordable):
+		# Two deliberate lines rather than one that wraps: on a 320 px phone the
+		# effect and the payback do not fit side by side, and a ragged wrap put
+		# the separator alone at the end of a line.
+		_sub_label.text = "+%s TEU/s%s\npaga em %s" % [GameState.fmt(cps_gain),
+			"  x%d" % quantity if quantity > 1 else "",
+			_payback(cost, cps_gain)]
 		_sub_label.label_settings.font_color = UiTheme.TEAL_DEEP
 	elif sold_out:
 		_sub_label.text = _blurb
@@ -152,9 +163,24 @@ func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false,
 	_name_label.label_settings.font_color = \
 		UiTheme.INK if (affordable or sold_out or count > 0) else UiTheme.INK_SOFT
 
-	tooltip_text = "%s\n%s" % [_blurb, "Compra x%d - +%s TEU/s"
-		% [quantity, GameState.fmt(cps_gain)] if cps_gain > 0.0
-		else "Compra x%d" % quantity]
+	tooltip_text = "%s\n%s" % [_blurb, "Compra x%d - +%s TEU/s - paga em %s"
+		% [quantity, GameState.fmt(cps_gain), _payback(cost, cps_gain)]
+		if cps_gain > 0.0 else "Compra x%d" % quantity]
+
+
+static func _payback(cost: float, cps_gain: float) -> String:
+	## How long this purchase takes to earn its own price back, phrased the way a
+	## person says a duration rather than in bare seconds.
+	if cps_gain <= 0.0 or not is_finite(cost):
+		return "—"
+	var seconds := cost / cps_gain
+	if seconds < 90.0:
+		return "%ds" % maxi(1, roundi(seconds))
+	if seconds < 5400.0:
+		return "%dmin" % roundi(seconds / 60.0)
+	if seconds < 172800.0:
+		return "%dh" % roundi(seconds / 3600.0)
+	return "%dd" % roundi(seconds / 86400.0)
 
 
 func show_locked(title: String, hint: String) -> void:

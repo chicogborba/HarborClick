@@ -189,6 +189,21 @@ const ITEMS: Array[Dictionary] = [
 		"unlock": {"teus": 5e6}},
 ]
 
+static func tier_of(structure_id: String, owned_upgrades: Dictionary) -> int:
+	## How many fitted upgrades a machine of this kind is carrying. The yard reads
+	## this to mark the machine — an upgrade the player paid for has to change
+	## something on the machine it was bought for, not only a multiplier in a
+	## panel they closed.
+	if structure_id.is_empty():
+		return 0
+	var tier := 0
+	for item in ITEMS:
+		if str(item.get("target", "")) == structure_id \
+				and owned_upgrades.has(str(item.get("id", ""))):
+			tier += 1
+	return tier
+
+
 static func get_item(id: String) -> Dictionary:
 	for item in ITEMS:
 		if item.id == id:
