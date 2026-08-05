@@ -3,128 +3,153 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#081523">
-  <meta name="description" content="HarborClick é um jogo de porto em pixel art. Descarregue navios, automatize máquinas e faça seu terminal crescer.">
+  <meta name="theme-color" content="#08182a">
+  <meta name="description" content="HarborClick é um porto de contêineres em pixel art. Descarregue navios, compre máquinas e veja o terminal girar sozinho. Grátis, no navegador.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="HarborClick">
   <meta property="og:title" content="HarborClick — o porto nunca dorme">
   <meta property="og:description" content="Um porto vivo em pixel art. Jogue grátis no navegador.">
   <meta property="og:url" content="https://142-93-242-85.nip.io/">
-  <meta property="og:image" content="https://142-93-242-85.nip.io/media/og-pixel.png">
+  <meta property="og:image" content="https://142-93-242-85.nip.io/media/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="HarborClick — o porto nunca dorme">
   <meta name="twitter:description" content="Navios, contêineres e máquinas. Tudo se move.">
-  <meta name="twitter:image" content="https://142-93-242-85.nip.io/media/og-pixel.png">
+  <meta name="twitter:image" content="https://142-93-242-85.nip.io/media/og.png">
   <link rel="icon" href="/media/anchor.png" type="image/png">
-  <link rel="preload" href="/media/og-pixel.png" as="image">
-  <link rel="stylesheet" href="/styles.css?v=20260805-hero-rebuild">
+  <link rel="preload" href="/media/press-start-2p.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/media/logo.png" as="image">
+  <link rel="stylesheet" href="/styles.css?v=20260805-arcade">
+  <noscript><style>.reveal { opacity: 1; transform: none; }</style></noscript>
   <title>HarborClick — o porto nunca dorme</title>
 </head>
 <body>
-  <a class="skip-link" href="#conteudo">Pular para o porto</a>
+  <a class="skip" href="#conteudo">Pular para o conteúdo</a>
 
-  <header class="pixel-hud" aria-label="HarborClick">
-    <a class="hud-brand" href="#inicio" aria-label="HarborClick — início">
+  <header class="hud">
+    <a class="hud-brand" href="#topo">
       <img src="/media/anchor.png" width="28" height="30" alt="">
-      <span>HC</span>
+      <span>HARBORCLICK</span>
     </a>
-    <div class="hud-status"><i aria-hidden="true"></i> PORTO ONLINE</div>
-    <a class="hud-play" href="/jogar/">JOGAR <span aria-hidden="true">▶</span></a>
+    <p class="hud-state"><i aria-hidden="true"></i>PORTO ONLINE</p>
+    <a class="btn btn-sm hud-cta" href="/jogar/">JOGAR<i class="mark m-play" aria-hidden="true"></i></a>
   </header>
 
   <main id="conteudo">
-    <section class="hero-banner" id="inicio" aria-labelledby="titulo">
-      <div class="hero-art">
-        <img src="/media/og-pixel.png" width="1731" height="909" alt="Terminal HarborClick à noite em pixel art, com pátio, guindastes, navio e o lema O porto nunca dorme" fetchpriority="high">
-        <span class="hero-art-chip" aria-hidden="true"><i></i> TERMINAL 01 · AO VIVO</span>
+    <!-- ------------------------------------------------------------- HERO -->
+    <section class="hero" id="topo">
+      <div class="hero-sky" aria-hidden="true"></div>
+      <div class="hero-grade" aria-hidden="true"></div>
+
+      <div class="sky-traffic" aria-hidden="true">
+        <i class="gull gull-1"></i>
+        <i class="gull gull-2"></i>
+        <i class="gull gull-3"></i>
       </div>
 
-      <div class="hero-command">
-        <div class="hero-command-copy">
-          <h1 class="sr-only" id="titulo">HarborClick</h1>
-          <p class="hero-overline">ASSUMA O TURNO</p>
-          <p class="hero-pitch">Navios chegam. Caixas se movem.<br>Seu pequeno cais vira um império.</p>
-          <div class="hero-flags" aria-label="Informações do jogo">
-            <span>GRÁTIS</span><i></i><span>NO NAVEGADOR</span><i></i><span>FEITO PARA MOBILE</span>
-          </div>
-        </div>
-        <a class="pixel-button hero-play" href="/jogar/">
-          <span aria-hidden="true">▶</span> JOGAR AGORA
-        </a>
-      </div>
-
-      <a class="down-cue" href="#operacao" aria-label="Conhecer o jogo"><span>↓</span> CONHECER O PORTO</a>
-    </section>
-
-    <section class="operation-screen pixel-section" id="operacao" aria-labelledby="operacao-titulo">
-      <div class="steel-panel pixel-reveal">
-        <div class="panel-bar">
-          <span>MANIFESTO HC-001</span>
-          <span class="panel-light"><i></i> EM OPERAÇÃO</span>
-        </div>
-        <div class="panel-body">
-          <p class="section-tag">COMO FUNCIONA</p>
-          <h2 id="operacao-titulo">UMA CAIXA.<br><span>UM PORTO INTEIRO.</span></h2>
-          <p class="section-copy">Você começa no clique. Depois, cada máquina entra no ritmo e o terminal passa a viver sozinho.</p>
-
-          <div class="cargo-loop" aria-label="Fluxo da carga: navio, cais, máquinas e rotas">
-            <div class="cargo-rail"><i class="moving-box"></i></div>
-            <div class="loop-stop">
-              <span class="stop-pixel stop-ship"><img src="/media/ship.png" width="66" height="232" alt=""></span>
-              <b>01</b><strong>NAVIO</strong><small>CHEGA</small>
-            </div>
-            <div class="loop-stop">
-              <span class="stop-pixel stop-boxes" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-              <b>02</b><strong>CAIXA</strong><small>DESCE</small>
-            </div>
-            <div class="loop-stop">
-              <span class="stop-pixel stop-crane"><img src="/media/crane.png" width="56" height="66" alt=""></span>
-              <b>03</b><strong>MÁQUINA</strong><small>MOVE</small>
-            </div>
-            <div class="loop-stop">
-              <span class="stop-pixel stop-map"><img src="/media/world-map.png" width="96" height="48" alt=""></span>
-              <b>04</b><strong>ROTA</strong><small>CRESCE</small>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="manifest-screen pixel-section" aria-labelledby="manifesto-titulo">
-      <div class="paper-panel pixel-reveal">
-        <img class="paperclip" src="/media/paperclip.png" width="14" height="20" alt="">
-        <div class="paper-stamp">LIBERADO</div>
-        <p class="paper-code">PLANO DE EXPANSÃO / 001</p>
-        <h2 id="manifesto-titulo">FAÇA O PORTO<br>VIRAR GIGANTE.</h2>
-        <img class="paper-map" src="/media/world-map.png" width="96" height="48" alt="Mapa-múndi em pixel art">
-        <ul class="manifest-list">
-          <li><b>01</b><span><strong>DESCARREGUE</strong><small>Toque, receba e empilhe.</small></span></li>
-          <li><b>02</b><span><strong>AUTOMATIZE</strong><small>Compre máquinas e veja tudo andar.</small></span></li>
-          <li><b>03</b><span><strong>EXPANDA</strong><small>Abra terrenos, rotas e novos portos.</small></span></li>
+      <div class="hero-stage">
+        <h1 class="wordmark">
+          <img src="/media/logo.png" width="121" height="17" alt="HarborClick" fetchpriority="high">
+        </h1>
+        <p class="tagline"><i aria-hidden="true"></i>O PORTO NUNCA DORME<i aria-hidden="true"></i></p>
+        <p class="pitch">Navios chegam a noite inteira. Cada caixa que desce é sua — e o cais só cresce.</p>
+        <a class="btn btn-lg" href="/jogar/"><i class="mark m-play" aria-hidden="true"></i>JOGAR AGORA</a>
+        <ul class="tags">
+          <li>GRÁTIS</li>
+          <li>SEM INSTALAR</li>
+          <li>FEITO PRA CELULAR</li>
         </ul>
-        <img class="paper-cat" src="/media/cat.png" width="28" height="12" alt="Um gato pixel art descansando no manifesto">
+        <a class="cue" href="#giro"><i class="mark m-down" aria-hidden="true"></i>DESÇA AO CAIS</a>
       </div>
+
+      <div class="sea" aria-hidden="true">
+        <div class="sea-water"></div>
+        <i class="boat"></i>
+      </div>
+
     </section>
 
-    <section class="play-screen pixel-section" aria-labelledby="jogar-titulo">
-      <div class="play-scene pixel-reveal">
-        <img class="play-ship" src="/media/ship.png" width="66" height="232" alt="">
-        <div class="play-wake" aria-hidden="true"></div>
-        <div class="play-copy">
-          <p class="section-tag">PRÓXIMA ESCALA</p>
-          <h2 id="jogar-titulo">SEU TURNO<br>COMEÇA AGORA.</h2>
-          <p>Sem baixar nada. Abra e jogue.</p>
-          <a class="pixel-button pixel-button-main" href="/jogar/"><span aria-hidden="true">▶</span> ENTRAR NO PORTO</a>
+    <!-- ----------------------------------------------------------- TICKER -->
+    <div class="wire" aria-hidden="true">
+      <div class="wire-tape">
+        <p>TERMINAL 01 ONLINE <i class="mark m-dia" aria-hidden="true"></i> NAVIO ATRACADO NO BERÇO 2 <i class="mark m-dia" aria-hidden="true"></i> 4 GUINDASTES ATIVOS <i class="mark m-dia" aria-hidden="true"></i> PÁTIO 62% <i class="mark m-dia" aria-hidden="true"></i> TURNO DA NOITE <i class="mark m-dia" aria-hidden="true"></i> NENHUMA PAUSA <i class="mark m-dia" aria-hidden="true"></i></p>
+        <p>TERMINAL 01 ONLINE <i class="mark m-dia" aria-hidden="true"></i> NAVIO ATRACADO NO BERÇO 2 <i class="mark m-dia" aria-hidden="true"></i> 4 GUINDASTES ATIVOS <i class="mark m-dia" aria-hidden="true"></i> PÁTIO 62% <i class="mark m-dia" aria-hidden="true"></i> TURNO DA NOITE <i class="mark m-dia" aria-hidden="true"></i> NENHUMA PAUSA <i class="mark m-dia" aria-hidden="true"></i></p>
+      </div>
+      <div class="road">
+        <i class="rig rig-1"></i>
+        <i class="rig rig-2"></i>
+        <i class="rig rig-3"></i>
+        <i class="rig rig-4"></i>
+        <i class="rig rig-5"></i>
+      </div>
+    </div>
+
+    <!-- ------------------------------------------------------------- LOOP -->
+    <section class="bay" id="giro" aria-labelledby="giro-titulo">
+      <p class="eyebrow">COMO O PORTO GIRA</p>
+      <h2 id="giro-titulo">UMA CAIXA VIRA<br><b>UM TERMINAL INTEIRO</b></h2>
+
+      <ol class="steps">
+        <li class="panel step reveal">
+          <span class="step-num">01</span>
+          <span class="step-art art-ship" aria-hidden="true"></span>
+          <h3>DESCARREGUE</h3>
+          <p>Toque no navio atracado. O guindaste desce, a caixa sobe no pátio e o dinheiro entra.</p>
+        </li>
+        <li class="panel step reveal">
+          <span class="step-num">02</span>
+          <span class="step-art art-crane" aria-hidden="true"></span>
+          <h3>AUTOMATIZE</h3>
+          <p>Compre pórtico, RTG, empilhadeira e caminhão. O pátio passa a andar sem você.</p>
+        </li>
+        <li class="panel step reveal">
+          <span class="step-num">03</span>
+          <span class="step-art art-map" aria-hidden="true"></span>
+          <h3>EXPANDA</h3>
+          <p>Abra terreno, abra rota, abra porto novo. O mapa inteiro é destino de carga.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- --------------------------------------------------------- MANIFEST -->
+    <section class="manifest" aria-labelledby="manifesto-titulo">
+      <article class="board reveal">
+        <p class="doc-code">MANIFESTO HC-001</p>
+        <h2 id="manifesto-titulo">O QUE ESTE PORTO<br>NÃO FAZ COM VOCÊ</h2>
+        <ul class="rules">
+          <li><i class="mark m-cross" aria-hidden="true"></i>Nenhuma espera artificial pra te vender pressa.</li>
+          <li><i class="mark m-cross" aria-hidden="true"></i>Nenhum anúncio, nenhum cadastro, nenhuma conta.</li>
+          <li><i class="mark m-check" aria-hidden="true"></i>Salva sozinho, no seu próprio navegador.</li>
+          <li><i class="mark m-check" aria-hidden="true"></i>Um gato mora no pátio. Ele fica.</li>
+        </ul>
+        <p class="board-foot">
+          <span class="stamp" aria-hidden="true">LIBERADO</span>
+          <i class="cat" aria-hidden="true"></i>
+        </p>
+      </article>
+    </section>
+
+    <!-- -------------------------------------------------------------- CTA -->
+    <section class="berth" aria-labelledby="cta-titulo">
+      <div class="panel cabinet reveal">
+        <p class="coin" aria-hidden="true">INSIRA A FICHA</p>
+        <h2 id="cta-titulo">SEU TURNO<br><b>COMEÇA AGORA</b></h2>
+        <p>Abre em segundos. Nada pra baixar.</p>
+        <a class="btn btn-lg" href="/jogar/"><i class="mark m-play" aria-hidden="true"></i>ENTRAR NO PORTO</a>
+        <div class="stack" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i>
         </div>
       </div>
     </section>
   </main>
 
-  <footer class="pixel-footer">
-    <span>HARBORCLICK © 2026</span>
-    <a href="https://github.com/chicogborba/HarborClick" target="_blank" rel="noreferrer">GITHUB ↗</a>
+  <footer class="dock">
+    <span>HARBORCLICK © 2026 · FEITO EM PIXELS</span>
+    <a href="https://github.com/chicogborba/HarborClick" target="_blank" rel="noreferrer">GITHUB <i class="mark m-out" aria-hidden="true"></i></a>
   </footer>
 
-  <script src="/script.js" defer></script>
+  <script src="/script.js?v=20260805-arcade" defer></script>
 </body>
 </html>
