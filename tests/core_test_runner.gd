@@ -23,12 +23,21 @@ func _run() -> void:
 	test_manual_reward_is_idempotent()
 	test_milestone_normalization()
 	test_offline_credit_is_idempotent()
+	test_offline_report_accounts_for_the_cap()
+	test_offline_duration_reads_as_time()
+	test_offline_lines_fit_the_board()
+	test_prestige_quote_reads_as_a_decision()
+	test_cps_breakdown_reproduces_the_rate()
+	test_purchase_wait_reads_as_time()
 	test_late_sections_and_seed()
 	test_v1_migration()
 	test_corrupt_primary_recovers_backup()
 	test_recovered_backup_offline_is_idempotent()
 	test_future_version_falls_back()
 	test_preferences_backup_recovers()
+	test_prestige_nodes_all_change_something()
+	test_retired_prestige_nodes_migrate()
+	test_offline_tier_ignores_purchase_order()
 	test_wipe_removes_everything()
 	if failures.is_empty():
 		print("CORE TESTS PASSED")
@@ -83,6 +92,133 @@ func test_offline_credit_is_idempotent() -> void:
 	_expect(SaveManager.load_game(), "offline-credit checkpoint reloads")
 	_expect(is_equal_approx(GameState.teus, after_first),
 		"reload during offline popup cannot credit the same interval twice")
+
+
+func test_offline_report_accounts_for_the_cap() -> void:
+	## The popup can only explain the absence if the credit path hands it the
+	## account instead of a single total.
+	SaveManager.wipe()
+	var cap := GameState.OFFLINE_CAP_SECONDS_BASE
+	var away := cap + 7200.0
+	var envelope := _v2_envelope(0.0, {})
+	envelope.saved_at_unix = Time.get_unix_time_from_system() - away
+	envelope.core["owned"] = {"estivador": 1}
+	_write(TEST_PATH, envelope)
+	_expect(SaveManager.load_game(), "long-absence save loads")
+	var report: Dictionary = SaveManager.offline_report
+	_expect(not report.is_empty(), "a credited absence reports its account")
+	_expect(absf(float(report.get("away_seconds", 0.0)) - away) <= 5.0,
+		"the report keeps the whole absence, not the capped part")
+	_expect(is_equal_approx(float(report.get("credited_seconds", 0.0)), cap),
+		"only the capped seconds are paid")
+	_expect(absf(float(report.get("capped_seconds", 0.0)) - 7200.0) <= 5.0,
+		"the report names the seconds the cap refused")
+	_expect(float(report.get("lost_to_cap", 0.0)) > 0.0,
+		"the report prices what the cap refused")
+	_expect(is_equal_approx(float(report.get("earnings", 0.0)),
+			SaveManager.offline_earnings),
+		"the report and the credited total agree")
+	# A short absence has nothing to apologise for and must not claim a loss.
+	SaveManager.wipe()
+	var short_envelope := _v2_envelope(0.0, {})
+	short_envelope.saved_at_unix = Time.get_unix_time_from_system() - 120.0
+	short_envelope.core["owned"] = {"estivador": 1}
+	_write(TEST_PATH, short_envelope)
+	_expect(SaveManager.load_game(), "short-absence save loads")
+	_expect(is_zero_approx(float(SaveManager.offline_report.get("capped_seconds", 0.0))),
+		"an absence inside the cap reports no loss")
+
+
+func test_offline_duration_reads_as_time() -> void:
+	_expect(OfflinePopup.format_duration(0.0) == "0s", "zero reads as seconds")
+	_expect(OfflinePopup.format_duration(90.0) == "1min", "minutes drop seconds")
+	_expect(OfflinePopup.format_duration(3600.0) == "1h", "a whole hour has no minutes")
+	_expect(OfflinePopup.format_duration(29100.0) == "8h05", "hours and minutes pad")
+
+
+func test_offline_lines_fit_the_board() -> void:
+	## The board has no autowrap on purpose, so a line that outgrows the panel
+	## would be clipped instead of wrapped. Worst case: ten hours away and a rate
+	## wide enough to need a suffix.
+	var report := {"away_seconds": 36000.0, "credited_seconds": 28800.0,
+		"capped_seconds": 7200.0, "cap_seconds": 28800.0, "efficiency": 0.5,
+		"rate": 123.456e12, "earnings": 1.0, "lost_to_cap": 999.9e12}
+	var lines: Array[String] = [OfflinePopup.greeting(report)]
+	lines.append_array(OfflinePopup.breakdown_lines(report))
+	_expect(lines.size() == 3, "a capped absence explains itself in three lines")
+	for line in lines:
+		_expect(line.length() <= OfflinePopup.MAX_LINE,
+			"\"%s\" fits the board (%d chars)" % [line, line.length()])
+	_expect(OfflinePopup.breakdown_lines({}).is_empty(),
+		"no report means no breakdown")
+	var inside := report.duplicate()
+	inside["capped_seconds"] = 0.0
+	_expect(OfflinePopup.breakdown_lines(inside).size() == 1,
+		"an absence inside the cap shows no loss line")
+
+
+func test_prestige_quote_reads_as_a_decision() -> void:
+	## The quote line used to feed the per-structure `peak` dictionary to
+	## `float()`, which raised every time the button was pressed — so `_quoted`
+	## never flipped and the reset could not be confirmed from the dialog at all.
+	GameState.from_save({"owned": {"estivador": 30, "empilhadeira": 10},
+		"all_time_productive_teus": 4.0e10})
+	GameState.recompute()
+	var quote := GameState.get_prestige_quote()
+	_expect(int(quote.get("gain", 0)) > 0, "the seeded port is worth a reset")
+	_expect(PrestigeDialog.peak_units(quote.get("peak", {})) == 40,
+		"the peak reads as a machine count, not a dictionary")
+	_expect(quote.has("rebuild_seconds"), "the quote prices the rebuild in time")
+	var seconds := float(quote.rebuild_seconds)
+	_expect(seconds > 0.0, "a producing port has a finite rebuild estimate")
+	_expect(PrestigeDialog.rebuild_line(seconds).contains(
+			OfflinePopup.format_duration(seconds)),
+		"the dialog line states the estimate as time")
+	_expect(not PrestigeDialog.rebuild_line(-1.0).is_empty(),
+		"a rebuild past the budget still says something")
+	_expect(PrestigeDialog.peak_units("not a dictionary") == 0,
+		"a malformed peak cannot crash the quote")
+
+
+func test_cps_breakdown_reproduces_the_rate() -> void:
+	## The panel is the formula, not a description of it: multiplying the factors
+	## has to land back on the rate the counter is showing, or it is decoration.
+	GameState.from_save({"owned": {"estivador": 25, "empilhadeira": 10},
+		"upgrades": ["cafe_forte", "carrinho_mao", "colete_novo"],
+		"purchased_tree_nodes": ["throughput_structural"],
+		"prestige_level_earned": 9, "shares": 9})
+	GameState.recompute()
+	var rows := GameState.cps_breakdown()
+	_expect(rows.size() >= 5, "the breakdown names every factor")
+	_expect(String(rows[0].kind) == "base", "the first row is the machine rate")
+	var product := 1.0
+	for row in rows:
+		product *= float(row.value)
+	_expect(absf(product - GameState.base_cps) <= maxf(0.001, GameState.base_cps * 1e-9),
+		"the factors multiply back to the port's own rate")
+	var milestone := float(rows[1].value)
+	var upgrades := float(rows[2].value)
+	_expect(milestone > 1.0, "25 machines have crossed a milestone")
+	_expect(upgrades > 1.0, "two fitted upgrades read as a multiplier above one")
+	_expect(float(rows[3].value) > 1.0, "capital reads as a multiplier above one")
+	# An empty port has no factors to lie about.
+	GameState.from_save({})
+	GameState.recompute()
+	var empty := GameState.cps_breakdown()
+	_expect(is_zero_approx(float(empty[0].value)), "an empty port produces nothing")
+	for row in empty:
+		if String(row.kind) == "mult":
+			_expect(float(row.value) > 0.0, "no factor is zero on an empty port")
+
+
+func test_purchase_wait_reads_as_time() -> void:
+	_expect(ShopCard.wait_for(0.0, 10.0) == "0s", "nothing missing is no wait")
+	_expect(ShopCard.wait_for(100.0, 0.0) == "muito",
+		"a port that produces nothing cannot promise a time")
+	_expect(ShopCard.wait_for(120.0, 1.0) == "120s"
+			or ShopCard.wait_for(120.0, 1.0) == "2min",
+		"two minutes read as a duration")
+	_expect(ShopCard.wait_for(7200.0, 1.0) == "2h", "hours read as hours")
 
 
 func test_late_sections_and_seed() -> void:
@@ -223,6 +359,84 @@ func test_preferences_backup_recovers() -> void:
 			PREFERENCES_TEST_PATH + ".bak",
 			PREFERENCES_TEST_PATH + ".recovery"]:
 		_remove_if_exists(path)
+
+
+func _tree_probe() -> Array[float]:
+	## Every observable a prestige node is allowed to move. A node that changes
+	## none of these is charging golden shares for nothing.
+	return [GameState.cps, GameState.click_power,
+		GameState.offline_efficiency(), GameState.offline_cap_seconds()]
+
+
+func _seed_state_for_tree() -> void:
+	## Multipliers are invisible against a zero base, so the port owns something.
+	GameState.from_save({"owned": {"estivador": 10}})
+	GameState.recompute()
+
+
+func _buy_prerequisites(id: StringName) -> void:
+	## `requires` is a graph, not a list: the deepest offline node depends on two
+	## nodes that themselves depend on a third.
+	for required in PrestigeDB.get_node(id).get("requires", []):
+		var required_id := StringName(required)
+		if GameState.purchased_tree_nodes.has(required_id):
+			continue
+		_buy_prerequisites(required_id)
+		_expect(GameState.buy_prestige_node(required_id),
+			"%s prerequisite %s is buyable" % [id, required_id])
+
+
+func test_prestige_nodes_all_change_something() -> void:
+	_expect(PrestigeDB.is_valid(), "prestige tree data is valid")
+	var branches := PrestigeDB.purchasable_branches()
+	_expect(not branches.is_empty(), "at least one branch is purchasable")
+	for branch: Dictionary in branches:
+		_expect(String(branch.get("requires_feature", "")).is_empty(),
+			"%s is not feature gated" % branch.get("id", "?"))
+		for gated: Dictionary in branch.get("nodes", []):
+			_expect(String(gated.get("requires_feature", "")).is_empty(),
+				"%s is not feature gated" % gated.get("id", "?"))
+	for branch: Dictionary in branches:
+		for node: Dictionary in branch.get("nodes", []):
+			var id := StringName(node.get("id", ""))
+			_seed_state_for_tree()
+			GameState.shares = 999
+			_buy_prerequisites(id)
+			var before := _tree_probe()
+			_expect(GameState.buy_prestige_node(id), "%s is buyable" % id)
+			var after := _tree_probe()
+			var moved := false
+			for index in before.size():
+				if not is_equal_approx(before[index], after[index]):
+					moved = true
+			_expect(moved, "%s changes a value the player can observe" % id)
+
+
+func test_retired_prestige_nodes_migrate() -> void:
+	## The first two versions of the offline branch sold the port's own defaults.
+	## A save that bought them keeps the tier it paid for under the new ids.
+	for legacy: String in PrestigeDB.LEGACY_NODE_IDS:
+		var replacement := StringName(PrestigeDB.LEGACY_NODE_IDS[legacy])
+		GameState.from_save({"purchased_tree_nodes": [legacy]})
+		_expect(GameState.purchased_tree_nodes.has(replacement),
+			"%s is restored as %s" % [legacy, replacement])
+		_expect(not GameState.purchased_tree_nodes.has(StringName(legacy)),
+			"%s does not survive as a dead id" % legacy)
+	GameState.from_save({"purchased_tree_nodes": ["offline_50"]})
+	_expect(GameState.offline_efficiency() > GameState.OFFLINE_EFFICIENCY_BASE,
+		"a migrated offline node now beats the baseline")
+
+
+func test_offline_tier_ignores_purchase_order() -> void:
+	## The old lookup took the last matching node in dictionary order. It only
+	## worked because `requires` happened to force an ascending sequence.
+	GameState.from_save({"purchased_tree_nodes":
+		["offline_cap_16h", "offline_cap_12h"]})
+	_expect(is_equal_approx(GameState.offline_cap_seconds(), 57600.0),
+		"the best owned cap wins regardless of insertion order")
+	GameState.from_save({"purchased_tree_nodes": ["offline_eff_75", "offline_eff_60"]})
+	_expect(is_equal_approx(GameState.offline_efficiency(), 0.75),
+		"the best owned efficiency wins regardless of insertion order")
 
 
 func test_wipe_removes_everything() -> void:

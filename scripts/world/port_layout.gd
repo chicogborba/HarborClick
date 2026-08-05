@@ -200,11 +200,11 @@ const RAIL_MARGIN := 46.0
 static func block_rows() -> int:
 	## Each purchased parcel contributes its declared capacity.  Two terrain
 	## slots make a visual row of container blocks.
-	return BASE_BLOCK_ROWS + ceili(float(LandDB.owned_slots()) / 2.0)
+	return BASE_BLOCK_ROWS + ceili(float(LandDB.owned_slots(GameState.land)) / 2.0)
 
 
 static func slot_rows() -> int:
-	return ceili(float(BASE_SLOT_ROWS * SLOTS_PER_ROW + LandDB.owned_slots()) /
+	return ceili(float(BASE_SLOT_ROWS * SLOTS_PER_ROW + LandDB.owned_slots(GameState.land)) /
 		float(SLOTS_PER_ROW))
 
 
@@ -213,7 +213,7 @@ static func block_count() -> int:
 
 
 static func slot_count() -> int:
-	return BASE_SLOT_ROWS * SLOTS_PER_ROW + LandDB.owned_slots()
+	return BASE_SLOT_ROWS * SLOTS_PER_ROW + LandDB.owned_slots(GameState.land)
 
 
 ## What a block is *for*, which is the terminal's whole sense of direction.

@@ -4,8 +4,8 @@ class_name EconomyCatalog
 ## share a single curve.
 
 const ITEMS: Array[Dictionary] = [
-	{"id": "estivador", "name": "Estivador", "base_cost": 15.0, "cps": 15.0 / 120.0, "payback": 120.0},
-	{"id": "empilhadeira", "name": "Empilhadeira", "base_cost": 100.0, "cps": 100.0 / 110.0, "payback": 110.0},
+	{"id": "estivador", "name": "Estivador", "base_cost": 15.0, "cps": 15.0 / 85.0, "payback": 85.0},
+	{"id": "empilhadeira", "name": "Empilhadeira", "base_cost": 100.0, "cps": 100.0 / 80.0, "payback": 80.0},
 	{"id": "tt", "name": "TT", "base_cost": 1100.0, "cps": 1100.0 / 150.0, "payback": 150.0},
 	{"id": "reach_stacker", "name": "Reach Stacker", "base_cost": 12000.0, "cps": 12000.0 / 180.0, "payback": 180.0},
 	{"id": "rtg", "name": "RTG", "base_cost": 130000.0, "cps": 130000.0 / 240.0, "payback": 240.0},

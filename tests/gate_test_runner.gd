@@ -172,9 +172,19 @@ func _test_every_trip_plan_is_non_deficit() -> void:
 		"a low yard receives two and releases at most one")
 	_expect(int(balance.drops) == 1 and int(balance.lifts) == 1,
 		"a busy yard exchanges one box for one box")
+	# The third band exists because "never inventory-negative" was a deadlock: a
+	# full import yard refuses a landing, a refused landing blocks the discharge,
+	# and a road that can only ever exchange one for one never opens the slot
+	# that would unblock it.
+	var drain := RoadCargoPolicy.trip_plan(0.98, 0.5, GateDock.TRUCK_CAPACITY)
+	_expect(RoadCargoPolicy.is_draining(drain),
+		"a yard with no room left gets a clearing run")
+	_expect(int(drain.drops) >= 1,
+		"and the clearing truck still crosses the gate loaded")
 	_expect(RoadCargoPolicy.is_non_deficit(restock) \
-			and RoadCargoPolicy.is_non_deficit(balance),
-		"no road plan can remove more boxes than it brings")
+			and RoadCargoPolicy.is_non_deficit(balance)
+			and not RoadCargoPolicy.is_non_deficit(drain),
+		"only a jammed yard may remove more boxes than it brings")
 
 
 func _test_the_road_protects_one_complete_shipload() -> void:

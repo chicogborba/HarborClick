@@ -24,10 +24,26 @@ enum Kind {
 	RIDE,     ## a tractor carries it along a road
 }
 
-## Ceiling on one ride, counted from the moment a tractor accepts it. A tractor
+## Ceiling on one ride, counted from the moment the box is aboard. A tractor
 ## boxed in by traffic hands the box back rather than holding a berth transfer
 ## open indefinitely.
-const RIDE_DEADLINE := 22.0
+const RIDE_DEADLINE := 12.0
+## How long the box may sit on the apron waiting for its tractor to arrive.
+##
+## This is the number that used to read as a bug. The box left the hull, stopped
+## dead on the quay, and stayed there for as long as the tractor took to fight
+## its way over — up to the full ride deadline. Meanwhile the berth still counted
+## it as in flight, so the ship could not change phase and the player could not
+## tap anything: one slow tractor froze the whole terminal. A transfer is allowed
+## to wait for its presentation for about as long as one crane cycle, and after
+## that the box flies itself.
+const APPROACH_GRACE := 1.6
+## Absolute ceiling on an itinerary, over its own planned length. Nothing may
+## hold a transfer open past this, whatever combination of legs went wrong.
+const ITINERARY_SLACK := 6.0
+## Amplitude of the settle while the box rests on the apron. A box that is not
+## moving at all reads as a frozen game; a box that breathes reads as waiting.
+const REST_BOB := 0.7
 ## Metres per second the box appears to travel on a chassis, in world pixels.
 const RIDE_SPEED := 46.0
 ## A lift is a fixed beat regardless of reach: spreader down, lock, up, across.
@@ -60,6 +76,8 @@ var _deadline := 0.0
 var _carrier: Node = null
 var _mirror: Node = null
 var _planned := 0.0
+var _approach_left := 0.0
+var _alive := 0.0
 
 
 func plan(world: Node, start: Vector2, end: Vector2) -> bool:
@@ -119,6 +137,12 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if _leg < 0 or _leg >= _legs.size():
+		return
+	# The watchdog is outside the per-leg logic on purpose: it is the one promise
+	# that holds even if a leg forgets to fail.
+	_alive += delta
+	if _alive > _planned + ITINERARY_SLACK and int(_legs[_leg].kind) != Kind.HOP:
+		_hop_the_rest()
 		return
 	if int(_legs[_leg].kind) == Kind.RIDE:
 		_ride(delta)
@@ -180,6 +204,7 @@ func _begin_leg(index: int) -> void:
 				_leg_duration)
 		Kind.RIDE:
 			_deadline = RIDE_DEADLINE
+			_approach_left = APPROACH_GRACE
 		_:
 			pass
 
@@ -230,8 +255,20 @@ func _ride(delta: float) -> void:
 		_carrier = null
 		_hop_the_rest()
 		return
-	_deadline -= delta
 	var stage: int = _carrier.call("relay_stage")
+	if stage == StructureActor.RELAY_APPROACH:
+		# Waiting on the apron, not stalled. The grace is short and the box keeps
+		# breathing, so a tractor that is not almost there loses the run instead
+		# of holding the berth open.
+		_approach_left -= delta
+		if _approach_left <= 0.0:
+			_hop_the_rest()
+			return
+		position = _leg_from
+		_box.position = Vector2(0, -absf(sin(_approach_left * 6.0)) * REST_BOB)
+		_shadow.visible = true
+		return
+	_deadline -= delta
 	match stage:
 		StructureActor.RELAY_CARRY:
 			position = _carrier.call("relay_bed_position")

@@ -11,10 +11,33 @@ signal move_started(move: Dictionary)
 signal notice_requested(notice: Dictionary)
 signal call_completed(summary: Dictionary)
 
+## Boxes this berth may have in the air at once.
+##
+## Without a ceiling every tap started another transfer, so a player tapping
+## while a box was already crossing emptied the yard in a burst of moves that had
+## no visible reason — cargo reserved, machines claimed, blocks drained, all for
+## a hull that already had enough on the way. The cap is generous enough that
+## ordinary tapping never meets it and tight enough that the yard stops churning.
+const MAX_IN_FLIGHT := 6
+## How long a berth may sit with no legal move before it is allowed to break the
+## transhipment rule to get going again.
+##
+## The rule — a box this hull just landed may not go straight back out — is the
+## right rule and it stays. What it must never do is deadlock: a small yard
+## holding nothing but this call's own imports leaves the ship in
+## WAITING_EXPORT with no exportable box, nothing in the air, and a player with
+## literally nothing to tap. The road opens that up eventually, and until it does
+## the port is frozen. After this many seconds the hull re-handles its own cargo
+## and says so.
+const EXPORT_STARVE_GRACE := 18.0
+
 var ship: Ship
 var yard: ContainerYard
 var world: PortWorld
 var call_id := ""
+## The lane this call was booked on. It decides the hull, the freight it pays and
+## how long the berth stands empty afterwards.
+var lane: Dictionary = {}
 var input_enabled := true
 var _in_flight := 0
 var _imports: Array[CargoUnit] = []
@@ -23,6 +46,10 @@ var _active: Dictionary = {} # transfer id -> restart-reconciliation record
 var _variant_seed := 0
 var _variant_call_index := 0
 var _auto_carry := 0.0
+## Seconds this call has been unable to make any move at all.
+var _starved := 0.0
+## Set once the grace runs out: this call may load the boxes it landed.
+var _rehandling := false
 ## The slice of the port's gang this berth has been given, or -1 when nobody has
 ## divided it. A controller ticked on its own — the suites, a single-berth port
 ## before the quay grew — keeps the whole rate, so standing orders can only ever
@@ -57,18 +84,30 @@ func seed_new(p_seed: int = 0, forced_variant: Dictionary = {}) -> void:
 	if p_seed != 0:
 		seed(p_seed)
 	call_id = CargoUnit.new_uid("call")
+	_starved = 0.0
+	_rehandling = false
 	if p_seed != 0:
 		_variant_seed = p_seed
 	elif _variant_seed == 0:
 		# The generated call id is persisted with the selection; this avoids a
 		# second global random draw solely for presentation.
 		_variant_seed = call_id.hash()
+	# The lane is chosen before the hull, because the lane is what decides the
+	# hull. Booking against the whole owned set was why a new lane could only
+	# ever help: the port traded on all of them at once and was paid the best.
+	lane = RoutePolicy.pick(RouteDB.owned(GameState.routes),
+		GameState.route_policy, _variant_call_index)
 	if ship != null:
 		if forced_variant.is_empty():
-			# Two gates on which hull turns up: the lanes the port trades on, and
-			# whether there is enough yard to work the class those lanes bring.
+			# Two gates on which hull turns up: the lane this call was booked on,
+			# and whether there is enough yard to work the class it brings.
+			var pool: Array[String] = []
+			for silhouette in lane.get("classes", []):
+				pool.append(str(silhouette))
+			if pool.is_empty():
+				pool = RouteDB.class_pool(GameState.routes)
 			ship.select_variant(_variant_seed, _variant_call_index,
-				PortLayout.block_count(), RouteDB.class_pool(GameState.routes))
+				PortLayout.block_count(), pool)
 		else:
 			ship.apply_variant(forced_variant)
 	_variant_call_index += 1
@@ -131,6 +170,7 @@ func tick(delta: float) -> void:
 	## Automation runs the very same transaction a tap does — reserve, fly,
 	## commit — so there is exactly one path that can move a container and one
 	## place a UID can be created or destroyed.
+	_tick_starvation(delta)
 	if ship == null or not ship.is_working():
 		_auto_carry = 0.0
 		return
@@ -164,6 +204,8 @@ func set_input_enabled(input_allowed: bool) -> void:
 func handle_tap(pos: Vector2) -> bool:
 	if not input_enabled or ship == null or not ship.is_working():
 		return false
+	if _in_flight >= MAX_IN_FLIGHT:
+		return false
 	return _discharge(pos) if ship.is_discharging() else _load(pos)
 
 
@@ -171,11 +213,13 @@ func can_work() -> bool:
 	## Read-only interaction state for the ship outline.
 	if not input_enabled or ship == null or yard == null or not ship.is_working():
 		return false
+	if _in_flight >= MAX_IN_FLIGHT:
+		return false
 	if ship.is_discharging():
 		return ship.cargo_left() > 0 and yard.can_accept(CargoUnit.IMPORT)
 	var progress := ship.export_progress()
 	return progress.x < progress.y \
-		and yard.has_exportable(ship.import_manifest_uids())
+		and yard.has_exportable(manifest_exclusions())
 
 
 func _discharge(pos: Vector2) -> bool:
@@ -204,7 +248,7 @@ func _wait_for_exports() -> void:
 
 
 func _load(pos: Vector2) -> bool:
-	var candidate := yard.take_exportable(ship.import_manifest_uids())
+	var candidate := yard.take_exportable(manifest_exclusions())
 	if candidate.is_empty():
 		ship.wait_for_export()
 		return false
@@ -215,7 +259,7 @@ func _load(pos: Vector2) -> bool:
 	var unit: CargoUnit = candidate.unit
 	# The only box that may not go out is one this same hull just landed.
 	# Anything else in the yard is fair cargo — that is what transhipment is.
-	if ship.import_manifest_uids().has(unit.uid):
+	if not _rehandling and ship.import_manifest_uids().has(unit.uid):
 		ship.release_bay(bay)
 		yard.restore_taken(candidate)
 		_notice("invalid_export", "Esse contêiner acabou de sair deste navio.")
@@ -328,13 +372,23 @@ func departure_bonus(perfect: bool) -> float:
 	## it scales with the run instead of being a flat number that is enormous
 	## in the first hour and invisible in the third.
 	var rate := maxf(GameState.cps, GameState.click_power)
-	# Freight is priced by the longest lane the port is on: a box that crossed
-	# an ocean is worth more than one that came up the coast.
-	var bonus := rate * DEPARTURE_SECONDS \
-		* RouteDB.reward_multiplier(GameState.routes)
+	# Freight is priced by **this call's** lane, not by the best lane the port
+	# owns. Taking the maximum meant a coastal call paid ocean money and every
+	# lane but one stopped existing the moment it was bought.
+	var bonus := rate * DEPARTURE_SECONDS * lane_reward()
 	if perfect:
 		bonus *= 1.0 + PERFECT_CALL_BONUS
 	return bonus
+
+
+func lane_reward() -> float:
+	return maxf(1.0, float(lane.get("reward", 1.0)))
+
+
+func lane_interval() -> float:
+	## How long the berth stands empty before this lane books again, as a
+	## multiple of the base turnaround.
+	return maxf(0.25, float(lane.get("interval", 1.0)))
 
 
 func _on_ship_departed() -> void:
@@ -360,6 +414,37 @@ func _on_ship_departed() -> void:
 
 func _notice(code: String, text: String) -> void:
 	notice_requested.emit({"code": code, "text": text, "call_id": call_id})
+
+
+func _tick_starvation(delta: float) -> void:
+	## The one guarantee the berth owes the player: there is always something a
+	## tap can do, or a countdown to there being something.
+	if ship == null or yard == null or _rehandling:
+		return
+	if _in_flight > 0 or can_work():
+		_starved = 0.0
+		return
+	if not ship.is_working():
+		_starved = 0.0
+		return
+	_starved += delta
+	if _starved < EXPORT_STARVE_GRACE:
+		return
+	_starved = 0.0
+	# Only the export side can starve like this. A discharge blocked by a full
+	# import yard is cleared by the road's draining run, and inventing a slot
+	# would be the silent stack-eviction this yard was built to stop.
+	if yard.has_exportable():
+		_rehandling = true
+		_notice("rehandling",
+			"Sem carga de exportação livre: este navio vai reembarcar o que trouxe.")
+		_emit_status()
+
+
+func manifest_exclusions() -> PackedStringArray:
+	## Which UIDs this call refuses to load. Empty once the berth has been starved
+	## long enough that refusing anything would freeze the port.
+	return PackedStringArray() if _rehandling else ship.import_manifest_uids()
 
 
 func _emit_status() -> void:

@@ -342,6 +342,18 @@ static func _paint_rail_corridor(img: Image) -> void:
 		for x in range(0, x1):
 			_pixel(img, x, ry, Color8(64, 64, 68))
 			_pixel(img, x, ry - 1, Color8(190, 188, 178))
+	# Buffer stop. The corridor is a stub, not a through line, and without
+	# something at the end of it the rails simply stop in the middle of the yard
+	# and a rake reads as driving into the quay.
+	var stop_x := x1 - 4
+	for y in range(rail_y - 7, rail_y + 8):
+		_pixel(img, stop_x, y, Color8(58, 52, 48))
+		_pixel(img, stop_x + 1, y, Color8(96, 88, 78))
+	for y in range(rail_y - 7, rail_y + 8, 3):
+		_pixel(img, stop_x + 2, y, Color8(232, 176, 62))
+	for ry in [rail_y - 5, rail_y + 5]:
+		_pixel(img, stop_x - 1, ry - 2, Color8(190, 188, 178))
+		_pixel(img, stop_x - 2, ry - 1, Color8(190, 188, 178))
 	# Road crossing panels keep the public-road connection plausible.
 	for x in range(int(PortLayout.ROAD_X0), int(PortLayout.ROAD_X1)):
 		for y in range(rail_y - 8, rail_y + 9):

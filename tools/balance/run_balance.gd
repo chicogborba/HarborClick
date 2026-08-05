@@ -34,11 +34,16 @@ func _run() -> void:
 
 func _print_result(result: Dictionary) -> void:
 	var m: Dictionary = result.markers
-	print("%s | %0.0fs | productive=%0.3f | cps=%0.3f | owned=%d | prestige=%d" % [
+	print("%s | %0.0fs | productive=%0.3f | cps=%0.3f | owned=%d | upgrades=%d" % [
 		result.scenario, result.elapsed_seconds, result.all_time_productive,
-		result.production_per_second, result.total_owned, result.prestige_potential,
+		result.production_per_second, result.total_owned, result.upgrades.size(),
 	])
 	print("  reward=%0.2fs passive=%0.2fs choice=%0.2fs three=%0.2fs prestige=%0.2fs purchases=%d" % [
 		float(m.first_reward), float(m.first_passive), float(m.first_choice),
 		float(m.three_owned), float(m.first_prestige), result.purchases.size(),
+	])
+	print("  resets=%d level=%d shares=%d nodes=%d recovery=%0.2fs away=%0.0fs capped=%0.0fs" % [
+		result.prestige_count, result.prestige_level, result.shares,
+		result.tree_nodes.size(), float(m.first_recovery_seconds),
+		float(result.absent_seconds), float(result.capped_away_seconds),
 	])

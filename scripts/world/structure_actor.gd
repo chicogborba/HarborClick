@@ -141,6 +141,35 @@ var _gantry_cycle := 0.0
 var _gantry_idle := true
 
 # relay state
+## Rail service state. See `_run_rail`.
+enum RailState { WAITING, ARRIVING, LOADING, DEPARTING }
+## Wagons behind the loco, and the distance between their centres before the
+## rake's 0.7 scale is applied.
+const RAIL_WAGONS := 5
+const RAIL_COUPLING := 30.0
+const RAIL_TOP_SPEED := 46.0
+const RAIL_ACCEL := 26.0
+## One box every this long while the rake stands at the siding.
+const RAIL_LOAD_BEAT := 1.1
+## The corridor is a **stub siding**: `GroundBaker._paint_rail_corridor` lays
+## ballast, sleepers and two rails from the west edge to `WATER_X0 - 11`, and
+## then the quay and the sea. So a rake runs in from the interior, is worked, and
+## is drawn back out the way it came — it does not drive off the eastern edge,
+## because east of the buffer stop is the Atlantic. The first version of this did
+## exactly that.
+const RAIL_OFF_LEFT := -150.0
+## Where the head of the rake stands, short of the buffer stop.
+const RAIL_STOP_X := PortLayout.WATER_X0 - 30.0
+## Quiet between services, and before the first one so a fresh purchase is not
+## instantly mid-shunt.
+const RAIL_TURNAROUND := 9.0
+const RAIL_FIRST_CALL := 2.5
+
+var _rail_state: RailState = RailState.WAITING
+var _rail_timer := 0.0
+var _rail_loaded := 0
+var _rail_boxes: Array[Sprite2D] = []
+
 var _relay_stage := RELAY_NONE
 var _relay_to := Vector2.ZERO
 ## The leg a gantry is shadowing: the box's own path, which the trolley tracks in
@@ -621,23 +650,37 @@ func _build_sts() -> void:
 
 
 func _build_train() -> void:
+	## A rake, not a decal: one loco and `RAIL_WAGONS` wagons coupled behind it at
+	## a fixed pitch, each with its own container that is only there when the
+	## wagon is actually carrying one.
+	##
+	## The old train was a strip of sprites that slid across the bottom of the map
+	## at a constant speed, wrapped from one edge to the other, and was permanently
+	## loaded. It never arrived, never left, never took anything anywhere, and the
+	## boxes on it were painted on. This one runs a service.
 	_sprite = Node2D.new()
 	_sprite.scale = Vector2(0.70, 0.70)
 	add_child(_sprite)
 	var loco := _sprite2d("veh_loco", true)
 	loco.rotation = PI / 2.0
 	_sprite.add_child(loco)
-	for w in 3:
+	_rail_boxes.clear()
+	for w in RAIL_WAGONS:
 		var wagon := _sprite2d("veh_wagon", true)
 		wagon.rotation = PI / 2.0
-		wagon.position.x = -40.0 - w * 32.0
+		wagon.position.x = RAIL_COUPLING * -(w + 1)
 		_sprite.add_child(wagon)
 		var box := _container_sprite()
 		box.centered = true
 		box.rotation = PI / 2.0
-		box.position.x = wagon.position.x
+		box.position = Vector2(wagon.position.x, -3.0)
+		box.visible = false
 		_sprite.add_child(box)
-	_speed = 34.0
+		_rail_boxes.append(box)
+	_rail_state = RailState.WAITING
+	_rail_timer = RAIL_FIRST_CALL
+	position.x = RAIL_OFF_LEFT
+	_speed = 0.0
 
 
 func _build_drone() -> void:
@@ -1407,9 +1450,59 @@ func _update_boat_fx() -> void:
 
 
 func _run_rail(delta: float) -> void:
-	position.x += _speed * delta
-	if position.x > PortLayout.WORLD_W + 220.0:
-		position.x = -220.0
+	## Arrive empty, load one wagon at a time, leave full, come back for more.
+	##
+	## Every stretch is bounded and the state machine only ever moves forward, so
+	## the rake cannot end up parked in the middle of the map: even if a load beat
+	## is missed the timer still runs out and the train departs.
+	match _rail_state:
+		RailState.WAITING:
+			_rail_timer -= delta
+			if _rail_timer <= 0.0:
+				_rail_state = RailState.ARRIVING
+				position.x = RAIL_OFF_LEFT
+				if _sprite != null:
+					_sprite.scale.x = absf(_sprite.scale.x)
+				for box in _rail_boxes:
+					box.visible = false
+				_rail_loaded = 0
+		RailState.ARRIVING:
+			# Ease into the stand rather than stopping dead: a loaded rake weighs
+			# a couple of thousand tonnes and it should look like it.
+			var remaining := RAIL_STOP_X - position.x
+			_speed = clampf(remaining * 1.6, 6.0, RAIL_TOP_SPEED)
+			position.x += _speed * delta
+			if remaining <= 1.0:
+				position.x = RAIL_STOP_X
+				_speed = 0.0
+				_rail_state = RailState.LOADING
+				_rail_timer = RAIL_LOAD_BEAT
+		RailState.LOADING:
+			_rail_timer -= delta
+			if _rail_timer > 0.0:
+				return
+			_rail_timer = RAIL_LOAD_BEAT
+			if _rail_loaded < _rail_boxes.size():
+				# Loaded from the far end forward, the way a rake is actually
+				# worked, so the gap walks towards the loco.
+				var box: Sprite2D = _rail_boxes[_rail_boxes.size() - 1 - _rail_loaded]
+				box.visible = true
+				_rail_loaded += 1
+				if _world != null and _world.has_method("spawn_dust"):
+					_world.call("spawn_dust", position + box.position * 0.7)
+			else:
+				_rail_state = RailState.DEPARTING
+		RailState.DEPARTING:
+			# Out the way it came, with the rake mirrored so the loco leads
+			# instead of the last wagon.
+			if _sprite != null:
+				_sprite.scale.x = -absf(_sprite.scale.x)
+			_speed = minf(_speed + RAIL_ACCEL * delta, RAIL_TOP_SPEED)
+			position.x -= _speed * delta
+			if position.x < RAIL_OFF_LEFT:
+				_rail_state = RailState.WAITING
+				_rail_timer = RAIL_TURNAROUND
+				_speed = 0.0
 
 
 func _fly(delta: float) -> void:

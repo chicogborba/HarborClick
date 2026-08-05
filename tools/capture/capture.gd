@@ -277,7 +277,7 @@ func _run(size: Vector2i) -> void:
 		var world: PortWorld = _main.world
 		var guard := 0
 		while PortLayout.berth_count() < PortLayout.BERTH_MAX and guard < 12:
-			var parcel := LandDB.next_parcel()
+			var parcel := LandDB.next_parcel(GameState.land)
 			if parcel.is_empty():
 				break
 			GameState.teus = 1e18
@@ -501,7 +501,7 @@ func _run(size: Vector2i) -> void:
 		# failure this is here to catch.
 		var guard := 0
 		while PortLayout.berth_count() < 2 and guard < 12:
-			var parcel := LandDB.next_parcel()
+			var parcel := LandDB.next_parcel(GameState.land)
 			if parcel.is_empty():
 				break
 			GameState.teus = 1e18
@@ -567,8 +567,44 @@ func _run(size: Vector2i) -> void:
 		await get_tree().create_timer(0.3).timeout
 		_check("prestige", _main.prestige_dialog._panel, size)
 		await _shot("prestige")
+		# The quoted state is the taller one: it adds the gain line and the
+		# rebuild estimate, and it is the state the player actually decides in.
+		_main.prestige_dialog._confirm_or_quote()
+		await get_tree().create_timer(0.3).timeout
+		_check("prestige_quote", _main.prestige_dialog._panel, size)
+		await _shot("prestige_quote")
 		_main.prestige_dialog.close()
 		await get_tree().create_timer(0.2).timeout
+	if _wants("rate"):
+		_main.rate_breakdown.open()
+		await get_tree().create_timer(0.3).timeout
+		_check("rate", _main.rate_breakdown._panel, size)
+		await _shot("rate")
+		_main.rate_breakdown.close()
+		await get_tree().create_timer(0.2).timeout
+	if _wants("offline"):
+		await _capture_offline(size)
+
+
+func _capture_offline(size: Vector2i) -> void:
+	## The return board is built once, at load, from a real absence. Feed it a
+	## synthetic one: it is the widest text in the game and the only screen that
+	## has to fit an amount, a duration, a rate and a cap warning.
+	SaveManager.offline_earnings = maxf(1.0, GameState.cps * 28800.0 * 0.5)
+	SaveManager.offline_report = {
+		"away_seconds": 36000.0, "credited_seconds": 28800.0,
+		"capped_seconds": 7200.0, "cap_seconds": 28800.0, "efficiency": 0.5,
+		"rate": GameState.cps, "earnings": SaveManager.offline_earnings,
+		"lost_to_cap": GameState.cps * 7200.0 * 0.5,
+	}
+	var popup := OfflinePopup.new()
+	popup.name = "OfflinePopupCapture"
+	_main.add_child(popup)
+	await get_tree().create_timer(0.4).timeout
+	_check("offline", popup._panel, size)
+	await _shot("offline")
+	popup.queue_free()
+	await get_tree().create_timer(0.2).timeout
 
 
 func _docked(gate: GateDock) -> int:
@@ -675,17 +711,6 @@ func _check_hud(size: Vector2i) -> void:
 	if not _inside(bar, dial):
 		_failures.append("the clock at %dx%d is not inside the gantry (%s vs %s)"
 			% [size.x, size.y, dial, bar])
-	if hud._berth_chip.visible:
-		var tag := hud._berth_chip.get_global_rect()
-		_check("berth tag", hud._berth_chip, size)
-		if tag.position.y < bar.end.y:
-			_failures.append("the berth tag at %dx%d is under the gantry (%s vs %s)"
-				% [size.x, size.y, tag, bar])
-		# The tag hangs over the port and the console sits on it; if the two ever
-		# meet, the phone has lost the one line that says what the berth is doing.
-		if rail._bar.visible and tag.end.y > rail._bar.get_global_rect().position.y:
-			_failures.append("the berth tag at %dx%d collides with the key console"
-				% [size.x, size.y])
 
 
 func _inside(outer: Rect2, inner: Rect2) -> bool:

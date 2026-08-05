@@ -8,12 +8,12 @@ const ITEMS: Array[Dictionary] = [
 	{
 		"id": "estivador", "name": "Estivador",
 		"desc": "Carrega caixas desde 1987. As costas reclamam, ele não.",
-		"cost": 15.0, "cps": 0.125,
+		"cost": 15.0, "cps": 15.0 / 85.0,
 	},
 	{
 		"id": "empilhadeira", "name": "Empilhadeira de Vazios",
 		"desc": "Só encosta em contêiner vazio. Tem padrão, a criatura.",
-		"cost": 100.0, "cps": 100.0 / 110.0,
+		"cost": 100.0, "cps": 100.0 / 80.0,
 	},
 	{
 		"id": "tt", "name": "Cavalo Mecânico",

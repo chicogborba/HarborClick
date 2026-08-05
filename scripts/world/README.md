@@ -173,3 +173,12 @@ Two consequences worth knowing before touching the driving:
   Without the second, a mark the rig sweeps past just outside the radius becomes a
   roundabout it circles for ever. The last waypoint of a route snaps, because a
   painted bay wants to be exact.
+
+`cargo_relay.gd` is presentation over a transaction, and the transaction always
+wins. Two ceilings enforce it: `APPROACH_GRACE` bounds how long a box may rest
+on the apron waiting for a tractor that was booked but has not arrived, and a
+per-itinerary watchdog bounds the whole trip against the length the relay itself
+priced. Both exist because the berth counts a transfer as in flight until it
+lands — so a box that waits is a ship that cannot change phase and a tap that
+does nothing. `tests/relay_test_runner.gd` books a tractor that never turns up
+and asserts the box still lands promptly.

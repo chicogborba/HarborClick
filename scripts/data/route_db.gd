@@ -14,8 +14,8 @@ const ITEMS: Array[Dictionary] = [
 	{
 		"id": "cabotagem", "name": "Cabotagem Sul",
 		"where": "Rio Grande - Itajaí", "cost": 0.0,
-		"chart": Vector2(0.32, 0.78),
-		"ports": [Vector2(0.32, 0.78)],
+		"chart": Vector2(0.365, 0.649),
+		"ports": [Vector2(0.365, 0.649)],
 		"classes": ["coastal_feeder"],
 		"interval": 0.75, "reward": 1.0,
 		"desc": "Curta e constante. Sempre tem navio.",
@@ -23,8 +23,8 @@ const ITEMS: Array[Dictionary] = [
 	{
 		"id": "prata", "name": "Bacia do Prata",
 		"where": "Buenos Aires - Montevidéu", "cost": 25_000.0,
-		"chart": Vector2(0.31, 0.82),
-		"ports": [Vector2(0.31, 0.82)],
+		"chart": Vector2(0.338, 0.692),
+		"ports": [Vector2(0.344, 0.694), Vector2(0.338, 0.692)],
 		"classes": ["coastal_feeder", "panamax"],
 		"interval": 0.9, "reward": 1.25,
 		"desc": "Mais volume sem sair de casa.",
@@ -32,8 +32,8 @@ const ITEMS: Array[Dictionary] = [
 	{
 		"id": "caribe", "name": "Corredor do Caribe",
 		"where": "Cartagena - Colón", "cost": 900_000.0,
-		"chart": Vector2(0.25, 0.49),
-		"ports": [Vector2(0.25, 0.49)],
+		"chart": Vector2(0.290, 0.442),
+		"ports": [Vector2(0.300, 0.560), Vector2(0.290, 0.442)],
 		"classes": ["coastal_feeder", "panamax"],
 		"interval": 1.15, "reward": 1.7,
 		"desc": "Panamax começa a encostar no berço.",
@@ -41,8 +41,9 @@ const ITEMS: Array[Dictionary] = [
 	{
 		"id": "atlantico", "name": "Travessia Atlântica",
 		"where": "Roterdã - Antuérpia", "cost": 40e6,
-		"chart": Vector2(0.50, 0.29),
-		"ports": [Vector2(0.50, 0.29)],
+		"chart": Vector2(0.512, 0.212),
+		"ports": [Vector2(0.420, 0.480), Vector2(0.470, 0.300),
+			Vector2(0.512, 0.212)],
 		"classes": ["panamax", "new_panamax"],
 		"interval": 1.5, "reward": 2.6,
 		"desc": "Escala longa, frete alto, berço ocupado.",
@@ -50,8 +51,9 @@ const ITEMS: Array[Dictionary] = [
 	{
 		"id": "cabo", "name": "Rota do Cabo",
 		"where": "Durban - Singapura", "cost": 3e9,
-		"chart": Vector2(0.79, 0.58),
-		"ports": [Vector2(0.58, 0.70), Vector2(0.79, 0.58)],
+		"chart": Vector2(0.788, 0.493),
+		"ports": [Vector2(0.586, 0.666), Vector2(0.700, 0.560),
+			Vector2(0.788, 0.493)],
 		"classes": ["panamax", "new_panamax"],
 		"interval": 1.7, "reward": 3.4,
 		"desc": "A mais longa que um porto deste tamanho aguenta.",
@@ -59,10 +61,11 @@ const ITEMS: Array[Dictionary] = [
 	{
 		"id": "transpacifico", "name": "Transpacífico",
 		"where": "Xangai - Los Angeles", "cost": 500e12,
-		"chart": Vector2(0.12, 0.39),
+		"chart": Vector2(0.172, 0.313),
 		"ports": [
-			Vector2(0.58, 0.70), Vector2(0.79, 0.58),
-			Vector2(0.86, 0.38), Vector2(0.12, 0.39),
+			Vector2(0.586, 0.666), Vector2(0.788, 0.493),
+			Vector2(0.838, 0.327), Vector2(0.950, 0.300),
+			Vector2(0.172, 0.313),
 		],
 		"classes": ["new_panamax"],
 		"interval": 2.0, "reward": 5.0,
@@ -71,7 +74,12 @@ const ITEMS: Array[Dictionary] = [
 ]
 
 ## Where the terminal itself sits on the chart.
-const HOME := Vector2(0.34, 0.72)
+## Rio Grande, 52.1W/32.0S. Every pin on the chart is a real coordinate now:
+## `x = (lon + 180) / 360`, `y = (90 - lat) / 180`, the same projection
+## `tools/sprites/gen_worldmap.py` draws the coastline in. Before the map was a
+## sprite these were eyeballed against hand-drawn polygons, and half of them sat
+## in open water — Cartagena was off Ecuador and Rotterdam was in Algeria.
+const HOME := Vector2(0.355, 0.678)
 
 
 static func get_item(id: String) -> Dictionary:

@@ -78,6 +78,7 @@ func _run() -> void:
 	_test_rate_follows_the_equipment_bought()
 	await _test_a_full_call_completes_without_a_single_tap()
 	_test_departure_bonus_stays_in_its_band()
+	_test_the_rail_service_arrives_loads_and_leaves()
 	_test_standing_orders_divide_one_gang()
 	_test_standing_orders_survive_a_reload()
 	_test_the_foreman_respects_the_reserve()
@@ -307,6 +308,69 @@ func _test_the_foreman_is_earned_and_persisted() -> void:
 		"an off-preset reserve snaps to one the board can display")
 	_expect(GameState.foreman_mode == Foreman.OFF,
 		"an unknown foreman order falls back to buying nothing")
+
+
+func _test_the_rail_service_arrives_loads_and_leaves() -> void:
+	## The train used to be a strip of sprites sliding across the bottom of the
+	## map at a constant speed, permanently loaded, wrapping from one edge to the
+	## other. It never arrived anywhere and never took anything away. It runs a
+	## service now, and a service is a thing with states, so it can be asserted.
+	var rake := StructureActor.new()
+	rake.setup("trem", 0, _world)
+	_world.entities.add_child(rake)
+	_expect(rake._rail_boxes.size() == StructureActor.RAIL_WAGONS,
+		"the rake is built with one container slot per wagon")
+	var loaded_on_arrival := 0
+	for box in rake._rail_boxes:
+		if box.visible:
+			loaded_on_arrival += 1
+	_expect(loaded_on_arrival == 0, "and arrives empty rather than pre-loaded")
+
+	var seen := {}
+	var stood_at := 0.0
+	var reached_east := -1e9
+	var steps := 0
+	# Generous: one whole service is a turnaround, a run in, a box per beat and a
+	# run out. Exhausting this means stuck, not slow.
+	var budget := int((StructureActor.RAIL_FIRST_CALL
+		+ StructureActor.RAIL_LOAD_BEAT * (StructureActor.RAIL_WAGONS + 4)
+		+ 40.0) / STEP)
+	while steps < budget:
+		rake._run_rail(STEP)
+		seen[rake._rail_state] = true
+		reached_east = maxf(reached_east, rake.position.x)
+		if rake._rail_state == StructureActor.RailState.LOADING:
+			stood_at = rake.position.x
+		if seen.has(StructureActor.RailState.DEPARTING) \
+				and rake.position.x <= StructureActor.RAIL_OFF_LEFT:
+			break
+		steps += 1
+	_expect(seen.has(StructureActor.RailState.ARRIVING), "the rake runs in")
+	_expect(seen.has(StructureActor.RailState.LOADING), "stands to be worked")
+	_expect(seen.has(StructureActor.RailState.DEPARTING), "and runs out again")
+	# East of the buffer stop is the quay and then the sea. A rake that runs off
+	# that edge is not leaving, it is drowning, and the first version did.
+	_expect(stood_at > 0.0 and stood_at <= PortLayout.WATER_X0 - 20.0,
+		"it stands on the rails, short of the buffer stop (x=%.1f)" % stood_at)
+	_expect(reached_east <= PortLayout.WATER_X0 - 20.0,
+		"and never runs past the buffer stop into the water (x=%.1f)"
+			% reached_east)
+	var loaded := 0
+	for box in rake._rail_boxes:
+		if box.visible:
+			loaded += 1
+	_expect(loaded == StructureActor.RAIL_WAGONS,
+		"and leaves with every wagon carrying a box (%d/%d)"
+			% [loaded, StructureActor.RAIL_WAGONS])
+	# And it comes back for more instead of stopping forever off the right edge.
+	var returned := false
+	for _i in budget:
+		rake._run_rail(STEP)
+		if rake._rail_state == StructureActor.RailState.ARRIVING:
+			returned = true
+			break
+	_expect(returned, "the service repeats rather than ending off the map")
+	rake.queue_free()
 
 
 func _expect(condition: bool, label: String) -> void:

@@ -1,0 +1,128 @@
+name: Deploy production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: harborclick-production
+  cancel-in-progress: false
+
+env:
+  GODOT_VERSION: 4.7.1-stable
+  GODOT_TEMPLATE_VERSION: 4.7.1.stable
+  GODOT_DIR: ${{ runner.temp }}/godot-4.7.1
+  GODOT_BIN: ${{ runner.temp }}/godot-4.7.1/Godot_v4.7.1-stable_linux.x86_64
+  DEPLOY_HOST: 142.93.242.85
+  DEPLOY_USER: harborclick-deploy
+
+jobs:
+  build-and-deploy:
+    name: Test, build and deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out the release source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Restore the pinned Godot toolchain
+        id: godot-cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ${{ env.GODOT_DIR }}
+            ~/.local/share/godot/export_templates/${{ env.GODOT_TEMPLATE_VERSION }}
+          key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}-web
+
+      - name: Install the pinned Godot toolchain
+        if: steps.godot-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          download_dir="$RUNNER_TEMP/godot-download"
+          template_dir="$HOME/.local/share/godot/export_templates/$GODOT_TEMPLATE_VERSION"
+          mkdir -p "$download_dir" "$GODOT_DIR" "$template_dir"
+
+          curl --fail --location --retry 4 --retry-all-errors \
+            --output "$download_dir/editor.zip" \
+            "https://github.com/godotengine/godot/releases/download/$GODOT_VERSION/Godot_v4.7.1-stable_linux.x86_64.zip"
+          curl --fail --location --retry 4 --retry-all-errors \
+            --output "$download_dir/templates.tpz" \
+            "https://github.com/godotengine/godot/releases/download/$GODOT_VERSION/Godot_v4.7.1-stable_export_templates.tpz"
+
+          printf '%s  %s\n' \
+            'c7ff14fd28472c8d4f193043de30278dcf7e5241a1dcf7566b02e27addaa33ba' \
+            "$download_dir/editor.zip" | sha256sum --check --strict
+          printf '%s  %s\n' \
+            '86409db6200b6f8fd3230989c2d2002851f3dd18acf11d7bdbafddf5a0dd0f72' \
+            "$download_dir/templates.tpz" | sha256sum --check --strict
+
+          unzip -q "$download_dir/editor.zip" -d "$GODOT_DIR"
+          unzip -q "$download_dir/templates.tpz" -d "$download_dir/templates"
+          cp -a "$download_dir/templates/templates/." "$template_dir/"
+
+      - name: Verify the toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x "$GODOT_BIN"
+          "$GODOT_BIN" --headless --version
+          test -s "$HOME/.local/share/godot/export_templates/$GODOT_TEMPLATE_VERSION/web_release.zip"
+
+      - name: Run the complete test suite
+        shell: bash
+        run: tools/qa/run_all.sh
+
+      - name: Build the landing page and Web game
+        shell: bash
+        run: tools/export/build_release.sh "$GODOT_BIN"
+
+      - name: Package the immutable release
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s build/release/index.html
+          test -s build/release/jogar/index.html
+          test -s build/release/jogar/index.pck
+          test -s build/release/jogar/index.wasm
+          tar -C build/release -czf "$RUNNER_TEMP/harborclick-release.tar.gz" .
+
+      - name: Deploy the release over pinned SSH
+        shell: bash
+        env:
+          HARBORCLICK_DEPLOY_KEY: ${{ secrets.HARBORCLICK_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$HARBORCLICK_DEPLOY_KEY"
+          key_file="$RUNNER_TEMP/harborclick-deploy-key"
+          install -m 0600 /dev/null "$key_file"
+          printf '%s\n' "$HARBORCLICK_DEPLOY_KEY" > "$key_file"
+
+          ssh_options=(
+            -i "$key_file"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -o UserKnownHostsFile=deploy/known_hosts
+          )
+
+          scp "${ssh_options[@]}" \
+            "$RUNNER_TEMP/harborclick-release.tar.gz" \
+            "$DEPLOY_USER@$DEPLOY_HOST:incoming/$GITHUB_SHA.tar.gz"
+
+          deploy_result="$(ssh "${ssh_options[@]}" \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            /usr/local/bin/harborclick-deploy-release "$GITHUB_SHA")"
+          printf '%s\n' "$deploy_result"
+          grep -Fq "DEPLOYED_SHA=$GITHUB_SHA" <<< "$deploy_result"
+
+      - name: Remove the temporary SSH key
+        if: always()
+        shell: bash
+        run: rm -f "$RUNNER_TEMP/harborclick-deploy-key"

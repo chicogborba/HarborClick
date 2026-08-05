@@ -62,7 +62,8 @@ func _ready() -> void:
 	_confirm.custom_minimum_size.y = 28.0
 	_confirm.pressed.connect(_confirm_or_quote)
 	col.add_child(_confirm)
-	var label := UiTheme.label("CAPITAL DO PORTO - 5 RAMOS", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+	var label := UiTheme.label("CAPITAL DO PORTO - %d RAMOS"
+		% PrestigeDB.purchasable_branches().size(), UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
 	col.add_child(label)
 	var sheet := UiTheme.panel(UiTheme.paper_style(4))
 	sheet.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -125,7 +126,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _confirm_or_quote() -> void:
 	if not _quoted:
 		var quote: Dictionary = _call("quote", {})
-		_summary.text = "Ganho: %s ações  -  Pico: %s  -  Desconto de reconstrução: %s" % [str(quote.get("gain", 0)), GameState.fmt(float(quote.get("peak", 0.0))), str(quote.get("rebuild_discount", "0%"))]
+		# `peak` is a per-structure dictionary, and feeding it to `float()` raised
+		# "Nonexistent 'float' constructor" every time the button was pressed —
+		# which meant `_quoted` never flipped and the reset could never be
+		# confirmed from this dialog at all.
+		_summary.text = "Ganho: %s ações  -  Pico: %d máquinas  -  Reconstrução: %s\n%s" % [
+			str(quote.get("gain", 0)), _peak_units(quote),
+			str(quote.get("rebuild_discount", "0%")), _rebuild_line(quote)]
 		_confirm.text = "CONFIRMAR RECONSTRUÇÃO"
 		_quoted = true
 		return
@@ -135,9 +142,40 @@ func _confirm_or_quote() -> void:
 		close()
 
 
+static func rebuild_line(seconds: float) -> String:
+	## The question that decides the first reset: what does this cost me in time.
+	## Without it the dialog asks the player to give up a number they can see for
+	## a bonus they cannot, which is how a first prestige gets abandoned.
+	if seconds < 0.0:
+		return "Este pico leva mais de 4h para voltar."
+	if seconds <= 0.0:
+		return "Não há produção a recuperar."
+	return "Você recupera este ritmo em ~%s jogando." \
+		% OfflinePopup.format_duration(seconds)
+
+
+static func peak_units(peak: Variant) -> int:
+	## The discount applies per machine up to the historic peak, so the number
+	## that means something to the player is how many machines it covers.
+	if not (peak is Dictionary):
+		return 0
+	var total := 0
+	for amount in (peak as Dictionary).values():
+		total += maxi(0, int(amount))
+	return total
+
+
+func _peak_units(quote: Dictionary) -> int:
+	return peak_units(quote.get("peak", {}))
+
+
+func _rebuild_line(quote: Dictionary) -> String:
+	return rebuild_line(float(quote.get("rebuild_seconds", -1.0)))
+
+
 func _build_tree() -> void:
 	if _tree == null: return
-	for branch: Dictionary in PrestigeDB.BRANCHES:
+	for branch: Dictionary in PrestigeDB.purchasable_branches():
 		var caption := UiTheme.label(str(branch.get("title", "Ramo")).to_upper(),
 			UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
 		_tree.add_child(caption)

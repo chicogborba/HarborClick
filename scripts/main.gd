@@ -13,6 +13,7 @@ var settings: SettingsPanel
 var journal: PortJournal
 var routes: RouteMap
 var prestige_dialog: PrestigeDialog
+var rate_breakdown: RateBreakdown
 var tutorial: TutorialSpotlight
 var npc_card: NpcCard
 var clock: PortClock
@@ -130,6 +131,12 @@ func _ready() -> void:
 	settings.open_changed.connect(_on_overlay_changed.bind("settings"))
 	journal.open_changed.connect(_on_overlay_changed.bind("journal"))
 	prestige_dialog.open_changed.connect(_on_overlay_changed.bind("prestige"))
+
+	rate_breakdown = RateBreakdown.new()
+	rate_breakdown.name = "RateBreakdown"
+	add_child(rate_breakdown)
+	hud.breakdown_requested.connect(rate_breakdown.open)
+	rate_breakdown.open_changed.connect(_on_overlay_changed.bind("rate"))
 
 	clock = PortClock.new()
 	clock.name = "PortClock"
@@ -266,7 +273,10 @@ func _refresh_berth_board() -> void:
 		Ship.Phase.DEPARTING:
 			text = "Navio partindo"
 		_:
-			text = "Aguardando próximo navio"
+			# Empty on purpose: with no hull alongside there is nothing to tap and
+			# nothing to report, and a chip that says so is just a sign reading
+			# "nothing here".
+			text = ""
 	# The chip is one narrow line, so the berth number goes on it and the rest of
 	# the quay goes on the rail, where there is room for it.
 	if world.ships.size() > 1:
@@ -389,7 +399,7 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 	# The camera has to know what the chrome is standing on: the gantry spans the
 	# top of the world and the console sits on the bottom of it, and without this
 	# no amount of dragging brings the gate or the last row of sheds into view.
-	cam.set_view_insets(Hud.BAR_H + Hud.TAG_DROP, CommandRail.BAR_H + 12.0)
+	cam.set_view_insets(Hud.BAR_H, CommandRail.BAR_H + 12.0)
 	hud.apply_view_metrics(metrics)
 	rail.apply_view_metrics(metrics)
 	shop.set_rail(rail)
@@ -403,6 +413,8 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		journal.apply_view_metrics(metrics)
 	if prestige_dialog != null:
 		prestige_dialog.apply_view_metrics(metrics)
+	if rate_breakdown != null:
+		rate_breakdown.apply_view_metrics(metrics)
 	if tutorial != null:
 		tutorial.apply_view_metrics(metrics)
 	if clock != null:
@@ -464,7 +476,8 @@ func _commit_prestige() -> Variant:
 	AudioManager.play_sfx("prestige")
 	EventBus.notification_requested.emit({
 		"kind": &"prestige", "priority": 2,
-		"text": "+%d ações douradas. Reconstrução com 75%% de desconto." % int(quote.gain),
+		"text": "+%d ações douradas. Reconstrução com %s." % [int(quote.gain),
+			str(quote.get("rebuild_discount", "desconto"))],
 	})
 	return quote
 
@@ -556,7 +569,7 @@ func _dev_probe() -> void:
 	# --- expand the port twice ---
 	var bottom_before := PortLayout.world_bottom()
 	for n in 2:
-		var parcel := LandDB.next_parcel()
+		var parcel := LandDB.next_parcel(GameState.land)
 		if parcel.is_empty():
 			break
 		shop._on_buy_land(parcel.id)
@@ -625,9 +638,20 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		KEY_F2:
 			_save_screenshot("shot")
 		KEY_F3 when OS.is_debug_build():
-			GameState.teus += 1e6
-			GameState.run_teus += 1e6
-			GameState.all_time_teus += 1e6
+			# A flat million stops being a test grant about twenty minutes in, so
+			# the cheat scales with the port: an hour of current production, or a
+			# million, whichever is more. Hold Shift for a thousand of those.
+			var grant := maxf(1e6, GameState.cps * 3600.0)
+			if event.shift_pressed:
+				grant *= 1000.0
+			GameState.teus += grant
+			GameState.run_teus += grant
+			GameState.all_time_teus += grant
+			GameState.all_time_productive_teus += grant
 			EventBus.teus_changed.emit(GameState.teus)
+			EventBus.notification_requested.emit({
+				"id": "debug_grant", "kind": &"debug", "priority": 1,
+				"text": "DEBUG +%s TEU" % GameState.fmt(grant),
+			})
 		KEY_F4 when OS.is_debug_build():
 			TimeManager.speed_mult = 40.0 if TimeManager.speed_mult == 1.0 else 1.0

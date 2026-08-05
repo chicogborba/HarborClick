@@ -31,6 +31,7 @@ var _tutorial_btn: Button
 var _safe_rect := Rect2()
 var _focus_return: Control
 var _backup_status: Label
+var _offline_note: Label
 var _confirm_import := false
 
 
@@ -96,6 +97,12 @@ func _build() -> void:
 		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content.add_child(note)
+	# The cap has to be readable *before* the player leaves. Announcing it only
+	# on return turns a designed limit into production that vanished overnight.
+	_offline_note = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	_offline_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_offline_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_content.add_child(_offline_note)
 
 	_content.add_child(_caption("SAVE"))
 	var backup_row := HBoxContainer.new()
@@ -265,6 +272,9 @@ func _refresh() -> void:
 	_numbers_btn.text = "LIGADOS" if UserPreferences.floating_numbers else "DESLIGADOS"
 	_ui_scale_btn.text = "%d%%" % roundi(UserPreferences.ui_scale * 100.0)
 	_fullscreen_btn.text = "LIGADA" if UserPreferences.fullscreen else "DESLIGADA"
+	_offline_note.text = "Fora do jogo o porto rende %d%% da produção, por até %s."\
+		% [roundi(GameState.offline_efficiency() * 100.0),
+			OfflinePopup.format_duration(GameState.offline_cap_seconds())]
 	# An "off" state must not be signalled by colour alone; the word already
 	# says it, and the key drops to the muted style so it also reads by shape.
 	for pair in [[_music_btn, AudioManager.music_on], [_sfx_btn, AudioManager.sfx_on],

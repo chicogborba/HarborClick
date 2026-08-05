@@ -31,10 +31,22 @@ const WIDEST := "8.88Qa"
 ## 6px cell — so the unlit run and the lit number tile against each other exactly
 ## and never overlap by a pixel.
 const UNLIT := "8"
+## The golden-share wallet used to ride on this tag. It does not any more: the
+## tag grows with its content and the clock is anchored to the other end of the
+## same bar, so a five-figure share count drove the rate straight under the
+## compass. Capital is a currency you spend in one place, and the rail already
+## reports it beside the objective — the gantry is for the number the port is
+## producing right now.
+##
 ## The smallest production lift worth announcing. Below 1% the badge would fire
 ## on every rounding wobble and stop meaning "you just changed something".
 const LIFT_FLOOR := 0.01
 const LIFT_HOLD := 1.6
+
+## The rate tag is the only part of the instrument that takes input: pressing it
+## opens the factors behind the number. Rule 4 — a rate the player cannot take
+## apart is a rate they can only trust or ignore.
+signal breakdown_requested
 
 var _glass: PanelContainer
 var _lift_label: Label
@@ -43,8 +55,6 @@ var _teus_label: Label
 var _unlit_label: Label
 var _rate_tag: PanelContainer
 var _rate_label: Label
-var _shares_row: HBoxContainer
-var _shares_label: Label
 var _boost_row: HBoxContainer
 var _boost_label: Label
 var _digit_ink := UiTheme.DIGIT
@@ -95,8 +105,13 @@ func setup() -> void:
 	# The rate is a service tag bolted beside the counter rather than a second
 	# line under it: the bar is one instrument high, and this is what keeps it
 	# that way.
-	_rate_tag = UiTheme.panel(UiTheme.tag_style(3))
+	_rate_tag = UiTheme.panel(UiTheme.tag_style(3), false)
 	_rate_tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_rate_tag.mouse_filter = Control.MOUSE_FILTER_STOP
+	_rate_tag.focus_mode = Control.FOCUS_ALL
+	_rate_tag.gui_input.connect(_on_rate_input)
+	UiTheme.describe(_rate_tag, "Taxa por segundo",
+		"Abre de onde vem a taxa")
 	row.add_child(_rate_tag)
 	var rate := HBoxContainer.new()
 	rate.add_theme_constant_override(&"separation", 4)
@@ -109,15 +124,6 @@ func setup() -> void:
 	_lift_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER)
 	_lift_label.visible = false
 	rate.add_child(_lift_label)
-
-	_shares_row = HBoxContainer.new()
-	_shares_row.add_theme_constant_override(&"separation", 2)
-	_shares_row.visible = false
-	_shares_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rate.add_child(_shares_row)
-	_shares_row.add_child(UiTheme.icon(UiTheme.Icon.STAR))
-	_shares_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.DIGIT)
-	_shares_row.add_child(_shares_label)
 
 	_boost_row = HBoxContainer.new()
 	_boost_row.add_theme_constant_override(&"separation", 2)
@@ -134,6 +140,35 @@ func setup() -> void:
 	EventBus.cps_changed.connect(_on_cps)
 	_on_teus(GameState.teus)
 	_on_cps(GameState.cps)
+
+
+func _on_rate_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed \
+			and event.button_index == MOUSE_BUTTON_LEFT:
+		_rate_tag.grab_focus()
+		breakdown_requested.emit()
+		accept_event()
+	elif event.is_action_pressed(&"ui_accept"):
+		breakdown_requested.emit()
+		accept_event()
+
+
+func set_width_budget(width: float) -> void:
+	## Everything the instrument is allowed to occupy. The glass keeps its fixed
+	## window — that is the whole point of it — and the rate tag beside it takes
+	## whatever is left, trimming its own text rather than growing under the clock.
+	if _rate_label == null or _glass == null:
+		return
+	var glass := _glass.get_combined_minimum_size().x
+	var room := maxf(28.0, width - glass - 4.0)
+	_rate_tag.custom_minimum_size.x = 0.0
+	if _rate_tag.get_combined_minimum_size().x > room:
+		_rate_label.clip_text = true
+		_rate_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		_rate_label.custom_minimum_size.x = maxf(20.0, room - 10.0)
+	else:
+		_rate_label.clip_text = false
+		_rate_label.custom_minimum_size.x = 0.0
 
 
 func tally_rect() -> Rect2:
@@ -197,6 +232,3 @@ func _on_cps(cps: float) -> void:
 		tween.tween_property(_lift_label, "modulate:a", 0.0, 0.35)
 		tween.tween_callback(func() -> void: _lift_label.visible = false)
 	_last_cps = cps
-	_shares_row.visible = GameState.shares > 0
-	if _shares_row.visible:
-		_shares_label.text = str(GameState.shares)

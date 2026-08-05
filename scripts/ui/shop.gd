@@ -250,6 +250,7 @@ func _rebuild_upgrades() -> void:
 		var card := ShopCard.new()
 		card.setup(uid, "upgrade", _upgrade_art(item), item.name, item.desc,
 			UiTheme.Icon.STAR)
+		card.set_effect(str(GameState.upgrade_preview(item).get("text", "")))
 		card.pressed_card.connect(_on_buy_upgrade)
 		list.add_child(card)
 		_cards[uid] = card
@@ -339,8 +340,64 @@ func _build_orders() -> void:
 		blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		blurb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(blurb)
+	_build_route_orders(list)
 	_build_foreman(list)
 	_refresh_orders()
+
+
+func _build_route_orders(list: VBoxContainer) -> void:
+	## The third standing order, and the one that made the world map mean
+	## something: which lane the port books next. See `RoutePolicy`.
+	list.add_child(UiTheme.spacer(4.0))
+	list.add_child(UiTheme.divider())
+	list.add_child(_orders_caption("ROTA DA PRÓXIMA ESCALA"))
+	for policy: StringName in RoutePolicy.POLICIES:
+		var card := PanelContainer.new()
+		card.name = "Lane_%s" % policy
+		UiTheme.apply_panel(card, UiTheme.card_style(&"normal"))
+		list.add_child(card)
+		var button := Button.new()
+		button.flat = true
+		button.focus_mode = Control.FOCUS_ALL
+		button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		button.add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
+		UiTheme.describe(button, str(RoutePolicy.LABELS[policy]),
+			str(RoutePolicy.BLURBS[policy]))
+		button.pressed.connect(_on_pick_lane_policy.bind(policy))
+		card.add_child(button)
+		var row := VBoxContainer.new()
+		row.name = "Row"
+		row.add_theme_constant_override(&"separation", 1)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT,
+			Control.PRESET_MODE_MINSIZE, 4)
+		card.add_child(row)
+		var head := HBoxContainer.new()
+		head.name = "Head"
+		head.add_theme_constant_override(&"separation", 4)
+		head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(head)
+		var lamp := UiTheme.led(UiTheme.Led.OFF)
+		lamp.name = "Lamp"
+		head.add_child(lamp)
+		var title := UiTheme.label(str(RoutePolicy.LABELS[policy]),
+			UiTheme.SIZE_SMALL, UiTheme.INK)
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		head.add_child(title)
+		var blurb := UiTheme.label(str(RoutePolicy.BLURBS[policy]),
+			UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+		blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		blurb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(blurb)
+
+
+func _on_pick_lane_policy(policy: StringName) -> void:
+	if GameState.route_policy == policy:
+		return
+	GameState.route_policy = RoutePolicy.coerce(policy)
+	_refresh_orders()
+	AudioManager.play_sfx("tap")
+	SaveManager.request_save(&"orders")
 
 
 func _orders_caption(text: String) -> Control:
@@ -449,7 +506,10 @@ func _update_orders_tab() -> void:
 	var tab: Button = _tab_buttons.get("orders")
 	if tab == null:
 		return
-	tab.visible = PortLayout.berth_count() > 1 or GameState.prestige_count > 0
+	# A second lane is reason enough on its own now: from the moment the port
+	# trades on two, which one it books next is a decision.
+	tab.visible = PortLayout.berth_count() > 1 or GameState.prestige_count > 0 \
+		or RouteDB.owned(GameState.routes).size() > 1
 	if not tab.visible and _active == "orders":
 		_on_tab("structures")
 
@@ -470,6 +530,18 @@ func _refresh_orders() -> void:
 		if lamp != null:
 			lamp.texture = UiTheme.led_texture(
 				UiTheme.Led.ATTENTION if chosen else UiTheme.Led.OFF)
+	for policy: StringName in RoutePolicy.POLICIES:
+		var lane_card := list.get_node_or_null(NodePath("Lane_%s" % policy)) \
+			as PanelContainer
+		if lane_card == null:
+			continue
+		var picked := GameState.route_policy == policy
+		UiTheme.apply_panel(lane_card, UiTheme.card_style(
+			&"ready" if picked else &"normal"))
+		var lane_lamp := lane_card.get_node_or_null(^"Row/Head/Lamp") as TextureRect
+		if lane_lamp != null:
+			lane_lamp.texture = UiTheme.led_texture(
+				UiTheme.Led.ATTENTION if picked else UiTheme.Led.OFF)
 	_refresh_foreman(list)
 
 
@@ -611,7 +683,7 @@ func has_affordable() -> bool:
 		if not GameState.has_upgrade(item.id) and GameState.upgrade_unlocked(item) \
 				and GameState.can_afford(item.cost):
 			return true
-	var parcel := LandDB.next_parcel()
+	var parcel := LandDB.next_parcel(GameState.land)
 	return not parcel.is_empty() and GameState.can_afford(float(parcel.cost))
 
 
@@ -636,7 +708,7 @@ func next_purchase_eta() -> float:
 	for item in UpgradeDB.ITEMS:
 		if not GameState.has_upgrade(item.id) and GameState.upgrade_unlocked(item):
 			cheapest = minf(cheapest, float(item.cost))
-	var parcel := LandDB.next_parcel()
+	var parcel := LandDB.next_parcel(GameState.land)
 	if not parcel.is_empty():
 		cheapest = minf(cheapest, float(parcel.cost))
 	if is_inf(cheapest):
@@ -740,7 +812,7 @@ func _on_buy_land(id: String) -> void:
 	var item := LandDB.get_item(id)
 	if GameState.land.has(id):
 		return
-	var next := LandDB.next_parcel()
+	var next := LandDB.next_parcel(GameState.land)
 	if next.is_empty() or next.id != id or not GameState.spend(item.cost):
 		if card != null:
 			card.shake_deny()
@@ -770,6 +842,7 @@ func _refresh() -> void:
 			continue
 		var count := GameState.structure_count(item.id)
 		var quote := GameState.structure_purchase_quote(item.id, _buy_mode)
+		var gate := GameState.structure_gate(str(item.id))
 		var revealed: bool = count > 0 \
 			or GameState.lifetime_teus >= float(item.cost) * 0.25
 		card.visible = revealed
@@ -777,6 +850,10 @@ func _refresh() -> void:
 			if next_locked.is_empty():
 				next_locked = item
 			continue
+		# A machine waiting on ground says so on its own card, with the name of
+		# the parcel. Greying it out and saying nothing is the same as a bug.
+		card.set_effect("Requer: %s" % str(gate.get("name", "")) \
+			if not gate.is_empty() else "")
 		card.refresh(float(quote.get("total_cost", INF)), count,
 			bool(quote.get("ok", false)), false,
 			int(quote.get("quantity", 0)),
@@ -785,10 +862,16 @@ func _refresh() -> void:
 
 	for item in UpgradeDB.ITEMS:
 		var card: ShopCard = _cards.get(item.id)
-		if card != null:
-			card.refresh(item.cost, 0, GameState.can_afford(item.cost))
+		if card == null:
+			continue
+		# Recomputed on every refresh, not cached at setup: the gain a machine
+		# upgrade is worth moves every time another of that machine is bought.
+		var preview := GameState.upgrade_preview(item)
+		card.set_effect(str(preview.get("text", "")))
+		card.refresh(item.cost, 0, GameState.can_afford(item.cost), false, 1,
+			float(preview.get("cps_gain", 0.0)))
 
-	var next := LandDB.next_parcel()
+	var next := LandDB.next_parcel(GameState.land)
 	for item in LandDB.ITEMS:
 		var card: ShopCard = _cards.get("land_" + item.id)
 		if card == null:

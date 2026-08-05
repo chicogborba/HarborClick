@@ -11,10 +11,18 @@ const PROFILE_COUNT := 3
 const PROFILE_DIR := "user://profiles"
 const AUTOSAVE_INTERVAL := 30.0
 const SAVE_DEBOUNCE := 0.35
-const OFFLINE_CAP_HOURS := 8.0
-const OFFLINE_EFFICIENCY := 0.5
+# Fallbacks only. The script below owns the baseline and the prestige tiers that
+# beat it; these exist for the case where the autoload is not up yet. The
+# autoload name is not a constant expression, so the script is preloaded.
+const GameStateScript = preload("res://scripts/autoload/game_state.gd")
+const OFFLINE_CAP_HOURS := GameStateScript.OFFLINE_CAP_SECONDS_BASE / 3600.0
+const OFFLINE_EFFICIENCY := GameStateScript.OFFLINE_EFFICIENCY_BASE
 
 var offline_earnings: float = 0.0
+## The whole account behind `offline_earnings`: how long the port was alone, how
+## much of that the cap paid for, at what rate and efficiency, and what the cap
+## refused. Empty when no offline progress was credited.
+var offline_report: Dictionary = {}
 var yard: ContainerYard # set by Main; kept for integration compatibility
 
 var _timer := 0.0
@@ -203,15 +211,29 @@ func _apply_loaded(envelope: Dictionary) -> void:
 
 func _apply_offline_progress(saved_at: float) -> void:
 	offline_earnings = 0.0
+	offline_report = {}
 	if saved_at <= 0.0 or GameState.cps <= 0.0:
 		return
 	var cap_seconds := GameState.offline_cap_seconds() if GameState.has_method("offline_cap_seconds") \
 		else OFFLINE_CAP_HOURS * 3600.0
 	var efficiency := GameState.offline_efficiency() if GameState.has_method("offline_efficiency") \
 		else OFFLINE_EFFICIENCY
-	var elapsed := minf(maxf(0.0, Time.get_unix_time_from_system() - saved_at), cap_seconds)
+	var away := maxf(0.0, Time.get_unix_time_from_system() - saved_at)
+	var elapsed := minf(away, cap_seconds)
 	if elapsed > 10.0:
 		offline_earnings = GameState.cps * elapsed * efficiency
+		# The player is owed the whole account, not the total. A cap that is never
+		# named reads as production that vanished.
+		offline_report = {
+			"away_seconds": away,
+			"credited_seconds": elapsed,
+			"capped_seconds": maxf(0.0, away - elapsed),
+			"cap_seconds": cap_seconds,
+			"efficiency": efficiency,
+			"rate": GameState.cps,
+			"earnings": offline_earnings,
+			"lost_to_cap": GameState.cps * maxf(0.0, away - elapsed) * efficiency,
+		}
 		GameState.grant_offline_earnings(offline_earnings)
 		# Advance saved_at before the popup is shown. A reload during the popup
 		# can no longer credit the same offline interval twice.
@@ -228,6 +250,7 @@ func wipe() -> void:
 	_loaded_sections.clear()
 	_has_loaded_game = false
 	offline_earnings = 0.0
+	offline_report = {}
 	_save_due = -1.0
 	_save_reason = &"manual"
 	GameState.from_save({})
@@ -363,6 +386,7 @@ func use_profile(slot: int) -> bool:
 	_pending.clear()
 	_has_loaded_game = false
 	offline_earnings = 0.0
+	offline_report = {}
 	GameState.from_save({})
 	TimeManager.from_save({})
 	return load_game()

@@ -119,10 +119,15 @@ func _test_prestige_requires_explicit_confirmation() -> void:
 	dialog._confirm_or_quote()
 	_expect(commits[0] == 1 and not dialog.is_open(), "prestige commits only after explicit second confirmation")
 	# One caption plus one row per node, so the whole tree fits a phone column
-	# instead of running off the side of the dialog.
-	_expect(dialog._tree.get_child_count()
-			== PrestigeDB.BRANCHES.size() + PrestigeDB.all_nodes().size(),
-		"prestige dialog renders every capital branch and node as its own row")
+	# instead of running off the side of the dialog. Only purchasable branches
+	# are drawn: a feature-gated node is refused by `GameState.buy_prestige_node`,
+	# so a priced button for it swallows the press without a word.
+	var branches := PrestigeDB.purchasable_branches()
+	var node_rows := 0
+	for branch: Dictionary in branches:
+		node_rows += branch.get("nodes", []).size()
+	_expect(dialog._tree.get_child_count() == branches.size() + node_rows,
+		"prestige dialog renders every purchasable branch and node as its own row")
 	viewport.queue_free()
 	await get_tree().process_frame
 

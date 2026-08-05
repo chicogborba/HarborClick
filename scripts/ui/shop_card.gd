@@ -31,6 +31,7 @@ var _price_stamp: PanelContainer
 var _price_label: Label
 var _price_col: VBoxContainer
 var _blurb := ""
+var _effect := ""
 var _state: StringName = &""
 var _press_start := Vector2.ZERO
 var _tracking_press := false
@@ -111,6 +112,13 @@ func setup(item_id: String, item_kind: String, art_key: String,
 
 
 
+func set_effect(text: String) -> void:
+	## What this card actually does, in words. An upgrade whose card only carries
+	## a punchline and a price is a mystery box, and eighteen of them in a row is
+	## why "as melhorias não fazem sentido".
+	_effect = text
+
+
 func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false,
 		quantity: int = 1, cps_gain: float = 0.0) -> void:
 	if sold_out:
@@ -133,13 +141,28 @@ func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false,
 	# Payback is the one figure that makes two very differently priced machines
 	# comparable at a glance, and without it "+25%" of an unstated base is a
 	# number the player has to take on faith.
-	if cps_gain > 0.0 and (count > 0 or affordable):
+	if not _effect.is_empty():
+		# An upgrade is bought once and never compared against a second unit of
+		# itself, so payback is the wrong figure for it. What it changes and by
+		# how much is the right one, and it is stated whether or not the wallet
+		# can reach it — a card the player is saving up for is exactly the card
+		# they need to understand.
+		_sub_label.text = _effect if cps_gain <= 0.0 \
+			else "%s\n+%s TEU/s" % [_effect, GameState.fmt(cps_gain)]
+		_sub_label.label_settings.font_color = \
+			UiTheme.TEAL_DEEP if affordable else UiTheme.INK_SOFT
+	elif cps_gain > 0.0 and (count > 0 or affordable):
 		# Two deliberate lines rather than one that wraps: on a 320 px phone the
 		# effect and the payback do not fit side by side, and a ragged wrap put
 		# the separator alone at the end of a line.
-		_sub_label.text = "+%s TEU/s%s\npaga em %s" % [GameState.fmt(cps_gain),
+		#
+		# When the wallet is short, the second line answers the other half of
+		# rule 2 instead: a wait whose end is visible is a plan, and the same
+		# wait without one is the stall that empties a clicker.
+		_sub_label.text = "+%s TEU/s%s\n%s" % [GameState.fmt(cps_gain),
 			"  x%d" % quantity if quantity > 1 else "",
-			_payback(cost, cps_gain)]
+			"paga em %s" % _payback(cost, cps_gain) if affordable
+			else "faltam %s" % wait_for(cost - GameState.teus, GameState.cps)]
 		_sub_label.label_settings.font_color = UiTheme.TEAL_DEEP
 	elif sold_out:
 		_sub_label.text = _blurb
@@ -150,17 +173,33 @@ func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false,
 	_name_label.label_settings.font_color = \
 		UiTheme.INK if (affordable or sold_out or count > 0) else UiTheme.INK_SOFT
 
+	if not _effect.is_empty():
+		tooltip_text = "%s\n%s" % [_effect, _blurb]
+		return
 	tooltip_text = "%s\n%s" % [_blurb, "Compra x%d - +%s TEU/s - paga em %s"
 		% [quantity, GameState.fmt(cps_gain), _payback(cost, cps_gain)]
 		if cps_gain > 0.0 else "Compra x%d" % quantity]
 
 
+static func wait_for(missing: float, rate: float) -> String:
+	## How long the wallet needs to reach a price. Rule 2: a wait whose end the
+	## player can see is a plan; the same wait without one is a stall.
+	if missing <= 0.0:
+		return "0s"
+	if rate <= 0.0 or not is_finite(missing):
+		return "muito"
+	return duration(missing / rate)
+
+
 static func _payback(cost: float, cps_gain: float) -> String:
-	## How long this purchase takes to earn its own price back, phrased the way a
-	## person says a duration rather than in bare seconds.
+	## How long this purchase takes to earn its own price back.
 	if cps_gain <= 0.0 or not is_finite(cost):
 		return "—"
-	var seconds := cost / cps_gain
+	return duration(cost / cps_gain)
+
+
+static func duration(seconds: float) -> String:
+	## Phrased the way a person says a duration rather than in bare seconds.
 	if seconds < 90.0:
 		return "%ds" % maxi(1, roundi(seconds))
 	if seconds < 5400.0:

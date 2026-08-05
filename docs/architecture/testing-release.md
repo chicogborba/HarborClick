@@ -54,3 +54,21 @@ WASM must be served as `application/wasm`. Stage a new release directory,
 verify local/remote checksums, atomically swap the web root, run `nginx -t`,
 reload, then verify HTTPS headers and the public PCK checksum. Keep the previous
 directory until the new build is confirmed.
+
+## Automatic production deploy
+
+`.github/workflows/deploy-production.yml` is the production path. Every push to
+`main` downloads the checksum-pinned Godot 4.7.1 editor and Web templates, runs
+`tools/qa/run_all.sh`, assembles `build/release/`, then sends that immutable
+release to the VPS through SSH.
+
+GitHub Actions authenticates with the repository secret
+`HARBORCLICK_DEPLOY_KEY`. The matching server account is unprivileged, the SSH
+host key is pinned in `deploy/known_hosts`, and the workflow token itself has
+read-only repository permission. `deploy/remote_release.sh` validates the
+archive before atomically switching `/var/www/harborclick-deploy/current`.
+Failed tests, exports, uploads, or validations leave the current production
+release untouched.
+
+The full server bootstrap, release layout, and rollback contract are documented
+in `deploy/README.md`.

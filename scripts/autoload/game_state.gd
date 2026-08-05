@@ -18,6 +18,7 @@ var land: Dictionary = {}       # parcel id -> true
 var routes: Dictionary = {}     # route id -> true (the free home lane is implicit)
 var cps: float = 0.0
 var click_power: float = 1.0
+var base_cps: float = 0.0        # production without weather or surge
 var shares: int = 0              # golden-share wallet
 var prestige_level_earned: int = 0
 var prestige_count: int = 0
@@ -39,6 +40,10 @@ var crane_policy: StringName = CraneAllocation.EVEN
 ## The other standing order: what gets bought when nobody is looking, and how
 ## much of the treasury is off limits. Unlocked by the first rebuild — see
 ## `foreman_unlocked()`.
+## The third standing order: which lane the port books next. See `RoutePolicy` —
+## buying a lane used to be strictly good because the freight was the maximum
+## across everything owned, so the map was a shopping list.
+var route_policy: StringName = RoutePolicy.MIX
 var foreman_mode: StringName = Foreman.OFF
 var foreman_reserve: float = 0.25
 var _foreman_tick: float = 0.0
@@ -52,6 +57,10 @@ const MILESTONES := [
 	{"id": "one_quadrillion", "teus": 1e15, "text": "1 quatrilhão. Ninguém sabe mais o que é um container."},
 ]
 
+## The estimate assumes someone is actually playing during the rebuild. With
+## zero taps a port with no structures and no wallet never earns a first TEU, so
+## the honest answer would be "never" for every reset.
+const REBUILD_ESTIMATE_TAPS := 2.0
 const CRIT_CHANCE := 0.03
 const CRIT_MULT := 7.0
 const CAT_BOOST_MULT := 7.0
@@ -119,6 +128,10 @@ func _foreman_candidates() -> Array:
 	## expand the port is the one purchase a player would be right to resent.
 	var out: Array = []
 	for item in StructureDB.ITEMS:
+		# The gate is the player's call, never the foreman's: a standing order
+		# that buys land would reshape the terminal on its own.
+		if not structure_unlocked(str(item.id)):
+			continue
 		var quote := structure_purchase_quote(str(item.id), &"x1")
 		if not bool(quote.get("ok", false)):
 			continue
@@ -237,10 +250,40 @@ func get_prestige_quote() -> Dictionary:
 		"gain": prestige_gain(),
 		"level": prestige_level_earned,
 		"wallet": shares,
-		"peak": best_owned_by_structure.duplicate(true),
-		"rebuild_discount": "75%",
+		"peak": rebuild_peak(),
+		# Derived, never typed: the dialog said "75%" for months while
+		# `EconomyMath.REBUILD_DISCOUNT` said something else, and the two only
+		# have to disagree once for the quote to be a lie.
+		"rebuild_discount": "%d%% de desconto"
+			% roundi((1.0 - EconomyMath.REBUILD_DISCOUNT) * 100.0),
 		"productive_total": all_time_productive_teus,
+		"rebuild_seconds": estimate_rebuild_seconds(),
 	}
+
+
+func rebuild_peak() -> Dictionary:
+	## The peak the reset is about to record, which is what the discount will
+	## cover. `best_owned_by_structure` alone is empty before the first prestige,
+	## so quoting it told a first-time player their peak was zero machines.
+	var peak: Dictionary = best_owned_by_structure.duplicate(true)
+	for id: String in owned:
+		peak[id] = maxi(int(peak.get(id, 0)), structure_count(id))
+	return peak
+
+
+func estimate_rebuild_seconds() -> float:
+	## How long this port takes to come back after the reset. Without it the
+	## dialog asks the player to give up a number and offers no idea of the
+	## price, which is the whole reason a first prestige gets abandoned.
+	if base_cps <= 0.0:
+		return 0.0
+	return EconomySimulator.estimate_rebuild_seconds({
+		"target_production": base_cps,
+		"prestige_level": prestige_level_earned + prestige_gain(),
+		"rebuild_targets": rebuild_peak(),
+		"tree_nodes": purchased_tree_nodes.duplicate(),
+		"taps_per_second": REBUILD_ESTIMATE_TAPS,
+	})
 
 
 func do_click(world_pos: Vector2) -> void:
@@ -395,10 +438,34 @@ func buy_structure(id: String) -> bool:
 	return bool(buy_structure_bulk(id, &"x1").get("ok", false))
 
 
+func structure_unlocked(id: String) -> bool:
+	## A machine waits on the ground it works from. `LandDB` owns the pairing;
+	## this is the only place the game asks about it, so the shop, the foreman
+	## and the purchase all agree by construction.
+	var gate := LandDB.gate_for(id)
+	return gate.is_empty() or land.has(str(gate.id))
+
+
+func structure_gate(id: String) -> Dictionary:
+	## The parcel still standing between the player and this machine, or {}.
+	var gate := LandDB.gate_for(id)
+	return {} if gate.is_empty() or land.has(str(gate.id)) else gate
+
+
 func structure_purchase_quote(id: String, mode: StringName = &"x1") -> Dictionary:
 	var item := StructureDB.get_item(id)
 	if item.is_empty():
 		return EconomyMath.purchase_quote(-1.0, 0.0, 0, mode, teus)
+	if not structure_unlocked(id):
+		var locked := EconomyMath.purchase_quote(float(item.cost),
+			structure_cps(id), structure_count(id), mode, teus,
+			int(rebuild_targets.get(id, 0)))
+		locked["ok"] = false
+		locked["reason"] = &"land_locked"
+		locked["id"] = id
+		locked["name"] = str(item.get("name", id))
+		locked["gate"] = structure_gate(id)
+		return locked
 	var count := structure_count(id)
 	var quote := EconomyMath.purchase_quote(
 		float(item.cost), structure_cps(id), count, mode, teus,
@@ -450,6 +517,57 @@ func buy_upgrade(id: String) -> bool:
 	recompute()
 	EventBus.upgrade_bought.emit(id)
 	return true
+
+
+func upgrade_preview(item: Dictionary) -> Dictionary:
+	## What an upgrade actually does, in the units the player reads.
+	##
+	## The shop used to sell these on a punchline alone: name, joke, price. The
+	## card never said *what* the thing improved or by how much, so eighteen
+	## upgrades were eighteen identical mystery boxes and "as melhorias não fazem
+	## sentido" was a fair description of the interface, not of the economy.
+	var kind := str(item.get("kind", ""))
+	var value := float(item.get("value", 1.0))
+	match kind:
+		"structure_mult":
+			var target := str(item.get("target", ""))
+			var machine := StructureDB.get_item(target)
+			var gain := structure_total_cps(target) * (value - 1.0) \
+				* _global_cps_multiplier() * _upgrade_global_multiplier()
+			return {"cps_gain": maxf(0.0, gain), "click_gain": 0.0,
+				"text": "%s: %s" % [str(machine.get("name", target)),
+					_scale_text(value)]}
+		"global_mult":
+			return {"cps_gain": maxf(0.0, base_cps * (value - 1.0)),
+				"click_gain": 0.0, "text": "Todo o porto: %s" % _scale_text(value)}
+		"click_mult":
+			return {"cps_gain": 0.0,
+				"click_gain": maxf(0.0, click_power * (value - 1.0)),
+				"text": "Cada toque: %s" % _scale_text(value)}
+		"click_cps_pct":
+			return {"cps_gain": 0.0, "click_gain": maxf(0.0, cps * value),
+				"text": "Toque ganha %d%% da produção" % roundi(value * 100.0)}
+	return {"cps_gain": 0.0, "click_gain": 0.0, "text": ""}
+
+
+func _upgrade_global_multiplier() -> float:
+	var value := 1.0
+	for uid: String in upgrades:
+		var up := UpgradeDB.get_item(uid)
+		if up.get("kind") == "global_mult":
+			value *= float(up.value)
+	return value
+
+
+static func _scale_text(value: float) -> String:
+	## "x2.00" is a spreadsheet. A person says the double.
+	if is_equal_approx(value, 2.0):
+		return "o dobro"
+	if is_equal_approx(value, 3.0):
+		return "o triplo"
+	if value > 1.0 and value < 2.0:
+		return "+%d%%" % roundi((value - 1.0) * 100.0)
+	return "x%.1f" % value
 
 
 func upgrade_unlocked(item: Dictionary) -> bool:
@@ -505,7 +623,10 @@ func recompute() -> void:
 				click_mult *= up.value
 			"click_cps_pct":
 				click_cps_pct += up.value
-	cps = total * global_mult * TimeManager.weather_cps_mult() * surge_mult
+	# Weather and surges are transient; the port's own rate is the part that
+	# survives them, and it is what the rebuild estimate has to compare against.
+	base_cps = total * global_mult
+	cps = base_cps * TimeManager.weather_cps_mult() * surge_mult
 	var manual_meta := _tree_scope_multiplier(&"manual", &"click_multiplier")
 	var tree_cps_per_tap := _tree_scope_additive(&"manual", &"cps_per_tap")
 	click_power = (1.0 * click_mult * manual_meta) \
@@ -515,6 +636,49 @@ func recompute() -> void:
 	# A surge is on everything the port earns, taps included.
 	click_power *= surge_mult
 	EventBus.cps_changed.emit(cps)
+
+
+func cps_breakdown() -> Array[Dictionary]:
+	## The factors behind the rate, in the order `recompute` applies them. A
+	## clicker's whole strategy layer is "why did that number go up", and until
+	## now the game only ever showed the product. Every entry after the first is a
+	## multiplier, and multiplying them all reproduces `cps` exactly — the panel
+	## is the formula, not a description of it.
+	var raw := 0.0          # machines at catalogue rate
+	var with_milestones := 0.0
+	var with_upgrades := 0.0
+	for id: String in owned:
+		var count := structure_count(id)
+		if count <= 0:
+			continue
+		var item := StructureDB.get_item(id)
+		if item.is_empty():
+			continue
+		raw += float(item.cps) * float(count)
+		with_milestones += EconomyMath.total_cps(float(item.cps), count)
+		with_upgrades += structure_total_cps(id, count)
+	var global_mult := 1.0
+	for uid: String in upgrades:
+		var up := UpgradeDB.get_item(uid)
+		if up.get("kind") == "global_mult":
+			global_mult *= float(up.value)
+	var rows: Array[Dictionary] = [
+		{"label": "Máquinas", "kind": "base", "value": raw},
+		{"label": "Marcos", "kind": "mult", "value": _ratio(with_milestones, raw)},
+		{"label": "Melhorias", "kind": "mult", "value": _ratio(with_upgrades, with_milestones)},
+		{"label": "Capital", "kind": "mult", "value": _global_cps_multiplier()},
+		{"label": "Melhorias globais", "kind": "mult", "value": global_mult},
+	]
+	var weather := TimeManager.weather_cps_mult()
+	if not is_equal_approx(weather, 1.0):
+		rows.append({"label": "Neblina", "kind": "mult", "value": weather})
+	if not is_equal_approx(surge_mult, 1.0):
+		rows.append({"label": "Surto", "kind": "mult", "value": surge_mult})
+	return rows
+
+
+func _ratio(numerator: float, denominator: float) -> float:
+	return 1.0 if denominator <= 0.0 else numerator / denominator
 
 
 func _global_cps_multiplier() -> float:
@@ -567,25 +731,29 @@ func buy_prestige_node(id: StringName) -> bool:
 	return true
 
 
+const OFFLINE_EFFICIENCY_BASE := 0.5
+const OFFLINE_CAP_SECONDS_BASE := 8.0 * 3600.0
+
+
 func offline_efficiency() -> float:
-	var value := 0.5
-	for node_id: String in purchased_tree_nodes:
-		var effect: Dictionary = PrestigeDB.get_node(node_id).get("effect", {})
-		if effect.get("scope", "") == "offline" \
-				and effect.get("stat", "") == "offline_efficiency" \
-				and effect.get("operation", "") == "set":
-			value = float(effect.get("value", value))
-	return value
+	return _tree_scope_best(&"offline", &"offline_efficiency", OFFLINE_EFFICIENCY_BASE)
 
 
 func offline_cap_seconds() -> float:
-	var value := 8.0 * 3600.0
+	return _tree_scope_best(&"offline", &"offline_cap_seconds", OFFLINE_CAP_SECONDS_BASE)
+
+
+func _tree_scope_best(scope: StringName, stat: StringName, base: float) -> float:
+	## The best tier the player owns wins, and the port's baseline is the floor.
+	## Taking the last match in dictionary order instead only worked while the
+	## `requires` chain happened to be bought in ascending order.
+	var value := base
 	for node_id: String in purchased_tree_nodes:
 		var effect: Dictionary = PrestigeDB.get_node(node_id).get("effect", {})
-		if effect.get("scope", "") == "offline" \
-				and effect.get("stat", "") == "offline_cap_seconds" \
+		if StringName(effect.get("scope", "")) == scope \
+				and StringName(effect.get("stat", "")) == stat \
 				and effect.get("operation", "") == "set":
-			value = float(effect.get("value", value))
+			value = maxf(value, float(effect.get("value", base)))
 	return value
 
 
@@ -618,6 +786,7 @@ func to_save() -> Dictionary:
 		"owned": owned, "upgrades": upgrades.keys(), "land": land.keys(),
 		"routes": routes.keys(),
 		"flags": flags, "crane_policy": String(crane_policy),
+		"route_policy": String(route_policy),
 		"foreman_mode": String(foreman_mode), "foreman_reserve": foreman_reserve,
 		"manual_quotes": _manual_quotes,
 		"manual_commits": _manual_commits.keys(),
@@ -641,7 +810,9 @@ func from_save(data: Dictionary) -> void:
 	prestige_count = int(data.get("prestige_count", 0))
 	purchased_tree_nodes.clear()
 	for node_id in data.get("purchased_tree_nodes", []):
-		purchased_tree_nodes[StringName(node_id)] = true
+		# Retired ids are rewritten to their replacement, so a save that bought
+		# the old offline tier keeps it instead of losing the shares it spent.
+		purchased_tree_nodes[PrestigeDB.canonical_id(StringName(node_id))] = true
 	best_owned_by_structure = data.get("best_owned_by_structure", {}).duplicate(true)
 	rebuild_targets = data.get("rebuild_targets", {}).duplicate(true)
 	last_run_summary = data.get("last_run_summary", {}).duplicate(true)
@@ -652,6 +823,8 @@ func from_save(data: Dictionary) -> void:
 	# already doing.
 	crane_policy = CraneAllocation.coerce(
 		StringName(data.get("crane_policy", CraneAllocation.EVEN)))
+	route_policy = RoutePolicy.coerce(
+		StringName(data.get("route_policy", RoutePolicy.MIX)))
 	foreman_mode = Foreman.coerce(StringName(data.get("foreman_mode", Foreman.OFF)))
 	foreman_reserve = Foreman.coerce_reserve(
 		float(data.get("foreman_reserve", 0.25)))

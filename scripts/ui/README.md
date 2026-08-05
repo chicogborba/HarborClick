@@ -19,6 +19,12 @@ Entry points:
 - `title_screen.gd` — profile selection.
 - `responsive_shell.gd` — viewport/breakpoint layout.
 - `hud.gd`, `readout.gd`, `command_rail.gd` — play HUD.
+- `rate_breakdown.gd` — the factors behind the rate, opened by pressing the rate
+  tag on the counter. It is the formula, not a caption for it: machines at
+  catalogue rate, then milestones, fitted upgrades, capital, global upgrades,
+  fog and surge — multiply the rows and you land back on `GameState.base_cps`.
+  A game whose whole strategy layer is "why did that number go up" cannot only
+  ever show the product.
 - `shop.gd`, `route_map.gd`, `port_journal.gd`, `settings_panel.gd`,
   `prestige_dialog.gd` — overlays. The journal's EQUIPE tab is the whole shift in
   one list, which the per-person dossier cannot give.

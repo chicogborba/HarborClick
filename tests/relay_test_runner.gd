@@ -48,6 +48,26 @@ class RelayTestShip:
 		departed.emit()
 
 
+class StuckTractor:
+	extends Node
+	## Books the run and never turns up. `CargoRelay` only ever asks a carrier
+	## four things, so this is the whole contract.
+
+	var released := false
+
+	func relay_stage() -> int:
+		return StructureActor.RELAY_APPROACH
+
+	func relay_bed_position() -> Vector2:
+		return Vector2.ZERO
+
+	func relay_bed_rotation() -> float:
+		return 0.0
+
+	func release_relay() -> void:
+		released = true
+
+
 class RelayTestWorld:
 	extends PortWorld
 	## The real `fly_cargo` — that is the code under test — over the smallest
@@ -126,6 +146,7 @@ func _run() -> void:
 	await _test_a_tractor_drives_the_box()
 	await _test_a_busy_fleet_falls_back()
 	await _test_carrier_freed_mid_ride()
+	await _test_a_late_tractor_never_freezes_the_box()
 	await _test_force_land_releases_every_claim()
 	await _test_a_full_call_still_completes()
 
@@ -244,6 +265,52 @@ func _test_carrier_freed_mid_ride() -> void:
 	_expect(landed[0], "and the box lands anyway when its carrier is freed")
 	_expect(not is_instance_valid(relay),
 		"the traveller frees itself after landing")
+
+
+func _test_a_late_tractor_never_freezes_the_box() -> void:
+	## The reported bug, as a test. A box left the hull, stopped dead on the quay
+	## and stayed there while its tractor fought its way over — and because the
+	## berth counts a transfer as in flight until it lands, the ship could not
+	## change phase and the player could not tap anything. One slow tractor froze
+	## the terminal.
+	##
+	## The tractor here never arrives at all: a stub that reports "on my way"
+	## forever, which is the worst case the old code waited a full ride deadline
+	## for. The box may rest on the apron for about a crane cycle; past that it
+	## flies itself, whatever the fleet is doing.
+	await _own(["tt"])
+	var landed := [false]
+	var flight := _world.fly_cargo(3, _ship_point(), _yard_point())
+	flight.landed.connect(func() -> void: landed[0] = true)
+	await get_tree().process_frame
+	var relay := flight as CargoRelay
+	_expect(relay._legs.size() == 3, "the itinerary really was planned as a drive")
+	var planned := relay.duration()
+	var real_carrier: Node = relay._carrier
+	_expect(real_carrier != null and is_instance_valid(real_carrier),
+		"a tractor took the run")
+	if real_carrier != null and is_instance_valid(real_carrier):
+		real_carrier.call("release_relay")
+	var stub := StuckTractor.new()
+	add_child(stub)
+	relay._carrier = stub
+
+	var waited := 0.0
+	var frames := 0
+	while frames < PATIENCE and not landed[0]:
+		waited += get_process_delta_time()
+		await get_tree().process_frame
+		frames += 1
+	_expect(landed[0], "the box lands even though its tractor never arrived")
+	# Bounded against the itinerary the relay itself priced, not against the
+	# constant under test — a limit written as `APPROACH_GRACE + slack` passes
+	# whatever `APPROACH_GRACE` is set to, which is no limit at all. A stalled
+	# presentation may cost about one extra itinerary, and not a ride deadline.
+	_expect(waited < planned * 2.0 + 2.0,
+		"and promptly: %.2fs against a %.2fs itinerary" % [waited, planned])
+	_expect(stub.released, "the stalled tractor got its run back")
+	stub.queue_free()
+	await get_tree().process_frame
 
 
 func _test_force_land_releases_every_claim() -> void:

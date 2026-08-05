@@ -10,11 +10,15 @@ const BRANCHES: Array[Dictionary] = [
 		{"id": "click_manual", "cost": 1, "effect": {"scope": "manual", "stat": "click_multiplier", "operation": "add_pct", "value": 0.50}},
 		{"id": "click_cps_per_tap", "cost": 3, "requires": ["click_manual"], "effect": {"scope": "manual", "stat": "cps_per_tap", "operation": "add_pct", "value": 0.01}},
 	]},
+	# Every node here must beat the port's baseline (50% efficiency, 8h cap in
+	# `GameState`). The first two versions of this branch sold `set 0.50` and
+	# `set 28800.0`, which are the defaults: the player paid three golden shares
+	# for nothing. `LEGACY_NODE_IDS` carries those purchases forward.
 	{"id": "offline", "title": "Offline", "nodes": [
-		{"id": "offline_50", "cost": 1, "effect": {"scope": "offline", "stat": "offline_efficiency", "operation": "set", "value": 0.50}},
-		{"id": "offline_65", "cost": 3, "requires": ["offline_50"], "effect": {"scope": "offline", "stat": "offline_efficiency", "operation": "set", "value": 0.65}},
-		{"id": "offline_cap_8h", "cost": 2, "requires": ["offline_50"], "effect": {"scope": "offline", "stat": "offline_cap_seconds", "operation": "set", "value": 28800.0}},
-		{"id": "offline_cap_10h", "cost": 5, "requires": ["offline_65", "offline_cap_8h"], "effect": {"scope": "offline", "stat": "offline_cap_seconds", "operation": "set", "value": 36000.0}},
+		{"id": "offline_eff_60", "cost": 1, "effect": {"scope": "offline", "stat": "offline_efficiency", "operation": "set", "value": 0.60}},
+		{"id": "offline_eff_75", "cost": 3, "requires": ["offline_eff_60"], "effect": {"scope": "offline", "stat": "offline_efficiency", "operation": "set", "value": 0.75}},
+		{"id": "offline_cap_12h", "cost": 2, "requires": ["offline_eff_60"], "effect": {"scope": "offline", "stat": "offline_cap_seconds", "operation": "set", "value": 43200.0}},
+		{"id": "offline_cap_16h", "cost": 5, "requires": ["offline_eff_75", "offline_cap_12h"], "effect": {"scope": "offline", "stat": "offline_cap_seconds", "operation": "set", "value": 57600.0}},
 	]},
 	{"id": "routes", "title": "Rotas", "requires_feature": "routes", "nodes": [
 		{"id": "routes_reward", "cost": 1, "requires_feature": "routes", "effect": {"scope": "routes", "stat": "route_reward_multiplier", "operation": "add_pct", "value": 0.10}},
@@ -25,6 +29,42 @@ const BRANCHES: Array[Dictionary] = [
 		{"id": "events_window", "cost": 3, "requires": ["events_reward"], "requires_feature": "events", "effect": {"scope": "events", "stat": "event_duration_multiplier", "operation": "add_pct", "value": 0.10}},
 	]},
 ]
+
+
+## Retired node ids mapped to their replacement. A save that bought the old node
+## keeps the tier it paid for; it is never silently dropped, because dropping it
+## would spend the shares and hand back nothing.
+const LEGACY_NODE_IDS := {
+	"offline_50": "offline_eff_60",
+	"offline_65": "offline_eff_75",
+	"offline_cap_8h": "offline_cap_12h",
+	"offline_cap_10h": "offline_cap_16h",
+}
+
+
+static func canonical_id(id: StringName) -> StringName:
+	return StringName(LEGACY_NODE_IDS.get(String(id), String(id)))
+
+
+static func purchasable_branches() -> Array[Dictionary]:
+	## Feature-gated branches describe systems nothing reads yet, and
+	## `GameState.buy_prestige_node` refuses them. Showing them anyway put four
+	## priced buttons on the dialog that swallowed the press without a word.
+	## `ProgressionManager` hides feature-gated achievements for the same reason.
+	var result: Array[Dictionary] = []
+	for branch in BRANCHES:
+		if not String(branch.get("requires_feature", "")).is_empty():
+			continue
+		var branch_copy := branch.duplicate(true)
+		var nodes: Array[Dictionary] = []
+		for node: Dictionary in branch_copy.get("nodes", []):
+			if String(node.get("requires_feature", "")).is_empty():
+				nodes.append(node)
+		if nodes.is_empty():
+			continue
+		branch_copy["nodes"] = nodes
+		result.append(branch_copy)
+	return result
 
 
 static func all_nodes() -> Array[Dictionary]:
@@ -63,4 +103,11 @@ static func is_valid() -> bool:
 		for required in node.get("requires", []):
 			if not node_ids.has(StringName(required)):
 				return false
+	for legacy: String in LEGACY_NODE_IDS:
+		# A retired id that still exists would shadow a live node on load, and
+		# one that points nowhere would silently eat the purchase.
+		if node_ids.has(StringName(legacy)):
+			return false
+		if not node_ids.has(StringName(LEGACY_NODE_IDS[legacy])):
+			return false
 	return branch_ids.size() == 5

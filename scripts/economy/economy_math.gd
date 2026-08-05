@@ -6,7 +6,7 @@ const MILESTONES: Array[int] = [10, 25, 50, 100]
 const MAX_BULK_LIMIT := 10_000
 const MAX_BULK_COUNT := MAX_BULK_LIMIT # compatibility for callers/tests
 const PRESTIGE_DIVISOR := 100_000_000.0
-const REBUILD_DISCOUNT := 0.25
+const REBUILD_DISCOUNT := 0.4
 
 
 static func next_cost(base_cost: float, owned: int, growth: float = GROWTH) -> float:

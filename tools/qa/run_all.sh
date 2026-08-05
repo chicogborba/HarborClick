@@ -11,6 +11,9 @@ if [ ! -x "$GODOT" ]; then
 fi
 
 PYTHON="$ROOT/tools/venv/bin/python"
+if [ ! -x "$PYTHON" ]; then
+  PYTHON="${PYTHON_BIN:-python3}"
+fi
 "$PYTHON" tools/docs/generate_code_map.py --check
 "$GODOT" --headless --quiet --path . --editor --quit
 

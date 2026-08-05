@@ -73,24 +73,18 @@ func _test_hud_fixed_tally_geometry() -> void:
 	_expect(_same_rect(readout._rate_label.get_global_rect(), rate_before),
 		"HUD rate line with the TEU unit does not move from 0 to 1e15")
 
-	# set_job_hint is the public text-only berth update entry point. Its chip is
-	# deliberately independent from the tally, so text of any length may resize
-	# the chip but must never move the readout.
-	hud.set_job_hint("Descarga 0/24")
-	await get_tree().process_frame
-	var short_chip := hud._berth_chip.get_global_rect()
+	# The berth tag is gone from the interface: it restated what the port was
+	# already showing and cost a strip of a phone screen to do it. The state still
+	# travels through the same entry point for the accessibility tree and the
+	# tests, but nothing may draw it and nothing may move the tally.
 	var readout_before_hint := hud.readout_rect()
 	hud.set_job_hint("Carregamento em andamento 24/24 — manifesto conferido")
 	await get_tree().process_frame
-	var long_chip := hud._berth_chip.get_global_rect()
-	_expect(hud._job_label.text == "Carregamento em andamento 24/24 — manifesto conferido",
+	_expect(hud.berth_text() == "Carregamento em andamento 24/24 — manifesto conferido",
 		"HUD public text update replaces berth text")
-	_expect(hud._job_label.clip_text,
-		"HUD berth label clips long status text")
-	_expect(hud._job_label.get_global_rect().size.x <= long_chip.size.x,
-		"HUD berth text viewport remains within its chip")
-	_expect(long_chip.size.x > short_chip.size.x and long_chip.end.x <= 360.0,
-		"HUD berth chip grows with its text but stays inside the viewport")
+	for child in hud.get_children():
+		_expect(child == hud._bar or child is Readout,
+			"the gantry carries only the tally, not a berth tag (%s)" % child)
 	_expect(_same_rect(hud.readout_rect(), readout_before_hint),
 		"HUD berth text update does not move the tally")
 

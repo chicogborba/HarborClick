@@ -97,6 +97,7 @@ func _run() -> void:
 	await _test_traffic_denial_and_actor_teardown_release_delivery()
 	await _test_reload_mid_discharge_and_loading()
 	await _test_one_hundred_accelerated_calls()
+	_test_the_berth_never_ends_up_with_nothing_to_do()
 	# Last, because it empties the yard to set up the comparison it needs.
 	_test_the_yard_has_a_direction()
 
@@ -245,10 +246,10 @@ func _test_capacity_and_hud_format() -> void:
 	var hud := Hud.new()
 	add_child(hud)
 	await get_tree().process_frame
-	# The keys moved to the command rail; what the HUD still owns is the tally
-	# and the berth chip, so that is what has to exist before the berth is
-	# allowed to report into it.
-	_expect(hud.readout_rect().size != Vector2.ZERO and hud._berth_chip != null,
+	# The keys moved to the command rail and the berth tag was removed, so the
+	# tally is the whole of the HUD now. It still has to exist before the berth
+	# is allowed to report into it.
+	_expect(hud.readout_rect().size != Vector2.ZERO,
 		"HUD initializes its readout before berth-slot validation")
 	_last_status = {}
 	var on_status := func(status: Dictionary) -> void:
@@ -260,11 +261,10 @@ func _test_capacity_and_hud_format() -> void:
 		"berth status reports the class's slot count")
 	_expect(str(_last_status.get("text", "")) == "Descarga 0/%d" % capacity,
 		"berth status formats discharge slot count")
-	_expect(hud._job_label.text == "Descarga 0/%d" % capacity,
-		"HUD berth slot renders structured status")
-	_expect(hud._berth_chip.visible and hud._job_label.clip_text \
-			and hud._job_label.get_global_rect().size.x <= hud._berth_chip.get_global_rect().size.x,
-		"HUD berth slot is clipped within its dedicated chip")
+	_expect(hud.berth_text() == "Descarga 0/%d" % capacity,
+		"HUD keeps the structured berth state even though nothing draws it")
+	_expect(is_equal_approx(hud.berth_progress(), 0.0),
+		"and the discharge progress it carries")
 	_world.berth.status_changed.disconnect(on_status)
 	hud.free()
 
@@ -306,6 +306,49 @@ func _test_next_ship_can_take_previous_ship_cargo() -> void:
 		"ship B never reloads a box it just discharged")
 	_expect(_same_uid_set(first_imports, second_exports),
 		"ship B may load every box previously discharged by ship A")
+
+
+func _test_the_berth_never_ends_up_with_nothing_to_do() -> void:
+	## The one guarantee the port owes: a tap always leads somewhere. The state
+	## that could break it is a hull that has discharged into a yard holding
+	## nothing else — no free export box, nothing in the air, and a rule saying
+	## this hull may not reload what it just landed. That is a frozen game, so
+	## after `EXPORT_STARVE_GRACE` the call re-handles its own cargo and says so.
+	# Built by hand rather than through `_reset_call`, because the fixture there
+	# delivers a full road manifest and a yard with road cargo in it is exactly
+	# the state that cannot starve.
+	_world.yard.restore({"version": 2, "slots": []})
+	_world.berth.seed_new(1077)
+	_world.ship.position = Vector2(PortLayout.SHIP_X, PortLayout.SHIP_Y)
+	_world.ship.visible = true
+	_world.ship._set_phase(Ship.Phase.DISCHARGING)
+	_world.ship.set_flights_in_progress(0)
+	_complete_discharge("starvation setup")
+	_expect(not _world.berth.can_work(),
+		"a yard holding only this call's imports really does block the load")
+	_expect(_world.berth._in_flight == 0, "and nothing is in the air to wait for")
+	var notices: Array[String] = []
+	var listener := func(notice: Dictionary) -> void:
+		notices.append(str(notice.get("code", "")))
+	_world.berth.notice_requested.connect(listener)
+	# Bounded by what a player will sit through, not by the constant under test:
+	# a limit written as `GRACE + slack` passes whatever the grace is set to.
+	const PATIENCE := 60.0
+	var waited := 0.0
+	while waited < PATIENCE and not _world.berth.can_work():
+		_world.berth.tick(0.25)
+		waited += 0.25
+	_world.berth.notice_requested.disconnect(listener)
+	_expect(_world.berth.can_work(),
+		"the berth frees itself within a minute instead of staying frozen (%.1fs)"
+			% waited)
+	_expect(notices.has("rehandling"),
+		"and tells the player why it broke its own rule")
+	_expect(waited >= BerthCallController.EXPORT_STARVE_GRACE,
+		"it does not break the rule before the grace runs out")
+	_expect(_world.berth.handle_tap(_world.ship.global_position),
+		"and a tap works again")
+	_finish_all_flights("starvation escape")
 
 
 func _test_invalid_click_has_no_reward() -> void:

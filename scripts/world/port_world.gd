@@ -286,7 +286,11 @@ func _ensure_berths() -> void:
 		var index := ships.size()
 		_add_berth(index)
 		EventBus.notification_requested.emit({
-			"id": "berth_open_%d" % index, "kind": &"unlock", "priority": 2,
+			# Routine, not a toast: an announcement about a ship arriving is the
+			# one interruption the player asked to stop seeing. The berth lamps on
+			# the gantry already show a new berth exists, and the Diário keeps the
+			# line.
+			"id": "berth_open_%d" % index, "kind": &"arrival", "priority": 1,
 			"text": "Berço %d liberado. Mais um navio pode atracar." % (index + 1),
 		})
 	_request_arrivals()
@@ -745,7 +749,11 @@ func _on_ship_departed(index: int) -> void:
 	# The berth stays empty for a moment, then books its next call. Counted down in
 	# `_drive_arrivals` rather than awaited on a timer, so the wait is a number the
 	# board can show as an ETA instead of a promise nothing can read.
-	_turnaround[index] = TURNAROUND
+	# The lane the berth just worked decides how long it stands empty. A coastal
+	# run books again almost at once; an ocean crossing leaves the quay quiet.
+	# Without this the cadence in `RouteDB` was data nobody read, and "maior
+	# frete" would have been strictly better than "mais escalas".
+	_turnaround[index] = TURNAROUND * berths[index].lane_interval()
 	_request_arrivals()
 
 

@@ -1,30 +1,119 @@
 class_name EconomySimulator
 extends RefCounted
 ## A deterministic balance sandbox: no Nodes, clocks, autoloads, randomness, or I/O.
+##
+## This is the only honest telemetry a single-player offline game can have, so it
+## has to model the economy the player actually plays: structures *and* upgrades,
+## the prestige reset with its rebuild discount, the golden shares that reset buys,
+## and absences that pay a capped fraction instead of full production. A sandbox
+## that models only the fifteen generators answers questions about a game that
+## does not exist.
+##
+## Land **is** modelled, because it stopped being decoration: every parcel now
+## opens a machine, so a sandbox that ignored it would buy cranes the real game
+## would not sell yet and report a curve nobody can play.
+##
+## Not modelled, on purpose: weather, surges and the cat boost (session-scoped
+## bursts), and cargo flow.
 
 const TICK := 0.25
 const DECISION_INTERVAL := 5.0
-const DEFAULT_ACTIVE_CPS := 3500.0
+## Taps per second of a player who is actually working the ship. A hand does a
+## few per second; it does not do three thousand. Modelling active play as a flat
+## TEU/s floor made every early marker meaningless, because the floor dwarfed the
+## whole early economy from the first tick.
+const DEFAULT_TAPS_PER_SECOND := 4.0
+## 3% of taps pay 7×, so a tap is worth 1.18 of its face value on average
+## (`GameState.CRIT_CHANCE` and `CRIT_MULT`). The sandbox uses the expectation
+## instead of rolling, and stays deterministic.
+const CRIT_EXPECTED_MULTIPLIER := 0.97 + 0.03 * 7.0
+const OFFLINE_EFFICIENCY := 0.5
+const OFFLINE_CAP_SECONDS := 8.0 * 3600.0
+## A run is worth resetting once the shares it would pay beat this share of the
+## level already banked. Below it the reset costs more time than it returns.
+const EFFICIENT_PRESTIGE_RATIO := 0.5
 
 
 static func scenario_names() -> PackedStringArray:
-	return PackedStringArray(["active_90m", "hybrid_120m", "casual_24h", "offline_8h", "wrong_buy", "recovery"])
+	return PackedStringArray(["active_90m", "hybrid_120m", "casual_24h",
+		"offline_night", "wrong_buy", "recovery"])
 
 
 static func scenario_config(name: StringName) -> Dictionary:
 	var base := {
 		"name": String(name), "duration": 90.0 * 60.0, "tick": TICK,
-		"decision_interval": DECISION_INTERVAL, "active_cps": DEFAULT_ACTIVE_CPS,
+		"decision_interval": DECISION_INTERVAL,
+		"taps_per_second": DEFAULT_TAPS_PER_SECOND,
 		"starting_currency": 0.0, "starting_owned": {}, "prestige_level": 0,
-		"max_bulk": 25, "force_wrong_buy": false,
+		"max_bulk": 25,
+		# "greedy" takes the best payback available; "worst" takes the worst one,
+		# every decision, for the whole run. Erring only the first purchase is not
+		# a wrong build, it is a rounding error.
+		"buy_policy": "greedy",
+		# "never", "asap" or "efficient".
+		"prestige_policy": "asap",
+		"spend_shares": true,
+		# A session/absence cycle. `away_seconds` of 0 means the player never
+		# closes the game.
+		"session_seconds": 0.0, "away_seconds": 0.0,
+		# Seeds for asking "how long to rebuild this port", not for a scenario.
+		"starting_upgrades": {}, "starting_tree_nodes": {},
+		"starting_rebuild_targets": {}, "stop_at_production": 0.0,
+		"offline_efficiency": OFFLINE_EFFICIENCY,
+		"offline_cap_seconds": OFFLINE_CAP_SECONDS,
 	}
 	match name:
-		&"hybrid_120m": base.merge({"duration": 120.0 * 60.0, "active_cps": 6500.0}, true)
-		&"casual_24h": base.merge({"duration": 24.0 * 3600.0, "active_cps": 30.0}, true)
-		&"offline_8h": base.merge({"duration": 8.0 * 3600.0, "active_cps": 0.0, "starting_owned": {"estivador": 10, "empilhadeira": 4}}, true)
-		&"wrong_buy": base.merge({"duration": 120.0 * 60.0, "active_cps": 6500.0, "starting_currency": 1200.0, "force_wrong_buy": true}, true)
-		&"recovery": base.merge({"duration": 30.0 * 60.0, "active_cps": 22000.0, "starting_currency": 0.0}, true)
+		&"hybrid_120m":
+			base.merge({"duration": 120.0 * 60.0, "taps_per_second": 2.0,
+				"session_seconds": 20.0 * 60.0, "away_seconds": 40.0 * 60.0}, true)
+		&"casual_24h":
+			# Four short sessions a day, not a player tapping for 24 hours.
+			base.merge({"duration": 24.0 * 3600.0, "taps_per_second": 1.0,
+				"session_seconds": 5.0 * 60.0, "away_seconds": 5.75 * 3600.0}, true)
+		&"offline_night":
+			# A short session to set the port up, then ten hours away: two more
+			# than the cap, so `capped_away_seconds` reports what the player lost
+			# by sleeping. An absence that fits inside the cap proves nothing.
+			base.merge({"duration": 10.0 * 3600.0 + 300.0, "taps_per_second": 2.0,
+				"starting_owned": {"estivador": 10, "empilhadeira": 4},
+				"session_seconds": 300.0, "away_seconds": 10.0 * 3600.0}, true)
+		&"wrong_buy":
+			# Identical to `hybrid_120m` in every way except the policy, so the
+			# two results subtract. A scenario with its own duration and starting
+			# wallet answers a different question than the one it was named for.
+			base.merge({"duration": 120.0 * 60.0, "taps_per_second": 2.0,
+				"session_seconds": 20.0 * 60.0, "away_seconds": 40.0 * 60.0,
+				"buy_policy": "worst"}, true)
+		&"recovery":
+			# Long enough to reach the first reset and rebuild past it, which is
+			# the only way `first_recovery_seconds` can report anything.
+			base.merge({"duration": 4.0 * 3600.0}, true)
 	return base
+
+
+static func estimate_rebuild_seconds(snapshot: Dictionary,
+		budget_seconds: float = 4.0 * 3600.0) -> float:
+	## "You get this peak back in about N minutes" — the question the prestige
+	## dialog could not answer. The port is rebuilt from zero with the discount
+	## its own peak earns and the meta multiplier the reset is about to pay, then
+	## run until it passes the production being given up. Returns -1 when the
+	## budget runs out, which is itself an answer worth showing.
+	var target := maxf(0.0, float(snapshot.get("target_production", 0.0)))
+	if target <= 0.0:
+		return 0.0
+	var config := scenario_config(&"rebuild_estimate")
+	config.merge({
+		"duration": maxf(0.0, budget_seconds),
+		"taps_per_second": float(snapshot.get("taps_per_second", 0.0)),
+		"prestige_level": maxi(0, int(snapshot.get("prestige_level", 0))),
+		"prestige_policy": "never",
+		"spend_shares": false,
+		"starting_tree_nodes": snapshot.get("tree_nodes", {}),
+		"starting_rebuild_targets": snapshot.get("rebuild_targets", {}),
+		"stop_at_production": target,
+	}, true)
+	var result := run(config)
+	return float(result.markers.get("target_reached_at", -1.0))
 
 
 static func run_scenario(name: StringName, overrides: Dictionary = {}) -> Dictionary:
@@ -40,32 +129,148 @@ static func run(config: Dictionary) -> Dictionary:
 		return {"error": "tick and decision_interval must be positive"}
 	var state := _new_state(config)
 	var duration := maxf(0.0, float(config.get("duration", 0.0)))
+	var session_seconds := maxf(0.0, float(config.get("session_seconds", 0.0)))
+	var away_seconds := maxf(0.0, float(config.get("away_seconds", 0.0)))
+	var stop_at := maxf(0.0, float(config.get("stop_at_production", 0.0)))
 	var next_decision := 0.0
+	var session_left := session_seconds if session_seconds > 0.0 else INF
 	while state.elapsed < duration - 0.0000001:
-		var step := minf(tick, duration - state.elapsed)
+		if session_left <= 0.0000001 and away_seconds > 0.0:
+			_apply_absence(state, config, minf(away_seconds, duration - state.elapsed))
+			session_left = session_seconds
+			next_decision = state.elapsed
+			continue
+		var step := minf(minf(tick, session_left), duration - state.elapsed)
 		var passive := production_per_second(state)
-		var active := float(config.get("active_cps", DEFAULT_ACTIVE_CPS)) * EconomyMath.prestige_multiplier(int(state.prestige_level))
+		var active := active_income_per_second(state, config)
 		var earned := (passive + active) * step
-		state.currency += earned
-		state.all_time_productive += earned
+		_credit(state, earned, passive)
 		state.elapsed += step
+		session_left -= step
 		if earned > 0.0 and state.markers.first_reward < 0.0:
 			state.markers.first_reward = state.elapsed
 		if passive > 0.0 and state.markers.first_passive < 0.0:
 			state.markers.first_passive = state.elapsed
-		if EconomyMath.prestige_potential(state.all_time_productive) >= 1 and state.markers.first_prestige < 0.0:
+		if EconomyMath.prestige_potential(state.all_time_productive) >= 1 \
+				and state.markers.first_prestige < 0.0:
 			state.markers.first_prestige = state.elapsed
+		_track_recovery(state, passive)
+		if stop_at > 0.0 and passive >= stop_at:
+			state.markers.target_reached_at = state.elapsed
+			break
 		while state.elapsed + 0.0000001 >= next_decision:
+			_consider_prestige(state, config)
+			_spend_shares(state, config)
 			_make_decision(state, config)
 			next_decision += decision_interval
 	return summary(state, config)
 
 
+static func _credit(state: Dictionary, amount: float, production: float) -> void:
+	## `production` is passed in rather than recomputed: this runs once per tick
+	## and the formula walks every structure and every upgrade.
+	if amount <= 0.0:
+		return
+	state.currency += amount
+	state.all_time_productive += amount
+	state.run_peak_production = maxf(float(state.run_peak_production), production)
+
+
+static func _apply_absence(state: Dictionary, config: Dictionary, seconds: float) -> void:
+	## The port keeps working while the game is closed, but only up to the cap and
+	## only at the configured efficiency. Charging full production for an absence
+	## is the difference between "the night paid for a new crane" and "the night
+	## paid for half of one", and the whole point of the offline scenario.
+	if seconds <= 0.0:
+		return
+	# The offline branch of the capital tree raises both, so shares actually buy
+	# something the absence scenarios can see.
+	var cap := tree_offline_value(state, &"offline_cap_seconds",
+		maxf(0.0, float(config.get("offline_cap_seconds", OFFLINE_CAP_SECONDS))))
+	var efficiency := clampf(tree_offline_value(state, &"offline_efficiency",
+		float(config.get("offline_efficiency", OFFLINE_EFFICIENCY))), 0.0, 1.0)
+	var production := production_per_second(state)
+	var credited := minf(seconds, cap)
+	_credit(state, production * credited * efficiency, production)
+	state.absent_seconds += seconds
+	state.capped_away_seconds += maxf(0.0, seconds - credited)
+	state.elapsed += seconds
+	if state.markers.first_passive < 0.0 and production > 0.0:
+		state.markers.first_passive = state.elapsed
+
+
+static func click_power(state: Dictionary) -> float:
+	## Mirrors `GameState.recompute`: a flat part that only click upgrades and the
+	## capital tree move, plus a share of production. Note what it does *not*
+	## contain — the meta multiplier. Tapping only rides prestige through the
+	## `cps_per_tap` term, so an active player falls behind an idle one by design.
+	var click_mult := 1.0
+	var click_cps_pct := 0.0
+	for up in UpgradeDB.ITEMS:
+		if not state.upgrades.has(String(up.id)):
+			continue
+		match up.get("kind"):
+			"click_mult": click_mult *= float(up.value)
+			"click_cps_pct": click_cps_pct += float(up.value)
+	var flat := click_mult * _tree_multiplier(state, &"manual", &"click_multiplier")
+	var share := click_cps_pct + _tree_additive(state, &"manual", &"cps_per_tap")
+	return flat + production_per_second(state) * share
+
+
+static func active_income_per_second(state: Dictionary, config: Dictionary) -> float:
+	return maxf(0.0, float(config.get("taps_per_second", DEFAULT_TAPS_PER_SECOND))) \
+		* click_power(state) * CRIT_EXPECTED_MULTIPLIER
+
+
+static func unit_cps(state: Dictionary, item: Dictionary) -> float:
+	## One unit's production with its fitted upgrades, mirroring
+	## `GameState.structure_cps`.
+	var value := float(item.cps)
+	for up in UpgradeDB.ITEMS:
+		if up.get("kind") != "structure_mult" or String(up.get("target", "")) != String(item.id):
+			continue
+		if state.upgrades.has(String(up.id)):
+			value *= float(up.value)
+	return value
+
+
+static func global_multiplier(state: Dictionary) -> float:
+	## `GameState` applies the meta multiplier, both capital-tree cps scopes and
+	## every `global_mult` upgrade to the same product. The sandbox mirrors that
+	## exactly, including the fact that the `structures` scope is not actually
+	## scoped to structures.
+	var value := EconomyMath.prestige_multiplier(int(state.prestige_level)) \
+		* _tree_multiplier(state, &"structures", &"cps_multiplier") \
+		* _tree_multiplier(state, &"global", &"cps_multiplier")
+	for up in UpgradeDB.ITEMS:
+		if up.get("kind") == "global_mult" and state.upgrades.has(String(up.id)):
+			value *= float(up.value)
+	return value
+
+
+static func _refresh_derived(state: Dictionary) -> void:
+	## Production is read every tick and the honest formula walks every structure
+	## against every upgrade. Only upgrades, tree nodes and prestige move these
+	## factors, so they are recomputed on purchase instead of on read.
+	var cache: Dictionary = {}
+	for item in EconomyCatalog.ITEMS:
+		cache[item.id] = unit_cps(state, item)
+	state.unit_cps_cache = cache
+	state.global_mult_cache = global_multiplier(state)
+
+
 static func production_per_second(state: Dictionary) -> float:
+	var cache: Variant = state.get("unit_cps_cache")
+	var multiplier: Variant = state.get("global_mult_cache")
+	if not (cache is Dictionary) or not (multiplier is float):
+		# Hand-built states (tests, probes) never went through `_new_state`.
+		_refresh_derived(state)
+		cache = state.unit_cps_cache
+		multiplier = state.global_mult_cache
 	var total := 0.0
-	for item in EconomyCatalog.all():
-		total += EconomyMath.total_cps(float(item.cps), int(state.owned.get(item.id, 0)))
-	return total * EconomyMath.prestige_multiplier(int(state.prestige_level))
+	for id: String in cache:
+		total += EconomyMath.total_cps(float(cache[id]), int(state.owned.get(id, 0)))
+	return total * float(multiplier)
 
 
 static func summary(state: Dictionary, config: Dictionary = {}) -> Dictionary:
@@ -77,8 +282,18 @@ static func summary(state: Dictionary, config: Dictionary = {}) -> Dictionary:
 		"production_per_second": production_per_second(state),
 		"owned": state.owned.duplicate(),
 		"total_owned": _total_owned(state.owned),
+		"distinct_owned": _distinct_owned(state.owned),
+		"land": state.land.keys(),
+		"upgrades": state.upgrades.keys(),
+		"tree_nodes": state.tree_nodes.keys(),
 		"purchases": state.purchases,
 		"prestige_potential": EconomyMath.prestige_potential(state.all_time_productive),
+		"prestige_count": state.prestige_count,
+		"prestige_level": state.prestige_level,
+		"shares": state.shares,
+		"runs": state.runs,
+		"absent_seconds": state.absent_seconds,
+		"capped_away_seconds": state.capped_away_seconds,
 		"markers": state.markers.duplicate(),
 	}
 
@@ -87,57 +302,281 @@ static func _new_state(config: Dictionary) -> Dictionary:
 	var owned: Dictionary = {}
 	for item in EconomyCatalog.all():
 		owned[item.id] = maxi(0, int(config.get("starting_owned", {}).get(item.id, 0)))
-	return {
+	var state := {
 		"elapsed": 0.0,
 		"currency": maxf(0.0, float(config.get("starting_currency", 0.0))),
 		"all_time_productive": 0.0,
 		"prestige_level": maxi(0, int(config.get("prestige_level", 0))),
+		"prestige_count": 0,
+		"shares": 0,
 		"owned": owned,
+		"land": {},
+		"upgrades": (config.get("starting_upgrades", {}) as Dictionary).duplicate(),
+		"tree_nodes": (config.get("starting_tree_nodes", {}) as Dictionary).duplicate(),
+		"rebuild_targets": (config.get("starting_rebuild_targets", {}) as Dictionary).duplicate(),
 		"purchases": [],
-		"markers": {"first_reward": -1.0, "first_passive": -1.0, "first_choice": -1.0, "three_owned": -1.0, "first_prestige": -1.0},
+		"runs": [],
+		"run_started_at": 0.0,
+		"run_peak_production": 0.0,
+		"pending_recovery_target": 0.0,
+		"pending_recovery_from": -1.0,
+		"absent_seconds": 0.0,
+		"capped_away_seconds": 0.0,
+		"markers": {"first_reward": -1.0, "first_passive": -1.0,
+			"first_choice": -1.0, "three_owned": -1.0, "first_prestige": -1.0,
+			"first_recovery_seconds": -1.0, "target_reached_at": -1.0},
 	}
+	_refresh_derived(state)
+	return state
+
+
+static func _consider_prestige(state: Dictionary, config: Dictionary) -> void:
+	## `GameState.do_prestige`, minus the presentation: banked shares grow, the
+	## port is cleared, and the peak becomes a rebuild discount on the next run.
+	var policy := String(config.get("prestige_policy", "asap"))
+	if policy == "never":
+		return
+	var gain: int = maxi(0, EconomyMath.prestige_potential(state.all_time_productive)
+		- int(state.prestige_level))
+	if gain <= 0:
+		return
+	if policy == "efficient" \
+			and gain < maxi(1, int(float(state.prestige_level) * EFFICIENT_PRESTIGE_RATIO)):
+		return
+	var before := production_per_second(state)
+	for id: String in state.owned:
+		state.rebuild_targets[id] = maxi(int(state.rebuild_targets.get(id, 0)),
+			int(state.owned[id]))
+		state.owned[id] = 0
+	state.upgrades.clear()
+	state.currency = 0.0
+	state.shares += gain
+	state.prestige_level += gain
+	state.prestige_count += 1
+	state.runs.append({
+		"ended_at": state.elapsed,
+		"duration": state.elapsed - float(state.run_started_at),
+		"peak_production": float(state.run_peak_production),
+		"gain": gain,
+	})
+	state.run_started_at = state.elapsed
+	state.run_peak_production = 0.0
+	_refresh_derived(state)
+	# The question the prestige dialog cannot answer yet: how long until this
+	# port is back where it was.
+	if state.pending_recovery_from < 0.0 and before > 0.0:
+		state.pending_recovery_target = before
+		state.pending_recovery_from = state.elapsed
+
+
+static func _track_recovery(state: Dictionary, production: float) -> void:
+	if state.pending_recovery_from < 0.0:
+		return
+	if state.markers.first_recovery_seconds >= 0.0:
+		return
+	if production >= float(state.pending_recovery_target):
+		state.markers.first_recovery_seconds = state.elapsed - float(state.pending_recovery_from)
+
+
+static func _tree_multiplier(state: Dictionary, scope: StringName, stat: StringName) -> float:
+	var multiplier := 1.0
+	for node_id: String in state.tree_nodes:
+		var effect: Dictionary = PrestigeDB.get_node(node_id).get("effect", {})
+		if StringName(effect.get("scope", "")) == scope \
+				and StringName(effect.get("stat", "")) == stat \
+				and effect.get("operation", "") == "add_pct":
+			multiplier += float(effect.get("value", 0.0))
+	return multiplier
+
+
+static func _tree_additive(state: Dictionary, scope: StringName, stat: StringName) -> float:
+	var value := 0.0
+	for node_id: String in state.tree_nodes:
+		var effect: Dictionary = PrestigeDB.get_node(node_id).get("effect", {})
+		if StringName(effect.get("scope", "")) == scope \
+				and StringName(effect.get("stat", "")) == stat \
+				and effect.get("operation", "") == "add_pct":
+			value += float(effect.get("value", 0.0))
+	return value
+
+
+static func tree_offline_value(state: Dictionary, stat: StringName, base: float) -> float:
+	var value := base
+	for node_id: String in state.tree_nodes:
+		var effect: Dictionary = PrestigeDB.get_node(node_id).get("effect", {})
+		if StringName(effect.get("scope", "")) == &"offline" \
+				and StringName(effect.get("stat", "")) == stat \
+				and effect.get("operation", "") == "set":
+			value = maxf(value, float(effect.get("value", base)))
+	return value
+
+
+static func _spend_shares(state: Dictionary, config: Dictionary) -> void:
+	## Golden shares are a currency with sinks. Leaving them unspent modelled a
+	## player who prestiges and then ignores the only thing prestige buys.
+	if not bool(config.get("spend_shares", true)) or int(state.shares) <= 0:
+		return
+	var bought := true
+	while bought:
+		bought = false
+		for branch in PrestigeDB.purchasable_branches():
+			for node: Dictionary in branch.get("nodes", []):
+				var id := String(node.get("id", ""))
+				if state.tree_nodes.has(id):
+					continue
+				var cost := int(node.get("cost", 0))
+				if cost <= 0 or int(state.shares) < cost:
+					continue
+				var blocked := false
+				for required in node.get("requires", []):
+					if not state.tree_nodes.has(String(required)):
+						blocked = true
+				if blocked:
+					continue
+				state.shares -= cost
+				state.tree_nodes[id] = true
+				bought = true
+	_refresh_derived(state)
 
 
 static func _make_decision(state: Dictionary, config: Dictionary) -> void:
 	var choice := _best_choice(state, config)
 	if choice.is_empty():
 		return
-	var item: Dictionary = choice.item
-	var amount := int(choice.amount)
-	var cost := float(choice.cost)
-	state.currency = maxf(0.0, state.currency - cost)
-	state.owned[item.id] = int(state.owned.get(item.id, 0)) + amount
-	state.purchases.append({"at": state.elapsed, "id": item.id, "amount": amount, "cost": cost})
+	state.currency = maxf(0.0, state.currency - float(choice.cost))
+	if String(choice.kind) == "land":
+		state.land[String(choice.id)] = true
+	elif String(choice.kind) == "upgrade":
+		state.upgrades[String(choice.id)] = true
+		_refresh_derived(state)
+	else:
+		state.owned[choice.id] = int(state.owned.get(choice.id, 0)) + int(choice.amount)
+	state.purchases.append({"at": state.elapsed, "kind": choice.kind,
+		"id": choice.id, "amount": choice.amount, "cost": choice.cost})
 	if state.markers.first_choice < 0.0:
 		state.markers.first_choice = state.elapsed
-	if _total_owned(state.owned) >= 3 and state.markers.three_owned < 0.0:
+	# Three *kinds* of machine, not three machines. The goal is "three visually
+	# different unlocks"; ten dockworkers are one thing on screen.
+	if _distinct_owned(state.owned) >= 3 and state.markers.three_owned < 0.0:
 		state.markers.three_owned = state.elapsed
 
 
 static func _best_choice(state: Dictionary, config: Dictionary) -> Dictionary:
-	var force_wrong: bool = bool(config.get("force_wrong_buy", false)) and state.purchases.is_empty()
+	## Everything the wallet can reach is scored on the same denominator — the
+	## production a TEU buys — so an upgrade and a crane compete directly.
+	var worst := String(config.get("buy_policy", "greedy")) == "worst"
+	var options := _affordable_options(state, config)
 	var selected: Dictionary = {}
 	var best_score := -1.0
+	for option: Dictionary in options:
+		var score := float(option.score)
+		if score <= 0.0:
+			continue
+		if selected.is_empty() \
+				or (score > best_score if not worst else score < best_score):
+			best_score = score
+			selected = option
+	return selected
+
+
+static func _affordable_options(state: Dictionary, config: Dictionary) -> Array[Dictionary]:
+	var options: Array[Dictionary] = []
+	var current := production_per_second(state) + active_income_per_second(state, config)
+	var max_bulk: int = maxi(1, int(config.get("max_bulk", 25)))
+	for parcel in LandDB.ITEMS:
+		var parcel_id := String(parcel.id)
+		if state.land.has(parcel_id):
+			continue
+		# Parcels open in order, so only the next one is ever on the board.
+		var cost_of_land := float(parcel.cost)
+		if cost_of_land > state.currency:
+			break
+		# Land produces nothing, so it can never win on payback. It is scored on
+		# what it *opens*: the machine behind the gate, at that machine's own
+		# rate. Without this the agent would never buy ground and would stall at
+		# the first gate, which is exactly what a greedy player would do if the
+		# shop did not tell them why the crane is grey.
+		var opened := EconomyCatalog.get_item(StringName(str(parcel.get("unlocks", ""))))
+		var worth := 0.0
+		if not opened.is_empty():
+			worth = EconomyMath.total_cps(unit_cps(state, opened), 1) \
+				* global_multiplier(state)
+		options.append({"kind": "land", "id": parcel_id, "amount": 1,
+			"cost": cost_of_land, "score": worth / cost_of_land})
+		break
 	for item in EconomyCatalog.all():
+		if not _structure_unlocked(state, String(item.id)):
+			continue
 		var owned := int(state.owned.get(item.id, 0))
-		var affordable := EconomyMath.max_affordable(float(item.base_cost), owned, state.currency)
+		var target := int(state.rebuild_targets.get(item.id, 0))
+		var affordable := EconomyMath.max_affordable_discounted(float(item.base_cost),
+			owned, state.currency, target)
 		if affordable <= 0:
 			continue
-		var amount: int = mini(affordable, maxi(1, int(config.get("max_bulk", 25))))
-		if force_wrong:
-			if item.id != "estivador":
-				continue
-			amount = 1
-		var impact := EconomyMath.purchase_impact(float(item.base_cost), float(item.cps), owned, amount)
-		var score := float(impact.cps_gain) / maxf(0.000001, float(impact.cost))
-		if score > best_score:
-			best_score = score
-			selected = {"item": item, "amount": amount, "cost": impact.cost}
-	return selected
+		var amount: int = mini(affordable, max_bulk)
+		var cost := EconomyMath.discounted_bulk_cost(float(item.base_cost), owned,
+			amount, target)
+		if not is_finite(cost) or cost <= 0.0:
+			continue
+		var gain := EconomyMath.total_cps(unit_cps(state, item), owned + amount) \
+			- EconomyMath.total_cps(unit_cps(state, item), owned)
+		options.append({"kind": "structure", "id": item.id, "amount": amount,
+			"cost": cost, "score": gain * global_multiplier(state) / cost})
+	for up in UpgradeDB.ITEMS:
+		var id := String(up.id)
+		if state.upgrades.has(id) or not _upgrade_unlocked(state, up):
+			continue
+		var cost: float = float(up.cost)
+		if cost <= 0.0 or cost > state.currency:
+			continue
+		# Scored on total income, not production. A click upgrade moves no
+		# production at all, so on a production-only denominator it would score
+		# zero forever and the greedy agent would never buy one.
+		var gain := _income_with_upgrade(state, config, id) - current
+		if gain <= 0.0:
+			continue
+		options.append({"kind": "upgrade", "id": id, "amount": 1,
+			"cost": cost, "score": gain / cost})
+	return options
+
+
+static func _income_with_upgrade(state: Dictionary, config: Dictionary, id: String) -> float:
+	var probe: Dictionary = state.duplicate()
+	probe.upgrades = state.upgrades.duplicate()
+	probe.upgrades[id] = true
+	_refresh_derived(probe)
+	return production_per_second(probe) + active_income_per_second(probe, config)
+
+
+static func _structure_unlocked(state: Dictionary, id: String) -> bool:
+	## Mirrors `GameState.structure_unlocked`.
+	var gate := LandDB.gate_for(id)
+	return gate.is_empty() or state.land.has(String(gate.id))
+
+
+static func _upgrade_unlocked(state: Dictionary, item: Dictionary) -> bool:
+	## Mirrors `GameState.upgrade_unlocked`. The sandbox has a single income
+	## stream, so lifetime TEUs and productive TEUs are the same number.
+	var unlock: Dictionary = item.get("unlock", {})
+	if unlock.has("teus") and float(state.all_time_productive) < float(unlock.teus):
+		return false
+	if unlock.has("owned"):
+		for sid: String in unlock.owned:
+			if int(state.owned.get(sid, 0)) < int(unlock.owned[sid]):
+				return false
+	return true
 
 
 static func _total_owned(owned: Dictionary) -> int:
 	var total := 0
 	for amount in owned.values():
 		total += int(amount)
+	return total
+
+
+static func _distinct_owned(owned: Dictionary) -> int:
+	var total := 0
+	for amount in owned.values():
+		if int(amount) > 0:
+			total += 1
 	return total
