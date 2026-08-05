@@ -174,11 +174,20 @@ static func bake(world_h: int) -> ImageTexture:
 
 
 static func _paint_sector_washes(img: Image) -> void:
+	## Which yard each block is, and — the part that was missing — **which way
+	## its cargo leaves**.
+	##
+	## The wash and the stencil already said import or export. What nobody could
+	## see was that those two words are directions: landward stacks empty through
+	## the gate, seaward stacks empty onto a hull. So every block now carries a
+	## chevron pointing the way its boxes go, painted at the head of the block
+	## where a driver would read it. `PortLayout.role_heads_seaward` decides both
+	## the arrow and the routing, so the paint cannot lie about the traffic.
 	for block_index in PortLayout.block_count():
 		var origin := PortLayout.block_origin(block_index)
-		var col := block_index % PortLayout.BLOCK_COLUMNS
-		var export_sector := col == PortLayout.BLOCK_COLUMNS - 1
-		var tint := Color8(52, 144, 134) if export_sector else Color8(211, 151, 56)
+		var role := PortLayout.block_role(block_index)
+		var seaward := PortLayout.role_heads_seaward(role)
+		var tint := ROLE_TINTS.get(role, Color8(211, 151, 56)) as Color
 		var x0 := int(origin.x)
 		var y0 := int(origin.y)
 		for y in range(y0, int(origin.y + PortLayout.BLOCK_H)):
@@ -187,8 +196,35 @@ static func _paint_sector_washes(img: Image) -> void:
 					_mix_pixel(img, x, y, tint, 0.14)
 		@warning_ignore("integer_division")
 		var row: int = block_index / PortLayout.BLOCK_COLUMNS
-		_draw_stencil(img, ("E" if export_sector else "I") + str(row + 1),
-			x0 + 3, y0 - 10, tint.lightened(0.28))
+		var label := ROLE_LABELS.get(role, "I") as String
+		_draw_stencil(img, label + str(row + 1), x0 + 3, y0 - 10,
+			tint.lightened(0.28))
+		# The buffer takes either, so it gets no arrow: an arrow that means "one
+		# of two ways" is worse than none.
+		if role == PortLayout.ROLE_BUFFER:
+			continue
+		# Beside the label rather than under it. The first attempt put the arrows
+		# on the driving lane, where they landed on the dashed centre line and
+		# were unreadable — a direction marking has to be on the block it is
+		# describing, next to the word it qualifies.
+		# `_draw_horizontal_chevron` puts its apex at `cx` and opens *away* from
+		# it, so the flag it takes is which way the chevron opens, not which way
+		# it points. An arrow has to point where the traffic goes.
+		var arrow := tint.lightened(0.4)
+		for step in 2:
+			_draw_horizontal_chevron(img, x0 + 17 + step * 4, y0 - 7,
+				not seaward, arrow)
+
+
+## What each yard is called on the ground, and the tint its bays are washed in.
+const ROLE_LABELS := {
+	&"import": "I", &"export": "E", &"buffer": "B",
+}
+const ROLE_TINTS := {
+	&"import": Color8(211, 151, 56),
+	&"export": Color8(52, 144, 134),
+	&"buffer": Color8(150, 142, 156),
+}
 
 
 static func _paint_road_signage(img: Image, paved_bottom: int) -> void:

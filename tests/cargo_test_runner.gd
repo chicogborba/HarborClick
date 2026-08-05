@@ -97,6 +97,8 @@ func _run() -> void:
 	await _test_traffic_denial_and_actor_teardown_release_delivery()
 	await _test_reload_mid_discharge_and_loading()
 	await _test_one_hundred_accelerated_calls()
+	# Last, because it empties the yard to set up the comparison it needs.
+	_test_the_yard_has_a_direction()
 
 	if is_instance_valid(_world):
 		_world.free()
@@ -115,6 +117,62 @@ func _run() -> void:
 			push_error(failure)
 		print("CARGO TESTS FAILED: %d assertion(s)" % failures.size())
 		get_tree().quit(1)
+
+
+func _test_the_yard_has_a_direction() -> void:
+	## The complaint this exists for: "the machines just move boxes from one
+	## corner to another with no sense."
+	##
+	## They did. A load took whatever stack was tallest, so it could reach into
+	## the import yard standing beside the gate and drive the box the whole width
+	## of the terminal, straight past the export stacks parked under the crane.
+	## Nothing about that is wrong in cargo terms — it is transhipment, and it
+	## still is — but it made the terminal look like it had no in and no out.
+	##
+	## The yards are geometric and permanent: landward is where boxes wait for a
+	## lorry, seaward is where they wait for a hull, and the middle is buffer. So
+	## the two long hauls run in opposite directions across the terminal and the
+	## short ones do not.
+	var yard: ContainerYard = _world.yard
+	_expect(PortLayout.block_role(0) == PortLayout.ROLE_IMPORT,
+		"the landward column is the import yard, beside the gate")
+	_expect(PortLayout.block_role(PortLayout.BLOCK_COLUMNS - 1)
+			== PortLayout.ROLE_EXPORT,
+		"the seaward column is the export yard, beside the cranes")
+	_expect(PortLayout.role_heads_seaward(PortLayout.ROLE_EXPORT)
+			and not PortLayout.role_heads_seaward(PortLayout.ROLE_IMPORT),
+		"and the two yards send their cargo opposite ways")
+
+	# One box in each yard, the landward stack deliberately the taller of the
+	# two — under the old "tallest wins" rule that is the one a load would take.
+	yard.restore({"version": 2, "slots": []})
+	var landward := _slot_in_role(yard, PortLayout.ROLE_IMPORT)
+	var seaward := _slot_in_role(yard, PortLayout.ROLE_EXPORT)
+	_expect(landward >= 0 and seaward >= 0,
+		"the yard has both a landward and a seaward stack to choose between")
+	for level in 2:
+		yard.place(landward, level, 1)
+	yard.place(seaward, 0, 2)
+
+	var loaded := yard.take_exportable()
+	_expect(int(loaded.get("slot", -1)) == seaward,
+		"a hull is loaded from the seaward yard even when landward is taller")
+
+	# And the road takes from the landward yard, which is the mirror of it.
+	yard.restore({"version": 2, "slots": []})
+	for level in 2:
+		yard.place(_slot_in_role(yard, PortLayout.ROLE_EXPORT), level, 3)
+	yard.place(_slot_in_role(yard, PortLayout.ROLE_IMPORT), 0, 4)
+	_expect(yard.slot_role(yard.road_pickup_slot()) == PortLayout.ROLE_IMPORT,
+		"a lorry collects from the landward yard even when seaward is taller")
+	yard.restore({"version": 2, "slots": []})
+
+
+func _slot_in_role(yard: ContainerYard, role: StringName) -> int:
+	for slot in yard.total_slots():
+		if yard.slot_role(slot) == role:
+			return slot
+	return -1
 
 
 func _test_inaugural_road_manifest() -> void:

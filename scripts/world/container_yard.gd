@@ -90,17 +90,38 @@ func level_position(index: int, level: int) -> Vector2:
 	return slot_position(index) - Vector2(0, level * PortLayout.BOX_LIFT)
 
 
-func slot_sector(slot: int) -> StringName:
-	## Sector assignment is geometric, never relative to yard size: buying land
-	## must not turn existing import stacks into exports.
+func slot_block(slot: int) -> int:
 	@warning_ignore("integer_division") var block := slot / SLOTS_PER_BLOCK
-	var block_column := posmod(block, PortLayout.BLOCK_COLUMNS)
-	return CargoUnit.EXPORT if block_column == PortLayout.BLOCK_COLUMNS - 1 else CargoUnit.IMPORT
+	return block
+
+
+func slot_role(slot: int) -> StringName:
+	## Which yard this slot belongs to. Geometric, never relative to yard size:
+	## buying land must not turn existing import stacks into exports.
+	return PortLayout.block_role(slot_block(slot))
+
+
+func slot_sector(slot: int) -> StringName:
+	## The sector a box landing here is filed under. Buffer takes either, and
+	## files as import, because a box with nowhere else to go is a box waiting on
+	## the road rather than one promised to a hull.
+	return CargoUnit.EXPORT if slot_role(slot) == PortLayout.ROLE_EXPORT \
+		else CargoUnit.IMPORT
 
 
 func pick_landing_slot(sector: StringName = CargoUnit.IMPORT) -> Dictionary:
-	## Full means full.  Previous code silently removed a random stack here,
-	## which broke both manifests and player trust.
+	## Where a box of this sector is put down.
+	##
+	## Full means full, and deliberately so on both counts. Earlier code silently
+	## removed a random stack to make room, which broke manifests and player
+	## trust. Later work tried the opposite — overflowing an arriving import into
+	## the export stacks — and that is worse in a quieter way: it removes the one
+	## piece of pressure that makes buying land mean anything, and it puts a box
+	## bound for the gate in the yard a crane loads from, which is exactly the
+	## incoherent shuffling the yards exist to stop.
+	##
+	## Landing stays inside the sector's own yard. Which *stack* inside it is the
+	## shallowest, so blocks fill evenly rather than growing one tower.
 	if _levels.is_empty():
 		return {}
 	var best := PortLayout.STACK_MAX + 1
@@ -114,7 +135,8 @@ func pick_landing_slot(sector: StringName = CargoUnit.IMPORT) -> Dictionary:
 		return {}
 	var candidates: Array[int] = []
 	for slot in _levels.size():
-		if slot_sector(slot) == sector and not _slot_is_reserved(slot) and _levels[slot] == best:
+		if slot_sector(slot) == sector and not _slot_is_reserved(slot) \
+				and _levels[slot] == best:
 			candidates.append(slot)
 	if candidates.is_empty():
 		return {}
@@ -240,7 +262,9 @@ func road_pickup_slot(priority_uids: PackedStringArray = PackedStringArray(),
 				best_priority_height = height
 				best_priority = slot
 			continue
-		if unit.sector == CargoUnit.IMPORT and height > best_import_height:
+		# Landward first: a box in the import yard is standing beside the gate
+		# precisely because a lorry is what takes it away.
+		if slot_role(slot) == PortLayout.ROLE_IMPORT and height > best_import_height:
 			best_import_height = height
 			best_import = slot
 		if height > best_any_height:
@@ -265,6 +289,34 @@ func take_for_road(excluded_uids: PackedStringArray = PackedStringArray(),
 	return {} if slot < 0 else _take_top(slot, &"", excluded_uids)
 
 
+func export_pickup_slot(import_uids: PackedStringArray) -> int:
+	## Which stack a hull is loaded from, and the other half of the terminal's
+	## sense of direction.
+	##
+	## This used to be "whatever is tallest", which is why the machines looked
+	## like they were shuffling boxes: a load could reach into the import yard
+	## right beside the gate and drive the box the whole width of the terminal
+	## past the export stacks standing under the crane. The seaward yard is asked
+	## first now, then the buffer, then — only because a berth must never stall —
+	## the import yard.
+	for role: StringName in [PortLayout.ROLE_EXPORT, PortLayout.ROLE_BUFFER,
+			PortLayout.ROLE_IMPORT]:
+		var best := -1
+		var best_height := 0
+		for slot in _levels.size():
+			if slot_role(slot) != role or _slot_is_reserved(slot):
+				continue
+			var stack: Array = _units.get(slot, [])
+			if stack.is_empty() or import_uids.has((stack.back() as CargoUnit).uid):
+				continue
+			if stack.size() > best_height:
+				best_height = stack.size()
+				best = slot
+		if best >= 0:
+			return best
+	return -1
+
+
 func take_exportable(import_uids: PackedStringArray = PackedStringArray()) -> Dictionary:
 	## Anything standing in the yard can be shipped out, except the boxes this
 	## same call just landed.
@@ -273,9 +325,16 @@ func take_exportable(import_uids: PackedStringArray = PackedStringArray()) -> Di
 	## import area forever and the export area could run dry while the yard was
 	## full — the berth would then sit waiting for cargo that was ten metres
 	## away. A real terminal tranships: what came in on one hull leaves on the
-	## next. The sectors survive as a landing preference, which is what they
-	## were actually good for.
-	return _take_top(-1, &"", import_uids)
+	## next.
+	##
+	## Which stack it comes off, though, is where the terminal's sense of
+	## direction lives. This used to be "whatever is tallest", which is why the
+	## machines looked like they were shuffling boxes about: a load could reach
+	## into the import yard beside the gate and drive the box the whole width of
+	## the terminal, straight past the export stacks standing under the crane.
+	## The seaward yard is asked first now, then the buffer, then — only because
+	## a berth must never stall — the landward one.
+	return _take_top(export_pickup_slot(import_uids), &"", import_uids)
 
 
 func can_accept(sector: StringName = CargoUnit.IMPORT) -> bool:

@@ -1522,6 +1522,61 @@ Também: o harness de captura imprimia "all layout checks passed" quando o
 `main.gd` nem compilava. Um harness que reporta sucesso sem rodar é pior que
 harness nenhum — agora ele falha se a cena não subiu.
 
+### Fase W — o pátio tem entrada e saída — P1, 04/08/2026
+
+O playtest: "as máquinas só movem os contêineres de um canto pro outro sem
+sentido". Estava certo, e a causa era uma linha: `take_exportable` pegava **a
+pilha mais alta**, qualquer que fosse. Então um embarque podia enfiar a mão no
+pátio de importação encostado no portão e arrastar a caixa pela largura inteira
+do terminal, passando reto pelas pilhas de exportação paradas embaixo do
+guindaste. Correto em termos de carga — é transbordo, e continua sendo — mas
+sem entrada nem saída nenhuma pra quem olha.
+
+O portão fica a oeste e o cais a leste, e o pátio entre os dois passa a ser
+zoneado por coluna, permanente e geométrico (`PortLayout.block_role`):
+
+| Coluna | Papel | Guarda | Sai por |
+|---|---|---|---|
+| terrestre (0) | `import` | o que desembarcou de um navio | o portão, ao lado |
+| meio | `buffer` | transbordo e sobra | qualquer um |
+| marítima (última) | `export` | o que entrou de caminhão | um guindaste, ao lado |
+
+A caixa é largada onde a **próxima** máquina vai querer ela. Daí os dois
+percursos longos correrem em direções opostas e os dois curtos não:
+
+```text
+DESCARGA   navio -> portêiner -> apron -> cavalo vai a OESTE -> transtêiner -> pátio IMP
+ENTREGA    pátio IMP -> transtêiner -> percurso curto -> portão -> carreta -> cidade
+RECEBIMENTO cidade -> carreta -> portão -> cavalo vai a LESTE -> transtêiner -> pátio EXP
+EMBARQUE   pátio EXP -> transtêiner -> percurso curto -> portêiner -> navio
+```
+
+- [x] `ContainerYard.export_pickup_slot`: marítimo primeiro, depois buffer,
+      depois terrestre. **Preferência, nunca porteira** — o berço sempre pode ser
+      carregado de algum lugar, senão volta o travamento que o transbordo
+      resolveu.
+- [x] `road_pickup_slot` faz o espelho: coleta rodoviária prefere o pátio
+      terrestre, que está encostado no portão exatamente porque é de lá que a
+      caixa sai.
+- [x] Pouso **continua sendo regra**: fica dentro do pátio do próprio setor e
+      pátio cheio recusa. Tentei deixar transbordar pro outro pátio e é pior de
+      um jeito silencioso — tira a única pressão que faz comprar terreno
+      significar alguma coisa, e põe caixa destinada ao portão no pátio de onde o
+      guindaste carrega.
+- [x] `GroundBaker` pinta o papel de cada bloco **e um chevron apontando pra onde
+      a carga dele vai**, saindo do mesmo `role_heads_seaward` que a rota usa —
+      a tinta não consegue discordar do trânsito.
+- [x] Suíte `cargo`: com o pátio terrestre mais alto que o marítimo, o embarque
+      ainda puxa do marítimo e a carreta ainda puxa do terrestre.
+
+**Arte das máquinas refeita.** O portêiner era uma laje chapada com uma escotilha
+— lia como contêiner com tampa. Agora tem viga de trilho com quatro bogies de
+duas rodas, pórtico treliçado, casa de máquinas com sala de controle acesa e
+chevrons de segurança na viga marítima. O transtêiner eram dois blocos e uma
+barra: virou viga treliçada com contraventamento em X de verdade, oito pneus em
+quatro bogies (o par dianteiro é o que esterça, desenhado fora de linha), cabine
+num braço saindo da perna e chevrons nas duas pernas.
+
 ### Ordem de execução
 
 A → B → D → E → C → **P** → F → G → H.

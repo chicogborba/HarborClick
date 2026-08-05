@@ -16,6 +16,49 @@ only a view of a UID that has one owner.
 
 No other runtime code may create yard cargo.
 
+## The yard has a direction
+
+The terminal's gate is west and its quay is east, and the yard between them is
+zoned by column, permanently and geometrically — `PortLayout.block_role`:
+
+| Column | Role | Holds | Leaves by |
+|---|---|---|---|
+| landward (0) | `import` | boxes discharged from a hull | the gate, beside it |
+| middle | `buffer` | overflow, and transhipment waiting for its hull | either |
+| seaward (last) | `export` | boxes brought in by road | a crane, beside it |
+
+A box is put down where the machine that handles it **next** will want it. That
+is what gives the terminal an in and an out:
+
+```text
+DISCHARGE   hull -> STS -> apron -> tractor drives WEST -> RTG -> import yard
+DELIVERY    import yard -> RTG -> short haul -> gate -> lorry -> city
+RECEIVE     city -> lorry -> gate -> tractor drives EAST -> RTG -> export yard
+LOAD        export yard -> RTG -> short haul -> STS -> hull
+```
+
+So the two long hauls run in opposite directions across the terminal and the two
+short ones do not. Before this, `take_exportable` took whatever stack was
+tallest, so a load could reach into the import yard standing beside the gate and
+drive the box the whole width of the terminal straight past the export stacks
+parked under the crane — cargo-correct, and completely incoherent to watch.
+
+Two rules keep it honest:
+
+- **Routing is a preference, never a gate.** `ContainerYard.export_pickup_slot`
+  asks seaward, then buffer, then landward, and a berth can always be loaded from
+  somewhere. Making the yards a hard rule is what stalled berths before
+  transhipment was allowed.
+- **Landing is a rule.** `pick_landing_slot` stays inside the sector's own yard
+  and a full yard refuses the move. Overflowing an arriving import into the
+  export stacks was tried and is worse in a quiet way: it removes the pressure
+  that makes buying land mean anything, and it puts a box bound for the gate in
+  the yard a crane loads from.
+
+`GroundBaker` paints each block's role and a chevron pointing the way its cargo
+leaves, off the same `PortLayout.role_heads_seaward` the routing uses, so the
+paint cannot disagree with the traffic.
+
 ## Ship contract
 
 ```text

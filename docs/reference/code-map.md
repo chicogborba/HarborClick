@@ -97,13 +97,13 @@ Inventory: **157 authored code/config/scene files**.
 | `scripts/ui/ui_theme.gd` | 692 | class `UiTheme`; 54 functions | The one place the interface is described. |
 | `scripts/world/atmosphere.gd` | 222 | class `Atmosphere`; 13 functions | Day/night lighting for the top-down port: global tint, flood-light masts |
 | `scripts/world/cargo_relay.gd` | 312 | class `CargoRelay`; 19 functions | The visible chain of custody for one container. |
-| `scripts/world/container_yard.gd` | 578 | class `ContainerYard`; 47 functions | Physical, identity-preserving yard.  A reservation is capacity only; a box |
+| `scripts/world/container_yard.gd` | 637 | class `ContainerYard`; 50 functions | Physical, identity-preserving yard.  A reservation is capacity only; a box |
 | `scripts/world/critters.gd` | 106 | class `Critters`; 7 functions | Ambient life: gulls wheeling over the water and a cat that naps on the |
 | `scripts/world/flying_container.gd` | 119 | class `FlyingContainer`; 8 functions | A box travelling from the ship's deck to a yard stack. Top-down, so the |
-| `scripts/world/ground_baker.gd` | 445 | class `GroundBaker`; 21 functions | Bakes the whole ground plane into one texture: grass verge, kerb, paved |
+| `scripts/world/ground_baker.gd` | 481 | class `GroundBaker`; 21 functions | Bakes the whole ground plane into one texture: grass verge, kerb, paved |
 | `scripts/world/harbour_signals.gd` | 104 | class `HarbourSignals`; 5 functions | The instruments a working port wears: windsocks on the quay and pennants over |
 | `scripts/world/port_camera.gd` | 166 | class `PortCamera`; 14 functions | Responsive terminal camera: touch/mouse drag, wheel zoom and keyboard pan. |
-| `scripts/world/port_layout.gd` | 463 | class `PortLayout`; 37 functions | Pure geometry for the top-down terminal. No nodes, no state — just the |
+| `scripts/world/port_layout.gd` | 501 | class `PortLayout`; 39 functions | Pure geometry for the top-down terminal. No nodes, no state — just the |
 | `scripts/world/port_world.gd` | 1411 | class `PortWorld`; 81 functions | Top-down terminal: yard on the left, quay and berth on the right. |
 | `scripts/world/rainfall.gd` | 132 | class `Rainfall`; 8 functions | Rain over the terminal: falling streaks, the splash where each one lands, and |
 | `scripts/world/road_truck.gd` | 624 | class `RoadTruck`; 33 functions | A city truck on the terminal's road: a tractor unit and the chassis it pulls. |
@@ -124,7 +124,7 @@ Inventory: **157 authored code/config/scene files**.
 | `tests/automation_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/backup_test_runner.gd` | 96 | 6 functions | Manual save export/import contract. |
 | `tests/backup_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/cargo_test_runner.gd` | 665 | 28 functions | Integration suite for cargo phases 1-2. |
+| `tests/cargo_test_runner.gd` | 723 | 30 functions | Integration suite for cargo phases 1-2. |
 | `tests/cargo_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/contrast_test_runner.gd` | 109 | 6 functions | WCAG contrast proof for the interface palette. |
 | `tests/contrast_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -180,7 +180,7 @@ Inventory: **157 authored code/config/scene files**.
 | `tools/sprites/common.py` | 127 | 13 functions | Shared drawing helpers for HarborClick sprite generators. |
 | `tools/sprites/gen_buildings.py` | 161 | 7 functions | Top-down port buildings — roofs with ridges, vents and skylights. |
 | `tools/sprites/gen_containers.py` | 63 | 3 functions | Top-down containers, Stardew style. |
-| `tools/sprites/gen_cranes.py` | 171 | 7 functions | Top-down quay cranes: STS (straddles the quay, boom reaching over the ship) |
+| `tools/sprites/gen_cranes.py` | 212 | 7 functions | Top-down quay cranes: STS (straddles the quay, boom reaching over the ship) |
 | `tools/sprites/gen_font.py` | 205 | 2 functions | Generates the game's pixel font: a PNG atlas plus a BMFont .fnt descriptor |
 | `tools/sprites/gen_ground.py` | 199 | 11 functions | Top-down ground tiles, Stardew-flavoured: textured asphalt, worn concrete, |
 | `tools/sprites/gen_people.py` | 270 | 14 functions | Top-down dock workers, Stardew-ish: hard hat and hi-vis vest seen from above. |

@@ -216,6 +216,44 @@ static func slot_count() -> int:
 	return BASE_SLOT_ROWS * SLOTS_PER_ROW + LandDB.owned_slots()
 
 
+## What a block is *for*, which is the terminal's whole sense of direction.
+##
+## A container yard is not a car park: a box is stacked where the machine that
+## handles it next will want it, and that decides which way it crosses the
+## terminal. The gate is west and the quay is east, so:
+##
+##   * the **landward** column is the import yard. A box discharged from a ship
+##     is driven the full width of the terminal to get here, and leaves by road
+##     from right beside the gate;
+##   * the **seaward** column is the export yard. A box that came in by road is
+##     driven the full width to get here, and is lifted onto a hull from right
+##     beside the crane;
+##   * everything between is buffer — overflow either way, and where a
+##     transhipment box waits for the hull that is actually taking it.
+##
+## So the two long hauls run in opposite directions and the two short ones do
+## not, which is what makes the yard read as having an in and an out rather than
+## as machines shuffling boxes about.
+const ROLE_IMPORT := &"import"
+const ROLE_EXPORT := &"export"
+const ROLE_BUFFER := &"buffer"
+
+
+static func block_role(index: int) -> StringName:
+	var col := posmod(index, BLOCK_COLUMNS)
+	if col == BLOCK_COLUMNS - 1:
+		return ROLE_EXPORT
+	if col == 0:
+		return ROLE_IMPORT
+	return ROLE_BUFFER
+
+
+static func role_heads_seaward(role: StringName) -> bool:
+	## Which way this block's cargo leaves. Drawn on the ground as a chevron, so
+	## the arrow and the routing can never disagree.
+	return role == ROLE_EXPORT
+
+
 static func block_origin(index: int) -> Vector2:
 	## Top-left corner of block `index` (row-major, left to right).
 	var col := index % BLOCK_COLUMNS
