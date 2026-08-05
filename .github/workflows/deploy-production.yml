@@ -16,8 +16,6 @@ concurrency:
 env:
   GODOT_VERSION: 4.7.1-stable
   GODOT_TEMPLATE_VERSION: 4.7.1.stable
-  GODOT_DIR: ${{ runner.temp }}/godot-4.7.1
-  GODOT_BIN: ${{ runner.temp }}/godot-4.7.1/Godot_v4.7.1-stable_linux.x86_64
   DEPLOY_HOST: 142.93.242.85
   DEPLOY_USER: harborclick-deploy
 
@@ -36,13 +34,15 @@ jobs:
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: |
-            ${{ env.GODOT_DIR }}
+            ${{ runner.temp }}/godot-4.7.1
             ~/.local/share/godot/export_templates/${{ env.GODOT_TEMPLATE_VERSION }}
           key: godot-${{ runner.os }}-${{ env.GODOT_VERSION }}-web
 
       - name: Install the pinned Godot toolchain
         if: steps.godot-cache.outputs.cache-hit != 'true'
         shell: bash
+        env:
+          GODOT_DIR: ${{ runner.temp }}/godot-4.7.1
         run: |
           set -euo pipefail
           download_dir="$RUNNER_TEMP/godot-download"
@@ -69,6 +69,8 @@ jobs:
 
       - name: Verify the toolchain
         shell: bash
+        env:
+          GODOT_BIN: ${{ runner.temp }}/godot-4.7.1/Godot_v4.7.1-stable_linux.x86_64
         run: |
           set -euo pipefail
           chmod +x "$GODOT_BIN"
@@ -77,10 +79,14 @@ jobs:
 
       - name: Run the complete test suite
         shell: bash
+        env:
+          GODOT_BIN: ${{ runner.temp }}/godot-4.7.1/Godot_v4.7.1-stable_linux.x86_64
         run: tools/qa/run_all.sh
 
       - name: Build the landing page and Web game
         shell: bash
+        env:
+          GODOT_BIN: ${{ runner.temp }}/godot-4.7.1/Godot_v4.7.1-stable_linux.x86_64
         run: tools/export/build_release.sh "$GODOT_BIN"
 
       - name: Package the immutable release
