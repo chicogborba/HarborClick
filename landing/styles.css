@@ -1,7 +1,8 @@
 /* HarborClick — landing page.
-   Everything is drawn on a pixel grid: one nearest-neighbour sprite scaled by an
-   integer factor (--s for art, --k for chrome), never a fractional one. Colours
-   are the game's own palette, straight from tools/sprites/palette.py. */
+   Everything is drawn on a pixel grid: every sprite is nearest-neighbour art
+   sized as native x one of the integer scales declared in :root, never a
+   fractional one. Colours are the game's own palette, straight from
+   tools/sprites/palette.py. */
 
 @font-face {
   font-family: "HC Display";
@@ -37,7 +38,7 @@
   /* Integer scales. Every sprite is drawn at native size times one of these,
      so a source pixel is always a whole number of screen pixels.
      --s art · --k chrome · --ls wordmark · --ai card art
-     --ds small props · --ws water and road · --bs the boat */
+     --ds small props · --ws water and road · --bs the boat · --m marks */
   --s: 3;
   --k: 3;
   --ls: 2;
@@ -45,8 +46,8 @@
   --ds: 2;
   --ws: 3;
   --bs: 2;
-
   --m: 2;
+
   /* Room the hero must leave under its content: the water band plus the ship
      that rides it, so the two never share space with the copy. */
   --sea-room: calc(var(--ws) * 11px + var(--bs) * 78px + 14px);
@@ -212,7 +213,7 @@ h1, h2, h3 {
   text-decoration: none;
 }
 
-.hud-brand img { width: 21px; height: 22.5px; }
+.hud-brand img { width: 28px; height: 30px; }
 
 .hud-state {
   display: none;
@@ -236,7 +237,6 @@ h1, h2, h3 {
 @media (min-width: 700px) {
   .hud { height: 66px; }
   .hud-brand { font-size: 14px; }
-  .hud-brand img { width: 28px; height: 30px; }
   .hud-state { display: inline-flex; }
 }
 
