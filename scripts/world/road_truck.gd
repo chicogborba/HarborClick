@@ -25,6 +25,23 @@ extends Node2D
 ## does. The boxes are rigid children of that chassis, which makes lag not a
 ## thing that has to be tuned — it is a thing that cannot be expressed.
 ##
+## **It steers; it does not rotate.** That is the third rewrite and the one a
+## playtest asked for. The version before this turned the cab at a fixed angular
+## rate toward the bearing of the next mark, which is wrong twice over. Wrong
+## once because the rate did not depend on speed, so the harder the rig braked
+## for a corner the *tighter* it span — at the corner floor it was pirouetting
+## almost on the spot. Wrong twice because aiming at the next mark makes a
+## vehicle swing hard at it, cut the inside of the bend, and swing back the
+## moment the mark is retired.
+##
+## So there is a wheel now. `_steer` is state, wound at a finite rate and stopped
+## at full lock; yaw comes out of the bicycle model, `speed / wheelbase * tan
+## steer`, so a stopped truck cannot turn at all and a slow one turns slowly. The
+## driver aims by pure pursuit at a point *along the route*, further ahead the
+## faster it goes. Corner speed is `sqrt(a_lat * r)` off the tightest radius in
+## the road ahead — a bend is taken slowly because it is tight, not because a
+## constant said so.
+##
 ## The route comes from `PortLayout`, which is one-way end to end: the truck
 ## never reverses and never meets anything head-on. Traffic is deferred to the
 ## shared `TrafficCoordinator`, the same one the yard haulers use, so a truck
@@ -59,22 +76,36 @@ const TRAILER_LEN := (CHASSIS_AXLE_Y - CHASSIS_KINGPIN_Y) * RIG_SCALE
 const SPEED := 42.0
 const ACCELERATION := 44.0
 const BRAKING := 72.0
+## Front axle to rear axle, in world pixels. The whole steering model hangs off
+## this one number: a bicycle-model vehicle yaws at `speed / wheelbase * tan(steer)`,
+## so a longer rig needs more road to come round and a stopped one cannot turn at
+## all — which is the single thing the old model got wrong.
+const WHEELBASE := 13.0
+## Full lock, and how fast the wheel can be wound to it. A steer angle that
+## snaps to its limit in one frame is a vehicle that pivots rather than steers.
+const MAX_STEER := 0.62
+const STEER_RATE := 2.9
+## The most sideways acceleration the rig will accept before it slows for a bend.
+## This is what decides corner speed now — not a hand-tuned floor — so a tight
+## turn is taken slowly because it is tight, not because a constant said so.
+const MAX_LATERAL := 30.0
+## How far down the path the driver looks. Pure pursuit: aim at a point *along
+## the route* rather than at the next mark, or the rig saws left and right as
+## each mark passes and cuts every corner on the inside.
+const LOOKAHEAD_MIN := 11.0
+const LOOKAHEAD_PER_SPEED := 0.34
 ## How close counts as reaching a waypoint. A steered vehicle arcs into its mark
 ## instead of landing on it exactly, so a zero-radius test never fires.
 const ARRIVE_RADIUS := 2.0
 ## A mark that has gone behind the nose this close counts as taken. Comfortably
 ## larger than the tightest turning circle the rig can hold.
 const PASS_RADIUS := 16.0
-## How far ahead of a corner the rig starts shedding speed for it.
-const CORNER_LOOKAHEAD := 26.0
+## How far ahead the driver reads the road for bends to slow down for.
+const SCAN_AHEAD := 44.0
 const BRAKE_DISTANCE := 18.0
-## Radians per second the cab can turn. With the corner throttle below this puts
-## the rig's turning circle inside a driving lane.
-const TURN_RATE := 3.4
-## Slowest a corner may be taken, as a fraction of `SPEED`. A rig that keeps full
-## speed into a right angle either drifts wide across a parking bay or needs a
-## turn rate so high it snaps.
-const CORNER_FLOOR := 0.22
+## Slowest a corner may be taken, as a fraction of `SPEED`, so a hairpin still
+## crawls through rather than stopping dead in it.
+const CORNER_FLOOR := 0.20
 ## A truck wedged behind something that will never move must not hold its bay for
 ## ever, so after this long it stops giving way and crawls on through.
 const STALL_TIMEOUT := 9.0
@@ -99,6 +130,9 @@ var _trailer_facing := 0.0
 ## The trailer's heading is solved from this each frame; see `_articulate`.
 var _trailer_axle := Vector2.ZERO
 var _stalled := 0.0
+## Where the wheel actually is. State, not a target: winding it takes time, which
+## is what gives a corner its entry arc instead of a hinge.
+var _steer := 0.0
 var _leaving := false
 var _leave_on_arrival := false
 var _done := false
@@ -379,6 +413,7 @@ func _snap_heading(facing: float) -> void:
 	## Place the rig straight, cab and trailer in line. Used on spawn and on a
 	## restore, where there is no previous frame to articulate from.
 	_facing = facing
+	_steer = 0.0
 	_trailer_facing = facing
 	_cab.rotation = _facing
 	_trailer.rotation = _trailer_facing
@@ -415,55 +450,125 @@ func _drive(delta: float) -> void:
 			_finish()
 		return
 
-	# Steer first, then drive along wherever the nose ended up. This is the whole
-	# rewrite in two lines: a vehicle that only ever moves forwards cannot slide
-	# out from under its own load.
-	var wanted_facing := _bearing_to(to_target)
-	_facing = rotate_toward(_facing, wanted_facing, TURN_RATE * delta)
-	heading = _heading(_facing)
+	# --- steer -------------------------------------------------------------
+	# Pure pursuit onto a point *along the route*, then a bicycle model. Aiming
+	# straight at the next mark is what produced the corners that looked wrong:
+	# the rig swung hard at each mark, cut the inside of the bend, then swung
+	# back when the mark behind it was replaced.
+	var aim := _pursuit_point()
+	_steer = move_toward(_steer, _wanted_steer(aim), STEER_RATE * delta)
 
-	# A right angle cannot be taken at road speed, and braking *in* the corner is
-	# too late — the rig is already past the mark by the time it has slowed. So
-	# the throttle looks at the turn coming up and how close it is, and the rig
-	# arrives at the corner already slow enough to take it.
-	var wanted := SPEED * minf(_corner_throttle(target, to_target),
-		_alignment_throttle(heading, to_target))
+	# --- speed -------------------------------------------------------------
+	# A bend is taken as slowly as its own radius demands, not as slowly as a
+	# constant says. v = sqrt(a_lat * r), which is the same sum a driver does
+	# without noticing.
+	var wanted := SPEED * _bend_throttle()
 	if _waypoints.size() == 1 and not _leaving:
 		# Pull up into the bay rather than stopping dead on the mark.
 		wanted *= clampf(to_target.length() / BRAKE_DISTANCE, 0.2, 1.0)
 	_cruise = move_toward(_cruise, wanted,
 		(ACCELERATION if wanted > _cruise else BRAKING) * delta)
 
-	var step := heading * _cruise * delta
+	# --- and only now does the rig turn ------------------------------------
+	# Yaw comes out of *travelling* while the wheel is over, so a stopped truck
+	# cannot rotate on the spot and a slow one turns slowly. The old model span at
+	# a fixed rate regardless of speed, which meant the tighter it braked for a
+	# corner the harder it pirouetted through it.
+	#
+	# Both the turn and the step are held back until traffic has been asked, so a
+	# rig queueing behind a reach stacker sits still instead of slowly winding
+	# itself round while it waits.
+	var travel := _cruise * delta
+	var next_facing := wrapf(_facing + yaw_for(travel, _steer), -PI, PI)
+	var step := _heading(next_facing) * travel
 	if _stalled < STALL_TIMEOUT and _world != null and _world.traffic != null \
 			and not _world.traffic.can_advance(self, position + step):
 		_cruise = move_toward(_cruise, 0.0, BRAKING * delta)
 		_stalled += delta
 		return
 	_stalled = 0.0
+	_facing = next_facing
 	position += step
 	_cab.rotation = _facing
 
 
-func _corner_throttle(target: Vector2, to_target: Vector2) -> float:
-	## How fast the rig may still be going when it reaches this mark, given how
-	## sharp the turn after it is. Full speed until `CORNER_LOOKAHEAD` out, then
-	## down to the floor for a right angle.
-	if _waypoints.size() < 2:
-		return 1.0
-	var next_leg: Vector2 = (_waypoints[1] - target)
-	if next_leg.length_squared() < 0.01 or to_target.length_squared() < 0.01:
-		return 1.0
-	var turn := clampf(next_leg.normalized().dot(to_target.normalized()),
-		0.0, 1.0)
-	var approach := clampf(to_target.length() / CORNER_LOOKAHEAD, 0.0, 1.0)
-	return lerpf(CORNER_FLOOR + (1.0 - CORNER_FLOOR) * turn, 1.0, approach)
+static func yaw_for(travel: float, steer: float) -> float:
+	## The bicycle model, on its own so it can be reasoned about and tested.
+	##
+	## Yaw is a function of *distance covered*, not of time: a rig that has not
+	## moved has not turned, however hard the wheel is over. That single sentence
+	## is the whole difference from the version a playtest called unrealistic.
+	if absf(steer) < 0.0001 or absf(travel) < 0.0001:
+		return 0.0
+	return travel / WHEELBASE * tan(steer)
 
 
-func _alignment_throttle(heading: Vector2, to_target: Vector2) -> float:
-	## And once inside the turn, speed follows how far off the nose still is.
-	var alignment := maxf(0.0, heading.dot(to_target.normalized()))
-	return clampf(alignment * alignment, CORNER_FLOOR, 1.0)
+func _pursuit_point() -> Vector2:
+	## The point the driver is actually looking at: `lookahead` pixels along the
+	## remaining route, interpolated across marks rather than snapping between
+	## them. Looking further ahead the faster it goes is why a rig can hold a
+	## motorway line and still place itself in a bay.
+	var lookahead := LOOKAHEAD_MIN + _cruise * LOOKAHEAD_PER_SPEED
+	var from := position
+	var budget := lookahead
+	for mark: Vector2 in _waypoints:
+		var leg := mark - from
+		var span := leg.length()
+		if span >= budget:
+			return from + leg / maxf(span, 0.0001) * budget
+		budget -= span
+		from = mark
+	# Route shorter than the lookahead: aim at the end of it, which is what makes
+	# the last few metres into a bay a straight line rather than a wander.
+	return from
+
+
+func _wanted_steer(aim: Vector2) -> float:
+	## The steer angle whose arc passes through the aim point. Standard pure
+	## pursuit: `atan(2 L sin(a) / d)`, with `a` the bearing error off the nose.
+	var to_aim := aim - position
+	var span := to_aim.length()
+	if span < 0.01:
+		return 0.0
+	var error := wrapf(_bearing_to(to_aim) - _facing, -PI, PI)
+	return clampf(atan2(2.0 * WHEELBASE * sin(error), span),
+		-MAX_STEER, MAX_STEER)
+
+
+func _bend_throttle() -> float:
+	## How fast the road ahead allows. The sharpest corner within `SCAN_AHEAD`
+	## sets the limit, and the limit is the physical one — the speed at which the
+	## rig would start sliding rather than turning.
+	var radius := _tightest_radius_ahead()
+	if radius >= INF:
+		return 1.0
+	return clampf(sqrt(MAX_LATERAL * radius) / SPEED, CORNER_FLOOR, 1.0)
+
+
+func _tightest_radius_ahead() -> float:
+	## The radius of the tightest bend within scanning distance, from the angle
+	## between consecutive legs. A right angle over a short leg is a tight bend;
+	## the same angle over a long one is barely a bend at all.
+	var radius := INF
+	var from := position
+	var travelled := 0.0
+	for index in _waypoints.size() - 1:
+		var mark: Vector2 = _waypoints[index]
+		var leg := mark - from
+		travelled += leg.length()
+		if travelled > SCAN_AHEAD:
+			break
+		var next_leg: Vector2 = _waypoints[index + 1] - mark
+		if leg.length_squared() < 0.01 or next_leg.length_squared() < 0.01:
+			from = mark
+			continue
+		var turn := absf(wrapf(_bearing_to(next_leg) - _bearing_to(leg), -PI, PI))
+		if turn > 0.05:
+			# The arc that joins the two legs, taken over the shorter of them.
+			var reach := minf(leg.length(), next_leg.length()) * 0.5
+			radius = minf(radius, reach / tan(minf(turn, PI * 0.98) * 0.5))
+		from = mark
+	return maxf(radius, 1.0) if radius < INF else INF
 
 
 func _articulate() -> void:

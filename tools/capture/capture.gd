@@ -85,6 +85,14 @@ func _ready() -> void:
 	_main = load("res://scenes/Main.tscn").instantiate()
 	add_child(_main)
 	await get_tree().create_timer(1.0).timeout
+	# A script that failed to compile leaves the scene up with a null root script,
+	# and every shot after that quietly does nothing — the harness then printed
+	# "all layout checks passed" over a game that had not started. A harness that
+	# can report success without running is worse than no harness.
+	if _main.get_script() == null or _main.get("world") == null:
+		printerr("[capture] FAIL: Main did not load — look for a parse error above")
+		get_tree().quit(1)
+		return
 	_prepare()
 	for size in _sizes:
 		_prefix = "%dx%d_" % [size.x, size.y] if _sizes.size() > 1 else ""
@@ -365,8 +373,11 @@ func _run(size: Vector2i) -> void:
 		_main.minigame.open(game_offer)
 		await get_tree().create_timer(0.4).timeout
 		# Stack a few by hand so the shot shows a tower rather than an empty well.
+		# Deliberately off-centre by a little more each time, because the point of
+		# the game is the lean and a plumb tower photographs as a column.
 		for placed in 4:
-			_main.minigame.game.trolley_x = _main.minigame.game.tower_x
+			_main.minigame.game.trolley_x = _main.minigame.game.top() \
+				+ StackGame.BOX_WIDTH * 0.13 * float(placed)
 			_main.minigame._on_drop()
 			# The next box cannot be let go until this one has landed, so wait for
 			# the fall rather than guessing at a delay.

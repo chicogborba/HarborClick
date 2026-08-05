@@ -237,8 +237,8 @@ func _test_the_stack_game_can_be_won() -> void:
 		"the game opens with one box on the ground")
 	var perfects := 0
 	while not game.over:
-		# Play it perfectly: park the trolley over the tower and let go.
-		game.trolley_x = game.tower_x
+		# Play it perfectly: park the trolley over the top box and let go.
+		game.trolley_x = game.top()
 		var outcome := game.drop()
 		if StringName(outcome.get("result", &"")) == StackGame.RESULT_PERFECT:
 			perfects += 1
@@ -246,37 +246,72 @@ func _test_the_stack_game_can_be_won() -> void:
 	_expect(game.victory and game.placed == 6,
 		"a perfect run wins the charter (%d placed)" % game.placed)
 	_expect(perfects == 6, "every centred drop is called perfect (%d)" % perfects)
-	_expect(game.lives == StackGame.LIVES, "and costs no lives")
+	_expect(is_zero_approx(game.lean()),
+		"a plumb tower has no lean at all (%.3f)" % game.lean())
 	_expect(game.best_combo == 6, "a perfect run keeps its combo (%d)" % game.best_combo)
-	_expect(is_equal_approx(game.tolerance, StackGame.START_TOLERANCE),
-		"a perfect drop does not narrow the target")
 
-	# An off-centre drop still lands, but it leans the tower and closes the target.
+	# An off-centre drop still lands, but it shifts the tower's centre of mass —
+	# which is the whole game now, and what a tolerance check could never model.
 	var lean := StackGame.new()
 	lean.setup({"goal": 4, "seconds": 60.0})
-	lean.trolley_x = lean.tower_x + StackGame.START_TOLERANCE - 0.5
+	lean.trolley_x = lean.top() + StackGame.BOX_WIDTH * 0.4
 	var landed := lean.drop()
 	_expect(StringName(landed.get("result", &"")) == StackGame.RESULT_OK,
 		"a drop inside the overlap holds")
-	_expect(lean.tolerance < StackGame.START_TOLERANCE,
-		"and the next one has less room (%.1f)" % lean.tolerance)
-	_expect(not is_zero_approx(lean.tower_x),
-		"the tower leans by however much you were off (%.1f)" % lean.tower_x)
+	_expect(lean.lean() > 0.0,
+		"and pushes the centre of mass the way you were off (%.3f)" % lean.lean())
+	_expect(is_equal_approx(lean.centre_of_mass(),
+			StackGame.BOX_WIDTH * 0.4 * 0.5),
+		"the centre of mass is the mean of where the boxes landed")
 	_expect(lean.speed > StackGame.START_SPEED,
 		"the trolley speeds up with every box (%.0f)" % lean.speed)
 
+	# Two errors the same way are worse than one error and one correction, which
+	# is the property that makes this a balancing game rather than a timing one.
+	var drift := StackGame.new()
+	drift.setup({"goal": 20, "seconds": 600.0})
+	var cancelled := StackGame.new()
+	cancelled.setup({"goal": 20, "seconds": 600.0})
+	for step in 3:
+		drift.trolley_x = drift.top() + StackGame.BOX_WIDTH * 0.3
+		drift.drop()
+		cancelled.trolley_x = cancelled.top() \
+			+ StackGame.BOX_WIDTH * 0.3 * (1.0 if step % 2 == 0 else -1.0)
+		cancelled.drop()
+	_expect(absf(drift.lean()) > absf(cancelled.lean()),
+		"drifting one way beats being wrong both ways (%.2f vs %.2f)"
+			% [drift.lean(), cancelled.lean()])
+
 
 func _test_the_stack_game_can_be_lost() -> void:
+	# A box with no overlap slides off the side. It costs no life — there are
+	# none — and it does not join the tower, so nothing about the balance changes.
 	var game := StackGame.new()
 	game.setup({"goal": 8, "seconds": 60.0})
-	for attempt in StackGame.LIVES:
-		game.trolley_x = game.tower_x + StackGame.WELL_WIDTH
+	for attempt in 3:
+		game.trolley_x = game.top() + StackGame.WELL_WIDTH
 		var outcome := game.drop()
-		_expect(StringName(outcome.get("result", &"")) == StackGame.RESULT_MISS,
+		_expect(StringName(outcome.get("result", &"")) == StackGame.RESULT_SLIP,
 			"a drop past the overlap goes over the side")
-	_expect(game.over and not game.victory,
-		"three misses lose the charter")
-	_expect(game.placed == 0, "and nothing was stacked")
+	_expect(not game.over and game.placed == 0,
+		"slipping costs progress, not the charter")
+	_expect(is_zero_approx(game.lean()),
+		"a box that never rested never weighed on the tower")
+
+	# The tower going over is what loses it: enough weight far enough off centre.
+	var topple := StackGame.new()
+	topple.setup({"goal": 20, "seconds": 600.0})
+	var toppled := false
+	for step in 20:
+		topple.trolley_x = topple.top() \
+			+ StackGame.BOX_WIDTH * (1.0 - StackGame.MIN_OVERLAP) * 0.95
+		var outcome := topple.drop()
+		if StringName(outcome.get("result", &"")) == StackGame.RESULT_TOPPLE:
+			toppled = true
+			break
+	_expect(toppled and topple.over and not topple.victory and topple.toppled,
+		"a tower leaned far enough goes over and loses the charter")
+	_expect(topple.placed > 0, "and it was carrying boxes when it did")
 
 	# The clock is the other way to lose it.
 	var slow := StackGame.new()

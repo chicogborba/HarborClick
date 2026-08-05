@@ -1456,6 +1456,72 @@ zero", só um jogador percebeu.
       COMUNIDADE uma luva. As teclas de canto passaram a 78px — a 64 a legenda
       virava "OMUNIDAD", que é pior que não ter palavra.
 
+### Fase U — a física do caminhão e os dois minigames — P1, 04/08/2026
+
+Três coisas do playtest, e a primeira é a mais fácil de errar em silêncio.
+
+**O caminhão fazia curvas que não existem.** Ele girava o cavalo a uma taxa
+angular fixa em direção ao próximo waypoint — errado duas vezes. Errado uma
+porque a taxa não dependia da velocidade, então quanto mais ele freava pra
+curva, **mais fechado ele girava**: no piso do freio de curva ele piruetava
+quase parado. Errado duas porque mirar no próximo ponto faz o veículo dar um
+tranco em cima dele, cortar a curva por dentro e dar outro tranco quando o ponto
+é aposentado.
+
+- [x] Tem volante agora. `_steer` é estado, girado a taxa finita e limitado no
+      batente, e o yaw sai do modelo de bicicleta: `distância / entre-eixos ×
+      tan(esterço)`. Caminhão parado **não gira**, e devagar gira devagar.
+- [x] O motorista mira por *pure pursuit* num ponto **ao longo da rota**, mais
+      longe quanto mais rápido ele vai — o que é o que permite segurar a linha
+      numa reta e ainda encostar numa vaga.
+- [x] Velocidade de curva é `sqrt(a_lat × raio)` a partir do raio mais fechado da
+      estrada à frente. A curva é feita devagar porque **é fechada**, não porque
+      uma constante disse.
+- [x] Curva e passo só são aplicados depois do tráfego responder, então um
+      caminhão parado na fila fica parado em vez de ir se enroscando enquanto
+      espera.
+- [x] `RoadTruck.yaw_for(distância, esterço)` é o modelo isolado, e a suíte
+      `traffic` prova que yaw acompanha distância percorrida e que o círculo de
+      giro no batente cabe na pista.
+
+**O empilhar virou equilíbrio.** A versão anterior media cada solta contra uma
+tolerância que encolhia: dentro dela caía, fora perdia vida. Isso é jogo de
+timing vestido de jogo de pilha — a torre nunca fazia nada.
+
+- [x] Contêineres **grandes** (62px, quase 3× o anterior), que é o que o playtest
+      esperava ver.
+- [x] Não existem mais vidas. A caixa precisa **sobrepor** a de baixo ou escorrega
+      pro lado; o que estraga a escala é o **centro de massa** do conjunto sair da
+      pegada da caixa do chão. A pilha é a barra de vida.
+- [x] Errar três vezes pouco pro mesmo lado é tão fatal quanto errar muito uma vez
+      — coberto por teste, e é a coisa que uma tolerância nunca modelou.
+- [x] A torre **inclina** de verdade: gira em volta da base pelo mesmo número, e
+      um medidor no piso lê o mesmo valor como comprimento. Ele começou como fio
+      de prumo com um bob de 3px atrás da pilha, o que é invisível — e invisível
+      é a única coisa que a mecânica central não pode ser.
+- [x] Cenário desenhado: parede de cais dos dois lados, trilho do trole com
+      dormentes, piso zebrado, poeira no pouso, e o trole com cabos e spreader
+      carregando a caixa em vez de um retângulo âmbar.
+
+**O labirinto virou fliperama.** Era um labirinto desenhado numa placa de ardósia
+com um teclado 3×3 de setas embaixo: um diagrama com um d-pad.
+
+- [x] Gabinete com moldura de plástico moldado (`ui_arcade_bezel`), marquise com
+      o nome da escala, vidro **quadrado** encaixado num recesso, scanlines e
+      vinheta. O labirinto é 9×9, então pintar o painel inteiro de preto deixava
+      duas tarjas de nada e escondia o gabinete.
+- [x] **Manche de bola**: haste, arruela, e quatro lâmpadas no gate acesas para as
+      saídas da célula atual. Empurrar de qualquer ponto do deck funciona, com
+      repetição ao segurar e volta por mola ao soltar.
+- [x] Dois botões de arcade que acendem: um quando o pátio deixou passar, outro
+      quando recusou — o deck responde a todo toque, mesmo quando o jogo não.
+- [x] Setas e WASD jogam o manche junto, então o gabinete mostra o que o teclado
+      fez e nada aqui é alcançável só apontando.
+
+Também: o harness de captura imprimia "all layout checks passed" quando o
+`main.gd` nem compilava. Um harness que reporta sucesso sem rodar é pior que
+harness nenhum — agora ele falha se a cena não subiu.
+
 ### Ordem de execução
 
 A → B → D → E → C → **P** → F → G → H.

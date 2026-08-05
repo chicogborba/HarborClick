@@ -63,7 +63,7 @@ Inventory: **157 authored code/config/scene files**.
 | `scripts/economy/foreman.gd` | 113 | class `Foreman`; 5 functions | The standing order for spending: what the port buys when nobody is looking. |
 | `scripts/events/maze_game.gd` | 181 | class `MazeGame`; 14 functions | The rules of the yard-maze minigame, with no nodes in them. |
 | `scripts/events/special_call_director.gd` | 223 | class `SpecialCallDirector`; 15 functions | When a special call turns up, which berth it takes, and what it pays. |
-| `scripts/events/stack_game.gd` | 136 | class `StackGame`; 7 functions | The rules of the stacking minigame, with no nodes in them. |
+| `scripts/events/stack_game.gd` | 179 | class `StackGame`; 10 functions | The rules of the stacking minigame, with no nodes in them. |
 | `scripts/fx/float_text.gd` | 58 | class `FloatText`; 2 functions | Floating "+N" feedback text. |
 | `scripts/main.gd` | 633 | 24 functions | Root: assembles world, camera and UI. |
 | `scripts/npc/npc_catalog.gd` | 192 | class `NpcCatalog`; 6 functions | Who works here, and why the port would stop without them. |
@@ -72,10 +72,10 @@ Inventory: **157 authored code/config/scene files**.
 | `scripts/npc/task_board.gd` | 533 | class `TaskBoard`; 31 functions | What the terminal needs next, and exactly one owner for each of it. |
 | `scripts/progression/progression_manager.gd` | 600 | class `ProgressionManager`; 48 functions | Pure progression state owner for Phase 3. It intentionally does not touch autoloads. |
 | `scripts/ui/command_rail.gd` | 359 | class `CommandRail`; 18 functions | The console under the thumb: what to do next, and every key that opens a board. |
-| `scripts/ui/crane_minigame.gd` | 212 | class `CraneMinigame`; 17 functions | The charter, played by hand: a trolley running the well and one tap to let go. |
+| `scripts/ui/crane_minigame.gd` | 410 | class `CraneMinigame`; 22 functions | The charter, played by hand: a trolley running the well and one tap to let go. |
 | `scripts/ui/hud.gd` | 272 | class `Hud`; 15 functions | The gantry across the top of the port: the tally, the clock and the berth. |
-| `scripts/ui/maze_minigame.gd` | 214 | class `MazeMinigame`; 12 functions | The second charter game: a yard you have to find your way out of. |
-| `scripts/ui/minigame_board.gd` | 211 | class `MinigameBoard`; 22 functions | The shell every charter minigame is played on: the scrim, the board, the three |
+| `scripts/ui/maze_minigame.gd` | 406 | class `MazeMinigame`; 17 functions | The second charter game: a yard you have to find your way out of. |
+| `scripts/ui/minigame_board.gd` | 216 | class `MinigameBoard`; 22 functions | The shell every charter minigame is played on: the scrim, the board, the three |
 | `scripts/ui/notice_bell.gd` | 295 | class `NoticeBell`; 18 functions | Notices, collected on a bell instead of thrown across the port. |
 | `scripts/ui/notification_coordinator.gd` | 144 | class `NotificationCoordinator`; 10 functions | One place decides whether something deserves the player's attention. |
 | `scripts/ui/npc_card.gd` | 311 | class `NpcCard`; 15 functions | Somebody's staff badge: photo, name, station, and what they are on right now. |
@@ -94,7 +94,7 @@ Inventory: **157 authored code/config/scene files**.
 | `scripts/ui/title_screen.gd` | 802 | 27 functions | The first thing the game shows. |
 | `scripts/ui/tutorial.gd` | 228 | class `Tutorial`; 12 functions | Seu Waldemar walks new players through the first minute. |
 | `scripts/ui/tutorial_spotlight.gd` | 161 | class `TutorialSpotlight`; 13 functions | Seven data-driven harbour orientation steps. Target callbacks can return a |
-| `scripts/ui/ui_theme.gd` | 686 | class `UiTheme`; 53 functions | The one place the interface is described. |
+| `scripts/ui/ui_theme.gd` | 692 | class `UiTheme`; 54 functions | The one place the interface is described. |
 | `scripts/world/atmosphere.gd` | 222 | class `Atmosphere`; 13 functions | Day/night lighting for the top-down port: global tint, flood-light masts |
 | `scripts/world/cargo_relay.gd` | 312 | class `CargoRelay`; 19 functions | The visible chain of custody for one container. |
 | `scripts/world/container_yard.gd` | 578 | class `ContainerYard`; 47 functions | Physical, identity-preserving yard.  A reservation is capacity only; a box |
@@ -106,7 +106,7 @@ Inventory: **157 authored code/config/scene files**.
 | `scripts/world/port_layout.gd` | 463 | class `PortLayout`; 37 functions | Pure geometry for the top-down terminal. No nodes, no state — just the |
 | `scripts/world/port_world.gd` | 1411 | class `PortWorld`; 81 functions | Top-down terminal: yard on the left, quay and berth on the right. |
 | `scripts/world/rainfall.gd` | 132 | class `Rainfall`; 8 functions | Rain over the terminal: falling streaks, the splash where each one lands, and |
-| `scripts/world/road_truck.gd` | 519 | class `RoadTruck`; 30 functions | A city truck on the terminal's road: a tractor unit and the chassis it pulls. |
+| `scripts/world/road_truck.gd` | 624 | class `RoadTruck`; 33 functions | A city truck on the terminal's road: a tractor unit and the chassis it pulls. |
 | `scripts/world/ship.gd` | 942 | class `Ship`; 64 functions | View of the berth manifest.  BerthCallController owns the workflow; this |
 | `scripts/world/skyscape.gd` | 168 | class `Skyscape`; 9 functions | Weather and sky, expressed the way a top-down camera can actually see them. |
 | `scripts/world/structure_actor.gd` | 1671 | class `StructureActor`; 93 functions | One visible instance of a bought structure. |
@@ -151,9 +151,9 @@ Inventory: **157 authored code/config/scene files**.
 | `tests/relay_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/route_test_runner.gd` | 148 | 9 functions | Trade lanes. |
 | `tests/route_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/special_test_runner.gd` | 469 | 13 functions | Rare charters and the minigame that decides them. |
+| `tests/special_test_runner.gd` | 504 | 13 functions | Rare charters and the minigame that decides them. |
 | `tests/special_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/traffic_test_runner.gd` | 161 | 3 functions | Yard traffic regression suite. |
+| `tests/traffic_test_runner.gd` | 192 | 4 functions | Yard traffic regression suite. |
 | `tests/traffic_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/ui_p0_test_runner.gd` | 309 | 15 functions | Headless UI contract suite. |
 | `tests/ui_p0_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -168,7 +168,7 @@ Inventory: **157 authored code/config/scene files**.
 | `tools/audio/gen_sfx.py` | 224 | 16 functions | All HarborClick sound effects, generated from code. |
 | `tools/audio/synth.py` | 132 | 11 functions | Tiny chiptune synth: pure stdlib (wave/struct/math). 22050 Hz, 16-bit mono. |
 | `tools/balance/run_balance.gd` | 44 | 3 functions | Usage: Godot --headless --path . -s res://tools/balance/run_balance.gd -- [scenario] [--json] |
-| `tools/capture/capture.gd` | 708 | 11 functions | Headed screenshot harness. Boots the real game scene, drives the overlays and |
+| `tools/capture/capture.gd` | 719 | 11 functions | Headed screenshot harness. Boots the real game scene, drives the overlays and |
 | `tools/capture/capture.tscn` | 6 | 1 nodes | Godot scene |
 | `tools/capture/perf.gd` | 105 | 4 functions | Frame-time measurement under the worst terminal the game can produce. |
 | `tools/capture/perf.tscn` | 6 | 1 nodes | Godot scene |
@@ -187,6 +187,6 @@ Inventory: **157 authored code/config/scene files**.
 | `tools/sprites/gen_props.py` | 629 | 24 functions | Top-down scenery props: lamps, bollards, greenery, wildlife, FX. |
 | `tools/sprites/gen_ship.py` | 146 | 6 functions | Top-down container ship, bow pointing UP, moored along a vertical quay. |
 | `tools/sprites/gen_title.py` | 379 | 15 functions | Generates the title screen's harbour backdrop. |
-| `tools/sprites/gen_ui.py` | 1045 | 31 functions | UI chrome, in the two materials the terminal is actually made of. |
+| `tools/sprites/gen_ui.py` | 1075 | 32 functions | UI chrome, in the two materials the terminal is actually made of. |
 | `tools/sprites/gen_vehicles.py` | 283 | 9 functions | Top-down port vehicles. All face UP (north); the game rotates/flips them. |
 | `tools/sprites/palette.py` | 131 | 0 functions | HarborClick palette — Stardew-flavoured: warm, earthy, softly shaded. |

@@ -135,6 +135,8 @@ func _run() -> void:
 		"every hauler gets on site at least once (%d of %d) — no starvation"
 			% [worked.size(), haulers.size()])
 
+	_test_the_rig_steers_rather_than_rotates()
+
 	# Nothing may be left holding a lane or a yard reservation on teardown.
 	for actor in haulers:
 		actor.free()
@@ -154,6 +156,35 @@ func _run() -> void:
 			push_error(failure)
 		print("TRAFFIC TESTS FAILED: %d assertion(s)" % failures.size())
 		get_tree().quit(1)
+
+
+func _test_the_rig_steers_rather_than_rotates() -> void:
+	## The playtest complaint, as an assertion.
+	##
+	## The old model turned the cab at a fixed angular rate toward the next mark,
+	## regardless of how fast it was going — so the harder it braked for a corner
+	## the tighter it span, and at the corner floor it pirouetted almost on the
+	## spot. A vehicle yaws because it is *travelling* with the wheel over, so a
+	## stopped one cannot turn at all.
+	_expect(is_zero_approx(RoadTruck.yaw_for(0.0, RoadTruck.MAX_STEER)),
+		"a rig that has not moved has not turned, whatever the wheel is doing")
+	_expect(is_zero_approx(RoadTruck.yaw_for(4.0, 0.0)),
+		"and a rig with the wheel straight runs straight")
+	# Yaw follows *distance covered*, so twice the road speed over the same frame
+	# comes round twice as far. The old model span at a constant rate, which is
+	# why braking for a corner made it pirouette through the corner.
+	var slow := RoadTruck.yaw_for(1.0, RoadTruck.MAX_STEER)
+	var fast := RoadTruck.yaw_for(2.0, RoadTruck.MAX_STEER)
+	_expect(slow > 0.0 and is_equal_approx(fast / slow, 2.0),
+		"yaw follows distance covered (%.4f vs %.4f rad)" % [slow, fast])
+
+	# The turning circle a full-lock rig can hold has to fit the road it drives
+	# on, or every corner is taken by clipping the kerb.
+	var turning_radius := RoadTruck.WHEELBASE / tan(RoadTruck.MAX_STEER)
+	var carriageway := PortLayout.ROAD_X1 - PortLayout.ROAD_X0
+	_expect(turning_radius < carriageway,
+		"full lock turns inside the carriageway (%.1f px radius, %.1f px road)"
+			% [turning_radius, carriageway])
 
 
 func _expect(condition: bool, message: String) -> void:

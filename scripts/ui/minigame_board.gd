@@ -58,11 +58,16 @@ func _ready() -> void:
 
 	_shout = UiTheme.label("", UiTheme.SIZE_TITLE, UiTheme.AMBER)
 	_shout.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_shout.clip_text = true
 	_shout.modulate.a = 0.0
 	_column.add_child(_shout)
 
 	_hint = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Wrapped, because a Label without it reports its whole string as a minimum
+	# width and a Control cannot be laid out narrower than its minimum: one long
+	# line of instructions was enough to push the board off a 320px viewport.
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_column.add_child(_hint)
 
 	_build_controls(_column)

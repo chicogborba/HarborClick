@@ -178,6 +178,12 @@ static func title_plate_style() -> StyleBoxTexture:
 	return nine("ui_title_plate", 9, 7)
 
 
+static func arcade_style(content: int = 8) -> StyleBoxTexture:
+	## The cabinet the maze charter is played on: moulded plastic with a recess
+	## for the glass. The screen and the controls are drawn into it at runtime.
+	return nine("ui_arcade_bezel", 9, content)
+
+
 static func title_key_style() -> StyleBoxTexture:
 	## The same enamel as the plate with a tighter inset, because a corner key is
 	## 78px wide and COMUNIDADE needs every one of them.

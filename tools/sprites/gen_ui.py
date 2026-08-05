@@ -784,6 +784,35 @@ def gen_scrims():
     save(dim, "ui_scrim", preview_scale=8)
 
 
+def gen_arcade():
+    """The cabinet the maze charter is played on.
+
+    A nine-patch of moulded plastic: a dark outer shell, a bevelled lip catching
+    the light from above, and a recessed inner edge for the glass to sit behind.
+    Everything else about the cabinet — the screen, its scanlines, the stick and
+    the buttons — is drawn at runtime, because a tilting joystick as a sprite is
+    a sprite per angle.
+    """
+    w, h = 26, 26
+    img = new_img(w, h)
+    shell = (44, 40, 52, 255)
+    shell_l = (74, 68, 84, 255)
+    shell_d = (26, 23, 32, 255)
+    rect(img, 0, 0, w, h, (14, 12, 18, 255))
+    rect(img, 1, 1, w - 2, h - 2, shell)
+    hline(img, 2, 1, w - 4, shell_l)
+    vline(img, 1, 2, h - 4, shell_l)
+    hline(img, 2, h - 2, w - 4, shell_d)
+    vline(img, w - 2, 2, h - 4, shell_d)
+    # Speckle in the plastic, so a wide panel is not a flat slab.
+    speckle(img, 2, 2, w - 4, h - 4, [shell_l, shell_d], 0.05, seed=515)
+    # The recess the glass sits in: dark line, then a lit under-edge.
+    rect(img, 6, 6, w - 12, h - 12, (10, 9, 14, 255))
+    hline(img, 7, 7, w - 14, (20, 18, 26, 255))
+    hline(img, 7, h - 8, w - 14, (58, 52, 66, 255))
+    save(img, "ui_arcade_bezel", preview_scale=4)
+
+
 # ------------------------------------------------------------------ icons
 
 def _icon_base():
@@ -1023,6 +1052,7 @@ def gen_icons():
 
 if __name__ == "__main__":
     print("ui:")
+    gen_arcade()
     gen_board()
     gen_clip()
     gen_paper()
