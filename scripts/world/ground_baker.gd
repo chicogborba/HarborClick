@@ -323,25 +323,32 @@ static func _paint_quay_safety(img: Image, world_h: int) -> void:
 
 
 static func _paint_rail_corridor(img: Image) -> void:
+	## Two roads, not one: the running line the trains stand on, and the
+	## run-around loop the locomotive uses to get to the other end of its train.
+	##
+	## The loop is the reason a stub-ended siding works at all, and painting it is
+	## not decoration — `RailRake` drives the shunt over these exact coordinates,
+	## so if the turnouts were not here the loco would be crossing bare ballast.
 	var rail_y := int(PortLayout.rail_y())
+	var loop_y := int(PortLayout.rail_loop_y())
 	var x1 := int(PortLayout.WATER_X0) - 11
-	# Ballast bed with a rough, non-repeating shoulder.
-	for y in range(rail_y - 11, rail_y + 12):
+	var west := int(PortLayout.rail_west_turnout_x())
+	var east := int(PortLayout.rail_east_turnout_x())
+	# Ballast bed with a rough, non-repeating shoulder, wide enough for both.
+	for y in range(loop_y - 9, rail_y + 12):
 		for x in range(0, x1):
-			var edge_distance := absi(y - rail_y)
+			var edge_distance := mini(absi(y - rail_y), absi(y - loop_y))
 			if edge_distance <= 8 or (x * 7 + y * 3) % 5 < 3:
 				var ballast := Color8(112, 105, 96) if (x + y) % 4 \
 					else Color8(143, 132, 116)
 				_pixel(img, x, y, ballast)
-	# Timber sleepers first, steel rails over them.
-	for x in range(2, x1, 8):
-		for y in range(rail_y - 8, rail_y + 9):
-			_pixel(img, x, y, Color8(92, 68, 52))
-			_pixel(img, x + 1, y, Color8(126, 91, 62))
-	for ry in [rail_y - 5, rail_y + 5]:
-		for x in range(0, x1):
-			_pixel(img, x, ry, Color8(64, 64, 68))
-			_pixel(img, x, ry - 1, Color8(190, 188, 178))
+	_paint_track(img, rail_y, 0, x1)
+	# The loop runs only as far as it has to: past each turnout by a locomotive's
+	# length, and no further. A second track the full width of the map would read
+	# as a main line the terminal does not have.
+	_paint_track(img, loop_y, west - 12, east + 14)
+	_paint_turnout(img, west, rail_y, loop_y)
+	_paint_turnout(img, east, rail_y, loop_y)
 	# Buffer stop. The corridor is a stub, not a through line, and without
 	# something at the end of it the rails simply stop in the middle of the yard
 	# and a rake reads as driving into the quay.
@@ -356,11 +363,42 @@ static func _paint_rail_corridor(img: Image) -> void:
 		_pixel(img, stop_x - 2, ry - 1, Color8(190, 188, 178))
 	# Road crossing panels keep the public-road connection plausible.
 	for x in range(int(PortLayout.ROAD_X0), int(PortLayout.ROAD_X1)):
-		for y in range(rail_y - 8, rail_y + 9):
+		for y in range(loop_y - 8, rail_y + 9):
 			_mix_pixel(img, x, y, Color8(74, 74, 74), 0.62)
 	for x in range(int(PortLayout.ROAD_X0) + 2, int(PortLayout.ROAD_X1) - 2, 5):
-		_pixel(img, x, rail_y - 10, Color8(232, 176, 62))
+		_pixel(img, x, loop_y - 10, Color8(232, 176, 62))
 		_pixel(img, x, rail_y + 10, Color8(232, 176, 62))
+
+
+static func _paint_track(img: Image, centre_y: int, x0: int, x1: int) -> void:
+	## Timber sleepers first, steel rails over them — the order they are laid.
+	for x in range(maxi(0, x0) + (2 if x0 <= 0 else 0), x1, 8):
+		for y in range(centre_y - 8, centre_y + 9):
+			_pixel(img, x, y, Color8(92, 68, 52))
+			_pixel(img, x + 1, y, Color8(126, 91, 62))
+	for ry in [centre_y - 5, centre_y + 5]:
+		for x in range(maxi(0, x0), x1):
+			_pixel(img, x, ry, Color8(64, 64, 68))
+			_pixel(img, x, ry - 1, Color8(190, 188, 178))
+
+
+static func _paint_turnout(img: Image, x: int, rail_y: int, loop_y: int) -> void:
+	## The crossover between the two roads, drawn as the pair of curved rails a
+	## turnout actually is: they leave the running line, close the gap over ten
+	## pixels or so, and join the loop.
+	var span := rail_y - loop_y
+	var run := 12
+	for step in range(run + 1):
+		var t := float(step) / float(run)
+		var y := rail_y - int(round(span * t))
+		for offset in [-5, 5]:
+			_pixel(img, x + step - run / 2, y + offset, Color8(64, 64, 68))
+			_pixel(img, x + step - run / 2, y + offset - 1, Color8(190, 188, 178))
+	# Point blades and the little yellow lever stand that works them.
+	_pixel(img, x - run / 2 - 1, rail_y - 5, Color8(216, 208, 196))
+	_pixel(img, x - run / 2 - 1, rail_y + 5, Color8(216, 208, 196))
+	for y in range(rail_y + 7, rail_y + 10):
+		_pixel(img, x - run / 2, y, Color8(232, 176, 62))
 
 
 static func _draw_vertical_arrow(img: Image, cx: int, cy: int,

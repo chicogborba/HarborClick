@@ -545,15 +545,34 @@ func _test_holding_somebody_picks_them_up() -> void:
 	_expect(inspected.size() == 1,
 		"a press with no hold is still an inspection tap")
 
-	# And the sea is not somewhere to leave a conferente.
+	# The sea is somewhere you *can* leave a conferente — and the swim back is
+	# the correction. Dropping them past the wall used to clamp them onto the
+	# apron mid-air, which taught the player that the water was not really there.
 	_world._begin_press(walker.global_position + Vector2(4.0, 6.0))
 	_world._tick_hold(PortWorld.GRAB_HOLD + 0.01)
 	var overboard := Vector2(PortLayout.WATER_X0 + 40.0, PortLayout.YARD_Y0)
 	_world._move_press(overboard)
 	_world._end_press(overboard)
-	_expect(walker.global_position.x <= PortLayout.QUAY_X1,
-		"nobody can be dropped in the water (%.1f)" % walker.global_position.x)
 	_expect(not walker.is_held(), "the last grab was released")
+	_expect(walker.is_overboard(),
+		"dropping somebody past the wall puts them in the water (%.1f)"
+			% walker.global_position.x)
+	_expect(walker.global_position.x > PortLayout.WATER_X0,
+		"they go in where they were dropped, not on the apron")
+	_expect(_world.tasks.task_of(walker).is_empty(),
+		"a swimmer holds no claim, so the station reopens")
+
+	# And they get themselves out. Ten seconds of simulation is more than the
+	# swim needs from anywhere in the fairway, and the assertion is that the
+	# state machine *terminates* — an actor stuck in the water is an actor whose
+	# station is never worked again.
+	for step in 400:
+		walker._process(0.025)
+		if not walker.is_overboard():
+			break
+	_expect(not walker.is_overboard(), "a swimmer reaches the wall")
+	_expect(walker.global_position.x <= PortLayout.QUAY_X1,
+		"they climb out onto the apron (%.1f)" % walker.global_position.x)
 
 	_world.npc_inspected.disconnect(on_inspect)
 	_world.structures.queue_free()

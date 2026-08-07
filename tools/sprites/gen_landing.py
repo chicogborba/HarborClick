@@ -13,9 +13,8 @@ import random
 
 from PIL import Image
 
-import gen_font
 import palette as P
-from common import hline, new_img, outline, px, rect, speckle
+from common import hline, new_img, outline, px, rect, speckle, text, text_width
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SPRITES = os.path.join(ROOT, "assets", "sprites")
@@ -336,30 +335,6 @@ def _plate(w: int, h: int) -> Image.Image:
     return img
 
 
-COMPOSED = {ch: (base, accent) for ch, base, accent in gen_font.COMPOSED}
-
-
-def _small_text(img, x, y, text, color):
-    """One line of the game's own 5x7 font, straight from its glyph table.
-
-    `y` is the top of a 9px line box: two rows of headroom for accents, then the
-    glyph body — the same box `gen_font` bakes into the atlas."""
-    for index, char in enumerate(text):
-        base, accent = COMPOSED.get(char.lower(), (char, None))
-        rows = gen_font.G.get(base.upper())
-        if rows is None:
-            continue
-        for ry, row in enumerate(rows):
-            for rx, cell in enumerate(row):
-                if cell == "#":
-                    px(img, x + index * 6 + rx, y + 2 + ry, color)
-        if accent:
-            for ry, row in enumerate(gen_font.ACCENTS[accent]):
-                for rx, cell in enumerate(row):
-                    if cell == "#":
-                        px(img, x + index * 6 + rx, y + ry, color)
-
-
 def gen_og():
     """1200x630 social card, painted at 300x158 and scaled by exactly 4."""
     scale = 4
@@ -374,17 +349,17 @@ def gen_og():
     subtitle = "O PORTO NUNCA DORME"
     plate = _plate(logo.width + 28, logo.height + 34)
     plate.alpha_composite(logo, (14, 11))
-    _small_text(plate, (plate.width - len(subtitle) * 6) // 2, plate.height - 17,
-                subtitle, P.SAFETY_L)
+    text(plate, (plate.width - text_width(subtitle)) // 2, plate.height - 17,
+         subtitle, P.SAFETY_L)
     card.alpha_composite(plate, ((w - plate.width) // 2, (h - plate.height) // 2))
 
     tag = "JOGUE GRÁTIS NO NAVEGADOR"
-    band_w = len(tag) * 6 + 10
+    band_w = text_width(tag) + 11
     band = new_img(band_w, 15)
     rect(band, 0, 0, band_w, 15, (10, 22, 36, 220))
     hline(band, 0, 0, band_w, P.SAFETY_D)
     hline(band, 0, 14, band_w, P.SAFETY_D)
-    _small_text(band, 5, 3, tag, P.PAINT_W)
+    text(band, 5, 3, tag, P.PAINT_W)
     card.alpha_composite(band, ((w - band_w) // 2, h - 26))
 
     big = card.resize((w * scale, h * scale), Image.NEAREST)

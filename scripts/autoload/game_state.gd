@@ -44,6 +44,10 @@ var crane_policy: StringName = CraneAllocation.EVEN
 ## buying a lane used to be strictly good because the freight was the maximum
 ## across everything owned, so the map was a shopping list.
 var route_policy: StringName = RoutePolicy.MIX
+## The fourth standing order: what the branch line is briefed to do. A booked
+## train is not a thing the player taps into existence, so the decision about it
+## has to be made before it arrives. See `RailCargoPolicy`.
+var rail_order: StringName = RailCargoPolicy.ORDER_BALANCED
 var foreman_mode: StringName = Foreman.OFF
 var foreman_reserve: float = 0.25
 var _foreman_tick: float = 0.0
@@ -787,6 +791,7 @@ func to_save() -> Dictionary:
 		"routes": routes.keys(),
 		"flags": flags, "crane_policy": String(crane_policy),
 		"route_policy": String(route_policy),
+		"rail_order": String(rail_order),
 		"foreman_mode": String(foreman_mode), "foreman_reserve": foreman_reserve,
 		"manual_quotes": _manual_quotes,
 		"manual_commits": _manual_commits.keys(),
@@ -825,6 +830,8 @@ func from_save(data: Dictionary) -> void:
 		StringName(data.get("crane_policy", CraneAllocation.EVEN)))
 	route_policy = RoutePolicy.coerce(
 		StringName(data.get("route_policy", RoutePolicy.MIX)))
+	rail_order = RailCargoPolicy.coerce_order(
+		StringName(data.get("rail_order", RailCargoPolicy.ORDER_BALANCED)))
 	foreman_mode = Foreman.coerce(StringName(data.get("foreman_mode", Foreman.OFF)))
 	foreman_reserve = Foreman.coerce_reserve(
 		float(data.get("foreman_reserve", 0.25)))

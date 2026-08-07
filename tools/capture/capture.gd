@@ -270,6 +270,66 @@ func _run(size: Vector2i) -> void:
 			gate.send_away(bay)
 		await get_tree().create_timer(1.5).timeout
 		await _shot("gate_leaving")
+	if _wants("rail") and world_pass:
+		# The branch is at the very bottom of the world, so a world shot never
+		# contains it. This drives a whole service — run in, stand, run round the
+		# train, run out — with the camera parked on the ramp, because the shunt
+		# is the part of it that has to be *seen* to be believed.
+		var rail: RailYard = _main.world.rail
+		rail.seed_new()
+		_main.cam.focus_on(PortLayout.rail_y() - 30.0, 0.2)
+		rail._next_service = 0.01
+		rail.tick(0.02)
+		# Wait for the *train*, not for a stopwatch. The rake starts a hundred and
+		# seventy pixels west of the map and runs in at 48px/s, so the fixed 1.2s
+		# pause this used to take photographed an empty corridor and filed it as
+		# "arriving" — the one frame that is supposed to prove a train appears was
+		# the frame guaranteed not to contain one. Held until the head of the rake
+		# is properly inside the frame, and until the run-in has had long enough
+		# to lay a plume behind it.
+		var arrive_deadline := Time.get_ticks_msec() + 20000
+		while Time.get_ticks_msec() < arrive_deadline:
+			var running: RailRake = _main.world._rake
+			if running != null and is_instance_valid(running) \
+					and running._lead_x > PortLayout.rail_west_turnout_x():
+				break
+			await get_tree().process_frame
+		await _shot("rail_arriving")
+		var deadline := Time.get_ticks_msec() + 20000
+		while Time.get_ticks_msec() < deadline and not rail.is_standing():
+			await get_tree().process_frame
+		await get_tree().create_timer(0.6).timeout
+		await _shot("rail_standing")
+		rail.send_away()
+		# Mid-shunt: the locomotive on the run-around road, alongside its own
+		# train. If this frame ever shows it on the running line the loop is not
+		# being used and the move is a lie.
+		var shunt_deadline := Time.get_ticks_msec() + 16000
+		var rake: RailRake = _main.world._rake
+		while Time.get_ticks_msec() < shunt_deadline and rake != null \
+				and is_instance_valid(rake) \
+				and absf(rake._loco.position.y - PortLayout.rail_loop_y()) > 1.0:
+			await get_tree().process_frame
+		await _shot("rail_runaround")
+		if rake != null and is_instance_valid(rake):
+			print("[capture] loco y=%.1f loop y=%.1f rail y=%.1f" % [
+				rake._loco.position.y, PortLayout.rail_loop_y(),
+				PortLayout.rail_y()])
+		# And the answer to "did the shunt achieve anything?": the loco has to be
+		# at the *west* end of its own train, leading it off the map, with the
+		# headlight throwing that way. A rake photographed only on the way in
+		# would never show whether the run-around was worth drawing.
+		var leave_deadline := Time.get_ticks_msec() + 20000
+		while Time.get_ticks_msec() < leave_deadline and rake != null \
+				and is_instance_valid(rake) \
+				and rake.mode != RailRake.Mode.RUNNING_OUT:
+			await get_tree().process_frame
+		await get_tree().create_timer(0.9).timeout
+		await _shot("rail_departing")
+		if rake != null and is_instance_valid(rake) \
+				and rake._loco.position.x > PortLayout.rail_wagon_x(0):
+			_failures.append("rail at %dx%d left with the loco still at the "
+				% [size.x, size.y] + "buffer-stop end, pushing its own train")
 	if _wants("fleet") and world_pass:
 		# Three berths only exist once the quay is long enough, so the parcels are
 		# bought here and the hulls forced alongside: an empty second berth proves
@@ -464,6 +524,30 @@ func _run(size: Vector2i) -> void:
 			if lifted.is_held():
 				_failures.append("grab at %dx%d never let go" % [size.x, size.y])
 			await _shot("grab_dropped")
+
+			# And the sea. Dropping somebody past the quay wall is the one
+			# interaction whose whole payload is animation — splash, rings,
+			# wake, the swim back, the drips — so it is worth a frame of it and
+			# worth failing if the swimmer never reaches the wall.
+			var overboard := Vector2(PortLayout.WATER_X0 + 34.0,
+				lifted.global_position.y)
+			_main.cam.focus_on(overboard.y, 0.2)
+			world._begin_press(lifted.global_position + Vector2(4.0, 6.0))
+			world._tick_hold(PortWorld.GRAB_HOLD + 0.01)
+			world._move_press(overboard)
+			world._end_press(overboard)
+			if not lifted.is_overboard():
+				_failures.append("overboard at %dx%d stayed dry"
+					% [size.x, size.y])
+			await get_tree().create_timer(0.7).timeout
+			await _shot("overboard")
+			# Long enough for the longest swim in the fairway, then check they
+			# are back on the apron rather than parked in the water.
+			await get_tree().create_timer(6.0).timeout
+			if lifted.is_overboard():
+				_failures.append("overboard at %dx%d never got out"
+					% [size.x, size.y])
+			await _shot("overboard_ashore")
 	if _wants("notices"):
 		# Nothing interrupts the port any more, so the notice log is the only
 		# place a notice is ever seen. It hangs off the bell at the end of the
@@ -532,6 +616,36 @@ func _run(size: Vector2i) -> void:
 				% [size.x, size.y])
 		_check("orders_foreman", _main.shop._board, size)
 		await _shot("shop_orders_foreman")
+		# The branch's section, scrolled to and with a train actually on the line.
+		# It is the only readout the rail has — everything it reports happens at
+		# the bottom of the world where the camera never goes — so a board that
+		# rendered its three buttons and left the status line empty would look
+		# exactly like a working one in the shot above.
+		var branch: RailYard = _main.world.rail
+		branch.seed_new()
+		branch._next_service = 0.01
+		branch.tick(0.02)
+		branch.notify_arrived()
+		var board: VBoxContainer = _main.shop._lists["orders"]
+		var section: VBoxContainer = board.get_node_or_null(^"Branch")
+		if section == null:
+			_failures.append("no branch section on the orders board at %dx%d"
+				% [size.x, size.y])
+		else:
+			var scroll: ScrollContainer = _main.shop._scrolls.get("orders")
+			if scroll != null:
+				_main.shop._refresh()
+				await get_tree().process_frame
+				scroll.scroll_vertical = int(section.position.y)
+			await get_tree().create_timer(0.4).timeout
+			var status: Label = section.get_node_or_null(^"Status")
+			if status == null or status.text.is_empty():
+				_failures.append("the branch section reports nothing at %dx%d"
+					% [size.x, size.y])
+			else:
+				print("[capture] branch says: ", status.text)
+			_check("orders_branch", _main.shop._board, size)
+			await _shot("shop_orders_branch")
 	_main.shop._close()
 	await get_tree().create_timer(0.2).timeout
 	if _wants("settings"):

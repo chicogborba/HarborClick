@@ -1043,9 +1043,28 @@ def gen_icons():
         rect(i, cx - 2, top + 5, 5, 7, tone)
     icons["crew"] = i
 
+    # train: the branch line. The third door into the terminal had to borrow the
+    # lorry for its notices, which read as a road delivery every time — and the
+    # one thing a player needs from a rail notice is to know it is *not* one.
+    # Drawn from the side rather than from above like the world sprite: at 12px
+    # a plan-view locomotive is a rectangle, and the silhouette that says
+    # "train" is a cab, a hood and a row of wheels under it.
+    i = _icon_base()
+    rect(i, 1, 5, 6, 4, (46, 116, 116, 255))        # hood
+    hline(i, 1, 5, 6, (72, 156, 150, 255))
+    rect(i, 7, 2, 4, 7, (46, 116, 116, 255))        # cab, standing above it
+    hline(i, 7, 2, 4, (122, 196, 182, 255))
+    rect(i, 8, 4, 2, 2, (150, 206, 216, 255))       # cab window
+    px(i, 2, 4, (94, 90, 104, 255))                 # exhaust stack
+    px(i, 2, 3, (94, 90, 104, 255))
+    for wx in (2, 5, 8):                            # wheels on the rail
+        rect(i, wx, 9, 2, 2, (48, 44, 50, 255))
+    hline(i, 0, 11, 12, (130, 126, 138, 255))       # the rail itself
+    icons["train"] = i
+
     order = ["teu", "crane", "ship", "land", "star", "gear", "sound", "clock",
              "paw", "glove", "globe", "lock", "check", "close", "chevron",
-             "truck", "trophy", "bell", "chat", "crew"]
+             "truck", "trophy", "bell", "chat", "crew", "train"]
     save(sheet([icons[k] for k in order]), "ui_icons")
     print("    icon order:", ", ".join(order))
 

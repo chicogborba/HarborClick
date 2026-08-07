@@ -101,10 +101,10 @@ const TOUCH_MIN := 44.0
 enum Icon {
 	TEU, CRANE, SHIP, LAND, STAR, GEAR, SOUND, CLOCK, PAW,
 	GLOVE, GLOBE, LOCK, CHECK, CLOSE, CHEVRON, TRUCK, TROPHY, BELL,
-	CHAT, CREW,
+	CHAT, CREW, TRAIN,
 }
 
-const ICON_COUNT := 20
+const ICON_COUNT := 21
 
 
 # ---------------------------------------------------------------- typography
@@ -175,7 +175,18 @@ static func title_plate_style() -> StyleBoxTexture:
 	## The board the wordmark is bolted to. Navy enamel with rivets and the same
 	## amber lip the gantry wears, so the first screen is made of the material the
 	## rest of the game's permanent chrome is made of.
-	return nine("ui_title_plate", 9, 7)
+	return nine("ui_title_plate", 12, 8)
+
+
+static func title_button_style(kind: StringName,
+		down: bool = false) -> StyleBoxTexture:
+	## The title's own keys. Everywhere else in the game a button is a 1px-edged
+	## slab, because everywhere else it sits on paper or on navy. Here it sits on
+	## a photograph of a working terminal, and only a two-pixel ink edge with the
+	## corners knocked off survives that. Same material as the plate above it, so
+	## the sign and its keys read as one object bolted to the same wall.
+	var sprite := "ui_title_key" if kind == &"amber" else "ui_title_key_steel"
+	return nine(sprite + ("_down" if down else ""), 10, 6)
 
 
 static func arcade_style(content: int = 8) -> StyleBoxTexture:
@@ -187,11 +198,11 @@ static func arcade_style(content: int = 8) -> StyleBoxTexture:
 static func title_key_style() -> StyleBoxTexture:
 	## The same enamel as the plate with a tighter inset, because a corner key is
 	## 78px wide and COMUNIDADE needs every one of them.
-	return nine("ui_title_plate", 9, 3)
+	return nine("ui_title_key_steel", 10, 3)
 
 
 static func title_ribbon_style() -> StyleBoxTexture:
-	return nine("ui_title_ribbon", 6, 4)
+	return nine("ui_title_ribbon", 7, 4)
 
 
 static func board_style(content: int = 12) -> StyleBoxTexture:

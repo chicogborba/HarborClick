@@ -62,6 +62,30 @@ const LAND_TIME := 0.2
 ## casts on the apron.
 const GRAB_SHADOW_SCALE := Vector2(10.0 / 32.0, 5.0 / 20.0)
 
+# ------------------------------------------------------------------ overboard
+## Let go of somebody past the quay edge and they go in the water.
+##
+## `release` used to clamp the drop back onto the apron, on the grounds that a
+## conferente treading water was worse than a small correction. It was, while
+## treading water was all that happened. Now they go under, surface, swim back
+## to the wall, climb out and drip across the yard for a few seconds — which is
+## the correction, done as a consequence instead of as a teleport.
+##
+## Nothing about it costs the simulation anything: the claim is handed back the
+## moment they hit the water, so the station reopens and somebody dry takes it.
+enum Wet { DRY, SPLASH, SWIM, CLIMB }
+## How long they are under before they surface, and how far they sink.
+const DUNK_TIME := 0.45
+## A person swims a good deal slower than they walk, and the difference is the
+## whole joke.
+const SWIM_SPEED := 21.0
+const SWIM_BOB := 1.5
+const CLIMB_TIME := 0.5
+## Wet footprints and drips, after. Long enough to notice on the walk back.
+const DRIP_TIME := 4.0
+## Where a swimmer aims: the quay wall, a body's width inside it.
+const SHORE_X := PortLayout.QUAY_X1 - 7.0
+
 ## Beacons stop being countable past this, and the row stops fitting the machine.
 const MAX_UPGRADE_MARKS := 4
 const MARK_OFFSET_Y := -9.0
@@ -94,6 +118,11 @@ var _held := false
 var _grab_blend := 0.0
 var _grab_shadow: Sprite2D
 var _grab_home_z := 0
+var _wet: Wet = Wet.DRY
+var _wet_t := 0.0
+var _drip_t := 0.0
+var _wake_t := 0.0
+var _waterline: Sprite2D
 var _land_t := 0.0
 var _boat_fx: Node2D
 var _boat_wake: AnimatedSprite2D
@@ -141,35 +170,6 @@ var _gantry_cycle := 0.0
 var _gantry_idle := true
 
 # relay state
-## Rail service state. See `_run_rail`.
-enum RailState { WAITING, ARRIVING, LOADING, DEPARTING }
-## Wagons behind the loco, and the distance between their centres before the
-## rake's 0.7 scale is applied.
-const RAIL_WAGONS := 5
-const RAIL_COUPLING := 30.0
-const RAIL_TOP_SPEED := 46.0
-const RAIL_ACCEL := 26.0
-## One box every this long while the rake stands at the siding.
-const RAIL_LOAD_BEAT := 1.1
-## The corridor is a **stub siding**: `GroundBaker._paint_rail_corridor` lays
-## ballast, sleepers and two rails from the west edge to `WATER_X0 - 11`, and
-## then the quay and the sea. So a rake runs in from the interior, is worked, and
-## is drawn back out the way it came — it does not drive off the eastern edge,
-## because east of the buffer stop is the Atlantic. The first version of this did
-## exactly that.
-const RAIL_OFF_LEFT := -150.0
-## Where the head of the rake stands, short of the buffer stop.
-const RAIL_STOP_X := PortLayout.WATER_X0 - 30.0
-## Quiet between services, and before the first one so a fresh purchase is not
-## instantly mid-shunt.
-const RAIL_TURNAROUND := 9.0
-const RAIL_FIRST_CALL := 2.5
-
-var _rail_state: RailState = RailState.WAITING
-var _rail_timer := 0.0
-var _rail_loaded := 0
-var _rail_boxes: Array[Sprite2D] = []
-
 var _relay_stage := RELAY_NONE
 var _relay_to := Vector2.ZERO
 ## The leg a gantry is shadowing: the box's own path, which the trolley tracks in
@@ -237,11 +237,15 @@ func release() -> void:
 	_held = false
 	z_index = _grab_home_z
 	_land_t = LAND_TIME
-	# Put them down somewhere they can stand. The yard is not the only thing on
-	# screen and a conferente treading water is worse than a small correction.
-	position = Vector2(
-		clampf(position.x, PortLayout.YARD_X0, PortLayout.QUAY_X1 - 8.0),
-		clampf(position.y, PortLayout.TOP_MARGIN, PortLayout.world_bottom() - 14.0))
+	position.y = clampf(position.y, PortLayout.TOP_MARGIN,
+		PortLayout.world_bottom() - 14.0)
+	if position.x > PortLayout.WATER_X0 + 2.0:
+		# Past the wall. They are going in, and the swim back is the correction.
+		position.x = minf(position.x, PortLayout.WATER_X0 + 92.0)
+		_go_overboard()
+		return
+	# Put them down somewhere they can stand.
+	position.x = clampf(position.x, PortLayout.YARD_X0, PortLayout.QUAY_X1 - 8.0)
 	# Wherever they were sent, they are not there any more. Retargeting here is
 	# what makes the walk back look deliberate instead of a figure teleporting to
 	# resume a leg it had already finished.
@@ -252,6 +256,214 @@ func release() -> void:
 
 func is_held() -> bool:
 	return _held
+
+
+func is_overboard() -> bool:
+	return _wet != Wet.DRY
+
+
+# ------------------------------------------------------------------ overboard
+
+func _go_overboard() -> void:
+	## In they go. The claim is handed back immediately: somebody in the water is
+	## not conferring a stack, and a station held by a swimmer is a station the
+	## rest of the shift cannot work.
+	_release_task()
+	_wet = Wet.SPLASH
+	_wet_t = 0.0
+	_drip_t = 0.0
+	_stroll_pause = 0.0
+	# Under the ship and the quay furniture, over the water itself.
+	z_index = -2
+	_land_t = 0.0
+	_splash(position, true)
+	AudioManager.play_sfx("splash", 0.12, -3.0)
+	if _world != null:
+		_world.show_world_badge(position + Vector2(4.0, -10.0), "SPLASH")
+
+
+func _swim(delta: float) -> void:
+	## Sink, surface, swim to the wall, climb out. One state machine, because the
+	## three of them share the bob and the wake and only differ in what they do
+	## with the body.
+	_wet_t += delta
+	match _wet:
+		Wet.SPLASH:
+			# Under. The sprite dips and dims rather than vanishing: a figure that
+			# disappears reads as a bug, a figure sinking reads as a fall.
+			var under := clampf(_wet_t / DUNK_TIME, 0.0, 1.0)
+			var dip := sin(under * PI) * 5.0
+			_body_offset(dip, lerpf(1.0, 0.62, sin(under * PI)))
+			if _wet_t >= DUNK_TIME:
+				_wet = Wet.SWIM
+				_wet_t = 0.0
+				_ensure_waterline()
+				_splash(position, false)
+		Wet.SWIM:
+			var shore := Vector2(SHORE_X, position.y)
+			var to_shore := shore - position
+			if to_shore.length() <= 1.5:
+				_wet = Wet.CLIMB
+				_wet_t = 0.0
+				_clear_waterline()
+				AudioManager.play_sfx("thunk", 0.1, -8.0)
+			else:
+				var step := to_shore.normalized() * SWIM_SPEED * delta
+				position += step if to_shore.length() > step.length() else to_shore
+				_face_walk(to_shore)
+				if _walk != null:
+					# Half speed: this is a breaststroke, not a jog.
+					_walk.speed_scale = 0.55
+					_walk.play()
+				_body_offset(3.0 + sin(_wet_t * 7.0) * SWIM_BOB, 0.78)
+				_wake_t -= delta
+				if _wake_t <= 0.0:
+					_wake_t = 0.16
+					_wake(position)
+		Wet.CLIMB:
+			# Out over the wall: they rise the last few pixels and land on the
+			# apron, which is the same squash a drop uses.
+			var out := clampf(_wet_t / CLIMB_TIME, 0.0, 1.0)
+			position.x = lerpf(SHORE_X, PortLayout.QUAY_X1 - 13.0, out)
+			_body_offset(lerpf(3.0, -2.0, out) * (1.0 - out), 1.0)
+			if _wet_t >= CLIMB_TIME:
+				_wet = Wet.DRY
+				_drip_t = DRIP_TIME
+				z_index = _grab_home_z
+				_land_t = LAND_TIME
+				_stroll_target = position
+				_stroll_pause = randf_range(0.4, 0.9)
+				if _walk != null:
+					_walk.speed_scale = 1.0
+				_body_offset(0.0, 1.0)
+	_sync_hat()
+
+
+func _body_offset(dip: float, tone: float) -> void:
+	## How deep in the water the figure is drawn, and how much of the daylight
+	## reaches them down there.
+	if _walk == null:
+		return
+	_walk.offset.y = dip
+	_walk.modulate = Color(lerpf(0.62, 1.0, tone), lerpf(0.74, 1.0, tone),
+		lerpf(0.98, 1.0, tone))
+	if _waterline != null and is_instance_valid(_waterline):
+		_waterline.position = Vector2(4.0, 8.0 + dip)
+
+
+func _drip(delta: float) -> void:
+	## The walk back, wet. Three seconds of drops off the hem is the only thing
+	## that says the swim happened to *them* rather than to the water.
+	_drip_t -= delta
+	if not UserPreferences.can_animate():
+		return
+	if randf() > delta * 7.0:
+		return
+	var drop := Sprite2D.new()
+	drop.texture = preload("res://assets/sprites/prop_puddle.png")
+	drop.centered = true
+	drop.scale = Vector2(0.2, 0.2)
+	drop.modulate = Color(0.42, 0.66, 0.82, 0.7)
+	drop.z_index = -3
+	drop.position = position + Vector2(randf_range(0.0, 8.0), 11.0)
+	_effect_layer().add_child(drop)
+	var fade := drop.create_tween()
+	fade.tween_property(drop, ^"modulate:a", 0.0, 1.6)
+	fade.tween_callback(drop.queue_free)
+
+
+func _effect_layer() -> Node:
+	## Splashes belong to the water, not to the swimmer: parented to the actor
+	## they would follow them to shore and climb out too.
+	var parent := get_parent()
+	return parent if parent != null else self
+
+
+func _splash(where: Vector2, big: bool) -> void:
+	var layer := _effect_layer()
+	var burst := AnimatedSprite2D.new()
+	var frames := SpriteFrames.new()
+	frames.set_animation_speed(&"default", 12.0)
+	var sheet: Texture2D = preload("res://assets/sprites/prop_splash.png")
+	for frame in 4:
+		var atlas := AtlasTexture.new()
+		atlas.atlas = sheet
+		atlas.region = Rect2(frame * 20, 0, 20, 14)
+		frames.add_frame(&"default", atlas)
+	burst.sprite_frames = frames
+	burst.position = where + Vector2(4.0, 8.0)
+	burst.z_index = -1
+	burst.scale = Vector2(1.4, 1.4) if big else Vector2.ONE
+	burst.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	layer.add_child(burst)
+	burst.play()
+	burst.animation_finished.connect(burst.queue_free)
+	if not big or not UserPreferences.can_animate():
+		return
+	# Two rings running out from the entry point. The splash says something hit
+	# the water; the rings say how hard.
+	for ring_index in 2:
+		var ring := Sprite2D.new()
+		var atlas := AtlasTexture.new()
+		atlas.atlas = sheet
+		atlas.region = Rect2(60, 0, 20, 14)
+		ring.texture = atlas
+		ring.position = burst.position
+		ring.z_index = -2
+		ring.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		ring.modulate = Color(0.86, 0.95, 1.0, 0.75)
+		layer.add_child(ring)
+		var spread := ring.create_tween().set_parallel()
+		spread.tween_property(ring, ^"scale", Vector2(2.6 + ring_index, 1.9),
+			0.7 + ring_index * 0.25).from(Vector2(0.6, 0.5))
+		spread.tween_property(ring, ^"modulate:a", 0.0,
+			0.7 + ring_index * 0.25)
+		spread.chain().tween_callback(ring.queue_free)
+
+
+func _wake(where: Vector2) -> void:
+	## What they leave behind them. Without it a swimmer is a sprite sliding
+	## across a shader.
+	if not UserPreferences.can_animate():
+		return
+	var foam := Sprite2D.new()
+	var atlas := AtlasTexture.new()
+	atlas.atlas = preload("res://assets/sprites/foam_sheet.png")
+	atlas.region = Rect2(randi() % 4 * 16, 0, 16, 6)
+	foam.texture = atlas
+	foam.position = where + Vector2(6.0, 10.0)
+	foam.z_index = -3
+	foam.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	foam.modulate = Color(1, 1, 1, 0.6)
+	_effect_layer().add_child(foam)
+	var fade := foam.create_tween().set_parallel()
+	fade.tween_property(foam, ^"modulate:a", 0.0, 0.9)
+	fade.tween_property(foam, ^"scale", Vector2(0.5, 0.5), 0.9)
+	fade.chain().tween_callback(foam.queue_free)
+
+
+func _ensure_waterline() -> void:
+	## Foam around the middle of them, drawn over the sprite: it is what turns a
+	## figure standing on the sea into a figure *in* it, and it costs one sprite.
+	if _waterline != null and is_instance_valid(_waterline):
+		return
+	_waterline = Sprite2D.new()
+	var atlas := AtlasTexture.new()
+	atlas.atlas = preload("res://assets/sprites/foam_sheet.png")
+	atlas.region = Rect2(0, 0, 16, 6)
+	_waterline.texture = atlas
+	_waterline.centered = true
+	_waterline.position = Vector2(4.0, 11.0)
+	_waterline.z_index = 2
+	_waterline.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_waterline.modulate = Color(0.92, 0.98, 1.0, 0.9)
+	add_child(_waterline)
+
+
+func _clear_waterline() -> void:
+	if _waterline != null and is_instance_valid(_waterline):
+		_waterline.queue_free()
+	_waterline = null
 
 
 func _ensure_grab_shadow() -> void:
@@ -433,7 +645,7 @@ func _build() -> void:
 		"rebocador":
 			_build_boat("veh_tug", 16.0)
 		"trem":
-			_build_train()
+			_build_rail_gantry()
 		"flutuante":
 			_build_static("flutuante")
 		"drone":
@@ -649,38 +861,37 @@ func _build_sts() -> void:
 	add_child(_cargo)
 
 
-func _build_train() -> void:
-	## A rake, not a decal: one loco and `RAIL_WAGONS` wagons coupled behind it at
-	## a fixed pitch, each with its own container that is only there when the
-	## wagon is actually carrying one.
+func _build_rail_gantry() -> void:
+	## The machine that works a train, and the reason a rake is a delivery rather
+	## than a decoration.
 	##
-	## The old train was a strip of sprites that slid across the bottom of the map
-	## at a constant speed, wrapped from one edge to the other, and was permanently
-	## loaded. It never arrived, never left, never took anything anywhere, and the
-	## boxes on it were painted on. This one runs a service.
-	_sprite = Node2D.new()
-	_sprite.scale = Vector2(0.70, 0.70)
+	## What the player buys as the *Ramal Ferroviário* used to be the train
+	## itself: a rake of sprites that ran in, showed some boxes and ran out again
+	## without a container ever changing hands. The train now belongs to
+	## `RailYard`, which brings real cargo and needs somebody to lift it, so the
+	## structure is the rail-mounted gantry that stands over the running line and
+	## does that lifting.
+	##
+	## The portal art is the transtainer's, turned a quarter: it is drawn
+	## straddling a north-south block, and the branch runs east-west. Turning it
+	## puts a leg either side of the track and the trolley across the wagons,
+	## which is exactly the machine an intermodal ramp has.
+	_sprite = _sprite2d("rtg", true)
+	_sprite.rotation = PI / 2.0
 	add_child(_sprite)
-	var loco := _sprite2d("veh_loco", true)
-	loco.rotation = PI / 2.0
-	_sprite.add_child(loco)
-	_rail_boxes.clear()
-	for w in RAIL_WAGONS:
-		var wagon := _sprite2d("veh_wagon", true)
-		wagon.rotation = PI / 2.0
-		wagon.position.x = RAIL_COUPLING * -(w + 1)
-		_sprite.add_child(wagon)
-		var box := _container_sprite()
-		box.centered = true
-		box.rotation = PI / 2.0
-		box.position = Vector2(wagon.position.x, -3.0)
-		box.visible = false
-		_sprite.add_child(box)
-		_rail_boxes.append(box)
-	_rail_state = RailState.WAITING
-	_rail_timer = RAIL_FIRST_CALL
-	position.x = RAIL_OFF_LEFT
-	_speed = 0.0
+	_extra = _sprite2d("rtg_trolley", true)
+	_extra.rotation = PI / 2.0
+	add_child(_extra)
+	_spreader = _sprite2d("rtg_spreader", true)
+	_spreader.rotation = PI / 2.0
+	_spreader.visible = false
+	add_child(_spreader)
+	_cargo = _container_sprite()
+	_cargo.centered = true
+	_cargo.rotation = PI / 2.0
+	_cargo.visible = false
+	add_child(_cargo)
+	position.x = PortLayout.rail_west_turnout_x() + 24.0
 
 
 func _build_drone() -> void:
@@ -751,6 +962,13 @@ func _process(delta: float) -> void:
 		_dangle(delta)
 		if _held:
 			return
+	# In the water, nothing else applies: they are not conferring, hauling or
+	# claiming anything until they are back on the wall.
+	if _wet != Wet.DRY:
+		_swim(delta)
+		return
+	if _drip_t > 0.0:
+		_drip(delta)
 	match id:
 		"estivador":
 			_walk_lane(delta)
@@ -760,7 +978,7 @@ func _process(delta: float) -> void:
 			_claim_manoeuvre(delta)
 			_patrol_water(delta)
 		"trem":
-			_run_rail(delta)
+			_run_rail_gantry(delta)
 		"drone":
 			_fly(delta)
 		"rtg":
@@ -1449,60 +1667,45 @@ func _update_boat_fx() -> void:
 			* (0.62 if light_index == 0 else 0.76)
 
 
-func _run_rail(delta: float) -> void:
-	## Arrive empty, load one wagon at a time, leave full, come back for more.
+func _run_rail_gantry(delta: float) -> void:
+	## Travel the length of the standing rake, lower onto a wagon, lift, repeat;
+	## go home to the west end when the branch is quiet.
 	##
-	## Every stretch is bounded and the state machine only ever moves forward, so
-	## the rake cannot end up parked in the middle of the map: even if a load beat
-	## is missed the timer still runs out and the train departs.
-	match _rail_state:
-		RailState.WAITING:
-			_rail_timer -= delta
-			if _rail_timer <= 0.0:
-				_rail_state = RailState.ARRIVING
-				position.x = RAIL_OFF_LEFT
-				if _sprite != null:
-					_sprite.scale.x = absf(_sprite.scale.x)
-				for box in _rail_boxes:
-					box.visible = false
-				_rail_loaded = 0
-		RailState.ARRIVING:
-			# Ease into the stand rather than stopping dead: a loaded rake weighs
-			# a couple of thousand tonnes and it should look like it.
-			var remaining := RAIL_STOP_X - position.x
-			_speed = clampf(remaining * 1.6, 6.0, RAIL_TOP_SPEED)
-			position.x += _speed * delta
-			if remaining <= 1.0:
-				position.x = RAIL_STOP_X
-				_speed = 0.0
-				_rail_state = RailState.LOADING
-				_rail_timer = RAIL_LOAD_BEAT
-		RailState.LOADING:
-			_rail_timer -= delta
-			if _rail_timer > 0.0:
-				return
-			_rail_timer = RAIL_LOAD_BEAT
-			if _rail_loaded < _rail_boxes.size():
-				# Loaded from the far end forward, the way a rake is actually
-				# worked, so the gap walks towards the loco.
-				var box: Sprite2D = _rail_boxes[_rail_boxes.size() - 1 - _rail_loaded]
-				box.visible = true
-				_rail_loaded += 1
-				if _world != null and _world.has_method("spawn_dust"):
-					_world.call("spawn_dust", position + box.position * 0.7)
-			else:
-				_rail_state = RailState.DEPARTING
-		RailState.DEPARTING:
-			# Out the way it came, with the rake mirrored so the loco leads
-			# instead of the last wagon.
-			if _sprite != null:
-				_sprite.scale.x = -absf(_sprite.scale.x)
-			_speed = minf(_speed + RAIL_ACCEL * delta, RAIL_TOP_SPEED)
-			position.x -= _speed * delta
-			if position.x < RAIL_OFF_LEFT:
-				_rail_state = RailState.WAITING
-				_rail_timer = RAIL_TURNAROUND
-				_speed = 0.0
+	## Like the transtainer, this is presentation: `RailYard` owns the cargo and
+	## the arithmetic, and the gantry is what the player watches while the boxes
+	## it is paid to move actually move. What it must never do is mime work on an
+	## empty siding — a machine that looks busy over nothing is the whole of
+	## "I bought this and I cannot tell what it does".
+	var rail: RailYard = _world.rail if _world != null else null
+	var home := PortLayout.rail_west_turnout_x() + 24.0
+	if rail == null or not rail.is_standing():
+		position.x = lerpf(position.x, home, minf(1.0, delta * 0.9))
+		_park_gantry(Vector2(0.0, 0.0))
+		return
+	if _gantry_idle:
+		_gantry_idle = false
+		_set_cargo_color(randi() % 8)
+	_gantry_cycle += delta
+	var cycle := 4.4
+	var t: float = fmod(_gantry_cycle + _phase, cycle) / cycle
+	# Along the train, wagon by wagon rather than in one smooth sweep: a gantry
+	# spots over a wagon, works it, and travels to the next one.
+	var wagons: int = maxi(1, rail.length())
+	var slot: int = int(_gantry_cycle / cycle) % wagons
+	position.x = lerpf(position.x, PortLayout.rail_wagon_x(slot),
+		minf(1.0, delta * 3.2))
+	# Across the beam: the yard side of the track and back over the wagon.
+	var reach: float = -14.0 + (sin(t * TAU) * 0.5 + 0.5) * 26.0
+	_extra.position = Vector2(0.0, reach)
+	var drop: float = 7.0 if fmod(t * 2.0, 1.0) > 0.55 else 1.0
+	_spreader.visible = true
+	_spreader.position = Vector2(0.0, reach + drop)
+	var carrying := t > 0.5
+	_cargo.visible = carrying
+	if carrying:
+		_cargo.position = _spreader.position
+	elif t < 0.05:
+		_set_cargo_color(randi() % 8)
 
 
 func _fly(delta: float) -> void:

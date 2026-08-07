@@ -71,6 +71,24 @@ def sfx_thunk():
         _thunk("thunk_%d" % (index + 1), *take)
 
 
+def sfx_splash():
+    """Somebody hitting the harbour: a slap, then the water closing over it.
+
+    Two noise bursts and a falling tone. The first burst is bright and brief —
+    the surface breaking — and the second is long, low-passed and quieter, which
+    is the part that reads as *water* rather than as a box being dropped. The
+    tone sweeps down because the cavity a body opens closes as it fills.
+    """
+    buf = render(0.75)
+    add_noise(buf, 0.0, 0.09, 0.42, env=(0.001, 0.03, 0.25, 0.05), lowpass=0.85)
+    add_tone(buf, 0.0, 0.22, 300, "sine", 0.20, env=(0.002, 0.06, 0.3, 0.12),
+             sweep=0.45)
+    add_noise(buf, 0.04, 0.52, 0.24, env=(0.03, 0.14, 0.35, 0.3), lowpass=0.32)
+    # The last of it slopping back, a beat later.
+    add_noise(buf, 0.30, 0.32, 0.12, env=(0.08, 0.12, 0.3, 0.2), lowpass=0.2)
+    save_wav(buf, "splash")
+
+
 def _click(name, freq, sweep, grit):
     buf = render(0.16)
     add_tone(buf, 0.0, 0.08, freq, "square", 0.26, duty=0.35,
@@ -186,6 +204,78 @@ def sfx_meow():
     save_wav(buf, "meow")
 
 
+def sfx_train_horn():
+    """Branch-line horn: a two-tone chime, twice, the way a loco sounds up.
+
+    Deliberately nothing like `horn`. A ship's horn is one deep warbling note
+    that says a hull is moving; a locomotive sounds a *chord* — two reeds a
+    fourth apart, blown together, in short bursts. That interval is the whole
+    identification: the player hears which of the three doors just opened
+    without looking at the bottom of the map, which is the only place the
+    branch is visible from.
+    """
+    buf = render(1.5)
+    for start, dur in ((0.00, 0.34), (0.42, 0.62)):
+        for freq, gain in ((311, 0.30), (415, 0.26), (622, 0.10)):
+            add_tone(buf, start, dur, freq, "triangle", gain,
+                     env=(0.02, 0.08, 0.82, 0.16), vibrato=0.006)
+        # The reed edge. Pure triangles are a church organ, not an air horn.
+        add_tone(buf, start, dur, 311, "square", 0.05, duty=0.35,
+                 env=(0.03, 0.1, 0.7, 0.2))
+    save_wav(buf, "train_horn")
+
+
+def sfx_rail_brake():
+    """Cast-iron brake blocks on steel tyres: a squeal that falls away.
+
+    A loaded rake stops over a couple of hundred metres, and the sound of it is
+    high, thin and *descending* — the pitch tracks the wheel it is coming off.
+    Sweeping down is what makes it read as the train stopping rather than as a
+    machine starting up."""
+    buf = render(1.1)
+    add_tone(buf, 0.0, 0.85, 2400, "saw", 0.10, env=(0.12, 0.2, 0.6, 0.3),
+             sweep=0.42, vibrato=0.02)
+    add_tone(buf, 0.05, 0.75, 3100, "triangle", 0.06,
+             env=(0.15, 0.2, 0.5, 0.3), sweep=0.38)
+    # The rolling stock under it: the low rumble that stops when the squeal does.
+    add_noise(buf, 0.0, 0.9, 0.10, env=(0.05, 0.2, 0.5, 0.4), lowpass=0.10)
+    save_wav(buf, "rail_brake")
+
+
+def sfx_coupling():
+    """Buffers meeting and the drawgear taking up: clank, then the slack run.
+
+    One hit is a hammer. What says *coupling* is the second, quieter knock a
+    moment later as the shock runs back down the rake and the couplings pull
+    tight one after another."""
+    buf = render(0.7)
+    add_tone(buf, 0.0, 0.09, 148, "square", 0.34, duty=0.4,
+             env=(0.001, 0.04, 0.25, 0.05), sweep=0.55)
+    add_tone(buf, 0.0, 0.14, 74, "triangle", 0.30, env=(0.001, 0.06, 0.3, 0.07),
+             sweep=0.7)
+    add_noise(buf, 0.0, 0.10, 0.20, env=(0.001, 0.04, 0.2, 0.06), lowpass=0.30)
+    add_tone(buf, 0.16, 0.10, 118, "square", 0.16, duty=0.45,
+             env=(0.002, 0.05, 0.25, 0.06), sweep=0.6)
+    add_tone(buf, 0.30, 0.09, 96, "triangle", 0.10, env=(0.003, 0.05, 0.2, 0.05),
+             sweep=0.65)
+    save_wav(buf, "coupling")
+
+
+def sfx_crossing_bell():
+    """Level-crossing bell: one strike of the gong, struck on the wig-wag beat.
+
+    A single strike rather than a loop. `PortWorld` already flashes the lamps on
+    a half-second beat and rings this on the same clock, so the rhythm comes
+    from the thing the player can see — a baked-in loop would drift out of step
+    with the lamps the moment either changed."""
+    buf = render(0.55)
+    for freq, gain in ((1046, 0.26), (1568, 0.13), (2093, 0.07)):
+        add_tone(buf, 0.0, 0.45, freq, "triangle", gain,
+                 env=(0.002, 0.09, 0.30, 0.34))
+    add_noise(buf, 0.0, 0.03, 0.10, env=(0.001, 0.01, 0.2, 0.02), lowpass=0.6)
+    save_wav(buf, "crossing_bell")
+
+
 def sfx_prestige():
     """Prestige reset: shimmering ascent."""
     buf = render(1.4)
@@ -212,11 +302,16 @@ if __name__ == "__main__":
     sfx_tap()
     sfx_click()
     sfx_thunk()
+    sfx_splash()
     sfx_buy()
     sfx_upgrade()
     sfx_deny()
     sfx_build()
     sfx_horn()
+    sfx_train_horn()
+    sfx_rail_brake()
+    sfx_coupling()
+    sfx_crossing_bell()
     sfx_foghorn()
     sfx_gull()
     sfx_meow()

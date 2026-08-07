@@ -1,8 +1,11 @@
 # HarborClick
 
 Clicker/idle de terminal de contêineres. Mobile, retrato, pixel art top-down.
-Godot 4.7 · todos os assets (sprites, fonte, SFX e música) são **gerados por
-código**.
+Godot 4.7 · os assets (sprites, fonte, SFX e música) são **gerados por código**,
+com uma exceção declarada: três ilustrações da tela inicial — o brasão, o navio
+atracado e as três fotos de berço — saem de um modelo de pixel art, e as
+respostas dele ficam versionadas junto da receita
+(`tools/sprites/pixellab/`). O build nunca chama a API.
 
 O pátio já nasce com um manifesto de exportação entregue pelo comboio rodoviário
 inaugural antes do primeiro turno. Você descarrega toda a importação do navio,
@@ -131,6 +134,7 @@ scripts/
 tools/
   venv/        Python + Pillow
   sprites/     geradores de pixel art, fonte, UI e o mapa-múndi da carta
+    pixellab/  receitas + respostas cacheadas das três ilustrações geradas
   audio/       synth chiptune + geradores de SFX/música
   capture/     harness de screenshot (roda o jogo de verdade em toda a matriz
                de resolução e falha se algum overlay sair do viewport) e
@@ -278,17 +282,55 @@ de deixar o jogador construir uma run que evapora no reload.
   linha quebrada de espuma onde a água encontra o cais.
 - **Céu** — `Skyscape`. De cima não se olha pra cima: nuvem é só a sombra que
   ela joga no pátio, lua e estrelas só o reflexo na água, por baixo do casco.
-- **Áudio** — 13 SFX e 3 trilhas longas e calmas (dia/noite/neblina) com
+- **Áudio** — 17 SFX e 3 trilhas longas e calmas (dia/noite/neblina) com
   crossfade. Liga/desliga em Ajustes, persistido em `user://audio.cfg`.
-- **Ramal ferroviário** — o corredor é um **fundo de saco**: `GroundBaker` põe
-  lastro, dormentes, dois trilhos e um para-choque do limite oeste até
-  `WATER_X0 - 11`, e depois disso é cais e mar. Então a composição entra do
-  interior, encosta antes do para-choque, é carregada um vagão por vez a partir
-  do último — o vão anda em direção à locomotiva, como se trabalha uma
-  composição de verdade — e **sai de ré pelo mesmo caminho**, com a locomotiva
-  espelhada para liderar. A primeira versão disto atravessava o porto e entrava
-  no mar; `tests/automation_test_runner.gd` falha se a composição passar do
-  para-choque.
+- **Ramal ferroviário** — a terceira porta do terminal, e a única que não pode
+  dar meia-volta. O corredor é um **fundo de saco**: `GroundBaker` põe lastro,
+  dormentes, dois trilhos e um para-choque do limite oeste até `WATER_X0 - 11`,
+  e depois disso é cais e mar. Uma composição entra do interior carregada de
+  caixas que o interior está exportando — identidades criadas fora do mapa,
+  como no manifesto de um navio —, encosta antes do para-choque e é trabalhada
+  ali: toque num vagão, ou deixe o **pórtico ferroviário** (o que se compra como
+  *Ramal Ferroviário*) percorrer a composição e fazer isso sozinho. O que sai
+  do pátio pelo trem passa pelo mesmo caminho protegido do portão, com o mesmo
+  piso de estoque, então o ramal nunca deixa o próximo navio sem carga.
+  Para sair, a locomotiva **faz a manobra de contorno**: desengata, avança além
+  do AMV leste, cruza para a linha de contorno, volta a oeste ao lado da própria
+  composição, cruza de novo e engata no que era a cauda. A versão anterior
+  espelhava o sprite — a locomotiva se teletransportava para a outra ponta.
+  `tests/rail_test_runner.gd` falha se ela não usar a linha de contorno, se
+  trabalhar uma composição em movimento, se criar carga no ramal ou se um
+  serviço não terminar sem ninguém desenhando o trem.
+- **Sinalização do ramal** — sinal de três aspectos na entrada (verde, amarelo
+  quando um serviço foi aceito ou está em movimento, vermelho com o trecho
+  ocupado), passagem de nível que pisca enquanto há trem na linha, e a placa do
+  ramal. Tudo lê o estado do serviço, então nada no chão pode anunciar algo que
+  o ramal não está fazendo.
+- **Ordem permanente do ramal** — a quarta, ao lado da gangue, da rota e do
+  capataz. `EQUILÍBRIO` segue o pátio; `ABASTECER` traz a composição cheia e
+  leva o mínimo, e o estoque sobe na velocidade de um trem; `ESCOAR` trabalha
+  todo vagão nos dois sentidos, o dobro de movimentos pelo mesmo horário
+  reservado. A ordem enviesa a troca e **não pode quebrá-la**: `DRAIN_FILL` é
+  lido antes da ordem, então um pátio travado sempre recebe o serviço que o
+  destrava — uma ordem capaz de desligar isso seria um jeito de inutilizar o
+  save. Ela vale para o *próximo* serviço: horário reservado não se renegocia
+  com o trem já na linha.
+- **O ramal se anuncia** — ele corre na borda inferior do mundo, abaixo da
+  última fileira de galpões, e a câmera não vai atrás. Então avisa: quando um
+  serviço é aceito, quando encosta (com quantos vagões descarregar e embarcar),
+  e quando parte. Uma composição trabalhada até o último vagão paga bônus de
+  conclusão, contado sobre transferências efetivadas — nunca sobre toques. O
+  painel de ordens da loja é o instrumento do ramal: mostra o que a linha está
+  fazendo agora, porque escolher uma ordem sem poder ver o resultado não é
+  decisão nenhuma.
+- **A composição** — locomotiva com farol que lidera a marcha, fumaça de escape
+  medida pela velocidade real (a manobra e a marcha movem a locomotiva em eixos
+  diferentes, e o penacho responde aos dois), fumaça de freio sob os truques na
+  parada, e três tipos de vagão distribuídos por posição — nenhum vagão
+  acoplado é igual ao vizinho, e a mesma composição volta igual depois de um
+  reload. Buzina de dois tons, guincho de freio onde os freios de fato entram,
+  estrondo do engate quando os para-choques se encontram, e a campainha da
+  passagem de nível batida no mesmo relógio que pisca as lanternas.
 - **Tráfego** — via de serviço de mão dupla separada em duas colunas, faixa de
   rolamento reservada por veículo e distância de seguimento. Um veículo travado
   devolve o serviço em 12 s em vez de segurar a faixa e matar de fome o resto.

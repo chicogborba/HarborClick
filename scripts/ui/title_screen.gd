@@ -18,7 +18,15 @@ extends Control
 ## only the armed slot can be confirmed — arming one and confirming another is
 ## exactly how somebody loses the wrong terminal.
 
-const SLOT_HEIGHT := 70.0
+const SLOT_HEIGHT := 76.0
+## The berth photographs on the slots, one per terminal, at 1:1. They are 64px
+## paintings and the card is sized around them rather than the other way round.
+const BADGE_SIZE := 64.0
+const BERTH_ART := [
+	preload("res://assets/sprites/ui_berth_a.png"),
+	preload("res://assets/sprites/ui_berth_b.png"),
+	preload("res://assets/sprites/ui_berth_c.png"),
+]
 ## The four corner keys, and what each of them opens.
 const CORNERS := [
 	{"id": "feedback", "label": "FEEDBACK", "icon": UiTheme.Icon.CHAT,
@@ -33,11 +41,29 @@ const REPO_URL := "https://github.com/chicogborba/HarborClick"
 const VERSION_LINE := "v1.0.0"
 const STUDIO_LINE := "PORTSTACK STUDIOS"
 
+## How far the backdrop is allowed to creep, and how long one pass takes. The
+## port is a photograph of a place that is working; a still one says it stopped.
+const DRIFT := 14.0
+const DRIFT_SECONDS := 26.0
+## Gulls over the water. Four is what the world uses; the title is the same port.
+const GULL_COUNT := 3
+## The backdrop's own size, and the three gantries standing on its quay. Both
+## are `tools/sprites/gen_title.py`'s numbers: the picture is baked with the
+## booms on it and the trolleys left off, because a trolley that never moves is
+## the one part of a working terminal that says nothing is happening.
+const PORT_SIZE := Vector2(320, 720)
+const CRANE_YS := [208.0, 372.0, 536.0]
+## Where a trolley can go: out over the ship, and back in over the apron.
+const TROLLEY_OUT := 282.0
+const TROLLEY_IN := 224.0
+
 var _backdrop: TextureRect
 var _marquee: Control
 var _plate: PanelContainer
 var _ribbon: PanelContainer
-var _anchor: TextureRect
+var _crest: TextureRect
+var _scrim: TextureRect
+var _play_key: Button
 var _continue_detail: Label
 var _actions: VBoxContainer
 var _continue_key: Button
@@ -50,6 +76,10 @@ var _slots: VBoxContainer
 var _status: Label
 var _sheet: Control
 var _armed_delete := 0
+var _port_layer: Node2D
+var _gulls: Array[AnimatedSprite2D] = []
+var _gull_time := 0.0
+var _trolleys: Array[Node2D] = []
 
 
 func _ready() -> void:
@@ -60,6 +90,7 @@ func _ready() -> void:
 	_refresh()
 	_show_marquee()
 	_layout()
+	_start_motion()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -83,17 +114,121 @@ func _build() -> void:
 	_backdrop.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	_backdrop.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	# Overscanned by `DRIFT` on every side so the picture can be moved without a
+	# gap opening at an edge. It is drawn COVERED, so the extra is cropped
+	# anyway — this only decides *which* crop is on screen right now.
+	_backdrop.offset_left = -DRIFT
+	_backdrop.offset_top = -DRIFT
+	_backdrop.offset_right = DRIFT
+	_backdrop.offset_bottom = DRIFT
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_backdrop)
 
+	# A thin wash, not a curtain. It used to be a third of the way to black,
+	# which is what a night title needs and what a late-afternoon one cannot
+	# survive: the yard behind this is the game's own daylight, and dimming it
+	# that far made the first screen darker than every screen after it. What the
+	# type actually needs is the scrim under the keys, which is local.
 	var shade := ColorRect.new()
-	shade.color = Color(0.055, 0.065, 0.11, 0.34)
+	shade.color = Color(0.055, 0.065, 0.11, 0.16)
 	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(shade)
 
+	_build_port_actors()
 	_build_marquee()
 	_build_board()
+
+
+func _build_port_actors() -> void:
+	## Everything on this screen that moves lives in one Node2D whose transform
+	## is the backdrop's own, so its children are positioned in *port* pixels —
+	## the same coordinates `gen_title.py` painted the picture in. Without that
+	## every actor would need the COVERED scale worked out for it, and a drifting
+	## backdrop would leave all of them behind.
+	_port_layer = Node2D.new()
+	_port_layer.name = "PortActors"
+	add_child(_port_layer)
+
+	# The trolleys. The booms are baked into the backdrop; what rides them is
+	# not, because this is the one thing on the title that shows work being done
+	# — a box comes off the ship, crosses the apron and is set down.
+	for index in CRANE_YS.size():
+		var trolley := Node2D.new()
+		trolley.position = Vector2(TROLLEY_OUT, CRANE_YS[index] + 16.0)
+		var cargo := Sprite2D.new()
+		cargo.name = "Cargo"
+		cargo.texture = _container_frame(index * 3 + 1)
+		cargo.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		cargo.position = Vector2(0, 3)
+		trolley.add_child(cargo)
+		var frame := Sprite2D.new()
+		frame.texture = preload("res://assets/sprites/sts_trolley.png")
+		frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		trolley.add_child(frame)
+		_port_layer.add_child(trolley)
+		_trolleys.append(trolley)
+
+	## The same birds that wheel over the terminal in `Critters`, over the same
+	## water, from the same four-frame sheet. The title is a picture of the port
+	## the player is about to open; the port has gulls in it, so this does.
+	if not UserPreferences.can_animate():
+		return
+	var sheet: Texture2D = preload("res://assets/sprites/prop_seagull.png")
+	for index in GULL_COUNT:
+		var gull := AnimatedSprite2D.new()
+		var frames := SpriteFrames.new()
+		frames.set_animation_speed(&"default", 8.0)
+		for step in 4:
+			var region := AtlasTexture.new()
+			region.atlas = sheet
+			region.region = Rect2(step * 14, 0, 14, 12)
+			frames.add_frame(&"default", region)
+		gull.sprite_frames = frames
+		gull.frame = index
+		gull.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		gull.modulate = Color(0.92, 0.94, 1.0, 0.92)
+		gull.play()
+		_port_layer.add_child(gull)
+		_gulls.append(gull)
+
+
+func _container_frame(color: int) -> AtlasTexture:
+	## One livery off the yard's own eight-box sheet, so the thing under the
+	## spreader is the same object the game is about to hand the player.
+	var frame := AtlasTexture.new()
+	frame.atlas = preload("res://assets/sprites/container_sheet.png")
+	frame.region = Rect2(posmod(color, 8) * 24, 0, 24, 13)
+	return frame
+
+
+func _process(delta: float) -> void:
+	if _port_layer == null:
+		return
+	# The backdrop is drawn COVERED and it drifts, so its transform is recomputed
+	# every frame rather than at layout: the actors have to sit on the picture,
+	# not near it.
+	var rect := _backdrop.size
+	if rect.x > 0.0 and rect.y > 0.0:
+		var scale := maxf(rect.x / PORT_SIZE.x, rect.y / PORT_SIZE.y)
+		_port_layer.scale = Vector2(scale, scale)
+		_port_layer.position = _backdrop.position \
+			+ (rect - PORT_SIZE * scale) * 0.5
+
+	if _gulls.is_empty():
+		return
+	_gull_time += delta
+	for index in _gulls.size():
+		## Ellipses over the water, each at its own phase and radius. Straight
+		## lines across the frame would be a screensaver; a bird that comes back
+		## is a bird that lives here.
+		var gull: AnimatedSprite2D = _gulls[index]
+		var phase := _gull_time * (0.2 + index * 0.04) + index * 2.1
+		var centre := Vector2(276.0 + 8.0 * (index % 2), 220.0 + 120.0 * index)
+		gull.position = centre + Vector2(cos(phase) * (26.0 + index * 5.0),
+			sin(phase * 1.4) * 42.0)
+		# Turned to face the way it is going, the way the world's gulls are.
+		gull.scale.x = 1.0 if sin(phase) > 0.0 else -1.0
 
 
 func _build_marquee() -> void:
@@ -106,6 +241,15 @@ func _build_marquee() -> void:
 	_plate = UiTheme.panel(UiTheme.title_plate_style())
 	_plate.name = "TitlePlate"
 	_marquee.add_child(_plate)
+	# Lamplight on the enamel behind the type. A navy rectangle is a sign; a
+	# navy rectangle with a light on it is a sign somebody switched on.
+	var lit := TextureRect.new()
+	lit.name = "PlateGlow"
+	lit.texture = _plate_glow()
+	lit.stretch_mode = TextureRect.STRETCH_SCALE
+	lit.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_plate.add_child(lit)
+
 	var plate_column := VBoxContainer.new()
 	plate_column.alignment = BoxContainer.ALIGNMENT_CENTER
 	plate_column.add_theme_constant_override(&"separation", 0)
@@ -132,12 +276,26 @@ func _build_marquee() -> void:
 
 	# The mark, astride the top edge of the plate. Placed in the layout pass, not
 	# here: it straddles the plate, so it needs the plate's final rectangle.
-	_anchor = TextureRect.new()
-	_anchor.name = "Anchor"
-	_anchor.texture = preload("res://assets/sprites/ui_title_anchor.png")
-	_anchor.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_marquee.add_child(_anchor)
+	#
+	# It is a crest rather than the old flat anchor, and it is drawn at 1:1. The
+	# art is `tools/sprites/pixellab` work — the one asset in this game where the
+	# value is in the drawing and a nested loop was the wrong instrument — and
+	# anything other than an integer scale would sand the pixels off it.
+	_crest = TextureRect.new()
+	_crest.name = "Crest"
+	_crest.texture = preload("res://assets/sprites/ui_title_crest.png")
+	_crest.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_crest.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_marquee.add_child(_crest)
+
+	# A pool of dusk under the keys. The backdrop is a working terminal, which
+	# means the middle of it is containers: without this the three most important
+	# words on the screen are read off a chequerboard.
+	_scrim = TextureRect.new()
+	_scrim.name = "KeyScrim"
+	_scrim.texture = _key_scrim()
+	_scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_marquee.add_child(_scrim)
 
 	_actions = VBoxContainer.new()
 	_actions.name = "Actions"
@@ -148,10 +306,12 @@ func _build_marquee() -> void:
 	# and the only key wearing stars. Everything else is navy: a title with three
 	# equally loud buttons makes the player read all three.
 	var play := UiTheme.button("", &"amber", UiTheme.SIZE_TITLE)
-	play.custom_minimum_size.y = 46.0
+	_dress_key(play, &"amber")
+	play.custom_minimum_size.y = 48.0
 	UiTheme.describe(play, "Jogar", "Escolher um dos três terminais")
 	play.pressed.connect(_show_board)
 	_actions.add_child(play)
+	_play_key = play
 	var play_row := HBoxContainer.new()
 	play_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	play_row.add_theme_constant_override(&"separation", 10)
@@ -173,7 +333,8 @@ func _build_marquee() -> void:
 	# CONTINUAR carries a second line, because "continue" without "which day" is
 	# a promise the player has to press to find out the value of.
 	_continue_key = UiTheme.button("", &"steel", UiTheme.SIZE_BODY)
-	_continue_key.custom_minimum_size.y = 40.0
+	_dress_key(_continue_key, &"steel")
+	_continue_key.custom_minimum_size.y = 42.0
 	_continue_key.pressed.connect(_continue_last)
 	_actions.add_child(_continue_key)
 	var continue_column := VBoxContainer.new()
@@ -191,7 +352,8 @@ func _build_marquee() -> void:
 	continue_column.add_child(_continue_detail)
 
 	var settings := UiTheme.button("", &"steel", UiTheme.SIZE_BODY)
-	settings.custom_minimum_size.y = 36.0
+	_dress_key(settings, &"steel")
+	settings.custom_minimum_size.y = 38.0
 	UiTheme.describe(settings, "Ajustes", "Som, movimento e tela")
 	settings.pressed.connect(_open_options)
 	_actions.add_child(settings)
@@ -232,11 +394,11 @@ func _build_marquee() -> void:
 			var version := UiTheme.label(VERSION_LINE, UiTheme.SIZE_SMALL,
 				UiTheme.STEEL_DIM)
 			version_row.add_child(version)
+		# Drawn at the size it is used at rather than a 28px mark squeezed into
+		# nine: a non-integer downscale of pixel art loses whole rows of it.
 		var mark := TextureRect.new()
-		mark.texture = preload("res://assets/sprites/ui_title_anchor.png")
+		mark.texture = preload("res://assets/sprites/ui_title_pip.png")
 		mark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		mark.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		mark.custom_minimum_size = Vector2(9, 10)
 		mark.modulate = Color(1, 1, 1, 0.5)
 		mark.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		version_row.add_child(mark)
@@ -245,38 +407,155 @@ func _build_marquee() -> void:
 	_footer.add_child(studio)
 
 
-func _wordmark() -> Control:
-	## "HarborClick" at title size, drawn twice: a near-black copy offset down and
-	## right, then the real one on top.
+func _key_scrim() -> GradientTexture2D:
+	## Dusk that fades in and out again, so it has no edge to notice. A flat
+	## panel behind the keys would be a fourth material on a screen that has
+	## exactly two, and the player would read it as a thing rather than as light.
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.34, 0.66, 1.0])
+	gradient.colors = PackedColorArray([
+		Color(0.04, 0.05, 0.09, 0.0), Color(0.04, 0.05, 0.09, 0.72),
+		Color(0.04, 0.05, 0.09, 0.72), Color(0.04, 0.05, 0.09, 0.0)])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = 8
+	texture.height = 128
+	texture.fill_from = Vector2(0, 0)
+	texture.fill_to = Vector2(0, 1)
+	return texture
+
+
+# -------------------------------------------------------------------- motion
+
+func _start_motion() -> void:
+	## An arrival, then two loops, all of them optional. Everything here animates
+	## `modulate` or the backdrop's own rect — never a control the layout pass
+	## owns — so a resize mid-tween cannot leave a key parked off its mark.
 	##
-	## The pixel font has one weight and no outline, so flat 20px type on a navy
-	## plate reads as a caption rather than as a logo. A second pass costs two
-	## Labels and gives the letters a body — the same trick the yard's float text
-	## uses, for the same reason.
-	var stack := Control.new()
-	stack.name = "Wordmark"
-	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# The stack is not a container, so its children sit at its origin: without
-	# this it fills the plate and the type is left-aligned in it.
-	stack.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var shadow := _wordmark_row(UiTheme.HULL_EDGE, UiTheme.HULL_EDGE)
-	shadow.position = Vector2(2, 2)
-	stack.add_child(shadow)
-	var face := _wordmark_row(UiTheme.CREAM, UiTheme.AMBER)
-	stack.add_child(face)
-	# The stack is not a container, so it reports nothing; the plate needs the
-	# type's real size or it collapses around it.
-	stack.custom_minimum_size = face.get_combined_minimum_size() + Vector2(2, 2)
-	return stack
+	## The loops wait for the arrival to finish. Both touch `modulate`, and a
+	## looping tint running against a fade is the one way two correct animations
+	## make a control flicker.
+	if not UserPreferences.can_animate():
+		# Motion off still leaves three cranes holding three boxes over the ship,
+		# which is a picture of a working terminal rather than a paused one.
+		return
+	_arrive()
+	await get_tree().create_timer(0.46).timeout
+	if not is_inside_tree():
+		return
+
+	var drift := create_tween().set_loops()
+	drift.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	drift.tween_property(_backdrop, ^"position", Vector2(-DRIFT, -2.0),
+		DRIFT_SECONDS).from(Vector2(-DRIFT, -DRIFT * 2.0 + 2.0))
+	drift.tween_property(_backdrop, ^"position", Vector2(-DRIFT, -DRIFT * 2.0 + 2.0),
+		DRIFT_SECONDS)
+
+	# The crest catches the light the way a brass thing on a wall does.
+	var shine := create_tween().set_loops()
+	shine.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	shine.tween_property(_crest, ^"modulate", Color(1.12, 1.10, 1.04), 2.4)
+	shine.tween_property(_crest, ^"modulate", Color(0.94, 0.94, 0.96), 2.4)
+
+	# JOGAR is the only thing on this screen the player has to find.
+	var pulse := create_tween().set_loops()
+	pulse.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	pulse.tween_property(_play_key, ^"modulate", Color(1.09, 1.06, 1.0), 1.5)
+	pulse.tween_property(_play_key, ^"modulate", Color(1, 1, 1), 1.5)
+
+	_work_the_ship()
 
 
-func _wordmark_row(harbor: Color, click: Color) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 0)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(UiTheme.label("Harbor", UiTheme.SIZE_HUGE, harbor))
-	row.add_child(UiTheme.label("Click", UiTheme.SIZE_HUGE, click))
-	return row
+func _work_the_ship() -> void:
+	## The three gantries discharging her, each on its own clock.
+	##
+	## One cycle is the whole job in miniature: the trolley runs out over the
+	## hold, a box appears under it, it crosses to the apron, sets the box down
+	## and goes back for another. It is the only thing on this screen that is
+	## *the game* rather than a picture of it, which is why it is worth the four
+	## tweens it costs.
+	for index in _trolleys.size():
+		var trolley: Node2D = _trolleys[index]
+		var cargo: Sprite2D = trolley.get_node(^"Cargo")
+		var cycle := create_tween().set_loops()
+		cycle.tween_interval(index * 2.6)
+		cycle.tween_callback(func() -> void: cargo.modulate.a = 0.0)
+		cycle.tween_interval(0.5)
+		# Landing on the box: a beat with nothing moving reads as the spreader
+		# taking the weight, and without it the run back looks like a glitch.
+		cycle.tween_property(cargo, ^"modulate:a", 1.0, 0.25)
+		cycle.tween_property(trolley, ^"position:x", TROLLEY_IN, 3.4) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		cycle.tween_property(cargo, ^"modulate:a", 0.0, 0.2)
+		cycle.tween_interval(0.4)
+		cycle.tween_property(trolley, ^"position:x", TROLLEY_OUT, 2.8) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _arrive() -> void:
+	## The marquee assembling itself, top to bottom, in a third of a second.
+	## Fades only: the capture harness measures these rectangles a frame later
+	## and an entrance that moved them would be measuring the animation.
+	var order: Array[Control] = [_plate, _ribbon, _crest, _actions, _footer]
+	for id: String in _corner_keys:
+		order.append(_corner_keys[id] as Control)
+	for step in order.size():
+		var node: Control = order[step]
+		node.modulate.a = 0.0
+		var fade := create_tween()
+		fade.tween_interval(0.04 * step)
+		fade.tween_property(node, ^"modulate:a", 1.0, 0.22)
+
+
+func _plate_glow() -> GradientTexture2D:
+	## A warm pool on the plate, brightest behind the type. Radial, so it has no
+	## edge; an edge would read as a second panel bolted onto the first.
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+	gradient.colors = PackedColorArray([
+		Color(1.0, 0.82, 0.42, 0.20), Color(1.0, 0.78, 0.38, 0.07),
+		Color(1.0, 0.78, 0.38, 0.0)])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.fill = GradientTexture2D.FILL_RADIAL
+	texture.fill_from = Vector2(0.5, 0.5)
+	texture.fill_to = Vector2(1.0, 0.5)
+	texture.width = 64
+	texture.height = 32
+	return texture
+
+
+func _wordmark() -> Control:
+	## "HarborClick" as one drawn object, not as two Labels.
+	##
+	## It used to be the game's body font at title size with a shadow under it,
+	## which is exactly what it looked like: a caption. A logo needs weight the
+	## font does not have — an extruded body, an ink ring thick enough to survive
+	## being read against a container yard, and a rim where the light catches the
+	## top of every stroke. All three are set operations on the same stencil, so
+	## `tools/sprites/gen_title.py` draws it out of the game's own glyphs and this
+	## hangs the result on the plate at 1:1.
+	var mark := TextureRect.new()
+	mark.name = "Wordmark"
+	mark.texture = preload("res://assets/sprites/ui_title_word.png")
+	mark.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	mark.custom_minimum_size = mark.texture.get_size()
+	return mark
+
+
+func _dress_key(key: Button, kind: StringName) -> void:
+	## The title's keys wear the title's material. `UiTheme.button` gives them
+	## the console's, which is right everywhere the console is — and wrong here,
+	## where a key has to hold its own against a photograph rather than against
+	## navy enamel.
+	var normal := UiTheme.title_button_style(kind)
+	key.add_theme_stylebox_override(&"normal", normal)
+	key.add_theme_stylebox_override(&"hover", normal)
+	key.add_theme_stylebox_override(&"pressed",
+		UiTheme.title_button_style(kind, true))
+	key.add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
 
 
 func _corner_key(spec: Dictionary) -> PanelContainer:
@@ -595,15 +874,18 @@ func _make_slot(summary: Dictionary) -> PanelContainer:
 	row.add_theme_constant_override(&"separation", 6)
 	card.add_child(row)
 
-	var badge := UiTheme.panel(UiTheme.slate_style(used, 4))
-	badge.custom_minimum_size = Vector2(36, 36)
+	# A photograph of the berth, mounted on the sheet. Three identical black
+	# squares numbered 01, 02, 03 told the player which row they were on, which
+	# the words beside them already did; a picture tells them there is a place
+	# down there. An empty slot gets the same picture with the lights off.
+	var badge := TextureRect.new()
+	badge.texture = BERTH_ART[(slot - 1) % BERTH_ART.size()]
+	badge.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	badge.custom_minimum_size = Vector2(BADGE_SIZE, BADGE_SIZE)
 	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.modulate = Color(1, 1, 1) if used else Color(0.52, 0.56, 0.64, 0.85)
 	row.add_child(badge)
-	var badge_label := UiTheme.label("%02d" % slot,
-		UiTheme.SIZE_BODY, UiTheme.AMBER if used else UiTheme.PAPER_DEEP)
-	badge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	badge_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	badge.add_child(badge_label)
 
 	var text := VBoxContainer.new()
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -628,7 +910,10 @@ func _make_slot(summary: Dictionary) -> PanelContainer:
 	var keys := VBoxContainer.new()
 	keys.add_theme_constant_override(&"separation", 3)
 	keys.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	keys.custom_minimum_size.x = 84.0
+	# Trimmed from 84 when the berth photograph moved in beside it: the summary
+	# line between them is the part that has to be readable, and it was the part
+	# paying for the width.
+	keys.custom_minimum_size.x = 76.0
 	row.add_child(keys)
 
 	var play := UiTheme.button("CONTINUAR" if used else "COMEÇAR", &"amber",
@@ -739,20 +1024,17 @@ func _layout_marquee(view: Vector2, width: float, left: float, tight: bool,
 	_ribbon.position = Vector2((view.x - ribbon_size.x) * 0.5,
 		_plate.position.y + plate_height - 3.0)
 
-	# The anchor straddles the plate's top edge: half on the enamel, half above
+	# The crest straddles the plate's top edge: half on the enamel, half above
 	# it. Centred on the plate rather than on the screen, so it stays with the
-	# board when the board is narrower than the frame.
-	# Drawn at 1.5x, nearest-neighbour: it is the mark, and at native size it is a
-	# 28px ornament lost against a 340px board.
-	var anchor_size := Vector2(_anchor.texture.get_width(),
-		_anchor.texture.get_height()) * (1.2 if tight else 1.6)
-	_anchor.size = anchor_size
-	_anchor.custom_minimum_size = anchor_size
-	_anchor.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_anchor.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_anchor.position = Vector2(
-		_plate.position.x + (plate_width - anchor_size.x) * 0.5,
-		_plate.position.y - anchor_size.y * 0.66)
+	# board when the board is narrower than the frame. Native size, always — the
+	# drawing is 40x55 and every other number here would resample it.
+	var crest_size := Vector2(_crest.texture.get_width(),
+		_crest.texture.get_height())
+	_crest.size = crest_size
+	_crest.custom_minimum_size = crest_size
+	_crest.position = Vector2(
+		_plate.position.x + (plate_width - crest_size.x) * 0.5,
+		_plate.position.y - crest_size.y * 0.74)
 
 	var action_width := clampf(width * 0.78, 180.0, 260.0)
 	_actions.custom_minimum_size.x = action_width
@@ -762,6 +1044,15 @@ func _layout_marquee(view: Vector2, width: float, left: float, tight: bool,
 		clampf(view.y * 0.62 - action_height * 0.5,
 			_ribbon.position.y + _ribbon.size.y + 14.0,
 			view.y - action_height - corner_size.y - margin * 3.0))
+
+	# The pool of dusk under the keys, wider and taller than they are so its
+	# fade has somewhere to happen. It follows the keys rather than the screen:
+	# the keys are what it exists to make readable.
+	var scrim_size := Vector2(minf(view.x, action_width + 96.0),
+		action_height + 84.0)
+	_scrim.size = scrim_size
+	_scrim.position = Vector2((view.x - scrim_size.x) * 0.5,
+		_actions.position.y - 42.0)
 
 	var footer_height := _footer.get_combined_minimum_size().y
 	_footer.custom_minimum_size.x = width

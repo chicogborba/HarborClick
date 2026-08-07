@@ -48,6 +48,9 @@ var _profile := ""
 var _buy_mode: StringName = &"x1"
 var _focus_return: Control
 var _rail: CommandRail
+## The railway, not the console. `_rail` is the bottom bar; this is the branch
+## line, and the orders board is the only screen it reports to.
+var _branch: RailYard
 
 
 func _ready() -> void:
@@ -341,6 +344,7 @@ func _build_orders() -> void:
 		blurb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(blurb)
 	_build_route_orders(list)
+	_build_rail_orders(list)
 	_build_foreman(list)
 	_refresh_orders()
 
@@ -398,6 +402,109 @@ func _on_pick_lane_policy(policy: StringName) -> void:
 	_refresh_orders()
 	AudioManager.play_sfx("tap")
 	SaveManager.request_save(&"orders")
+
+
+func _build_rail_orders(list: VBoxContainer) -> void:
+	## The fourth standing order, and the only instrument the branch line has.
+	##
+	## Every other subsystem is visible from where the player already is: the
+	## berth is under the gantry, the gate is on the apron, the yard is the
+	## middle of the screen. The branch runs along the very bottom of the world,
+	## below the last row of sheds, and the camera does not go looking for it —
+	## so an order board with no readout on it would be four buttons wired to
+	## something the player has to take on faith. The live line above the cards
+	## is that readout.
+	var section := VBoxContainer.new()
+	section.name = "Branch"
+	section.add_theme_constant_override(&"separation", 3)
+	list.add_child(section)
+	section.add_child(UiTheme.spacer(4.0))
+	section.add_child(UiTheme.divider())
+	section.add_child(_orders_caption("O RAMAL FERROVIÁRIO"))
+
+	var status := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP)
+	status.name = "Status"
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	section.add_child(status)
+
+	for order: StringName in RailCargoPolicy.ORDERS:
+		var card := PanelContainer.new()
+		card.name = "Rail_%s" % order
+		UiTheme.apply_panel(card, UiTheme.card_style(&"normal"))
+		section.add_child(card)
+		var button := Button.new()
+		button.flat = true
+		button.focus_mode = Control.FOCUS_ALL
+		button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		button.add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
+		UiTheme.describe(button, str(RailCargoPolicy.ORDER_LABELS[order]),
+			str(RailCargoPolicy.ORDER_BLURBS[order]))
+		button.pressed.connect(_on_pick_rail_order.bind(order))
+		card.add_child(button)
+		var row := VBoxContainer.new()
+		row.name = "Row"
+		row.add_theme_constant_override(&"separation", 1)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT,
+			Control.PRESET_MODE_MINSIZE, 4)
+		card.add_child(row)
+		var head := HBoxContainer.new()
+		head.name = "Head"
+		head.add_theme_constant_override(&"separation", 4)
+		head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(head)
+		var lamp := UiTheme.led(UiTheme.Led.OFF)
+		lamp.name = "Lamp"
+		head.add_child(lamp)
+		var title := UiTheme.label(str(RailCargoPolicy.ORDER_LABELS[order]),
+			UiTheme.SIZE_SMALL, UiTheme.INK)
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		head.add_child(title)
+		var blurb := UiTheme.label(str(RailCargoPolicy.ORDER_BLURBS[order]),
+			UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+		blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		blurb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(blurb)
+
+
+func _on_pick_rail_order(order: StringName) -> void:
+	if GameState.rail_order == order:
+		return
+	GameState.rail_order = RailCargoPolicy.coerce_order(order)
+	_refresh_orders()
+	AudioManager.play_sfx("tap")
+	SaveManager.request_save(&"orders")
+
+
+func set_branch(branch: RailYard) -> void:
+	## The board reads the branch; it never drives it. `RailYard` decides what a
+	## service does, and the only thing a button here changes is the standing
+	## order the *next* one is booked with.
+	_branch = branch
+
+
+func _rail_status_text() -> String:
+	if _branch == null:
+		return ""
+	var report := _branch.report()
+	if not bool(report.has_branch):
+		# Honest about what it is: without the bought branch the terminal still
+		# gets a trip freight, and a player wondering why their train is short
+		# deserves the answer on the same board as the order.
+		return "Sem ramal próprio: o interior manda um frete curto de vez em quando."
+	if bool(report.idle):
+		return "Linha livre. Próximo trem em %ds." % int(ceilf(float(report.eta)))
+	if bool(report.standing):
+		return "No ramal agora: %d para descarregar, %d para embarcar. Sai em %ds."\
+			% [int(report.drops), int(report.lifts), int(ceilf(float(report.dwell)))]
+	match int(report.stage):
+		int(RailYard.Stage.ARRIVING):
+			return "Trem entrando no ramal."
+		int(RailYard.Stage.RUNAROUND):
+			return "A locomotiva está contornando a composição."
+		_:
+			return "Trem saindo, %d de %d movimentos feitos."\
+				% [int(report.moved), int(report.booked)]
 
 
 func _orders_caption(text: String) -> Control:
@@ -542,7 +649,30 @@ func _refresh_orders() -> void:
 		if lane_lamp != null:
 			lane_lamp.texture = UiTheme.led_texture(
 				UiTheme.Led.ATTENTION if picked else UiTheme.Led.OFF)
+	_refresh_branch(list)
 	_refresh_foreman(list)
+
+
+func _refresh_branch(list: VBoxContainer) -> void:
+	var section := list.get_node_or_null(^"Branch") as VBoxContainer
+	if section == null:
+		return
+	var status := section.get_node_or_null(^"Status") as Label
+	if status != null:
+		status.text = _rail_status_text()
+		status.visible = not status.text.is_empty()
+	for order: StringName in RailCargoPolicy.ORDERS:
+		var card := section.get_node_or_null(NodePath("Rail_%s" % order)) \
+			as PanelContainer
+		if card == null:
+			continue
+		var picked := GameState.rail_order == order
+		UiTheme.apply_panel(card, UiTheme.card_style(
+			&"ready" if picked else &"normal"))
+		var lamp := card.get_node_or_null(^"Row/Head/Lamp") as TextureRect
+		if lamp != null:
+			lamp.texture = UiTheme.led_texture(
+				UiTheme.Led.ATTENTION if picked else UiTheme.Led.OFF)
 
 
 func _refresh_foreman(list: VBoxContainer) -> void:

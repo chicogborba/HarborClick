@@ -61,10 +61,16 @@ var rain: Rainfall
 var signals: HarbourSignals
 var berth: BerthCallController
 var gate: GateDock
+var rail: RailYard
 var traffic: TrafficCoordinator
 var _gate_view: Node2D
 var _gate_trucks: Dictionary = {}     # bay index -> RoadTruck
 var _gate_arm: Sprite2D
+var _rail_view: Node2D
+var _rake: RailRake
+var _rail_signal_lit: Sprite2D
+var _rail_crossing_lit: Array[Sprite2D] = []
+var _rail_flash := 0.0
 
 var entities: Node2D          # y-sorted ground level
 var overhead: Node2D          # gantries, drones, boxes in flight
@@ -98,6 +104,28 @@ var relays_enabled := true
 
 
 @onready var _containers: Texture2D = preload("res://assets/sprites/container_sheet.png")
+
+## Every save section this world owns, so it can hand them all back when it goes
+## away. `SaveManager` holds a `Callable`, and a `Callable` holds an object id
+## rather than a reference — leave the terminal for the title screen and every
+## one of these points at something freed.
+var _saved_sections: Array[StringName] = []
+
+
+func _register_saved(id: StringName, snapshot: Callable, restore: Callable,
+		seed_new: Callable = Callable()) -> void:
+	_saved_sections.append(id)
+	SaveManager.register_section(id, snapshot, restore, seed_new)
+
+
+func _exit_tree() -> void:
+	## Going back to the title used to leave seven dead providers registered, and
+	## the next autosave — and the save on the way out of the app — died on the
+	## first of them. The payload each one last wrote stays in `SaveManager`, so
+	## unregistering loses nothing.
+	for id in _saved_sections:
+		SaveManager.unregister_section(id)
+	_saved_sections.clear()
 
 
 func _ready() -> void:
@@ -146,11 +174,10 @@ func _ready() -> void:
 	crew.hired.connect(_on_crew_hired)
 	tasks = TaskBoard.new()
 	tasks.setup(self, crew)
-	SaveManager.register_section(
-		&"npc_roster", crew.snapshot, crew.restore, crew.seed_new)
+	_register_saved(&"npc_roster", crew.snapshot, crew.restore, crew.seed_new)
 	specials = SpecialCallDirector.new()
 	specials.setup(self)
-	SaveManager.register_section(&"special_calls",
+	_register_saved(&"special_calls",
 		specials.snapshot, specials.restore, specials.seed_new)
 
 	structures = StructureLayer.new()
@@ -159,6 +186,7 @@ func _ready() -> void:
 
 	_spawn_ship()
 	_build_gate()
+	_build_rail()
 	_rebuild_decals()
 	structures.rebuild()
 
@@ -232,15 +260,15 @@ func _spawn_ship() -> void:
 	# Named sections coexist with Main's legacy compact-yard handoff.  The
 	# manifest section keeps every outbound UID, while ContainerYard ignores the
 	# old flattened restore once this richer section has been applied.
-	SaveManager.register_section(
-		&"cargo_yard", yard.snapshot, yard.restore_saved, yard.seed_new)
+	_register_saved(&"cargo_yard", yard.snapshot, yard.restore_saved,
+		yard.seed_new)
 	for index in PortLayout.berth_count():
 		_add_berth(index)
 	ship = ships[0]
 	berth = berths[0]
 	traffic = TrafficCoordinator.new()
-	SaveManager.register_section(
-		&"traffic_cargo", _traffic_snapshot, _traffic_restore, _traffic_seed)
+	_register_saved(&"traffic_cargo", _traffic_snapshot, _traffic_restore,
+		_traffic_seed)
 	gate = GateDock.new()
 	gate.setup(self, yard)
 	gate.changed.connect(_sync_gate_view)
@@ -250,8 +278,18 @@ func _spawn_ship() -> void:
 				"id": "gate_%s" % notice.get("code", "notice"),
 				"kind": &"blocked", "priority": 1,
 				"text": notice.get("text", "")}))
-	SaveManager.register_section(
-		&"gate_dock", gate.snapshot, gate.restore, gate.seed_new)
+	_register_saved(&"gate_dock", gate.snapshot, gate.restore, gate.seed_new)
+	rail = RailYard.new()
+	rail.setup(self, yard)
+	rail.changed.connect(_sync_rail_view)
+	rail.notice_requested.connect(
+		func(notice: Dictionary) -> void:
+			EventBus.notification_requested.emit({
+				"id": "rail_%s" % notice.get("code", "notice"),
+				"kind": StringName(notice.get("kind", &"blocked")),
+				"priority": int(notice.get("priority", 1)),
+				"text": notice.get("text", "")}))
+	_register_saved(&"rail_yard", rail.snapshot, rail.restore, rail.seed_new)
 	_request_arrivals()
 
 
@@ -273,7 +311,7 @@ func _add_berth(index: int) -> void:
 	controller.move_started.connect(_on_berth_move_started)
 	ships.append(hull)
 	berths.append(controller)
-	SaveManager.register_section(
+	_register_saved(
 		&"berth_call" if index == 0 else StringName("berth_call%d" % (index + 1)),
 		controller.snapshot, controller.restore, controller.seed_new)
 
@@ -496,7 +534,10 @@ func _process(delta: float) -> void:
 		specials.tick(delta)
 	if gate != null:
 		gate.tick(delta)
+	if rail != null:
+		rail.tick(delta)
 	_drive_gate_arm(delta)
+	_drive_rail_furniture(delta)
 	_drive_arrivals(delta)
 	_tick_hold(delta)
 	# The outlines are a hover affordance, and answering "can this be worked?"
@@ -797,6 +838,147 @@ func _build_gate() -> void:
 	furniture.add_child(_gate_arm)
 
 
+func _build_rail() -> void:
+	## The furniture that makes the branch a railway rather than two stripes of
+	## ballast: the ramp board, the signal that protects the entrance, and a
+	## crossing mast on each side of the public road.
+	##
+	## None of it is decoration in the sense of being inert. The signal reads the
+	## service state and the crossing flashes for a train that is actually on the
+	## branch, so a player who never opens a menu still knows one is coming.
+	var furniture := Node2D.new()
+	furniture.name = "Rail"
+	entities.add_child(furniture)
+
+	var board := Sprite2D.new()
+	board.texture = preload("res://assets/sprites/rail_board.png")
+	board.centered = false
+	board.position = Vector2(PortLayout.rail_stop_x() - 24.0,
+		PortLayout.rail_y() - 40.0)
+	furniture.add_child(board)
+
+	var mast := Sprite2D.new()
+	mast.texture = preload("res://assets/sprites/rail_signal.png")
+	mast.centered = false
+	mast.position = PortLayout.rail_signal_position()
+	furniture.add_child(mast)
+
+	_rail_signal_lit = Sprite2D.new()
+	var aspect := AtlasTexture.new()
+	aspect.atlas = preload("res://assets/sprites/rail_signal_lit.png")
+	aspect.region = Rect2(0, 0, 10, 18)
+	_rail_signal_lit.texture = aspect
+	_rail_signal_lit.centered = false
+	_rail_signal_lit.position = mast.position
+	furniture.add_child(_rail_signal_lit)
+
+	_rail_crossing_lit.clear()
+	for side in 2:
+		var post := Sprite2D.new()
+		post.texture = preload("res://assets/sprites/rail_crossing.png")
+		post.centered = false
+		post.position = PortLayout.rail_crossing_mast(side)
+		furniture.add_child(post)
+		var lamps := Sprite2D.new()
+		var lit := AtlasTexture.new()
+		lit.atlas = preload("res://assets/sprites/rail_crossing_lit.png")
+		lit.region = Rect2(0, 0, 12, 15)
+		lamps.texture = lit
+		lamps.centered = false
+		lamps.position = post.position
+		lamps.visible = false
+		furniture.add_child(lamps)
+		_rail_crossing_lit.append(lamps)
+
+
+func _drive_rail_furniture(delta: float) -> void:
+	## The signal shows the aspect the controller is in, and the crossing wig-wags
+	## whenever a train is moving on the branch. Both are read straight off the
+	## service state, so neither can claim something the branch is not doing.
+	if rail == null:
+		return
+	if _rail_signal_lit != null:
+		var atlas := _rail_signal_lit.texture as AtlasTexture
+		if atlas != null:
+			atlas.region = Rect2(_aspect_frame(rail.signal_aspect()) * 10, 0, 10, 18)
+	if _rail_crossing_lit.is_empty():
+		return
+	var moving := rail.stage() == RailYard.Stage.ARRIVING \
+		or rail.stage() == RailYard.Stage.DEPARTING \
+		or rail.stage() == RailYard.Stage.RUNAROUND
+	if not moving:
+		_rail_flash = 0.0
+		for lamps in _rail_crossing_lit:
+			lamps.visible = false
+		return
+	var was := _rail_flash
+	_rail_flash = fmod(_rail_flash + delta, 1.0)
+	var left := _rail_flash < 0.5
+	# One strike of the gong per lamp, on the lamp's own beat. Ringing off the
+	# same clock that drives the wig-wag is what keeps the sound and the picture
+	# from drifting apart; a looping sample would not survive the first frame
+	# the game dropped.
+	if _rail_flash < was or (was < 0.5 and _rail_flash >= 0.5):
+		AudioManager.play_sfx("crossing_bell", 0.03, -13.0)
+	for index in _rail_crossing_lit.size():
+		var lamps := _rail_crossing_lit[index]
+		lamps.visible = true
+		var atlas := lamps.texture as AtlasTexture
+		if atlas != null:
+			atlas.region = Rect2((0 if left else 1) * 12, 0, 12, 15)
+
+
+func _aspect_frame(aspect: StringName) -> int:
+	match aspect:
+		RailYard.ASPECT_DANGER:
+			return 0
+		RailYard.ASPECT_APPROACH:
+			return 1
+		_:
+			return 2
+
+
+func _sync_rail_view() -> void:
+	## One rake at a time, kept alive across updates for the same reason the gate
+	## keeps its trucks: rebuilding it whenever a box moved would restart the run
+	## in, and the train would never actually get anywhere.
+	if _rail_view == null:
+		_rail_view = Node2D.new()
+		_rail_view.name = "RailYard"
+		_rail_view.y_sort_enabled = true
+		entities.add_child(_rail_view)
+	if rail == null:
+		return
+	if rail.service.is_empty():
+		if _rake != null and is_instance_valid(_rake):
+			_rake.queue_free()
+		_rake = null
+		return
+	if _rake == null or not is_instance_valid(_rake):
+		_rake = RailRake.new()
+		_rake.setup(rail.length(), rail.stage() != RailYard.Stage.ARRIVING)
+		_rail_view.add_child(_rake)
+		_rake.arrived.connect(rail.notify_arrived)
+		_rake.ran_around.connect(rail.notify_ran_around)
+		_rake.departed.connect(_on_rake_departed)
+	_rake.sync(rail)
+	match rail.stage():
+		RailYard.Stage.RUNAROUND:
+			_rake.run_around()
+		RailYard.Stage.DEPARTING:
+			_rake.run_out()
+		_:
+			pass
+
+
+func _on_rake_departed() -> void:
+	if _rake != null and is_instance_valid(_rake):
+		_rake.queue_free()
+	_rake = null
+	if rail != null:
+		rail.notify_departed()
+
+
 func _sync_gate_view() -> void:
 	## One truck per occupied bay, kept alive across updates. Rebuilding the
 	## whole apron on every change — which is what this used to do — restarted
@@ -1016,6 +1198,8 @@ func _try_tap(world_pos: Vector2) -> void:
 	elif critters != null and critters.tap_cat(world_pos):
 		AudioManager.play_sfx("meow", 0.10)
 	elif gate != null and gate.handle_tap(world_pos):
+		AudioManager.play_sfx("click", 0.12)
+	elif rail != null and rail.handle_tap(world_pos):
 		AudioManager.play_sfx("click", 0.12)
 	elif _inspect_npc(world_pos):
 		AudioManager.play_sfx("tap", 0.10)

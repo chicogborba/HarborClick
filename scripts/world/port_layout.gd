@@ -288,6 +288,101 @@ static func rail_y() -> float:
 	return world_bottom() - 26.0
 
 
+# --- the branch line ------------------------------------------------------
+## The corridor is a stub: a rake runs in from the interior, is worked, and goes
+## back out the way it came. That is one track and one direction, and a
+## locomotive that cannot turn round would have to be shunted out backwards —
+## which is why there is a **run-around loop**.
+##
+## The loop is a second road laid north of the running line and joined to it by a
+## turnout at each end. With the rake standing at the buffer stop the loco
+## uncouples, draws forward past the east turnout, crosses to the loop, runs back
+## west alongside its own train, crosses again at the west turnout and couples to
+## what used to be the tail. The train now faces the way it came in, which is the
+## only way a stub-ended siding works in real life.
+const RAIL_LOOP_DY := -17.0
+## Length of a wagon plus its couplings, on the ground rather than in the sprite.
+const RAIL_WAGON_PITCH := 21.0
+## Head of the rake, short of the buffer stop, and the wagon nearest it.
+const RAIL_STOP_MARGIN := 34.0
+## Where a rake waits out of sight, west of the map.
+const RAIL_STAGING_X := -170.0
+## The signal protecting the entrance to the terminal's rail limit.
+const RAIL_SIGNAL_X := 96.0
+
+
+static func rail_loop_y() -> float:
+	## The run-around road. North of the running line so the loco passes between
+	## its train and the yard, where the player can see it happen.
+	return rail_y() + RAIL_LOOP_DY
+
+
+static func rail_buffer_x() -> float:
+	## The buffer stop: east of this is the quay, and then the sea.
+	return WATER_X0 - 15.0
+
+
+static func rail_stop_x() -> float:
+	## Where the head of the rake stands to be worked.
+	return rail_buffer_x() - RAIL_STOP_MARGIN
+
+
+static func rail_east_turnout_x() -> float:
+	## Between the head of the standing rake and the buffer stop — the loco has to
+	## be able to draw forward clear of its train before it crosses over.
+	return rail_stop_x() + 20.0
+
+
+static func rail_west_turnout_x() -> float:
+	## Clear of the tail of the longest rake it will ever have to run round.
+	return rail_stop_x() - RAIL_WAGON_PITCH * 7.0
+
+
+static func rail_wagon_x(slot: int) -> float:
+	## Wagon `slot` counted back from the head of the standing rake.
+	return rail_stop_x() - RAIL_WAGON_PITCH * (slot + 1)
+
+
+static func rail_wagon_centre(slot: int) -> Vector2:
+	## The wagon deck — the point a box flies to and from.
+	return Vector2(rail_wagon_x(slot), rail_y() - 2.0)
+
+
+static func rail_wagon_rect(slot: int) -> Rect2:
+	## Generous on purpose: this is a touch target on a phone, not a hitbox.
+	var centre := rail_wagon_centre(slot)
+	return Rect2(centre - Vector2(RAIL_WAGON_PITCH * 0.5 + 3.0, 13.0),
+		Vector2(RAIL_WAGON_PITCH + 6.0, 26.0))
+
+
+static func rail_signal_position() -> Vector2:
+	## North of *both* roads, on the yard side, where it is read against the dark
+	## ballast rather than against the fence.
+	##
+	## It used to be `rail_y() - 24`, which was clear of a single-track corridor
+	## and then stopped being clear of anything the moment the run-around loop was
+	## laid 17px north of the running line: the mast ended up standing on the
+	## loop's own rails, so the signal protecting the branch was an obstruction on
+	## it. The sprite is 18px tall and drawn from its top-left, so this puts its
+	## foot just short of the loop's north rail.
+	return Vector2(RAIL_SIGNAL_X, rail_loop_y() - 23.0)
+
+
+static func rail_crossing_mast(side: int) -> Vector2:
+	## The two masts at the level crossing, one either side of the public road
+	## and each outside the track it protects — north of the loop, south of the
+	## running line. Same correction as the signal: the north one was pitched for
+	## a corridor with one road in it.
+	if side == 0:
+		return Vector2(ROAD_X0 - 14.0, rail_loop_y() - 21.0)
+	return Vector2(ROAD_X1 + 2.0, rail_y() + 7.0)
+
+
+static func rail_crossing_x() -> float:
+	## Centre of the panels where the branch crosses the public road.
+	return (ROAD_X0 + ROAD_X1) * 0.5
+
+
 static func gate_bay_position(bay: int) -> Vector2:
 	## Top-left of a parking bay on the gate apron.
 	return Vector2(GATE_BAY_X + bay * (GATE_BAY_W + GATE_BAY_GAP), GATE_APRON_Y)

@@ -403,6 +403,7 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 	hud.apply_view_metrics(metrics)
 	rail.apply_view_metrics(metrics)
 	shop.set_rail(rail)
+	shop.set_branch(world.rail)
 	shop.apply_view_metrics(metrics)
 	if routes != null:
 		routes.apply_view_metrics(metrics)

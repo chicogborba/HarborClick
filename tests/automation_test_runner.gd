@@ -78,7 +78,7 @@ func _run() -> void:
 	_test_rate_follows_the_equipment_bought()
 	await _test_a_full_call_completes_without_a_single_tap()
 	_test_departure_bonus_stays_in_its_band()
-	_test_the_rail_service_arrives_loads_and_leaves()
+	_test_the_rail_gantry_only_works_a_train_that_is_there()
 	_test_standing_orders_divide_one_gang()
 	_test_standing_orders_survive_a_reload()
 	_test_the_foreman_respects_the_reserve()
@@ -310,67 +310,71 @@ func _test_the_foreman_is_earned_and_persisted() -> void:
 		"an unknown foreman order falls back to buying nothing")
 
 
-func _test_the_rail_service_arrives_loads_and_leaves() -> void:
-	## The train used to be a strip of sprites sliding across the bottom of the
-	## map at a constant speed, permanently loaded, wrapping from one edge to the
-	## other. It never arrived anywhere and never took anything away. It runs a
-	## service now, and a service is a thing with states, so it can be asserted.
-	var rake := StructureActor.new()
-	rake.setup("trem", 0, _world)
-	_world.entities.add_child(rake)
-	_expect(rake._rail_boxes.size() == StructureActor.RAIL_WAGONS,
-		"the rake is built with one container slot per wagon")
-	var loaded_on_arrival := 0
-	for box in rake._rail_boxes:
-		if box.visible:
-			loaded_on_arrival += 1
-	_expect(loaded_on_arrival == 0, "and arrives empty rather than pre-loaded")
+func _test_the_rail_gantry_only_works_a_train_that_is_there() -> void:
+	## The *Ramal Ferroviário* used to be the train: a strip of sprites that slid
+	## across the bottom of the map, permanently loaded, never arriving anywhere
+	## and never taking anything away. The train belongs to `RailYard` now — it
+	## brings real cargo, and `tests/rail_test_runner.gd` owns that contract — so
+	## what the player buys here is the rail-mounted gantry that works it.
+	##
+	## The thing to prove about a bought machine is the thing that makes it worth
+	## buying: it works when there is something to work, and it does not mime
+	## work over an empty siding.
+	_world.rail = RailYard.new()
+	_world.rail.setup(_world, _world.yard)
+	var gantry := StructureActor.new()
+	gantry.setup("trem", 0, _world)
+	_world.entities.add_child(gantry)
+	var home := PortLayout.rail_west_turnout_x() + 24.0
 
-	var seen := {}
-	var stood_at := 0.0
+	for _step in int(6.0 / STEP):
+		gantry._run_rail_gantry(STEP)
+	_expect(absf(gantry.position.x - home) < 6.0,
+		"a quiet branch leaves the gantry at its home end (x=%.1f)"
+			% gantry.position.x)
+	_expect(not gantry._spreader.visible and not gantry._cargo.visible,
+		"with the spreader up and no phantom container under it")
+
+	# A rake standing at the ramp, with wagons to work.
+	var wagons: Array = []
+	var arrival_uids := PackedStringArray()
+	for slot in 4:
+		var unit := CargoUnit.new(CargoUnit.new_uid("rail"),
+			CargoUnit.EXPORT, slot % 8, "interior")
+		wagons.append(unit)
+		arrival_uids.append(unit.uid)
+	_world.rail.service = {
+		"wagons": wagons, "arrival_uids": arrival_uids, "length": 4,
+		"drops": 4, "lifts": 0, "pending": 0, "lifting": 0,
+		"dwell": RailYard.DWELL_SECONDS,
+		"stage": int(RailYard.Stage.WORKING),
+		"transit": RailYard.TRANSIT_TIMEOUT}
+
+	var lifted := false
 	var reached_east := -1e9
-	var steps := 0
-	# Generous: one whole service is a turnaround, a run in, a box per beat and a
-	# run out. Exhausting this means stuck, not slow.
-	var budget := int((StructureActor.RAIL_FIRST_CALL
-		+ StructureActor.RAIL_LOAD_BEAT * (StructureActor.RAIL_WAGONS + 4)
-		+ 40.0) / STEP)
-	while steps < budget:
-		rake._run_rail(STEP)
-		seen[rake._rail_state] = true
-		reached_east = maxf(reached_east, rake.position.x)
-		if rake._rail_state == StructureActor.RailState.LOADING:
-			stood_at = rake.position.x
-		if seen.has(StructureActor.RailState.DEPARTING) \
-				and rake.position.x <= StructureActor.RAIL_OFF_LEFT:
-			break
-		steps += 1
-	_expect(seen.has(StructureActor.RailState.ARRIVING), "the rake runs in")
-	_expect(seen.has(StructureActor.RailState.LOADING), "stands to be worked")
-	_expect(seen.has(StructureActor.RailState.DEPARTING), "and runs out again")
-	# East of the buffer stop is the quay and then the sea. A rake that runs off
-	# that edge is not leaving, it is drowning, and the first version did.
-	_expect(stood_at > 0.0 and stood_at <= PortLayout.WATER_X0 - 20.0,
-		"it stands on the rails, short of the buffer stop (x=%.1f)" % stood_at)
-	_expect(reached_east <= PortLayout.WATER_X0 - 20.0,
-		"and never runs past the buffer stop into the water (x=%.1f)"
-			% reached_east)
-	var loaded := 0
-	for box in rake._rail_boxes:
-		if box.visible:
-			loaded += 1
-	_expect(loaded == StructureActor.RAIL_WAGONS,
-		"and leaves with every wagon carrying a box (%d/%d)"
-			% [loaded, StructureActor.RAIL_WAGONS])
-	# And it comes back for more instead of stopping forever off the right edge.
-	var returned := false
-	for _i in budget:
-		rake._run_rail(STEP)
-		if rake._rail_state == StructureActor.RailState.ARRIVING:
-			returned = true
-			break
-	_expect(returned, "the service repeats rather than ending off the map")
-	rake.queue_free()
+	var travelled := 0.0
+	var previous := gantry.position.x
+	for _step in int(30.0 / STEP):
+		gantry._run_rail_gantry(STEP)
+		travelled += absf(gantry.position.x - previous)
+		previous = gantry.position.x
+		reached_east = maxf(reached_east, gantry.position.x)
+		lifted = lifted or gantry._cargo.visible
+	_expect(lifted, "a standing rake gets the spreader down onto a wagon")
+	_expect(travelled > PortLayout.RAIL_WAGON_PITCH,
+		"and the gantry travels the train rather than working one spot (%.1f)"
+			% travelled)
+	# East of the buffer stop is the quay and then the sea.
+	_expect(reached_east <= PortLayout.rail_buffer_x(),
+		"it never travels past the buffer stop (x=%.1f)" % reached_east)
+
+	# And it goes home again when the train has gone.
+	_world.rail.service = {}
+	for _step in int(12.0 / STEP):
+		gantry._run_rail_gantry(STEP)
+	_expect(not gantry._cargo.visible,
+		"an empty siding gets a parked machine, not a mimed lift")
+	gantry.queue_free()
 
 
 func _expect(condition: bool, label: String) -> void:

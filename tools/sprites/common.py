@@ -2,6 +2,7 @@
 import os
 from PIL import Image, ImageDraw
 
+import gen_font
 import palette as P
 
 SPRITES_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "sprites"))
@@ -125,3 +126,37 @@ def save(img: Image.Image, name: str, preview_scale: int = 4):
     bg.alpha_composite(big)
     bg.save(os.path.join(PREVIEW_DIR, name + ".png"))
     print(f"  {name}.png  {img.width}x{img.height}")
+
+
+# base letter + accent, for the composed characters `gen_font` bakes into the atlas
+COMPOSED = {ch: (base, accent) for ch, base, accent in gen_font.COMPOSED}
+## Two rows of headroom for accents, then a 5x7 glyph body.
+TEXT_LINE_H = 9
+
+
+def text(img, x, y, message, color):
+    """One line of the game's own 5x7 font, straight from its glyph table.
+
+    A sprite that has to carry a word — a signboard, a social card — reads it
+    off the same glyph strings the in-game font is generated from, so the
+    lettering on a prop and the lettering in the UI can never drift apart.
+
+    `y` is the top of a 9px line box; characters advance 6px."""
+    for index, char in enumerate(message):
+        base, accent = COMPOSED.get(char.lower(), (char, None))
+        rows = gen_font.G.get(base.upper())
+        if rows is None:
+            continue
+        for ry, row in enumerate(rows):
+            for rx, cell in enumerate(row):
+                if cell == "#":
+                    px(img, x + index * 6 + rx, y + 2 + ry, color)
+        if accent:
+            for ry, row in enumerate(gen_font.ACCENTS[accent]):
+                for rx, cell in enumerate(row):
+                    if cell == "#":
+                        px(img, x + index * 6 + rx, y + ry, color)
+
+
+def text_width(message):
+    return len(message) * 6 - 1

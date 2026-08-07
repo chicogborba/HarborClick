@@ -1,0 +1,67 @@
+{
+  "berth_busy": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "fda556ee7478a1e4",
+    "prompt": "isometric diorama of a busy container terminal on deep blue ocean water: two red gantry cranes working a moored cargo ship at the quay, many stacks of coloured shipping containers, bright midday light. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "berth_dawn": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "8327d0de3178fcd4",
+    "prompt": "isometric diorama of a small container terminal built on deep blue ocean water: a concrete quay, one red gantry crane, three stacks of coloured shipping containers, early morning light. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "berth_night": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "795ec4b0e7397f9c",
+    "prompt": "isometric diorama of a container terminal at night on dark blue ocean water: a navy quay lit by warm amber floodlights, one red gantry crane, stacks of coloured shipping containers, glowing yellow windows. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "crest": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "c8af4e95a007ad39",
+    "prompt": "heraldic harbour badge emblem: a large golden ship anchor standing upright, a coiled rope wreath curving around it, two red gantry crane booms crossed behind, a small navy shield at the base. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      128,
+      128
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "ship_hero": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "94ac317b3483a6b5",
+    "prompt": "a large container ship seen from directly above, bow pointing up, dark navy hull, cream white superstructure and bridge at the stern, long deck packed with rows of small coloured shipping containers, moored, night lighting. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      96,
+      320
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  }
+}

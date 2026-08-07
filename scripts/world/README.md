@@ -35,6 +35,30 @@ Major owners:
 - `container_yard.gd` — physical slots, reservations, UID stacks and manifest.
 - `ship.gd` — vessel view, bays, phases and interaction presentation.
 - `road_truck.gd` — visible public-road trip and longitudinal bed cargo.
+- `rail_rake.gd` — the train on the branch, and the run-around shunt that gets
+  its locomotive to the other end. It owns no cargo: `RailYard` does, and the
+  rake reports back at three moments so the controller never has to guess where
+  a train is. The signal, the crossing wig-wags and the ramp board are built and
+  driven by `PortWorld._build_rail` / `_drive_rail_furniture` off the same
+  service state, so nothing on the ground can claim something the branch is not
+  doing.
+
+  The rake also carries the fx that make the trip down there worth taking: a
+  headlight that leads the train, an exhaust plume metered off *measured* speed
+  (the shunt and the run move the loco on different axes at different rates, and
+  the plume answers to both without either knowing about it), brake smoke thrown
+  under the bogies at the stand, and three different wagon types dealt by slot —
+  `WAGON_DEAL`, not `slot % 3`, so no two coupled vehicles match and a restored
+  service comes back the same train. The smoke is a fixed reused pool: it runs
+  for the whole of every journey, and a per-puff node would make the rake the
+  only thing in the world churning the scene tree once a frame.
+
+  Sound is the other half of it. `train_horn` before every departure and on the
+  run in, `rail_brake` where the brakes actually go on rather than where the
+  train stops, `coupling` when the buffers meet at the end of the shunt, and
+  `crossing_bell` struck by `PortWorld` on the same clock that drives the
+  wig-wag lamps — a baked-in loop would drift out of step with the picture the
+  first frame the game dropped.
 - `structure_layer.gd` / `structure_actor.gd` — purchased equipment views/jobs.
 - `port_layout.gd` — canonical geometry and routes.
 - `ground_baker.gd` — generated ground composition.
@@ -46,7 +70,7 @@ Major owners:
 
 Keep reusable decisions out of `PortWorld`; it should delegate to cargo/data
 policy and coordinate the result. Cargo sprites must reflect a real `CargoUnit`.
-Run phase4 ship/water, traffic, wake and visual captures after world work.
+Run phase4 ship/water, traffic, rail, wake and visual captures after world work.
 
 Actors that are somebody carry an `NpcProfile` and take their work from
 `PortWorld.tasks` — see [`scripts/npc/README.md`](../npc/README.md). Both `crew`

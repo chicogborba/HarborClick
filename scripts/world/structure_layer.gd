@@ -235,9 +235,10 @@ func _place(actor: StructureActor, id: String, index: int) -> void:
 			if actor.is_idle_at_home():
 				actor.position = PortLayout.gate_entry()
 		"trem":
-			# Only the lane is placed here; the rake decides its own x, because it
-			# is running a service rather than sitting somewhere.
-			actor.position.y = PortLayout.rail_y()
+			# The gantry straddles the running line and travels along it, so the
+			# lane is the placement; its x is whichever wagon it is working.
+			actor.position = Vector2(
+				PortLayout.rail_west_turnout_x() + 24.0, PortLayout.rail_y())
 		"drone":
 			var home := Vector2(70.0 + (index % 2) * 70.0,
 				PortLayout.YARD_Y0 + 50.0 + index * 130.0)

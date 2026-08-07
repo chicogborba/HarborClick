@@ -168,6 +168,39 @@ def gen_dust():
     save(sheet(frames), "prop_dust")
 
 
+def gen_exhaust():
+    """Diesel exhaust, 4 frames 12x12, for the locomotive's stack.
+
+    Not the landing dust in a different colour. Dust is thrown sideways off a
+    stack and settles; exhaust leaves the stack as a tight dark knot, opens out
+    as it rises and goes pale as it thins, and the last frame is nearly nothing.
+    The rake is small on screen, so what has to survive is the *change*: a hard
+    dot becoming a soft blur is legible at four pixels where a fading disc of
+    constant size is not.
+    """
+    frames = []
+    for f in range(4):
+        img = new_img(12, 12)
+        r = 2.6 + f * 1.2
+        # Dark and dense at the stack, pale and open by the time it has risen.
+        # The first frame has to be near-opaque and near-black: the branch runs
+        # over grey ballast, and a translucent grey dot on grey ballast is a
+        # locomotive that appears to be running clean.
+        tone = ((38, 35, 42), (74, 70, 80), (122, 118, 128), (166, 162, 170))[f]
+        alpha = (238, 196, 132, 58)[f]
+        for y in range(12):
+            for x in range(12):
+                # Squashed vertically, because it is drawn under a top-down
+                # camera: a plume goes *up*, and up is towards the viewer.
+                d = math.hypot((x - 5.5) / r, (y - 5.5) / (r * 0.85))
+                if d <= 1.0:
+                    fade = 1.0 - 0.45 * d
+                    px(img, x, y, (tone[0], tone[1], tone[2],
+                                   int(alpha * fade)))
+        frames.append(img)
+    save(sheet(frames), "prop_exhaust")
+
+
 def gen_splash():
     """Water splash ring, 4 frames 20x14."""
     frames = []
@@ -620,6 +653,7 @@ if __name__ == "__main__":
     gen_seagull()
     gen_cat()
     gen_dust()
+    gen_exhaust()
     gen_splash()
     gen_shadow_blob()
     gen_buoy()

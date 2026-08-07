@@ -30,6 +30,7 @@ func _run() -> void:
 	test_cps_breakdown_reproduces_the_rate()
 	test_purchase_wait_reads_as_time()
 	test_late_sections_and_seed()
+	test_a_dead_provider_cannot_kill_the_save()
 	test_v1_migration()
 	test_corrupt_primary_recovers_backup()
 	test_recovered_backup_offline_is_idempotent()
@@ -234,6 +235,37 @@ func test_late_sections_and_seed() -> void:
 	section_restored = {}
 	SaveManager.register_section(&"core_test_late", Callable(self, "_section_snapshot"), Callable(self, "_section_restore"))
 	_expect(section_restored.get("token", "") == "restored", "late section registration restores loaded payload")
+
+
+func test_a_dead_provider_cannot_kill_the_save() -> void:
+	## Leaving the terminal for the title screen frees everything `PortWorld`
+	## registered, and a `Callable` holds an object id rather than a reference.
+	## Calling one of those aborted `build_envelope`, which returned the empty
+	## Dictionary its signature promises, which made `save_game` fail on
+	## `envelope.sections` — so every autosave from that moment on, and the save
+	## on the way out of the app, wrote nothing at all and said nothing about it.
+	SaveManager.wipe()
+	var ghost := Node.new()
+	add_child(ghost)
+	SaveManager.register_section(&"ghost_section",
+		Callable(self, "_section_snapshot"), Callable(self, "_section_restore"))
+	SaveManager.register_section(&"live_section",
+		Callable(self, "_section_snapshot"), Callable(self, "_section_restore"))
+	_expect(SaveManager.save_game(&"test"), "a save with both providers alive")
+	# Free the provider the way a scene change does, then save again.
+	SaveManager.register_section(&"ghost_section",
+		Callable(ghost, "queue_free"), Callable(self, "_section_restore"))
+	ghost.free()
+	var envelope := SaveManager.build_envelope()
+	_expect(envelope.has("sections"), "a dead provider still builds an envelope")
+	_expect(SaveManager.save_game(&"test"), "a dead provider still saves")
+	_expect(envelope.sections.has("live_section"),
+		"the live sections are still written")
+	_expect(envelope.sections.has("ghost_section"),
+		"the dead one keeps whatever it last wrote")
+	SaveManager.unregister_section(&"live_section")
+	_expect(SaveManager.build_envelope().sections.has("live_section"),
+		"unregistering keeps the payload and only drops the provider")
 
 
 func test_v1_migration() -> void:

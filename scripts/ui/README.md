@@ -104,6 +104,44 @@ legs, so destination pins and painted trade lanes cannot drift apart.
 
 ## The title is two pages
 
+The screen is a photograph of the port the player is about to open, in the
+port's own daylight and out of the port's own art: `gen_title.py` tiles the same
+ground `GroundBaker` tiles, stacks the same eight container liveries and parks
+the same machines the shop sells. Nothing on it is a second drawing of something
+the game already has, which is what the version before it was.
+
+It is allowed to be alive, and everything that moves lives in `PortActors` — one
+`Node2D` carrying the backdrop's COVERED transform, so its children are placed
+in *port* pixels rather than screen ones and a drifting backdrop cannot leave
+them behind. On it:
+
+- **the trolleys**, one per gantry. The booms are baked into the picture and
+  what rides them is not, because a box coming off the ship, crossing the apron
+  and being set down is the only thing on this screen that is the game rather
+  than a picture of it. `CRANE_YS` here and in `gen_title.py` are the same three
+  numbers and have to stay that way.
+- **the gulls**, from the four-frame sheet the world's `Critters` use.
+
+The rest is `modulate` or the backdrop's own rect — never a control the layout
+pass owns, or a resize mid-tween parks a key off its mark. Loops wait for the
+arrival fade to finish, because a looping tint running against a fade is how two
+correct animations make a control flicker. With motion off the trolleys stay put
+holding their boxes, which is a working terminal rather than a paused one.
+
+The title has its own material, and it is the only screen that does. Everywhere
+else a key is a 1px-edged slab because it sits on paper or on navy; here it sits
+on a photograph, and only `UiTheme.title_button_style` — two pixels of ink, the
+corners knocked off, rivets — survives that. The wordmark is a drawn object
+rather than two Labels: extruded, ringed and rimmed in `gen_title.py` out of the
+game's own glyphs, because the body font at title size *is* a caption.
+
+Three of its drawings are not drawn by code: the crest astride the plate, the
+ship at the berth in `ui_title_port`, and the berth photograph on each terminal
+slot. They come from `tools/sprites/pixellab` and are used at 1:1 — a
+non-integer scale would sand the pixels off the one asset class that was worth
+generating. The slot cards are sized around the 64px photograph rather than the
+other way round.
+
 `title_screen.gd` shows a marquee — plate, JOGAR / CONTINUAR / AJUSTES, four
 corner keys, footer — and a board with the three terminals behind JOGAR. A title
 has one job, which is getting the player into a terminal; the board is a detour

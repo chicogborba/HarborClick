@@ -47,7 +47,11 @@ const ITEMS: Array[Dictionary] = [
 	},
 	{
 		"id": "trem", "name": "Ramal Ferroviário",
-		"desc": "600 metros de impaciência sobre trilhos, direto pro interior.",
+		# Says what it does, not just what it is. Everything the purchase changes
+		# happens at the bottom of the world where the camera never goes, so a
+		# card that only made a joke about rails was the one machine a player
+		# could buy and never find out they owned.
+		"desc": "600 metros de impaciência sobre trilhos. Dobra a composição, triplica a frequência, e o pórtico trabalha os vagões sozinho.",
 		"cost": 5.1e9, "cps": 5.1e9 / 600.0,
 	},
 	{

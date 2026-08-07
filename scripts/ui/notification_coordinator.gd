@@ -34,6 +34,10 @@ const ICONS := {
 	&"unlock": UiTheme.Icon.LAND,
 	&"prestige": UiTheme.Icon.STAR,
 	&"blocked": UiTheme.Icon.LOCK,
+	# The branch runs along the bottom of the world with nothing on the HUD
+	# standing for it, so a rail notice is the only thing that says a service is
+	# happening at all — it is news, not routine state.
+	&"rail": UiTheme.Icon.TRAIN,
 	&"cat": UiTheme.Icon.PAW,
 	&"crew": UiTheme.Icon.GLOVE,
 	&"tutorial": UiTheme.Icon.CHECK,

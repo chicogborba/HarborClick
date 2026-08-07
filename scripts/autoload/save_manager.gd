@@ -107,6 +107,14 @@ func register_section(id: StringName, snapshot: Callable, restore: Callable, see
 		seed_new.call()
 
 
+func unregister_section(id: StringName) -> void:
+	## Hand a section back on the way out. Leaving it registered is not fatal any
+	## more — `build_envelope` drops a dead provider — but it costs an error per
+	## save until something notices, and a provider that knows it is going away
+	## should say so.
+	_sections.erase(String(id))
+
+
 func request_save(reason: StringName = &"manual") -> void:
 	## Coalesces bursts of events while retaining the most recent save reason.
 	_save_reason = reason
@@ -125,8 +133,22 @@ func build_envelope() -> Dictionary:
 	# Preserve payloads whose providers have not registered yet. Registered
 	# providers overwrite their own section with a fresh snapshot below.
 	var sections: Dictionary = _loaded_sections.duplicate(true)
-	for id: String in _sections:
+	# A dead provider must not take the save down with it. `Callable` holds an
+	# object id, not a reference, so leaving the terminal for the title screen
+	# frees every section `PortWorld` registered and leaves this loop calling
+	# `snapshot` on nothing — and a GDScript error aborts the function and
+	# returns the empty Dictionary its signature promises, so `save_game` then
+	# fails on `envelope.sections` and writes nothing at all. Every autosave
+	# after that point, and the final save on the way out, were silently lost.
+	#
+	# The section keeps whatever it last wrote — that payload is already in
+	# `_loaded_sections` — and the claim is dropped so the next pass is clean.
+	for id: String in _sections.keys():
 		var snapshot: Callable = _sections[id].snapshot
+		if not snapshot.is_valid():
+			push_error("SaveManager: section '%s' outlived its provider" % id)
+			_sections.erase(id)
+			continue
 		sections[id] = snapshot.call()
 	# Main currently owns the yard lifecycle and has not registered it itself.
 	if yard != null:
