@@ -79,6 +79,7 @@ var _ground: Sprite2D
 var _water: ColorRect
 var _water_foam: WaterFoam
 var _water_quality: WaterQuality.Level = WaterQuality.Level.MEDIUM
+var decor: DecorLayer
 var _decals: Node2D
 var _marks: Node2D
 var _props: Node2D
@@ -149,6 +150,14 @@ func _ready() -> void:
 	_props.name = "Props"
 	_props.z_index = -1
 	add_child(_props)
+
+	# Bought scenery, on its own node so the whole shelf can be thrown away and
+	# rebuilt when the player switches something on without disturbing a single
+	# working part of the terminal.
+	decor = DecorLayer.new()
+	decor.name = "Decor"
+	add_child(decor)
+	decor.setup(self)
 
 	entities = Node2D.new()
 	entities.name = "Entities"

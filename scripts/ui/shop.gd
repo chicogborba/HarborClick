@@ -19,6 +19,7 @@ const TABS := [
 	["upgrades", "MELH.", UiTheme.Icon.STAR],
 	["land", "TERRA", UiTheme.Icon.LAND],
 	["orders", "ORDENS", UiTheme.Icon.SHIP],
+	["cosmetics", "DECOR.", UiTheme.Icon.PAW],
 ]
 const BUY_MODES: Array[StringName] = [&"x1", &"x10", &"x25", &"max"]
 ## Which yard sprite stands for each purchase. Upgrades borrow the sprite of
@@ -226,6 +227,7 @@ func _populate() -> void:
 	_rebuild_upgrades()
 	_rebuild_land()
 	_build_orders()
+	_build_cosmetics()
 
 
 func _upgrade_art(item: Dictionary) -> String:
@@ -280,6 +282,122 @@ func _rebuild_land() -> void:
 		card.pressed_card.connect(_on_buy_land)
 		list.add_child(card)
 		_cards["land_" + item.id] = card
+
+
+func _build_cosmetics() -> void:
+	## The shelf. Every other tab on this board sells production; this one sells
+	## nothing but the way the terminal looks, which is why each row has to carry
+	## two different controls at two different times.
+	##
+	## Unowned, it is a price and a key. Owned, it is a switch — and the switch
+	## is the reason the tab exists at all: a decoration you cannot take back off
+	## is a decoration nobody risks buying.
+	var list: VBoxContainer = _lists["cosmetics"]
+	list.add_child(_orders_caption("O PORTO"))
+	var intro := UiTheme.label(
+		# Hyphens, never em dashes: the bitmap font has no glyph for one and
+		# prints a hollow box in its place.
+		"Enfeite não paga TEU. Compra uma vez e é sua para sempre - nem a reconstrução leva. Liga e desliga quando quiser.",
+		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	list.add_child(intro)
+	var crew_done := false
+	for item: Dictionary in CosmeticDb.all():
+		if StringName(item.kind) == CosmeticDb.KIND_CREW and not crew_done:
+			crew_done = true
+			list.add_child(_orders_caption("A EQUIPE"))
+		list.add_child(_cosmetic_card(item))
+
+
+func _cosmetic_card(item: Dictionary) -> PanelContainer:
+	var id := StringName(item.id)
+	var card := PanelContainer.new()
+	card.name = "Decor_%s" % id
+	UiTheme.apply_panel(card, UiTheme.card_style(&"normal"))
+	var row := HBoxContainer.new()
+	row.name = "Row"
+	row.add_theme_constant_override(&"separation", 6)
+	card.add_child(row)
+
+	var glyph := UiTheme.icon(UiTheme.Icon[str(item.get("icon", "STAR"))], 2)
+	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(glyph)
+
+	var text := VBoxContainer.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	text.add_theme_constant_override(&"separation", 1)
+	row.add_child(text)
+	text.add_child(UiTheme.label(str(item.name), UiTheme.SIZE_BODY, UiTheme.INK))
+	var blurb := UiTheme.label(str(item.desc), UiTheme.SIZE_SMALL,
+		UiTheme.INK_SOFT)
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.add_child(blurb)
+
+	var keys := VBoxContainer.new()
+	keys.name = "Keys"
+	keys.add_theme_constant_override(&"separation", 3)
+	keys.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	keys.custom_minimum_size.x = 74.0
+	row.add_child(keys)
+	var buy := UiTheme.button("", &"amber", UiTheme.SIZE_SMALL)
+	buy.name = "Buy"
+	buy.custom_minimum_size.y = 24.0
+	buy.pressed.connect(_on_buy_cosmetic.bind(id))
+	keys.add_child(buy)
+	var toggle := UiTheme.button("", &"steel", UiTheme.SIZE_SMALL)
+	toggle.name = "Toggle"
+	toggle.custom_minimum_size.y = 24.0
+	toggle.pressed.connect(_on_toggle_cosmetic.bind(id))
+	keys.add_child(toggle)
+	return card
+
+
+func _on_buy_cosmetic(id: StringName) -> void:
+	if not GameState.buy_cosmetic(id):
+		AudioManager.play_sfx("deny")
+		return
+	AudioManager.play_sfx("buy")
+	SaveManager.request_save(&"cosmetic")
+	_refresh()
+
+
+func _on_toggle_cosmetic(id: StringName) -> void:
+	if not GameState.set_cosmetic(id, not GameState.cosmetic_on(id)):
+		return
+	AudioManager.play_sfx("tap", 0.1)
+	SaveManager.request_save(&"cosmetic")
+	_refresh()
+
+
+func _refresh_cosmetics() -> void:
+	var list: VBoxContainer = _lists.get("cosmetics")
+	if list == null:
+		return
+	for item: Dictionary in CosmeticDb.all():
+		var id := StringName(item.id)
+		var card := list.get_node_or_null(NodePath("Decor_%s" % id)) \
+			as PanelContainer
+		if card == null:
+			continue
+		var owned := GameState.owns_cosmetic(id)
+		var on := GameState.cosmetic_on(id)
+		UiTheme.apply_panel(card, UiTheme.card_style(
+			&"ready" if on else (&"done" if owned else &"normal")))
+		var buy := card.get_node_or_null(^"Row/Keys/Buy") as Button
+		var toggle := card.get_node_or_null(^"Row/Keys/Toggle") as Button
+		if buy != null:
+			buy.visible = not owned
+			buy.text = GameState.fmt(float(item.cost))
+			buy.disabled = not GameState.can_afford(float(item.cost))
+			UiTheme.describe(buy, "Comprar %s" % str(item.name),
+				"%s TEUs" % GameState.fmt(float(item.cost)))
+		if toggle != null:
+			toggle.visible = owned
+			toggle.text = "LIGADO" if on else "DESLIG."
+			UiTheme.style_button(toggle, &"amber" if on else &"steel")
+			UiTheme.describe(toggle, "%s %s"
+				% ["Desligar" if on else "Ligar", str(item.name)])
 
 
 func _build_orders() -> void:
@@ -960,6 +1078,7 @@ func _refresh() -> void:
 	if _balance != null:
 		_balance.text = GameState.fmt(GameState.teus)
 	_update_orders_tab()
+	_refresh_cosmetics()
 	if _active == "orders":
 		# The board is live: rebuilding the port while it is open hires the
 		# foreman, and the row that was greyed out has to stop being greyed out

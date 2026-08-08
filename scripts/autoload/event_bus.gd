@@ -19,6 +19,11 @@ signal fog_changed(active: bool)
 signal rain_changed(active: bool)
 signal new_day(day: int)
 signal prestiged(shares: int)
+## The decoration shelf changed: something was bought, or switched on or off.
+## Deliberately payload-free — every listener rebuilds from `GameState`, because
+## half of them care about two items at once and none of them care which one
+## moved.
+signal cosmetics_changed
 signal toast(text: String)
 # A committed manual reward is deliberately separate from the visual click
 # event.  Network/replay callers can safely retry it by transaction id.

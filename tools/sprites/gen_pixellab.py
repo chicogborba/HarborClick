@@ -14,6 +14,8 @@ What comes out:
   * `ui_title_ship` — the ship at the title's berth, at 1:1 with the backdrop.
   * `ui_berth_a|b|c` — the three terminals on the selection board, one painting
     each instead of a numbered black square.
+  * `prop_duck` — the giant inflatable the shop sells. A joke asset still has to
+    be a well drawn one, and a shape this simple is all silhouette.
 """
 import os
 import sys
@@ -50,6 +52,14 @@ def ship() -> None:
     save(H.snap(art, tolerance=26.0), "ui_title_ship", 2)
 
 
+def duck() -> None:
+    ## The one decoration a player can moor in their own harbour, and the only
+    ## sprite in the yard drawn from slightly above rather than straight down —
+    ## which is right for it: an inflatable that size has a *side* to see.
+    art = H.trim(H.harden(raw("duck")))
+    save(H.snap(art, tolerance=34.0), "prop_duck", 4)
+
+
 def berths() -> None:
     # Snapped harder than the crest: these are little paintings of *the yard*,
     # and the yard has a palette. The frame is the mount, so the art can meet
@@ -64,4 +74,5 @@ if __name__ == "__main__":
     print("pixellab assets")
     crest()
     ship()
+    duck()
     berths()

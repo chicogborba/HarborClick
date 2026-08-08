@@ -31,6 +31,7 @@ func _run() -> void:
 	test_purchase_wait_reads_as_time()
 	test_late_sections_and_seed()
 	test_a_dead_provider_cannot_kill_the_save()
+	test_decorations_are_bought_once_and_kept()
 	test_v1_migration()
 	test_corrupt_primary_recovers_backup()
 	test_recovered_backup_offline_is_idempotent()
@@ -235,6 +236,45 @@ func test_late_sections_and_seed() -> void:
 	section_restored = {}
 	SaveManager.register_section(&"core_test_late", Callable(self, "_section_snapshot"), Callable(self, "_section_restore"))
 	_expect(section_restored.get("token", "") == "restored", "late section registration restores loaded payload")
+
+
+func test_decorations_are_bought_once_and_kept() -> void:
+	## A decoration is the only purchase in the game that survives a rebuild, and
+	## the only one that can be switched off after it is paid for. Both are the
+	## reason anybody buys one, so both are asserted here rather than left to the
+	## shop to remember.
+	SaveManager.wipe()
+	GameState.from_save({})
+	var duck := &"duck"
+	var price := CosmeticDb.cost(duck)
+	_expect(not GameState.buy_cosmetic(duck), "an empty wallet buys nothing")
+	GameState.teus = price + 5.0
+	_expect(GameState.buy_cosmetic(duck), "the shelf sells at the listed price")
+	_expect(is_equal_approx(GameState.teus, 5.0), "and charges exactly it")
+	_expect(GameState.cosmetic_on(duck), "what you just bought is switched on")
+	_expect(not GameState.buy_cosmetic(duck), "nobody buys the same duck twice")
+
+	_expect(GameState.set_cosmetic(duck, false), "it can be switched off")
+	_expect(GameState.owns_cosmetic(duck) and not GameState.cosmetic_on(duck),
+		"switched off is still owned")
+	_expect(not GameState.set_cosmetic(&"bunting", true),
+		"nothing switches on what was never bought")
+
+	# Through a save and back.
+	GameState.set_cosmetic(duck, true)
+	_expect(SaveManager.save_game(&"test"), "a decorated port saves")
+	GameState.from_save({})
+	_expect(not GameState.owns_cosmetic(duck), "a fresh profile owns nothing")
+	_expect(SaveManager.load_game(), "the decorated save loads")
+	_expect(GameState.cosmetic_on(duck), "the duck is still moored after a reload")
+
+	# And through a rebuild, which is the whole point.
+	GameState.owned = {"estivador": 40}
+	GameState.all_time_productive_teus = 1.0e11
+	GameState.recompute()
+	_expect(GameState.do_prestige(), "the seeded port is worth a reset")
+	_expect(GameState.owned.is_empty(), "the reset took the machines")
+	_expect(GameState.cosmetic_on(duck), "and left the duck")
 
 
 func test_a_dead_provider_cannot_kill_the_save() -> void:

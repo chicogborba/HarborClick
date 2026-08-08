@@ -33,6 +33,13 @@ var boost_time: float = 0.0      # remaining seconds of the cat boost
 var surge_mult: float = 1.0
 var surge_time: float = 0.0
 var flags: Dictionary = {}       # tutorial_done, seen milestones, ...
+## Decorations. Two dictionaries rather than one, because owning a thing and
+## having it switched on are different facts and the player changes the second
+## one far more often than the first. Neither is touched by `do_prestige`: a
+## machine is the run's and a decoration is the player's, and a rebuild that
+## took the bunting down would make the whole shelf a rental. See `CosmeticDb`.
+var cosmetics_owned: Dictionary = {}   # id -> true
+var cosmetics_on: Dictionary = {}      # id -> bool
 ## How the bought gang is divided between the berths. A standing order rather
 ## than a preference: it changes what the port produces, so it belongs to the run
 ## and travels with the save. See `CraneAllocation`.
@@ -523,6 +530,42 @@ func buy_upgrade(id: String) -> bool:
 	return true
 
 
+# ------------------------------------------------------------------ the shelf
+
+func owns_cosmetic(id: StringName) -> bool:
+	return bool(cosmetics_owned.get(String(id), false))
+
+
+func cosmetic_on(id: StringName) -> bool:
+	## Owned and switched on. Two questions, one answer, because every caller in
+	## the world only ever wants this one — a decoration nobody owns is off, and
+	## a decoration switched off is off, and the difference belongs to the shop.
+	return owns_cosmetic(id) and bool(cosmetics_on.get(String(id), false))
+
+
+func buy_cosmetic(id: StringName) -> bool:
+	## Bought once, switched on immediately: nobody pays a quarter of a million
+	## TEUs for a duck and then goes looking for the switch.
+	if not CosmeticDb.exists(id) or owns_cosmetic(id):
+		return false
+	if not spend(CosmeticDb.cost(id)):
+		return false
+	cosmetics_owned[String(id)] = true
+	cosmetics_on[String(id)] = true
+	EventBus.cosmetics_changed.emit()
+	return true
+
+
+func set_cosmetic(id: StringName, on: bool) -> bool:
+	if not owns_cosmetic(id):
+		return false
+	if bool(cosmetics_on.get(String(id), false)) == on:
+		return false
+	cosmetics_on[String(id)] = on
+	EventBus.cosmetics_changed.emit()
+	return true
+
+
 func upgrade_preview(item: Dictionary) -> Dictionary:
 	## What an upgrade actually does, in the units the player reads.
 	##
@@ -790,6 +833,7 @@ func to_save() -> Dictionary:
 		"owned": owned, "upgrades": upgrades.keys(), "land": land.keys(),
 		"routes": routes.keys(),
 		"flags": flags, "crane_policy": String(crane_policy),
+		"cosmetics_owned": cosmetics_owned, "cosmetics_on": cosmetics_on,
 		"route_policy": String(route_policy),
 		"rail_order": String(rail_order),
 		"foreman_mode": String(foreman_mode), "foreman_reserve": foreman_reserve,
@@ -823,6 +867,10 @@ func from_save(data: Dictionary) -> void:
 	last_run_summary = data.get("last_run_summary", {}).duplicate(true)
 	flags = data.get("flags", {})
 	flags["milestones"] = _normalized_milestones(flags.get("milestones", []))
+	# Absent in every save written before the shelf existed, which reads as an
+	# undecorated port — the honest answer for a terminal that never bought one.
+	cosmetics_owned = (data.get("cosmetics_owned", {}) as Dictionary).duplicate()
+	cosmetics_on = (data.get("cosmetics_on", {}) as Dictionary).duplicate()
 	# Absent in every save written before standing orders existed, which is the
 	# same answer an unknown policy gets: the default is what those ports were
 	# already doing.

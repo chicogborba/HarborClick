@@ -25,7 +25,12 @@ Entry points:
   fog and surge — multiply the rows and you land back on `GameState.base_cps`.
   A game whose whole strategy layer is "why did that number go up" cannot only
   ever show the product.
-- `shop.gd`, `route_map.gd`, `port_journal.gd`, `settings_panel.gd`,
+- `shop.gd` — the purchase board. Its DECOR. tab is the one place in the game
+  that sells nothing productive: a row there carries a price before it is owned
+  and an on/off switch afterwards, and the switch is the reason the tab works —
+  a decoration you cannot take back off is one nobody risks buying. See
+  `scripts/data/cosmetic_db.gd`.
+- `route_map.gd`, `port_journal.gd`, `settings_panel.gd`,
   `prestige_dialog.gd` — overlays. The journal's EQUIPE tab is the whole shift in
   one list, which the per-person dossier cannot give.
 - `npc_card.gd` — one crew member's staff badge, opened by tapping them: teal

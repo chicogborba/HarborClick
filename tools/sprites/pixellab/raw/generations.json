@@ -51,6 +51,19 @@
       "type": "generations"
     }
   },
+  "duck": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "cf13ae9e19fba144",
+    "prompt": "a giant inflatable rubber duck floating on water, seen from directly above looking down at it: round yellow body, a head with an orange beak at the top, small wings folded at the sides, no water around it. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      56,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
   "ship_hero": {
     "endpoint": "generate-image-pixflux",
     "hash": "94ac317b3483a6b5",

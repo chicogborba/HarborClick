@@ -112,6 +112,30 @@ def gen_worker_hat():
     save(sheet([hat_frame(i) for i in range(12)]), "worker_hat")
 
 
+## The party hat, frame-aligned to `worker_sheet` exactly like the helmet, and
+## drawn in the same light-to-dark greys so `modulate` gives every crew member a
+## different colour cone instead of a flat patch. It is the same twelve slots and
+## the same bob: the yard has to be able to swap one sheet for the other without
+## the head moving a pixel.
+def party_frame(i):
+    img = new_img(FW, FH)
+    cx = 4
+    top = 1 if i % 2 else 0
+    # Cone: three rows, widening down, with a lit left face.
+    px(img, cx, top, HAT_HI)
+    hline(img, cx - 1, top + 1, 3, HAT_MID)
+    px(img, cx - 1, top + 1, HAT_HI)
+    hline(img, cx - 2, top + 2, 5, HAT_LO)
+    px(img, cx - 2, top + 2, HAT_MID)
+    # The pom on top, one pixel proud of the point.
+    px(img, cx, top - 1 if top else 0, HAT_HI)
+    return img
+
+
+def gen_party_hat():
+    save(sheet([party_frame(i) for i in range(12)]), "worker_hat_party")
+
+
 def gen_foreman():
     """Tutorial portrait: white hard hat, clipboard. 3 frames of idle sway."""
     FW, FH = 12, 16
@@ -266,5 +290,6 @@ if __name__ == "__main__":
     print("people:")
     gen_worker()
     gen_worker_hat()
+    gen_party_hat()
     gen_foreman()
     gen_portraits()

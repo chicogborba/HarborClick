@@ -551,6 +551,82 @@ def gen_windsock():
     save(sheet(frames), "prop_windsock")
 
 
+# --------------------------------------------------------------- decorations
+# Bought in the shop's ENFEITES tab and switched on and off from there. They are
+# scenery with no rule attached, which is exactly why they are worth drawing
+# well: the only reason to own one is that the terminal looks better with it.
+
+## The eight liveries a bunting flag can be cut from. Bright, and deliberately
+## the container palette rather than a new one — a party in this port is a party
+## made of the things this port has.
+BUNTING = [
+    (226, 92, 74, 255), (238, 176, 62, 255), (104, 194, 176, 255),
+    (92, 148, 88, 255), (142, 96, 138, 255), (72, 116, 172, 255),
+    (250, 240, 218, 255), (232, 138, 112, 255),
+]
+
+
+def gen_bunting():
+    """A run of pennant flags on a line, 64x14, tiling in X.
+
+    Drawn as one span between two masts and repeated along the quay, so the
+    line has to leave and enter the sprite at the same height or every joint in
+    the yard shows. The flags hang below it: from above you see the string, the
+    top edge of each triangle and the shadow it drops on the concrete.
+    """
+    w, h = 64, 14
+    img = new_img(w, h)
+    for x in range(w):
+        # The line sags between the masts, and the flags sag with it.
+        sag = int(2.0 * math.sin(math.pi * x / (w - 1)))
+        px(img, x, 2 + sag, (46, 38, 42, 255))
+        px(img, x, 3 + sag, (86, 74, 76, 255))
+    for index, start in enumerate(range(1, w - 6, 8)):
+        colour = BUNTING[index % len(BUNTING)]
+        shade = tuple(int(c * 0.72) for c in colour[:3]) + (255,)
+        sag = int(2.0 * math.sin(math.pi * (start + 3) / (w - 1)))
+        for row in range(5):
+            half = 3 - row // 2
+            if half <= 0:
+                continue
+            span = half * 2
+            left = start + 3 - half
+            hline(img, left, 4 + sag + row, span, colour)
+            px(img, left + span - 1, 4 + sag + row, shade)
+        # The shadow on the apron, one pixel down and to the right of the flag.
+        px(img, start + 3, 10 + sag, (40, 36, 44, 70))
+    save(img, "prop_bunting")
+
+
+def gen_planter():
+    """A concrete planter with something growing out of it, 16x14.
+
+    The apron of a real terminal is grey from the kerb to the water, and a row
+    of these along it is the cheapest thing that says somebody works here and
+    cares. Three flower heads, because two reads as eyes.
+    """
+    img = new_img(16, 14)
+    rect(img, 1, 3, 14, 10, P.QUAY_D)
+    rect(img, 2, 4, 12, 8, P.QUAY)
+    hline(img, 2, 4, 12, P.QUAY_L)
+    hline(img, 2, 11, 12, P.QUAY_D)
+    # Soil, then planting.
+    rect(img, 3, 5, 10, 6, (78, 58, 44, 255))
+    speckle(img, 3, 5, 10, 6, [(96, 72, 54, 255)], 0.3, seed=41)
+    for cx, cy in ((5, 7), (10, 6), (8, 9)):
+        for dy in range(-1, 2):
+            for dx in range(-1, 2):
+                if abs(dx) + abs(dy) <= 1:
+                    px(img, cx + dx, cy + dy, P.BUSH)
+        px(img, cx, cy - 1, P.BUSH_L)
+    for cx, cy, tone in ((5, 6, (240, 118, 126, 255)),
+                         (10, 5, (250, 216, 122, 255)),
+                         (8, 8, (226, 158, 226, 255))):
+        px(img, cx, cy, tone)
+        px(img, cx - 1, cy, tuple(int(c * 0.8) for c in tone[:3]) + (255,))
+    save(outline(img), "prop_planter")
+
+
 def gen_flag():
     """A pennant on a pole, three frames of the same wave."""
     FW, FH = 16, 16
@@ -640,6 +716,8 @@ if __name__ == "__main__":
     gen_clock_bezel()
     gen_windsock()
     gen_flag()
+    gen_bunting()
+    gen_planter()
     gen_weather_glyphs()
     gen_rope()
     gen_rope_knot()

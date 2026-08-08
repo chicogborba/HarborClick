@@ -748,23 +748,51 @@ func _build_hat() -> void:
 	## is copied from the body every tick, which is the only way the two can never
 	## drift apart.
 	_hat = AnimatedSprite2D.new()
-	var frames := SpriteFrames.new()
-	var tex: Texture2D = load("res://assets/sprites/worker_hat.png")
-	for pair in [["side", 0], ["down", 4], ["up", 8]]:
-		var anim := StringName(pair[0])
-		if anim != &"default":
-			frames.add_animation(anim)
-		for i in 4:
-			var at := AtlasTexture.new()
-			at.atlas = tex
-			at.region = Rect2((int(pair[1]) + i) * 9, 0, 9, 12)
-			frames.add_frame(anim, at)
-	frames.remove_animation(&"default")
-	_hat.sprite_frames = frames
 	_hat.centered = false
-	_hat.animation = &"side"
-	_hat.modulate = profile.hat_color
 	add_child(_hat)
+	# No `animation` until `_dress_hat` has built the frames: naming an animation
+	# an `AnimatedSprite2D` does not have yet is an error per worker per rebuild.
+	_dress_hat()
+	EventBus.cosmetics_changed.connect(_dress_hat)
+
+
+func _dress_hat() -> void:
+	## Which hat, and what colour. Both are decorations now — the shelf can put
+	## the whole yard in party cones or in gold — so this is rebuilt on the
+	## signal rather than only at construction.
+	##
+	## Party beats gold when both are owned and on. They are the same slot, and
+	## the funnier one is the one somebody switched on to look at.
+	if _hat == null or profile == null:
+		return
+	var party := GameState.cosmetic_on(&"party_hats")
+	var sheet := "worker_hat_party" if party else "worker_hat"
+	if str(_hat.get_meta("sheet", "")) != sheet:
+		_hat.set_meta("sheet", sheet)
+		var frames := SpriteFrames.new()
+		var tex: Texture2D = load("res://assets/sprites/%s.png" % sheet)
+		for pair in [["side", 0], ["down", 4], ["up", 8]]:
+			var anim := StringName(pair[0])
+			if anim != &"default":
+				frames.add_animation(anim)
+			for i in 4:
+				var at := AtlasTexture.new()
+				at.atlas = tex
+				at.region = Rect2((int(pair[1]) + i) * 9, 0, 9, 12)
+				frames.add_frame(anim, at)
+		frames.remove_animation(&"default")
+		_hat.sprite_frames = frames
+		_hat.animation = &"side"
+	if party:
+		# A cone per person, from their own identity, so a gang in party hats is
+		# eight colours rather than eight of one.
+		_hat.modulate = Color.from_hsv(
+			fposmod(float(profile.uid.hash() % 360) / 360.0, 1.0), 0.62, 1.0)
+	elif GameState.cosmetic_on(&"gold_hats"):
+		_hat.modulate = Color8(248, 206, 92)
+	else:
+		_hat.modulate = profile.hat_color
+	_sync_hat()
 
 
 func _sync_hat() -> void:

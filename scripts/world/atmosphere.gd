@@ -133,7 +133,38 @@ func _add_lamp(spot: Dictionary) -> void:
 	_lamps.append({"lit": lit, "light": light, "phase": randf() * 10.0,
 		"quay": bool(spot.quay), "root": root, "override": 0,
 		"energy": float(spot.get("energy", 1.0)),
+		# Kept so the mast can be put back to sodium when the RGB kit is
+		# switched off. Reading it off the light afterwards would read whatever
+		# colour the rainbow happened to stop on.
+		"base_color": light_color,
 		"base_scale": light.texture_scale})
+
+
+## How long one lamp takes to walk the whole wheel, and how far apart two
+## neighbouring masts sit on it. A quay that changes colour in unison is a
+## disco; a quay where the colour *travels* down the wall is a light show.
+const RGB_PERIOD := 9.0
+const RGB_STAGGER := 0.11
+
+
+func _paint_lamp(lamp: Dictionary, lit: Sprite2D, light: PointLight2D) -> void:
+	## Sodium, or the rainbow the player paid for.
+	##
+	## The colour goes on the lamp head *and* on the light it throws, because
+	## half of what a lamp does at night is the pool on the concrete under it —
+	## tinting only the sprite gives you a purple bulb over an amber puddle.
+	if not GameState.cosmetic_on(&"rgb_lamps"):
+		if lamp.has("base_color"):
+			light.color = lamp.base_color
+			lit.modulate = Color(1, 1, 1, lit.modulate.a)
+		return
+	var hue := fposmod(float(lamp.phase) * RGB_STAGGER
+		+ float(Time.get_ticks_msec()) * 0.001 / RGB_PERIOD, 1.0)
+	var colour := Color.from_hsv(hue, 0.78, 1.0)
+	light.color = colour
+	# The head keeps its own alpha — that is the lamp being on or off, and the
+	# cosmetic has no opinion about the hour.
+	lit.modulate = Color(colour.r, colour.g, colour.b, lit.modulate.a)
 
 
 func _build_fog() -> void:
@@ -198,6 +229,7 @@ func _process(delta: float) -> void:
 			lamp_target * LAMP_ENERGY * float(lamp.energy) * flicker,
 			delta * 1.1)
 		light.texture_scale = float(lamp.base_scale) + _fog_amount * 0.9
+		_paint_lamp(lamp, lit, light)
 
 	if _fog_amount > 0.5:
 		_foghorn_timer -= delta

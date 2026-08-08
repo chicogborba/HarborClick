@@ -548,6 +548,32 @@ func _run(size: Vector2i) -> void:
 				_failures.append("overboard at %dx%d never got out"
 					% [size.x, size.y])
 			await _shot("overboard_ashore")
+	if _wants("decor") and world_pass:
+		# The whole shelf at once. Every decoration is scenery with no rule
+		# attached, so the only way to review one is to look at it — and the only
+		# way to know the layer really does rebuild on the signal is to switch
+		# them on with the port already running.
+		for item: Dictionary in CosmeticDb.all():
+			GameState.cosmetics_owned[str(item.id)] = true
+			GameState.cosmetics_on[str(item.id)] = true
+		EventBus.cosmetics_changed.emit()
+		# Night, so the RGB masts are actually lit for the shot.
+		var was_time := TimeManager.time_of_day
+		TimeManager.time_of_day = 0.92
+		_main.cam.focus_on(PortLayout.world_bottom() * 0.4, 0.2)
+		await get_tree().create_timer(1.2).timeout
+		await _shot("decor")
+		if _main.world.decor.get_child_count() == 0:
+			_failures.append("decor at %dx%d built nothing" % [size.x, size.y])
+		# And off again, to prove the switch is a switch rather than a purchase.
+		for item: Dictionary in CosmeticDb.all():
+			GameState.cosmetics_on[str(item.id)] = false
+		EventBus.cosmetics_changed.emit()
+		await get_tree().create_timer(0.4).timeout
+		if _main.world.decor.get_child_count() != 0:
+			_failures.append("decor at %dx%d would not switch off"
+				% [size.x, size.y])
+		TimeManager.time_of_day = was_time
 	if _wants("notices"):
 		# Nothing interrupts the port any more, so the notice log is the only
 		# place a notice is ever seen. It hangs off the bell at the end of the
@@ -578,6 +604,18 @@ func _run(size: Vector2i) -> void:
 		_main.shop._on_tab("land")
 		await get_tree().create_timer(0.3).timeout
 		await _shot("shop_land")
+	if _wants("decorshop"):
+		# The shelf, half bought: a row carries a price before it is owned and a
+		# switch afterwards, and the two states have to be legible side by side
+		# on the narrowest phone in the matrix.
+		for item: Dictionary in CosmeticDb.all().slice(0, 3):
+			GameState.cosmetics_owned[str(item.id)] = true
+			GameState.cosmetics_on[str(item.id)] = str(item.id) != "planters"
+		EventBus.cosmetics_changed.emit()
+		_main.shop._on_tab("cosmetics")
+		await get_tree().create_timer(0.35).timeout
+		_check("shop decor", _main.shop._board, size)
+		await _shot("shop_decor")
 	if _wants("orders"):
 		# Standing orders only exist once the quay has more than one berth, so the
 		# parcels are bought first. A shot of a tab that is correctly hidden would

@@ -68,6 +68,17 @@ Major owners:
   clock does, so the corner and the quay can never disagree, and they stand where
   a terminal has clear ground — never on the crane rail or in a truck lane.
 
+- `decor_layer.gd` — everything bought from the shop's DECOR. tab, which is
+  everything the player owns that does nothing. The rule that shapes it: a
+  decoration must be able to appear and disappear at any moment without anything
+  else in the port noticing, so the whole layer is thrown away and rebuilt on
+  `EventBus.cosmetics_changed` rather than threading a flag through `PortWorld`.
+  Nothing in it is claimed by a task, stands in a driving lane or is read by a
+  policy. Two decorations are *not* here, because they belong to the thing they
+  change: the RGB masts in `atmosphere.gd`, since a lamp's colour is half the
+  light it throws, and the hats in `structure_actor.gd`, since a hat has to walk.
+  The shelf itself is `scripts/data/cosmetic_db.gd`, and it survives prestige.
+
 Keep reusable decisions out of `PortWorld`; it should delegate to cargo/data
 policy and coordinate the result. Cargo sprites must reflect a real `CargoUnit`.
 Run phase4 ship/water, traffic, rail, wake and visual captures after world work.

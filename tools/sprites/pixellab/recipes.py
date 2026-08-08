@@ -154,6 +154,15 @@ RECIPES: dict[str, dict] = {
         "crane, stacks of coloured shipping containers, glowing yellow windows",
         64, 64, seed=8413, isometric=True, no_background=False),
 
+    # The one decoration a player can moor in their own harbour. It is a joke,
+    # so it has to be a *well drawn* joke: a shape this simple is all silhouette
+    # and the model is better at a silhouette than a loop is.
+    "duck": _recipe(
+        "a giant inflatable rubber duck floating on water, seen from directly "
+        "above looking down at it: round yellow body, a head with an orange "
+        "beak at the top, small wings folded at the sides, no water around it",
+        56, 64, seed=4242, view="high top-down", direction="north"),
+
     # The ship at the title's berth. The procedural one is a rectangle with
     # boxes on it; a painting of a ship is the one thing on that screen the
     # player is supposed to want to walk towards.
