@@ -114,12 +114,18 @@ func _build() -> void:
 	_backdrop.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	_backdrop.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	# Overscanned by `DRIFT` on every side so the picture can be moved without a
-	# gap opening at an edge. It is drawn COVERED, so the extra is cropped
-	# anyway — this only decides *which* crop is on screen right now.
-	_backdrop.offset_left = -DRIFT
+	# Overscanned vertically only, and this is the whole reason the screen reads
+	# as smooth rather than as crawling.
+	#
+	# The backdrop is 320 wide and so is the logical viewport, so drawn COVERED
+	# at its natural rect the scale is exactly 1.0 and every texel lands on a
+	# pixel. Overscanning it horizontally as well pushed the covered scale to
+	# 1.0875 — a fractional nearest-neighbour scale, where the seam between
+	# texels wanders as the picture moves, and the entire port appears to
+	# shimmer and stutter no matter how high the frame rate is. Widening only
+	# the axis that is already cropped keeps the scale at 1.0 and still leaves
+	# `DRIFT` pixels of travel.
 	_backdrop.offset_top = -DRIFT
-	_backdrop.offset_right = DRIFT
 	_backdrop.offset_bottom = DRIFT
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_backdrop)
@@ -212,8 +218,10 @@ func _process(delta: float) -> void:
 	if rect.x > 0.0 and rect.y > 0.0:
 		var scale := maxf(rect.x / PORT_SIZE.x, rect.y / PORT_SIZE.y)
 		_port_layer.scale = Vector2(scale, scale)
-		_port_layer.position = _backdrop.position \
-			+ (rect - PORT_SIZE * scale) * 0.5
+		# Rounded, like the backdrop it has to sit on. An actor at x.5 in a layer
+		# whose origin is also at x.5 lands between texels twice over.
+		_port_layer.position = (_backdrop.position
+			+ (rect - PORT_SIZE * scale) * 0.5).round()
 
 	if _gulls.is_empty():
 		return
@@ -225,8 +233,8 @@ func _process(delta: float) -> void:
 		var gull: AnimatedSprite2D = _gulls[index]
 		var phase := _gull_time * (0.2 + index * 0.04) + index * 2.1
 		var centre := Vector2(276.0 + 8.0 * (index % 2), 220.0 + 120.0 * index)
-		gull.position = centre + Vector2(cos(phase) * (26.0 + index * 5.0),
-			sin(phase * 1.4) * 42.0)
+		gull.position = (centre + Vector2(cos(phase) * (26.0 + index * 5.0),
+			sin(phase * 1.4) * 42.0)).round()
 		# Turned to face the way it is going, the way the world's gulls are.
 		gull.scale.x = 1.0 if sin(phase) > 0.0 else -1.0
 
@@ -444,12 +452,15 @@ func _start_motion() -> void:
 	if not is_inside_tree():
 		return
 
+	# Driven through a method so the position can be rounded. A tween writing a
+	# float straight into `position` puts the picture on half a pixel, and half a
+	# pixel under a nearest-neighbour filter is a row of texels that swaps which
+	# side of the boundary it lands on — the same crawl the fractional scale
+	# caused, arriving by a different door.
 	var drift := create_tween().set_loops()
 	drift.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	drift.tween_property(_backdrop, ^"position", Vector2(-DRIFT, -2.0),
-		DRIFT_SECONDS).from(Vector2(-DRIFT, -DRIFT * 2.0 + 2.0))
-	drift.tween_property(_backdrop, ^"position", Vector2(-DRIFT, -DRIFT * 2.0 + 2.0),
-		DRIFT_SECONDS)
+	drift.tween_method(_set_drift, -DRIFT * 2.0 + 2.0, -2.0, DRIFT_SECONDS)
+	drift.tween_method(_set_drift, -2.0, -DRIFT * 2.0 + 2.0, DRIFT_SECONDS)
 
 	# The crest catches the light the way a brass thing on a wall does.
 	var shine := create_tween().set_loops()
@@ -464,6 +475,15 @@ func _start_motion() -> void:
 	pulse.tween_property(_play_key, ^"modulate", Color(1, 1, 1), 1.5)
 
 	_work_the_ship()
+
+
+func _set_drift(y: float) -> void:
+	_backdrop.position.y = roundf(y)
+
+
+func _move_trolley(x: float, trolley: Node2D) -> void:
+	if is_instance_valid(trolley):
+		trolley.position.x = roundf(x)
 
 
 func _work_the_ship() -> void:
@@ -484,12 +504,14 @@ func _work_the_ship() -> void:
 		# Landing on the box: a beat with nothing moving reads as the spreader
 		# taking the weight, and without it the run back looks like a glitch.
 		cycle.tween_property(cargo, ^"modulate:a", 1.0, 0.25)
-		cycle.tween_property(trolley, ^"position:x", TROLLEY_IN, 3.4) \
-			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		# Whole pixels, like everything else on this screen: a trolley crossing
+		# the apron on quarter-pixel steps shimmers against the boom under it.
+		cycle.tween_method(_move_trolley.bind(trolley), TROLLEY_OUT, TROLLEY_IN,
+			3.4).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		cycle.tween_property(cargo, ^"modulate:a", 0.0, 0.2)
 		cycle.tween_interval(0.4)
-		cycle.tween_property(trolley, ^"position:x", TROLLEY_OUT, 2.8) \
-			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		cycle.tween_method(_move_trolley.bind(trolley), TROLLEY_IN, TROLLEY_OUT,
+			2.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
 func _arrive() -> void:

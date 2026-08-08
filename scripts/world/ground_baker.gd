@@ -37,7 +37,7 @@ static func bake(world_h: int) -> ImageTexture:
 	var grass_tile := _img("gr_grass")
 
 	var paved_top := int(PortLayout.TOP_MARGIN)
-	var paved_bottom := int(PortLayout.world_bottom() - PortLayout.RAIL_MARGIN)
+	var paved_bottom := int(PortLayout.world_bottom() - PortLayout.SOUTH_MARGIN)
 	var verge := int(PortLayout.YARD_X0) - 6      # grass runs up to the kerb
 
 	# --- base plane ---
@@ -300,7 +300,7 @@ static func _paint_service_band(img: Image) -> void:
 	# Painted pedestrian spine between the workshops and the quay.
 	var spine_x := int(PortLayout.QUAY_X0) - 9
 	for y in range(int(PortLayout.service_y()), int(PortLayout.world_bottom()
-			- PortLayout.RAIL_MARGIN), 8):
+			- PortLayout.SOUTH_MARGIN), 8):
 		for yy in range(y, y + 4):
 			_pixel(img, spine_x, yy, Color8(84, 166, 151))
 

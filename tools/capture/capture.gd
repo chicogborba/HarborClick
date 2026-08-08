@@ -565,6 +565,19 @@ func _run(size: Vector2i) -> void:
 		await _shot("decor")
 		if _main.world.decor.get_child_count() == 0:
 			_failures.append("decor at %dx%d built nothing" % [size.x, size.y])
+		# The duck has to float in water no hull is using. There is 80px of
+		# channel and a ship is 66 of it, so "in the middle of the water" is
+		# "underneath a ship" everywhere along the quay — the only clear basin is
+		# past the last berth, and how far down that is depends on the land.
+		var duck: Vector2 = _main.world.decor._duck_home()
+		print("[capture] duck %s berths=%d last berth ends %.0f bottom %.0f"
+			% [duck, PortLayout.berth_count(),
+			PortLayout.berth_y(PortLayout.berth_count() - 1) + PortLayout.SHIP_H,
+			PortLayout.world_bottom()])
+		for index in PortLayout.berth_count():
+			var top := PortLayout.berth_y(index)
+			if duck.y > top - 30.0 and duck.y < top + PortLayout.SHIP_H + 24.0:
+				_failures.append("the duck is moored under berth %d" % (index + 1))
 		# And off again, to prove the switch is a switch rather than a purchase.
 		for item: Dictionary in CosmeticDb.all():
 			GameState.cosmetics_on[str(item.id)] = false
@@ -707,6 +720,12 @@ func _run(size: Vector2i) -> void:
 		await _shot("journal")
 		# The crew page is the same board with a very different list on it, so it
 		# gets its own layout check.
+		# The trophy board is twelve struck coins and forty-odd lamps on the same
+		# sheet, which is the widest thing this board has ever had to hold.
+		_main.journal._select_tab("troph")
+		await get_tree().create_timer(0.3).timeout
+		_check("journal_trophies", _main.journal._sheet, size)
+		await _shot("journal_trophies")
 		_main.journal._select_tab("crew")
 		await get_tree().create_timer(0.3).timeout
 		_check("journal_crew", _main.journal._sheet, size)

@@ -194,7 +194,13 @@ const SLOT_ROW_H := 64.0
 const BASE_SLOT_ROWS := 2
 const PARCEL_SLOT_ROWS := 1
 
-const RAIL_MARGIN := 46.0
+## The unpaved strip along the southern boundary. It used to be where the branch
+## line ran, and the branch has moved inland — see `rail_y`.
+const SOUTH_MARGIN := 46.0
+## Vertical room the branch corridor needs between the yard and the workshop
+## band: the run-around loop, the running line, and the signal that stands north
+## of both.
+const RAIL_BAND_H := 62.0
 
 
 static func block_rows() -> int:
@@ -277,15 +283,27 @@ static func yard_bottom() -> float:
 
 
 static func service_y() -> float:
-	return yard_bottom() + SERVICE_GAP
+	## The workshop band sits south of the branch corridor, not north of it: the
+	## rails come between the container yard and the sheds, the way they do in a
+	## terminal that was built around them.
+	return yard_bottom() + RAIL_BAND_H + SERVICE_GAP
 
 
 static func world_bottom() -> float:
-	return service_y() + slot_rows() * SLOT_ROW_H + RAIL_MARGIN
+	return service_y() + slot_rows() * SLOT_ROW_H + SOUTH_MARGIN
 
 
 static func rail_y() -> float:
-	return world_bottom() - 26.0
+	## Inland, immediately below the last block row.
+	##
+	## It used to be `world_bottom() - 26`, which put the whole branch — the
+	## running line, the loop, the shunt, the rake, the signal — on the southern
+	## boundary of the map, below the workshop band, in the one strip a player
+	## never pans to. The feature worked and nobody ever saw it work: a train
+	## arrived every two and a half minutes, stood for another two, and left
+	## again off screen. Everything else here is derived from this one number, so
+	## moving the branch is moving this line.
+	return yard_bottom() + 44.0
 
 
 # --- the branch line ------------------------------------------------------

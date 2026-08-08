@@ -154,6 +154,38 @@ RECIPES: dict[str, dict] = {
         "crane, stacks of coloured shipping containers, glowing yellow windows",
         64, 64, seed=8413, isometric=True, no_background=False),
 
+    # --------------------------------------------------------- the honours
+    # One medallion per achievement category, for the tree in `Conquistas`.
+    #
+    # This is the second thing worth generating rather than drawing: eight
+    # little illustrated coins that have to read as a *set* — same rim, same
+    # metal, same light — while each says a different thing. Drawing eight
+    # consistent medallions by hand is a day; asking for eight with one shared
+    # style sentence is eight generations. They are made at 64 and halved, like
+    # the crest, because the model puts the rim and the relief in at 64 and
+    # would put a blob in at 32.
+    **{
+        "medal_" + key: _recipe(
+            "a round game achievement medallion seen face on, thick raised "
+            "outer rim, dark navy field inside it, and " + subject
+            + " embossed in the middle in relief",
+            64, 64, seed=7000 + index, view="side")
+        for index, (key, subject) in enumerate([
+            ("teu", "a neat stack of three shipping containers"),
+            ("ships", "the bow of a cargo ship coming at the viewer"),
+            ("structures", "a red gantry crane"),
+            ("cargo", "a crane hook and spreader holding one container"),
+            ("critical", "a bright golden star bursting"),
+            ("events", "a lighthouse with a beam"),
+            ("routes", "a compass rose"),
+            ("terrain", "a fenced plot of ground with a surveyor's post"),
+            ("collection", "a glass display case holding small trophies"),
+            ("contracts", "a rolled paper contract with a wax seal on it"),
+            ("prestige", "a crown resting on a coin"),
+            ("tutorial", "a clipboard with a checklist and a pencil"),
+        ])
+    },
+
     # The one decoration a player can moor in their own harbour. It is a joke,
     # so it has to be a *well drawn* joke: a shape this simple is all silhouette
     # and the model is better at a silhouette than a loop is.

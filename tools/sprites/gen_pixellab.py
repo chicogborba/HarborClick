@@ -16,6 +16,9 @@ What comes out:
     each instead of a numbered black square.
   * `prop_duck` — the giant inflatable the shop sells. A joke asset still has to
     be a well drawn one, and a shape this simple is all silhouette.
+  * `ui_medal_*` — one struck coin per achievement category. Eight medallions
+    that have to read as a *set* is the second thing worth generating: one
+    shared style sentence buys the same rim, metal and light on all of them.
 """
 import os
 import sys
@@ -60,6 +63,32 @@ def duck() -> None:
     save(H.snap(art, tolerance=34.0), "prop_duck", 4)
 
 
+## The eight achievement categories, in the order the tree shows them.
+MEDALS = ["teu", "ships", "structures", "cargo", "critical", "events",
+          "routes", "terrain", "collection", "contracts", "prestige",
+          "tutorial"]
+
+
+def medals() -> None:
+    """One coin per achievement category, halved to 32 and left alone.
+
+    Snapped only lightly: these are the one place in the game where *gold* is
+    the subject rather than an accent, and pulling a struck-metal ramp onto the
+    yard's four ambers flattens the relief that makes them read as coins. The
+    rim the model draws is the outline, so no frame is added — a medallion with
+    a square border round it is a sticker of a medallion.
+    """
+    for key in MEDALS:
+        art = H.trim(H.halve(H.harden(raw("medal_" + key))))
+        # Every coin on the same 32x32 blank, centred. Trimmed to their own
+        # bounds they came out 28 to 31 across, and a row of medallions that
+        # each sit a pixel differently reads as a row that is slightly broken.
+        coin = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
+        coin.alpha_composite(H.snap(art, tolerance=18.0),
+                             ((32 - art.width) // 2, (32 - art.height) // 2))
+        save(coin, "ui_medal_" + key, 6)
+
+
 def berths() -> None:
     # Snapped harder than the crest: these are little paintings of *the yard*,
     # and the yard has a palette. The frame is the mount, so the art can meet
@@ -75,4 +104,5 @@ if __name__ == "__main__":
     crest()
     ship()
     duck()
+    medals()
     berths()

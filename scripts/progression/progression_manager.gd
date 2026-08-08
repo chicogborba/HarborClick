@@ -356,6 +356,10 @@ func get_objective_progress(id: StringName) -> Dictionary:
 	return {
 		"id": id, "title": achievement.title, "description": achievement.description,
 		"stat": stat, "progress": progress, "target": target,
+		# The category travels with the objective because the trophy board groups
+		# by it, and a screen that has to re-open `AchievementDB` to find out what
+		# it is already holding is a screen reading the same table twice.
+		"category": StringName(achievement.get("category", "")),
 		"complete": unlocked.has(id), "reward": achievement.reward.duplicate(true),
 	}
 

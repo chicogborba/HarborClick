@@ -64,6 +64,175 @@
       "type": "generations"
     }
   },
+  "medal_cargo": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "fb07ff3e95752a04",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and a crane hook and spreader holding one container embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "medal_collection": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "3d517e09cbdd2976",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and a glass display case holding small trophies embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "medal_contracts": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "50954ba44f2625cd",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and a rolled paper contract with a wax seal on it embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "medal_critical": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "f3842554d2252d00",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and a bright golden star bursting embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "medal_events": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "d71440433f761047",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and a lighthouse with a beam embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "medal_land": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "9107127e9e86ade4",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and a fenced plot of ground with a surveyor's post embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "medal_prestige": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "6add8ecbe1b21930",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and a crown resting on a coin embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "medal_routes": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "d61dc47f6aa9f2cb",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and a compass rose embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "medal_ships": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "31897e6993bd7c69",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and the bow of a cargo ship coming at the viewer embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "medal_structures": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "6b38c0a413d1d57f",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and a red gantry crane embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "medal_terrain": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "9107127e9e86ade4",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and a fenced plot of ground with a surveyor's post embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "medal_teu": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "06c966c11aab7c2d",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and a neat stack of three shipping containers embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
+  "medal_tutorial": {
+    "endpoint": "generate-image-pixflux",
+    "hash": "2cb34e9822c82812",
+    "prompt": "a round game achievement medallion seen face on, thick raised outer rim, dark navy field inside it, and a clipboard with a checklist and a pencil embossed in the middle in relief. pixel art, warm earthy game palette of navy, amber gold, teal and cream, soft dark plum outline, light from the upper left, no text, no letters, centered, transparent background",
+    "size": [
+      64,
+      64
+    ],
+    "usage": {
+      "generations": 1.0,
+      "type": "generations"
+    }
+  },
   "ship_hero": {
     "endpoint": "generate-image-pixflux",
     "hash": "94ac317b3483a6b5",

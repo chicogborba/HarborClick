@@ -10,6 +10,8 @@ var quality: WaterQuality.Level = WaterQuality.Level.MEDIUM
 var _world_bottom := 480.0
 var _foam: Array[Dictionary] = []
 var _splashes: Array[AnimatedSprite2D] = []
+## Seconds until each splash next breaks the surface somewhere new.
+var _splash_waits: Array[float] = []
 var _time := 0.0
 
 
@@ -32,6 +34,7 @@ func rebuild(world_bottom: float) -> void:
 		child.queue_free()
 	_foam.clear()
 	_splashes.clear()
+	_splash_waits.clear()
 	var spacing := WaterQuality.foam_spacing(quality)
 	var count := mini(MAX_FOAM[int(quality)], maxi(1, int(ceil(world_bottom / spacing))))
 	for index in count:
@@ -59,16 +62,22 @@ func _add_foam(index: int, count: int) -> void:
 
 
 func _add_splash(index: int) -> void:
+	## A disturbance on the water, not an ornament fixed to it.
+	##
+	## These used to be looping animations parked at a constant position, so the
+	## same ring of foam opened in the same square metre of harbour every second
+	## and a quarter, for the whole session. Read as a bug, and fairly: nothing
+	## in open water repeats on the spot. Each one now plays once, goes away, and
+	## comes back somewhere else after a while.
 	var splash := AnimatedSprite2D.new()
 	splash.sprite_frames = _splash_frames()
 	splash.animation = &"default"
 	splash.centered = false
-	splash.position = Vector2(PortLayout.WATER_X0 + 42.0 + index * 22.0, 96.0 + index * 94.0)
 	splash.z_index = -6
-	splash.frame = index % 5
-	splash.play()
+	splash.visible = false
 	add_child(splash)
 	_splashes.append(splash)
+	_splash_waits.append(1.5 + index * 2.6)
 
 
 func _process(delta: float) -> void:
@@ -78,6 +87,22 @@ func _process(delta: float) -> void:
 		var sprite: Sprite2D = item.node
 		if is_instance_valid(sprite):
 			sprite.position.x = float(item.base_x) + roundf(sin(_time * 0.75 + float(item.phase)) * 2.0)
+	for index in _splashes.size():
+		var splash: AnimatedSprite2D = _splashes[index]
+		if not is_instance_valid(splash):
+			continue
+		_splash_waits[index] -= delta
+		if _splash_waits[index] > 0.0:
+			# Hidden once the ring has finished opening, rather than looping.
+			splash.visible = splash.is_playing()
+			continue
+		_splash_waits[index] = randf_range(4.0, 11.0)
+		splash.position = Vector2(
+			randf_range(PortLayout.WATER_X0 + 16.0, PortLayout.WORLD_W - 22.0),
+			randf_range(40.0, maxf(60.0, _world_bottom - 40.0)))
+		splash.visible = true
+		splash.frame = 0
+		splash.play()
 
 
 func _foam_frame(frame: int) -> AtlasTexture:
@@ -90,11 +115,16 @@ func _foam_frame(frame: int) -> AtlasTexture:
 
 func _splash_frames() -> SpriteFrames:
 	var frames := SpriteFrames.new()
-	frames.set_animation_speed(&"default", 3.0)
+	frames.set_animation_speed(&"default", 6.0)
+	# Played once per disturbance, so it must be able to finish.
+	frames.set_animation_loop(&"default", false)
+	# Four frames of 20, which is what `gen_splash` writes. Read as five of 16 it
+	# still filled the 80px sheet, so nothing errored — every ambient splash was
+	# just two half-rings sliced out of the middle of two others.
 	var texture: Texture2D = preload("res://assets/sprites/prop_splash.png")
-	for frame in 5:
+	for frame in 4:
 		var atlas := AtlasTexture.new()
 		atlas.atlas = texture
-		atlas.region = Rect2(frame * 16, 0, 16, 14)
+		atlas.region = Rect2(frame * 20, 0, 20, 14)
 		frames.add_frame(&"default", atlas)
 	return frames

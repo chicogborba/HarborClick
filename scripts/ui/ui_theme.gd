@@ -503,10 +503,20 @@ static func install_window_theme(window: Window) -> void:
 	if window == null or window.theme != null:
 		return
 	var theme := Theme.new()
-	theme.set_stylebox(&"panel", &"TooltipPanel", nine("ui_tag", 5, 5))
+	# `ui_tip`, not the gantry's job tag. The tag is a sixteen-pixel enamel sign
+	# with a teal service spine, rivets and five pixels of margin all round —
+	# correct bolted across the top of the quay, and a road sign when it is
+	# hanging under the pointer around the word "RAMAL". A tooltip is a caption:
+	# one pixel of ink, three of margin, and mostly the words.
+	var tip := nine("ui_tip", 3, 3)
+	tip.set_content_margin(SIDE_LEFT, 4)
+	tip.set_content_margin(SIDE_RIGHT, 4)
+	tip.set_content_margin(SIDE_TOP, 1)
+	tip.set_content_margin(SIDE_BOTTOM, 1)
+	theme.set_stylebox(&"panel", &"TooltipPanel", tip)
 	theme.set_font(&"font", &"TooltipLabel", FONT)
 	theme.set_font_size(&"font_size", &"TooltipLabel", SIZE_SMALL)
-	theme.set_color(&"font_color", &"TooltipLabel", STEEL_TEXT)
+	theme.set_color(&"font_color", &"TooltipLabel", CREAM)
 	# The default label draws a soft drop shadow, which on a bitmap font is a
 	# smear one pixel off the glyph rather than a shadow.
 	theme.set_color(&"font_shadow_color", &"TooltipLabel", Color(0, 0, 0, 0))

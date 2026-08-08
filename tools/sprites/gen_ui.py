@@ -509,6 +509,32 @@ def gen_glass():
     save(img, "ui_glass")
 
 
+def gen_tip():
+    """10x10 nine-patch, margin 3: the caption a hover puts under the pointer.
+
+    Godot draws its own tooltip, so until now it borrowed the gantry's enamel
+    job tag — a sixteen-pixel sign with a teal service spine, rivets and five
+    pixels of margin on every side. Around a single word like RAMAL that is a
+    road sign hanging over the terminal, and it is the only object on screen not
+    drawn at the game's own weight.
+
+    This is the smallest thing that can hold a line of text: one pixel of ink,
+    a dark face, a lit top edge and nothing else. It gets three pixels of
+    margin, not five, because a tooltip is a caption and a caption is mostly
+    the words in it.
+    """
+    s = 10
+    img = new_img(s, s)
+    rect(img, 0, 0, s, s, INK)
+    rect(img, 1, 1, s - 2, s - 2, HULL_D)
+    hline(img, 1, 1, s - 2, HULL)
+    hline(img, 1, s - 2, s - 2, HULL_XD)
+    # The corners knocked off, so it reads as a small chip rather than a slab.
+    for cx, cy in ((0, 0), (s - 1, 0), (0, s - 1), (s - 1, s - 1)):
+        px(img, cx, cy, (0, 0, 0, 0))
+    save(img, "ui_tip", preview_scale=8)
+
+
 def gen_tag():
     """16x16 nine-patch, margin 5: the enamel job tag that hangs off the gantry.
 
@@ -838,14 +864,26 @@ def gen_icons():
         vline(i, x, 5, 3, (162, 84, 56, 255))
     icons["teu"] = i
 
-    # crane: gantry silhouette
+    # crane: a gantry in elevation, hoisting.
+    #
+    # The old one was a red lintel on two red posts with a small amber box
+    # between them — a torii gate, which is what it read as on the shop tab that
+    # is meant to say "equipment". A crane is legible at 12px only if the *load*
+    # is in the silhouette: portal, trolley, a wire, and a box hanging off it,
+    # with the legs splayed so the shape is not a rectangle.
     i = _icon_base()
-    hline(i, 1, 2, 10, (200, 92, 78, 255))
-    hline(i, 1, 3, 10, (150, 60, 58, 255))
-    vline(i, 2, 3, 8, (200, 92, 78, 255))
-    vline(i, 9, 3, 8, (200, 92, 78, 255))
-    vline(i, 6, 4, 3, (130, 126, 138, 255))
-    rect(i, 5, 7, 3, 2, (238, 176, 62, 255))
+    CRANE_I = (200, 92, 78, 255)
+    CRANE_ID = (150, 60, 58, 255)
+    hline(i, 1, 1, 10, CRANE_I)                 # top chord
+    hline(i, 1, 2, 10, CRANE_ID)
+    for step in range(7):                       # splayed legs
+        px(i, 2 - step // 4, 3 + step, CRANE_I)
+        px(i, 9 + step // 4, 3 + step, CRANE_I)
+    rect(i, 5, 1, 3, 2, (226, 138, 112, 255))   # trolley on the chord
+    vline(i, 6, 3, 3, (176, 190, 212, 255))     # the wire
+    rect(i, 4, 6, 5, 4, (238, 176, 62, 255))    # the box on the hook
+    hline(i, 4, 6, 5, (252, 210, 128, 255))
+    hline(i, 4, 9, 5, (176, 118, 30, 255))
     icons["crane"] = i
 
     # ship: a laden hull from above. The old one was a plain taper with a white
@@ -868,13 +906,24 @@ def gen_icons():
     hline(i, 3, 9, 6, (168, 162, 150, 255))
     icons["ship"] = i
 
-    # land: a fenced plot
+    # land: a plot with a post at the corner of it.
+    #
+    # The old one was a speckled brown rectangle with a white line on top,
+    # which reads as a crate, a doormat or a loaf. A parcel of ground needs two
+    # things at this size: a *corner* (so it is a plot rather than an object)
+    # and a marker standing on it.
     i = _icon_base()
-    rect(i, 1, 3, 10, 7, (152, 114, 76, 255))
-    speckle(i, 2, 4, 8, 5, [(122, 88, 58, 255)], 0.3, seed=2)
-    for x in range(1, 12, 3):
-        vline(i, x, 2, 3, (226, 218, 202, 255))
-    hline(i, 1, 3, 10, (226, 218, 202, 255))
+    rect(i, 1, 4, 10, 7, (152, 114, 76, 255))
+    speckle(i, 2, 5, 8, 5, [(122, 88, 58, 255), (182, 144, 100, 255)], 0.28,
+            seed=2)
+    hline(i, 1, 4, 10, (182, 144, 100, 255))    # the lit near edge
+    hline(i, 1, 10, 10, (108, 78, 52, 255))
+    for gx in range(2, 11, 3):                  # a little planting on it
+        px(i, gx, 6, (106, 156, 78, 255))
+        px(i, gx + 1, 8, (78, 122, 62, 255))
+    vline(i, 9, 0, 5, (226, 218, 202, 255))     # the surveyor's post
+    rect(i, 6, 0, 4, 3, (232, 160, 48, 255))    # and its flag
+    px(i, 6, 0, (252, 202, 96, 255))
     icons["land"] = i
 
     # star: prestige
@@ -930,33 +979,69 @@ def gen_icons():
     hline(i, 6, 6, 2, INK)
     icons["clock"] = i
 
-    # cat paw: the boost
+    # cat paw: a pad and four toes, with a gap between them.
+    #
+    # The old one ran the four toes edge to edge above a solid bar, which merges
+    # into one blob the moment it is tinted. Toes have to be separated by a
+    # background pixel each, and the pad has to be rounded, or this is a comb.
     i = _icon_base()
-    rect(i, 3, 6, 6, 4, (196, 148, 96, 255))
-    for cx in (2, 4, 6, 8):
-        rect(i, cx, 3, 2, 2, (196, 148, 96, 255))
+    PAW_I = (206, 158, 106, 255)
+    PAW_ID = (162, 116, 74, 255)
+    for row, half in ((6, 3), (7, 4), (8, 4), (9, 3)):
+        rect(i, 6 - half, row, half * 2, 1, PAW_I)
+    hline(i, 3, 9, 6, PAW_ID)
+    for cx in (1, 4, 7, 10):                    # four toes, one gap apart
+        rect(i, cx, 3, 2, 2, PAW_I)
+        px(i, cx, 3, (232, 190, 142, 255))
+        px(i, cx, 4, PAW_ID)
     icons["paw"] = i
 
-    # glove: the click upgrades
+    # glove: a work glove with the fingers apart and a cuff at the wrist.
+    #
+    # The old one was a filled amber blob with two notches in the top edge,
+    # which at 12px is a mitten at best and a potato at worst. Fingers need a
+    # background pixel between them, and the *cuff* is what turns a hand shape
+    # into a piece of kit.
     i = _icon_base()
-    _blit_rows(i, ["..##.##.", ".#######", "#.######", "#.######",
-                   ".#######", ".######.", "..####..", "..####.."], 2, 2,
-               (232, 150, 60, 255))
-    _blit_rows(i, ["..##.##.", ".......", ".......", "......."], 2, 2,
-               (252, 194, 112, 255))
+    GLOVE_I = (232, 150, 60, 255)
+    GLOVE_IL = (252, 194, 112, 255)
+    GLOVE_ID = (176, 106, 34, 255)
+    for fx in (2, 4, 6):                        # three fingers, gapped
+        rect(i, fx, 1, 1, 3, GLOVE_I)
+        px(i, fx, 1, GLOVE_IL)
+    rect(i, 8, 3, 2, 2, GLOVE_I)                # the thumb, off to one side
+    px(i, 9, 3, GLOVE_IL)
+    rect(i, 2, 4, 8, 4, GLOVE_I)                # the palm
+    hline(i, 2, 4, 8, GLOVE_IL)
+    hline(i, 2, 7, 8, GLOVE_ID)
+    rect(i, 3, 8, 6, 3, (196, 190, 190, 255))   # the cuff
+    hline(i, 3, 8, 6, (238, 232, 232, 255))
+    hline(i, 3, 10, 6, (140, 134, 134, 255))
     icons["glove"] = i
 
-    # globe: the terminal-wide upgrades
+    # globe: a sphere with land on it, not a wheel.
+    #
+    # A disc with one horizontal and one vertical line through it is a gunsight.
+    # What says "globe" at 12px is a *curved* meridian and a couple of blobs of
+    # land that break the symmetry.
     i = _icon_base()
+    SEA_I = (62, 126, 158, 255)
+    SEA_ID = (40, 92, 124, 255)
     for y in range(12):
         for x in range(12):
             dist = ((x - 5.5) ** 2 + (y - 5.5) ** 2) ** 0.5
-            if dist <= 4.7:
-                px(i, x, y, (86, 158, 168, 255))
-            if 3.7 < dist <= 4.7:
-                px(i, x, y, (44, 104, 118, 255))
-    hline(i, 2, 5, 8, (176, 220, 214, 255))
-    vline(i, 5, 2, 8, (176, 220, 214, 255))
+            if dist <= 5.2:
+                px(i, x, y, SEA_I)
+            if 4.2 < dist <= 5.2:
+                px(i, x, y, SEA_ID)
+    hline(i, 2, 5, 8, (120, 180, 202, 255))     # the equator
+    for row, half in ((1, 1), (2, 2), (3, 3), (4, 3), (5, 3), (6, 3), (7, 3),
+                      (8, 2), (9, 1)):          # a meridian, bowed
+        px(i, 5 - half + 2, row, (120, 180, 202, 255))
+    for lx, ly, lw in ((2, 3, 3), (7, 4, 3), (3, 7, 4), (8, 8, 2)):
+        hline(i, lx, ly, lw, (106, 156, 78, 255))
+        px(i, lx, ly, (140, 186, 100, 255))
+    px(i, 3, 2, (168, 214, 224, 255))           # specular
     icons["globe"] = i
 
     # padlock: not unlocked yet
@@ -985,13 +1070,21 @@ def gen_icons():
                    "##..."], 4, 3, INK_SOFT)
     icons["chevron"] = i
 
-    # truck: the gate traffic / contracts
+    # truck: a box body, a cab stepped down in front of it, and wheels under
+    # both. The old one had the cab and the body at the same height, so the
+    # silhouette was one long rectangle on two dots — a bus, or a bench.
     i = _icon_base()
-    rect(i, 1, 4, 6, 4, (72, 116, 172, 255))
-    hline(i, 1, 4, 6, (110, 154, 206, 255))
-    rect(i, 7, 5, 3, 3, (196, 190, 190, 255))
-    for wx in (2, 8):
-        rect(i, wx, 8, 2, 2, (48, 44, 50, 255))
+    rect(i, 0, 3, 7, 5, (72, 116, 172, 255))    # the box body
+    hline(i, 0, 3, 7, (110, 154, 206, 255))
+    hline(i, 0, 7, 7, (48, 82, 130, 255))
+    for rib in range(2, 6, 2):
+        vline(i, rib, 4, 3, (58, 96, 148, 255))
+    rect(i, 7, 5, 4, 3, (150, 144, 148, 255))   # the cab, lower and forward
+    hline(i, 7, 5, 4, (200, 194, 196, 255))
+    px(i, 10, 6, (150, 206, 216, 255))          # windscreen
+    for wx in (1, 4, 8):
+        rect(i, wx, 8, 2, 2, (40, 36, 42, 255))
+        px(i, wx, 9, (96, 92, 100, 255))
     icons["truck"] = i
 
     # trophy: career and achievements
@@ -1005,17 +1098,28 @@ def gen_icons():
 
     # bell: the notice log. Nothing interrupts the port any more, so this is the
     # only thing that says a notice happened at all.
+    # What makes a bell a bell is the *waist*: a narrow round shoulder that
+    # hangs almost straight down and then flares hard in the last two rows. The
+    # first version widened one pixel per row from the crown to the lip, which
+    # is a cone — and a small amber cone with a dot under it is a traffic cone,
+    # or a Christmas tree, which is what the player saw on the gantry.
     i = _icon_base()
     px(i, 5, 0, AMBER_D)                       # the loop it hangs from
     px(i, 6, 0, AMBER_D)
-    for row, half in ((1, 1), (2, 2), (3, 3), (4, 3), (5, 4), (6, 4), (7, 5)):
+    px(i, 5, 1, AMBER_L)
+    px(i, 6, 1, AMBER_D)
+    # Shoulder, body, flare: 2, 3, 3, 3, 4, 5 half-widths — flat through the
+    # middle so the silhouette has a straight side to read against, then out.
+    for row, half in ((2, 2), (3, 3), (4, 3), (5, 3), (6, 4), (7, 5)):
         rect(i, 6 - half, row, half * 2, 1, AMBER)
         px(i, 6 - half, row, AMBER_L)          # lit edge, light from upper left
         px(i, 5 + half, row, AMBER_D)
-    hline(i, 1, 8, 10, AMBER_D)                # the rim, wider than the body
-    hline(i, 1, 9, 10, AMBER_XD)
+    hline(i, 0, 8, 12, AMBER)                  # the lip, proud of the body
+    px(i, 0, 8, AMBER_L)
+    px(i, 11, 8, AMBER_D)
+    hline(i, 1, 9, 10, AMBER_XD)               # the rim's shadow under it
     rect(i, 5, 10, 2, 2, AMBER_D)              # the clapper, swung clear
-    px(i, 4, 2, AMBER_XL)
+    px(i, 4, 3, AMBER_XL)                      # one specular on the shoulder
     icons["bell"] = i
 
     # chat: the feedback key on the title screen. A speech bubble is the one
@@ -1052,11 +1156,16 @@ def gen_icons():
     i = _icon_base()
     rect(i, 1, 5, 6, 4, (46, 116, 116, 255))        # hood
     hline(i, 1, 5, 6, (72, 156, 150, 255))
+    hline(i, 1, 8, 6, (26, 74, 74, 255))
     rect(i, 7, 2, 4, 7, (46, 116, 116, 255))        # cab, standing above it
     hline(i, 7, 2, 4, (122, 196, 182, 255))
-    rect(i, 8, 4, 2, 2, (150, 206, 216, 255))       # cab window
+    rect(i, 8, 4, 3, 2, (150, 206, 216, 255))       # cab window
+    # The warning panel on the nose. A teal loco on a navy key is one value all
+    # the way through; every real shunter has a yellow end for exactly this
+    # reason, and it is what separates the front from the back at 12px.
+    rect(i, 0, 5, 1, 4, (238, 176, 62, 255))
     px(i, 2, 4, (94, 90, 104, 255))                 # exhaust stack
-    px(i, 2, 3, (94, 90, 104, 255))
+    px(i, 2, 3, (176, 190, 212, 255))
     for wx in (2, 5, 8):                            # wheels on the rail
         rect(i, wx, 9, 2, 2, (48, 44, 50, 255))
     hline(i, 0, 11, 12, (130, 126, 138, 255))       # the rail itself
@@ -1082,6 +1191,7 @@ if __name__ == "__main__":
     gen_gantry()
     gen_glass()
     gen_tag()
+    gen_tip()
     gen_indicators()
     gen_buttons()
     gen_tabs()

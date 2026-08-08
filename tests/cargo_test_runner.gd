@@ -94,6 +94,7 @@ func _run() -> void:
 	_test_next_ship_can_take_previous_ship_cargo()
 	_test_invalid_click_has_no_reward()
 	_test_full_yard_preserves_ship_and_reward()
+	_test_the_tap_is_never_refused()
 	await _test_traffic_denial_and_actor_teardown_release_delivery()
 	await _test_reload_mid_discharge_and_loading()
 	await _test_one_hundred_accelerated_calls()
@@ -374,14 +375,39 @@ func _test_full_yard_preserves_ship_and_reward() -> void:
 	var before_imports := _world.yard.sector_count(CargoUnit.IMPORT)
 	var before_visuals := _world.reward_visuals
 	var accepted := _world.berth.handle_tap(_world.ship.global_position)
-	_expect(not accepted, "full import yard rejects discharge")
+	# The tap is answered. A clicker whose click can be refused stops being one,
+	# and a full yard is the terminal's problem to report — it is not a reason to
+	# ignore the finger. What the full yard *does* still refuse is the cargo.
+	_expect(accepted, "a tap on a working hull is always answered")
+	_expect(GameState.teus > before_teus, "and always pays, at the finger")
+	_expect(_world.reward_visuals > before_visuals, "and always says so on screen")
 	_expect(_ship_uids(_world) == before_ship, "full yard restores the exact ship manifest")
 	_expect(_world.yard.sector_count(CargoUnit.IMPORT) == before_imports,
 		"full yard does not evict an existing import")
-	_expect(is_equal_approx(GameState.teus, before_teus), "full yard grants no reward")
-	_expect(_world.reward_visuals == before_visuals, "full yard creates no reward visual")
 	_expect(_world.berth._active.is_empty() and _world.berth._in_flight == 0,
 		"full yard leaves no active transfer")
+
+
+func _test_the_tap_is_never_refused() -> void:
+	## The cap on boxes in the air is a cap on the *yard*, not on the player.
+	## Before this, six flights in progress meant the seventh tap did nothing at
+	## all: no sound, no number, no answer — on the one interaction the whole
+	## game is built out of.
+	_reset_call(1009)
+	GameState.from_save({})
+	var ship_pos := _world.ship.global_position
+	for step in BerthCallController.MAX_IN_FLIGHT:
+		_world.berth.handle_tap(ship_pos)
+	_expect(_world.berth._in_flight == BerthCallController.MAX_IN_FLIGHT,
+		"the cap is reached (%d in the air)" % _world.berth._in_flight)
+	var before_teus := GameState.teus
+	var before_visuals := _world.reward_visuals
+	var before_flights := _world.berth._in_flight
+	_expect(_world.berth.handle_tap(ship_pos), "the tap past the cap is answered")
+	_expect(GameState.teus > before_teus, "and paid")
+	_expect(_world.reward_visuals > before_visuals, "and shown")
+	_expect(_world.berth._in_flight == before_flights,
+		"but no seventh box goes in the air")
 
 
 func _test_traffic_denial_and_actor_teardown_release_delivery() -> void:

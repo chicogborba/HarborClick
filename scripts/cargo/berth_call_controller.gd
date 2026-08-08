@@ -202,15 +202,34 @@ func set_input_enabled(input_allowed: bool) -> void:
 
 
 func handle_tap(pos: Vector2) -> bool:
+	## The tap pays, and then the terminal moves whatever it can.
+	##
+	## These used to be one thing: a tap started a transfer, and the transfer
+	## paid when the box landed. That made the reward a *consequence* of the
+	## simulation, and the simulation has every right to say no — six boxes
+	## already in the air, no landing slot, nothing exportable in the yard. The
+	## result was a clicker whose click stopped answering, which is the one thing
+	## a clicker may never do, and a "+1" that appeared a second and a half after
+	## the finger that earned it.
+	##
+	## So the two are separate now. Tapping a working hull always pays, at the
+	## finger, immediately. The cap and the yard rules still govern how many
+	## containers may physically be crossing the terminal — they are what stop the
+	## yard churning — but they govern the *cargo*, not the player.
 	if not input_enabled or ship == null or not ship.is_working():
 		return false
-	if _in_flight >= MAX_IN_FLIGHT:
-		return false
-	return _discharge(pos) if ship.is_discharging() else _load(pos)
+	var reward := _commit_reward(pos)
+	if _in_flight < MAX_IN_FLIGHT:
+		if ship.is_discharging():
+			_discharge(pos, reward)
+		else:
+			_load(pos, reward)
+	return true
 
 
 func can_work() -> bool:
-	## Read-only interaction state for the ship outline.
+	## Whether a tap would move a box. Read by the ship's interaction outline and
+	## by the starvation watchdog — not by `handle_tap`, which now always pays.
 	if not input_enabled or ship == null or yard == null or not ship.is_working():
 		return false
 	if _in_flight >= MAX_IN_FLIGHT:
@@ -222,7 +241,7 @@ func can_work() -> bool:
 		and yard.has_exportable(manifest_exclusions())
 
 
-func _discharge(pos: Vector2) -> bool:
+func _discharge(pos: Vector2, reward: Dictionary = {}) -> bool:
 	var taken := ship.take_container()
 	if taken.is_empty():
 		_wait_for_exports()
@@ -237,7 +256,8 @@ func _discharge(pos: Vector2) -> bool:
 		func(u: CargoUnit) -> bool: return yard.place_unit(int(landing.slot), int(landing.level), u, str(landing.token)),
 		func(_u: CargoUnit) -> void: yard.release_landing(str(landing.token)); ship.restore_import(taken))
 	_begin_flight(taken.color, taken.pos, landing.pos, transfer, pos,
-		{"origin": "ship", "taken": _snapshot_taken(taken), "landing": landing.duplicate(true)})
+		{"origin": "ship", "taken": _snapshot_taken(taken),
+		"landing": landing.duplicate(true), "reward": reward})
 	return true
 
 
@@ -247,7 +267,7 @@ func _wait_for_exports() -> void:
 	_emit_status()
 
 
-func _load(pos: Vector2) -> bool:
+func _load(pos: Vector2, reward: Dictionary = {}) -> bool:
 	var candidate := yard.take_exportable(manifest_exclusions())
 	if candidate.is_empty():
 		ship.wait_for_export()
@@ -273,7 +293,8 @@ func _load(pos: Vector2) -> bool:
 		func(_u: CargoUnit) -> void: ship.release_bay(bay); yard.restore_taken(candidate))
 	ship.begin_loading()
 	_begin_flight(unit.color, candidate.pos, bay.pos, transfer, pos,
-		{"origin": "yard", "taken": _snapshot_taken(candidate), "bay": bay.duplicate(true)})
+		{"origin": "yard", "taken": _snapshot_taken(candidate),
+		"bay": bay.duplicate(true), "reward": reward})
 	return true
 
 
@@ -298,7 +319,13 @@ func _begin_flight(color: int, from: Vector2, to: Vector2, transfer: CargoTransf
 		_in_flight = maxi(0, _in_flight - 1)
 		ship.set_flights_in_progress(_in_flight)
 		if committed:
-			var reward := _commit_reward(reward_pos)
+			# A tap was already paid, at the finger, the moment it happened; an
+			# automated move has nobody to pay early and is settled here, on the
+			# landing, exactly as every move used to be. The record says which
+			# this was, so the two can never both pay and neither can be missed.
+			var reward: Dictionary = record.get("reward", {})
+			if reward.is_empty():
+				reward = _commit_reward(reward_pos)
 			var direction: StringName = CargoUnit.IMPORT \
 				if record.get("origin", "") == "ship" else CargoUnit.EXPORT
 			var payload := {

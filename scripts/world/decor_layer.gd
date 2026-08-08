@@ -29,6 +29,9 @@ var _bob := 0.0
 func setup(port: PortWorld) -> void:
 	world = port
 	EventBus.cosmetics_changed.connect(rebuild)
+	# Buying land lengthens the quay, which moves the last berth, which moves the
+	# only stretch of water the duck can be moored in without a hull on top of it.
+	EventBus.land_bought.connect(func(_id: String) -> void: rebuild())
 	rebuild()
 
 
@@ -132,10 +135,21 @@ func _build_cats() -> void:
 
 
 func _duck_home() -> Vector2:
-	## Moored out in the basin, clear of the fairway a ship comes up. Far enough
-	## off the wall to be obviously *floating* rather than parked on the apron.
-	return Vector2(PortLayout.WATER_X0 + 78.0,
-		PortLayout.TOP_MARGIN + PortLayout.world_bottom() * 0.42)
+	## Moored in the basin south of the last berth.
+	##
+	## Two goes at this were wrong for two different reasons. `WATER_X0 + 78` is
+	## 318 of a 320-wide world, so two thirds of the duck hung off the edge of the
+	## map. Putting it back in the middle of the channel then parked it *under a
+	## ship*: a hull is 66 wide in an 80-wide channel, so along the quay there is
+	## no water a berth is not already using.
+	##
+	## What is always clear is the water past the last hull, and how far down that
+	## is depends on how much quay has been bought — hence `berth_count`, and
+	## hence the rebuild on `land_bought`.
+	var last_berth := PortLayout.berth_y(PortLayout.berth_count() - 1)
+	return Vector2((PortLayout.WATER_X0 + PortLayout.WORLD_W) * 0.5 - 6.0,
+		minf(last_berth + PortLayout.SHIP_H + 46.0,
+			PortLayout.world_bottom() - 46.0))
 
 
 func _build_duck() -> void:
@@ -157,7 +171,9 @@ func _build_duck() -> void:
 	atlas.region = Rect2(60, 0, 20, 14)
 	wash.texture = atlas
 	wash.centered = true
-	wash.position = Vector2(0, body.texture.get_height() * 0.4)
-	wash.scale = Vector2(2.6, 1.4)
-	wash.modulate = Color(1, 1, 1, 0.35)
+	wash.position = Vector2(0, body.texture.get_height() * 0.42)
+	# Narrower than the duck, not wider: a ring that oversails the thing making
+	# it reads as a puddle the duck is standing in.
+	wash.scale = Vector2(1.7, 0.9)
+	wash.modulate = Color(1, 1, 1, 0.28)
 	_duck.add_child(wash)

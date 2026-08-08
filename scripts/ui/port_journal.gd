@@ -17,8 +17,24 @@ extends CanvasLayer
 signal open_changed(opened: bool)
 signal objective_pinned(id: StringName)
 
-const TABS := [["next", "PRÓXIMAS"], ["all", "TODAS"], ["done", "CONCLUÍDAS"],
+const TABS := [["next", "PRÓXIMAS"], ["all", "TODAS"], ["troph", "TROFÉUS"],
 	["crew", "EQUIPE"]]
+
+## The trophy board's twelve branches, in the order they are shown, with the
+## medallion struck for each and the word the player reads.
+##
+## CONCLUÍDAS is gone and this took its slot: a flat list of everything already
+## earned answered "what have I done" in the least interesting way available,
+## while the same fact — thirty-eight goals, twelve trades, how far along each —
+## is what a board of struck coins says at a glance.
+const BRANCHES := [
+	["teu", "TEUs MOVIMENTADOS"], ["ships", "NAVIOS ATENDIDOS"],
+	["structures", "ESTRUTURAS"], ["cargo", "CONTÊINERES"],
+	["critical", "CRÍTICOS"], ["events", "EVENTOS"],
+	["routes", "ROTAS"], ["terrain", "TERRENOS"],
+	["collection", "COLEÇÃO"], ["contracts", "CONTRATOS"],
+	["prestige", "RECONSTRUÇÃO"], ["tutorial", "PRIMEIROS PASSOS"],
+]
 
 var _source: Variant
 var _callbacks: Dictionary = {}
@@ -101,10 +117,17 @@ func _ready() -> void:
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	UiTheme.style_scroll(scroll)
 	sheet.add_child(scroll)
+	# The scrollbar is reserved *inside* the scroll container, so anything
+	# right-aligned on this board ends up under the grip — the trophy tally read
+	# "6/33" with the 8 behind the bar. One gutter, once, for every tab.
+	var gutter := MarginContainer.new()
+	gutter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gutter.add_theme_constant_override(&"margin_right", 6)
+	scroll.add_child(gutter)
 	_list = VBoxContainer.new()
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override(&"separation", 4)
-	scroll.add_child(_list)
+	gutter.add_child(_list)
 	_layout()
 	_refresh()
 
@@ -156,6 +179,133 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _on_backdrop_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
 		close()
+
+
+# -------------------------------------------------------------- the trophies
+
+func _build_trophy_page() -> void:
+	## Thirty-eight goals as twelve tracks rather than thirty-eight rows.
+	##
+	## The list tabs answer "what is next" and "what is there", one row at a
+	## time, and both are the right shape for picking something to chase. Neither
+	## answers "how far into this game am I", because that question is about the
+	## *shape* of the whole board — which trades are finished, which are barely
+	## started, which have not been touched. Twelve struck coins with a row of
+	## lamps beside each one answers it in a glance, and the lamps are the same
+	## component the console uses for a berth.
+	var objectives := _objectives()
+	var done := 0
+	for objective: Dictionary in objectives:
+		if bool(objective.get("complete", false)):
+			done += 1
+	var tally := HBoxContainer.new()
+	tally.add_theme_constant_override(&"separation", 5)
+	_list.add_child(tally)
+	var heading := UiTheme.label("QUADRO DE HONRA", UiTheme.SIZE_BODY, UiTheme.INK)
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tally.add_child(heading)
+	tally.add_child(UiTheme.stamp("%d/%d" % [done, objectives.size()],
+		UiTheme.AMBER, UiTheme.SIZE_SMALL))
+	_list.add_child(UiTheme.divider())
+
+	for branch: Array in BRANCHES:
+		var rows: Array[Dictionary] = []
+		for objective: Dictionary in objectives:
+			if String(objective.get("category", "")) == str(branch[0]):
+				rows.append(objective)
+		if rows.is_empty():
+			continue
+		# Cheapest first, so the lamps down the track read as a ladder rather
+		# than as the order the table happened to be written in.
+		rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return float(a.get("target", 0.0)) < float(b.get("target", 0.0)))
+		_list.add_child(_trophy_branch(str(branch[0]), str(branch[1]), rows))
+
+
+func _trophy_branch(key: String, title: String,
+		rows: Array[Dictionary]) -> PanelContainer:
+	var earned := 0
+	var next: Dictionary = {}
+	for objective: Dictionary in rows:
+		if bool(objective.get("complete", false)):
+			earned += 1
+		elif next.is_empty():
+			next = objective
+	var finished := next.is_empty()
+
+	var card := PanelContainer.new()
+	UiTheme.apply_panel(card, UiTheme.card_style(
+		&"done" if finished else &"normal"))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 7)
+	card.add_child(row)
+
+	# The coin, mounted. A struck medallion is mostly a dark navy field inside a
+	# gold rim, and dropped straight onto cream manifest paper the field is the
+	# part that reads — twelve of them looked like twelve holes punched in the
+	# sheet. On a slate mount the gold is the lightest thing in the frame, which
+	# is what a medal is supposed to be. The game already mounts a photograph
+	# this way on a staff badge; this is the same object.
+	var mount := UiTheme.panel(UiTheme.slate_style(earned > 0, 2), false)
+	mount.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(mount)
+	var coin := TextureRect.new()
+	coin.texture = load("res://assets/sprites/ui_medal_%s.png" % key)
+	coin.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	coin.custom_minimum_size = Vector2(32, 32)
+	# Dimmed until the branch is started, so a board of twelve says where the run
+	# has actually been — but never so far that the relief disappears.
+	coin.modulate = Color(1, 1, 1) if earned > 0 else Color(0.62, 0.64, 0.72, 0.8)
+	mount.add_child(coin)
+
+	var column := VBoxContainer.new()
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	column.add_theme_constant_override(&"separation", 2)
+	row.add_child(column)
+
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override(&"separation", 4)
+	column.add_child(head)
+	var name_label := UiTheme.label(title, UiTheme.SIZE_SMALL, UiTheme.INK)
+	name_label.clip_text = true
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(name_label)
+	# Lamps: lit for earned, running for the one in progress, dark for the rest.
+	var track := HBoxContainer.new()
+	track.add_theme_constant_override(&"separation", 2)
+	track.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(track)
+	for objective: Dictionary in rows:
+		var state := UiTheme.Led.OFF
+		if bool(objective.get("complete", false)):
+			state = UiTheme.Led.ATTENTION
+		elif objective == next:
+			state = UiTheme.Led.RUNNING
+		var lamp := UiTheme.led(state)
+		lamp.tooltip_text = str(objective.get("title", ""))
+		track.add_child(lamp)
+
+	if finished:
+		var closed := UiTheme.label("Tudo conquistado nesta trilha.",
+			UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+		closed.clip_text = true
+		column.add_child(closed)
+		return card
+
+	var next_label := UiTheme.label(str(next.get("title", "")),
+		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	next_label.clip_text = true
+	column.add_child(next_label)
+	column.add_child(_progress_bar(float(next.get("progress", 0.0)),
+		float(next.get("target", 1.0))))
+	var counted := UiTheme.label("%s / %s" % [
+		GameState.fmt(float(next.get("progress", 0.0))),
+		GameState.fmt(float(next.get("target", 0.0)))],
+		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	counted.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	column.add_child(counted)
+	return card
 
 
 func _build_crew_page() -> void:
@@ -250,11 +400,13 @@ func _refresh() -> void:
 		UiTheme.style_tab(_tab_buttons[key], key == _active_tab)
 	if _active_tab == "crew":
 		_build_crew_page()
+	elif _active_tab == "troph":
+		_build_trophy_page()
 	else:
 		for objective: Dictionary in _objectives():
-			var done := bool(objective.get("complete", false))
-			if (_active_tab == "done" and not done) \
-					or (_active_tab == "next" and done):
+			# PRÓXIMAS hides what is finished; TODAS hides nothing. What used to
+			# be CONCLUÍDAS is the trophy board now.
+			if _active_tab == "next" and bool(objective.get("complete", false)):
 				continue
 			_list.add_child(_make_card(objective))
 	if _list.get_child_count() == 0:

@@ -85,6 +85,9 @@ const CLIMB_TIME := 0.5
 const DRIP_TIME := 4.0
 ## Where a swimmer aims: the quay wall, a body's width inside it.
 const SHORE_X := PortLayout.QUAY_X1 - 7.0
+## `prop_splash` is four frames; playing them this fast is one ring opening.
+const SPLASH_FRAMES := 4.0
+const SPLASH_FPS := 12.0
 
 ## Beacons stop being countable past this, and the row stops fitting the machine.
 const MAX_UPGRADE_MARKS := 4
@@ -383,9 +386,10 @@ func _splash(where: Vector2, big: bool) -> void:
 	var layer := _effect_layer()
 	var burst := AnimatedSprite2D.new()
 	var frames := SpriteFrames.new()
-	frames.set_animation_speed(&"default", 12.0)
+	frames.set_animation_speed(&"default", SPLASH_FPS)
+	frames.set_animation_loop(&"default", false)
 	var sheet: Texture2D = preload("res://assets/sprites/prop_splash.png")
-	for frame in 4:
+	for frame in int(SPLASH_FRAMES):
 		var atlas := AtlasTexture.new()
 		atlas.atlas = sheet
 		atlas.region = Rect2(frame * 20, 0, 20, 14)
@@ -397,7 +401,14 @@ func _splash(where: Vector2, big: bool) -> void:
 	burst.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	layer.add_child(burst)
 	burst.play()
-	burst.animation_finished.connect(burst.queue_free)
+	# The splash owns its own lifetime, on a tween bound to itself, rather than
+	# on `animation_finished`. That signal never arrives from a looping
+	# animation, and every splash stayed on the water for the rest of the
+	# session — a ring of foam parked where somebody went in an hour ago. A tween
+	# on the node dies with the node, so this cannot outlive it or double-free.
+	var life := burst.create_tween()
+	life.tween_interval(SPLASH_FRAMES / SPLASH_FPS)
+	life.tween_callback(burst.queue_free)
 	if not big or not UserPreferences.can_animate():
 		return
 	# Two rings running out from the entry point. The splash says something hit
