@@ -206,7 +206,7 @@ Inventory: **175 authored code/config/scene files**.
 | `tools/sprites/gen_rail.py` | 126 | 4 functions | Furniture for the branch line: the signal, the level crossing, the boards. |
 | `tools/sprites/gen_ship.py` | 146 | 6 functions | Top-down container ship, bow pointing UP, moored along a vertical quay. |
 | `tools/sprites/gen_title.py` | 820 | 39 functions | Generates the title screen's harbour backdrop and its furniture. |
-| `tools/sprites/gen_ui.py` | 1204 | 33 functions | UI chrome, in the two materials the terminal is actually made of. |
+| `tools/sprites/gen_ui.py` | 1238 | 33 functions | UI chrome, in the two materials the terminal is actually made of. |
 | `tools/sprites/gen_vehicles.py` | 422 | 12 functions | Top-down port vehicles. All face UP (north); the game rotates/flips them. |
 | `tools/sprites/gen_worldmap.py` | 248 | 6 functions | The chart on the clipboard: a hand-authored pixel world map. |
 | `tools/sprites/palette.py` | 131 | 0 functions | HarborClick palette — Stardew-flavoured: warm, earthy, softly shaded. |

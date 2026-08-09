@@ -902,8 +902,14 @@ def gen_icons():
                       (6, (198, 108, 70, 255)), (7, (86, 128, 168, 255))):
         rect(i, 3, row, 2, 1, tone)
         rect(i, 7, row, 2, 1, tone)
-    rect(i, 3, 8, 6, 2, (226, 218, 202, 255))
-    hline(i, 3, 9, 6, (168, 162, 150, 255))
+    # The accommodation block, aft, with two lit windows. It was six pixels of
+    # flat cream across the whole beam, which is the brightest thing in the icon
+    # and was reading as the *subject* — a white bar with a blue hat on it.
+    rect(i, 4, 8, 4, 2, (226, 218, 202, 255))
+    hline(i, 4, 9, 4, (168, 162, 150, 255))
+    px(i, 4, 8, (252, 246, 232, 255))
+    px(i, 5, 8, (250, 214, 138, 255))
+    px(i, 7, 8, (250, 214, 138, 255))
     icons["ship"] = i
 
     # land: a plot with a post at the corner of it.
@@ -1044,12 +1050,26 @@ def gen_icons():
     px(i, 3, 2, (168, 214, 224, 255))           # specular
     icons["globe"] = i
 
-    # padlock: not unlocked yet
+    # padlock: brass body, steel shackle, one keyhole.
+    #
+    # The old one was a grey arch on a grey rectangle, and grey is what the
+    # gear, the speaker, the clock and the lorry are already made of — on a
+    # shelf of twenty-one icons it was one more grey box. A padlock is brass in
+    # every game that has ever drawn one, and the two materials are what give
+    # the shape a shackle *and* a body instead of one silhouette.
     i = _icon_base()
-    _blit_rows(i, [".####.", "#....#", "#....#"], 3, 1, (150, 140, 132, 255))
-    rect(i, 2, 5, 8, 6, (176, 166, 154, 255))
-    hline(i, 2, 5, 8, (204, 196, 186, 255))
-    rect(i, 5, 7, 2, 3, (96, 88, 84, 255))
+    for sx in (3, 8):                            # the shackle's two legs
+        vline(i, sx, 2, 3, (176, 174, 188, 255))
+        px(i, sx, 2, (214, 212, 222, 255))
+    hline(i, 4, 1, 4, (196, 194, 206, 255))      # and its crown
+    hline(i, 4, 0, 4, (226, 226, 234, 255))
+    rect(i, 1, 5, 10, 6, (176, 112, 30, 255))    # the body
+    hline(i, 1, 5, 10, (232, 160, 48, 255))      # lit top edge
+    hline(i, 1, 10, 10, (128, 78, 18, 255))
+    px(i, 1, 5, (252, 202, 96, 255))
+    rect(i, 5, 7, 2, 2, (58, 44, 46, 255))       # the keyhole, round and slot
+    px(i, 5, 9, (58, 44, 46, 255))
+    px(i, 6, 9, (58, 44, 46, 255))
     icons["lock"] = i
 
     # tick: completed
@@ -1136,15 +1156,29 @@ def gen_icons():
         px(i, x, 4, (110, 96, 100, 255))
     icons["chat"] = i
 
-    # crew: the community key. Two figures, the near one overlapping the far one.
-    # Three at 12px is a smudge; two with a gap between them reads as people.
+    # crew: two of the terminal's own people, and the front one wears the hat.
+    #
+    # Two rules at this size, both learned by breaking them. A figure has to be
+    # one *continuous* silhouette — head sitting straight on the shoulders with
+    # no row between them, or it reads as a ball above a box. And the two of
+    # them are separated by a column of nothing, not by a line of ink: ink is
+    # invisible against the navy keys half of these icons live on, and the gap
+    # has to work on any background.
     i = _icon_base()
-    for cx, top, tone in ((8, 1, (168, 160, 174, 255)),
-                          (4, 3, (236, 228, 212, 255))):
-        rect(i, cx - 2, top, 5, 4, (58, 42, 52, 255))       # head
-        rect(i, cx - 1, top + 1, 3, 2, tone)
-        rect(i, cx - 3, top + 4, 7, 8, (58, 42, 52, 255))   # shoulders
-        rect(i, cx - 2, top + 5, 5, 7, tone)
+    STEEL_I = (150, 146, 160, 255)
+    CREAM_I = (236, 228, 212, 255)
+    # Behind: taller, cooler, offset right. Head straight onto the shoulders.
+    rect(i, 7, 1, 3, 3, STEEL_I)
+    px(i, 7, 1, (190, 186, 198, 255))
+    rect(i, 6, 4, 5, 8, STEEL_I)
+    hline(i, 6, 4, 5, (186, 182, 194, 255))
+    # In front: shorter, warmer, in an amber hard hat with a brim.
+    rect(i, 1, 3, 3, 1, (232, 160, 48, 255))
+    hline(i, 0, 4, 5, (252, 202, 96, 255))
+    rect(i, 1, 5, 3, 2, CREAM_I)
+    px(i, 1, 5, (198, 190, 176, 255))
+    rect(i, 0, 7, 5, 5, CREAM_I)
+    hline(i, 0, 7, 5, (255, 250, 236, 255))
     icons["crew"] = i
 
     # train: the branch line. The third door into the terminal had to borrow the
