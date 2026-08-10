@@ -97,6 +97,8 @@ jobs:
           test -s build/release/styles.css
           test -s build/release/script.js
           test -s build/release/i18n.js
+          test -s build/release/favicon.ico
+          test -s build/release/media/favicon-192.png
           test -s build/release/media/ship-side.png
           test -s build/release/media/press-start-2p-cyrillic.woff2
           test -s build/release/jogar/index.html

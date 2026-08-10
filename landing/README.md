@@ -42,6 +42,20 @@ a pixel ship with soft edges is not a pixel ship. The strip carries
 `SMOKE_ROOM` blank rows above the funnel — without them the plume ran into the
 top edge of the sprite and came out flat.
 
+## Favicon
+
+`gen_favicon()` draws an amber badge with the harbour's anchor cut out of it at
+16px and scales it by whole numbers only: `media/favicon.png` (32),
+`media/favicon-192.png` for `apple-touch-icon`, and `favicon.ico` carrying 16,
+32 and 48. A badge rather than a bare anchor because a thin silhouette on
+transparency disappears into whatever colour the browser paints behind the tab,
+and it has to read on light chrome and dark chrome both.
+
+`favicon.ico` sits next to `index.html` rather than in `assets/`, and
+`build_release.sh` copies it to the release root: a browser asks for
+`/favicon.ico` whether the page links it or not, and nginx's catch-all would
+otherwise answer that request with the whole HTML document.
+
 ## Pixel discipline
 
 Nothing is upscaled on disk. `styles.css` holds a set of integer scale

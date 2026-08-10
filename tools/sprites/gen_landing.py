@@ -780,6 +780,78 @@ def gen_chips():
     save(outline(img), "chips")
 
 
+# --------------------------------------------------------------------------
+# Favicon
+# --------------------------------------------------------------------------
+# The page used to point `rel=icon` at `ui_title_anchor`, a 28x30 game sprite:
+# not square, so every browser squashed it, and drawn for a 320px board rather
+# than for sixteen pixels. This is drawn at 16 and only ever scaled by whole
+# numbers, so the tab gets the same discipline as the rest of the page.
+FAVICON = [
+    "................",
+    ".......##.......",
+    "......#..#......",
+    "......#..#......",
+    ".......##.......",
+    "....########....",
+    ".......##.......",
+    ".......##.......",
+    ".......##.......",
+    "..#....##....#..",
+    "..##...##...##..",
+    "...##..##..##...",
+    "....##.##.##....",
+    "....########....",
+    "................",
+    "................",
+]
+
+
+def _favicon_base() -> Image.Image:
+    """An amber badge with the harbour's anchor cut out of it.
+
+    A badge rather than a bare anchor: at sixteen pixels a thin silhouette on
+    transparency disappears into whatever colour the browser paints behind the
+    tab, and this has to read on light chrome and dark chrome both."""
+    size = 16
+    img = new_img(size, size)
+    rect(img, 0, 0, size, size, P.OUTLINE)
+    rect(img, 1, 1, size - 2, size - 2, P.SAFETY)
+    hline(img, 1, 1, size - 2, P.SAFETY_L)
+    hline(img, 1, size - 2, size - 2, P.SAFETY_D)
+    _chamfer(img)
+    for y, row in enumerate(FAVICON):
+        for x, cell in enumerate(row):
+            if cell == "#":
+                px(img, x, y, P.OUTLINE)
+    return img
+
+
+def gen_favicon():
+    """One drawing, four sizes, every one an integer multiple of the first.
+
+    `favicon.ico` goes next to `index.html` rather than into `/media`, because
+    a browser asks for `/favicon.ico` at the root whether the page links it or
+    not, and an unanswered one is served the whole HTML document by the nginx
+    catch-all."""
+    base = _favicon_base()
+
+    def at(scale):
+        return base.resize((16 * scale, 16 * scale), Image.NEAREST)
+
+    save(at(2), "favicon")
+    # 192 is the PWA size and divides by sixteen; iOS scales it down to the 180
+    # it wants, which is one smooth resize instead of a whole soft icon.
+    touch = Image.new("RGBA", (192, 192), P.SAFETY)
+    touch.alpha_composite(at(12))
+    save(touch, "favicon-192")
+
+    ico = os.path.join(ROOT, "landing", "favicon.ico")
+    at(3).save(ico, format="ICO", sizes=[(48, 48), (32, 32), (16, 16)],
+               append_images=[at(2), base])
+    print(f"  ../favicon.ico  16+32+48")
+
+
 def gen_marks():
     cell = 8
     img = new_img(cell * len(MARKS), cell)
@@ -935,6 +1007,7 @@ if __name__ == "__main__":
     gen_panel()
     gen_board()
     gen_button()
+    gen_favicon()
     gen_marks()
     gen_chips()
     copy_borrowed()

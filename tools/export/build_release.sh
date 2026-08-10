@@ -11,7 +11,9 @@ OUT="$ROOT/build/release"
 
 rm -rf "$OUT"
 mkdir -p "$OUT/jogar" "$OUT/media"
-for page in index.html styles.css script.js i18n.js; do
+# favicon.ico rides with the pages, not with /media: a browser asks for it
+# at the root whether the page links it or not.
+for page in index.html styles.css script.js i18n.js favicon.ico; do
   cp "$ROOT/landing/$page" "$OUT/$page"
 done
 cp "$ROOT/landing/assets/"* "$OUT/media/"
