@@ -91,6 +91,20 @@ mirrors the release layout rather than from the file system:
 tools/export/build_release.sh && (cd build/release && python3 -m http.server 8765)
 ```
 
-Chrome's `--headless --window-size=390,844` silently renders at 500px wide and
-then crops, which looks exactly like a broken layout. Drive CDP and call
-`Emulation.setDeviceMetricsOverride` instead.
+Then photograph it with `tools/qa/shoot_landing.py`, which drives CDP and calls
+`Emulation.setDeviceMetricsOverride`. Do not reach for
+`chrome --headless --window-size=390,844`: it silently renders at a 500px floor
+and then crops the PNG to the size you asked for, which looks exactly like a
+broken mobile layout.
+
+```bash
+tools/venv/bin/python tools/qa/shoot_landing.py http://127.0.0.1:8765/ shots \
+    phone:390x844 desktop:1440x900:w=20 wide:1920x1080:w=26 \
+    ru:1440x900:L=ru loop:1440x900:@.bay picker:390x844:c=#lang-btn \
+    reduced:1440x900:still
+```
+
+`w=` waits longer before the shutter — the ship takes about a minute to cross,
+so a default-timed shot catches it half off the left edge. `@` scrolls to a
+selector first, because a section whose reveal has not fired photographs
+blank, and a full-page capture never scrolls at all.

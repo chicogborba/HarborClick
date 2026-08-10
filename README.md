@@ -142,7 +142,8 @@ tools/
                medição de frame time no cenário de estresse
   docs/        gerador do mapa completo do código
   fonts/       baixa e conserta os subsets de fonte que a landing hospeda
-  qa/          documentação fresca + import + todas as suítes em um comando
+  qa/          documentação fresca + import + todas as suítes em um comando,
+               e o fotógrafo da landing (CDP, métricas de aparelho de verdade)
   export/      build do jogo, pacote landing + /jogar e servidor com COOP/COEP
 tests/         regressão headless: core/save, backup manual, UI, acessibilidade,
                contraste, tráfego, notificações e 100 escalas de carga
