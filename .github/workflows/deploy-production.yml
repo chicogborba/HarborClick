@@ -94,6 +94,11 @@ jobs:
         run: |
           set -euo pipefail
           test -s build/release/index.html
+          test -s build/release/styles.css
+          test -s build/release/script.js
+          test -s build/release/i18n.js
+          test -s build/release/media/ship-side.png
+          test -s build/release/media/press-start-2p-cyrillic.woff2
           test -s build/release/jogar/index.html
           test -s build/release/jogar/index.pck
           test -s build/release/jogar/index.wasm

@@ -11,9 +11,9 @@ OUT="$ROOT/build/release"
 
 rm -rf "$OUT"
 mkdir -p "$OUT/jogar" "$OUT/media"
-cp "$ROOT/landing/index.html" "$OUT/index.html"
-cp "$ROOT/landing/styles.css" "$OUT/styles.css"
-cp "$ROOT/landing/script.js" "$OUT/script.js"
+for page in index.html styles.css script.js i18n.js; do
+  cp "$ROOT/landing/$page" "$OUT/$page"
+done
 cp "$ROOT/landing/assets/"* "$OUT/media/"
 cp -R "$ROOT/build/web/." "$OUT/jogar/"
 

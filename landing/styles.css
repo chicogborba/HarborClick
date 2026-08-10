@@ -4,20 +4,64 @@
    fractional one. Colours are the game's own palette, straight from
    tools/sprites/palette.py. */
 
+/* Three subsets per family. A Portuguese reader downloads the Latin file and
+   nothing else; the Cyrillic one only loads for a reader who needs it. */
 @font-face {
   font-family: "HC Display";
-  src: url("/media/press-start-2p.woff2") format("woff2");
+  src: url("/media/press-start-2p-latin.woff2") format("woff2");
   font-weight: 400;
-  font-style: normal;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+    U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "HC Display";
+  src: url("/media/press-start-2p-latin-ext.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+    U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "HC Display";
+  src: url("/media/press-start-2p-cyrillic.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 
 @font-face {
   font-family: "HC Body";
-  src: url("/media/pixelify-sans.woff2") format("woff2");
+  src: url("/media/pixelify-sans-latin.woff2") format("woff2");
   font-weight: 400 700;
-  font-style: normal;
   font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+    U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212,
+    U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "HC Body";
+  src: url("/media/pixelify-sans-latin-ext.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+    U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+    U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "HC Body";
+  src: url("/media/pixelify-sans-cyrillic.woff2") format("woff2");
+  font-weight: 400 700;
+  font-display: swap;
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
 }
 
 :root {
@@ -37,30 +81,42 @@
 
   /* Integer scales. Every sprite is drawn at native size times one of these,
      so a source pixel is always a whole number of screen pixels.
-     --s art · --k chrome · --ls wordmark · --ai card art
-     --ds small props · --ws water and road · --bs the boat · --m marks */
+     --s art · --k chrome · --ls wordmark · --ai card art · --ds small props
+     --ws water and road · --bs the ship · --sk the skyline · --m marks */
   --s: 3;
   --k: 3;
   --ls: 2;
   --ai: 1;
   --ds: 2;
   --ws: 3;
-  --bs: 2;
+  --bs: 1;
+  --sk: 1;
   --m: 2;
 
-  /* Room the hero must leave under its content: the water band plus the ship
-     that rides it, so the two never share space with the copy. */
-  --sea-room: calc(var(--ws) * 11px + var(--bs) * 78px + 14px);
+  /* Room the hero must leave under its content: the water band, the ship that
+     rides it and the skyline behind both, so none of the three ever share
+     space with the copy. */
+  --sea-h: calc(var(--ws) * 32px);
+  --sea-room: calc(var(--sea-h) + var(--bs) * 60px);
   --gutter: 20px;
   --wide: 1120px;
+
+  /* How far each parallax layer is pushed, written by script.js. */
+  --sky-y: 0px;
+  --skyline-y: 0px;
+  --sway: 0px;
 }
 
 @media (min-width: 700px) {
-  :root { --s: 4; --k: 3; --ls: 4; --gutter: 32px; }
+  :root { --s: 4; --k: 3; --ls: 3; --ds: 3; --bs: 2; --sk: 2; --gutter: 32px; }
 }
 
 @media (min-width: 1080px) {
-  :root { --s: 5; --k: 4; --ls: 5; --ai: 2; --ds: 3; --ws: 4; --gutter: 40px; }
+  :root { --s: 5; --k: 4; --ls: 4; --ai: 2; --ws: 4; --gutter: 40px; }
+}
+
+@media (min-width: 1400px) {
+  :root { --ls: 5; --wide: 1240px; }
 }
 
 * { box-sizing: border-box; }
@@ -185,6 +241,17 @@ h1, h2, h3 {
   box-shadow: 0 calc(var(--k) * 2px) 0 rgba(6, 15, 26, 0.55);
 }
 
+/* The lamp under the main call to action: it is the one thing on the page
+   that should look plugged in. */
+.btn-lg::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: calc(var(--k) * -5px);
+  background: radial-gradient(closest-side, rgba(238, 176, 62, 0.5), transparent);
+  animation: lamp 3.6s ease-in-out infinite;
+}
+
 /* ------------------------------------------------------------------- HUD */
 .hud {
   position: fixed;
@@ -215,6 +282,12 @@ h1, h2, h3 {
 
 .hud-brand img { width: 28px; height: 30px; }
 
+.hud-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .hud-state {
   display: none;
   gap: 8px;
@@ -240,6 +313,89 @@ h1, h2, h3 {
   .hud-state { display: inline-flex; }
 }
 
+/* ------------------------------------------------------------ language */
+.lang { position: relative; }
+
+.lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 7px 8px;
+  color: var(--amber-l);
+  background: rgba(6, 15, 26, 0.72);
+  border: 2px solid var(--steel-d);
+  font-family: "HC Display", monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: border-color 120ms linear, color 120ms linear;
+}
+
+.lang-btn:hover { border-color: var(--amber-d); }
+
+.lang-btn .mark { --m: 1; }
+
+.lang-btn[aria-expanded="true"] {
+  color: var(--void);
+  background: var(--amber);
+  border-color: var(--amber-l);
+}
+
+.lang-list {
+  position: absolute;
+  z-index: 70;
+  top: calc(100% + 8px);
+  right: 0;
+  width: max-content;
+  min-width: 190px;
+  max-height: min(62vh, 460px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: #0d2135;
+  border: 3px solid var(--ink);
+  box-shadow: 0 0 0 2px rgba(238, 176, 62, 0.4), 0 12px 28px rgba(0, 0, 0, 0.6);
+}
+
+.lang-list[hidden] { display: none; }
+
+.lang-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 10px;
+  color: #cbd6e2;
+  cursor: pointer;
+  font-size: 0.86em;
+}
+
+.lang-list b {
+  min-width: 2.4em;
+  color: var(--steel-l);
+  font-family: "HC Display", monospace;
+  font-size: 9px;
+  font-weight: 400;
+}
+
+.lang-list li:hover,
+.lang-list li:focus-visible {
+  color: var(--void);
+  background: var(--amber);
+  outline: none;
+}
+
+.lang-list li:hover b,
+.lang-list li:focus-visible b { color: #7a4a14; }
+
+.lang-list li[aria-selected="true"] {
+  color: var(--amber-l);
+  box-shadow: inset 3px 0 0 var(--amber);
+}
+
+.lang-list li[aria-selected="true"]:hover { color: var(--void); }
+
 /* ------------------------------------------------------------------ HERO */
 .hero {
   position: relative;
@@ -255,12 +411,17 @@ h1, h2, h3 {
 
 .hero-sky {
   position: absolute;
-  inset: 0;
-  z-index: -3;
+  inset: -60px 0 0;
+  z-index: -4;
   background-image: url("/media/port-strip.png");
   background-repeat: repeat;
+  /* Exactly twice the 640x720 source, and drawn nearest-neighbour: the whole
+     page is built on whole source pixels, and the backdrop was the one layer
+     the browser was allowed to interpolate. */
   background-size: 1280px 1440px;
+  image-rendering: pixelated;
   background-position: center 0;
+  transform: translate3d(var(--sway), var(--sky-y), 0);
   animation: drift 120s linear infinite alternate;
 }
 
@@ -272,8 +433,30 @@ h1, h2, h3 {
   pointer-events: none;
   background:
     repeating-linear-gradient(180deg, rgba(4, 10, 18, 0.34) 0 2px, transparent 2px 4px),
-    radial-gradient(120% 80% at 50% 42%, transparent 22%, rgba(4, 12, 22, 0.72) 78%),
-    linear-gradient(180deg, rgba(8, 20, 34, 0.82) 0%, rgba(8, 20, 34, 0.42) 34%, rgba(6, 15, 26, 0.86) 100%);
+    radial-gradient(78% 58% at 50% 40%, rgba(5, 13, 23, 0.68) 0%, rgba(5, 13, 23, 0.34) 46%, transparent 72%),
+    radial-gradient(130% 84% at 50% 42%, transparent 16%, rgba(4, 12, 22, 0.8) 78%),
+    linear-gradient(180deg, rgba(8, 20, 34, 0.86) 0%, rgba(8, 20, 34, 0.42) 34%, rgba(6, 15, 26, 0.9) 100%);
+}
+
+/* The middle distance: gantries, sheds and light masts, tiled and moved at
+   their own rate so the mirrored backdrop behind them stops reading as one
+   symmetrical wall on a wide screen. */
+.hero-skyline {
+  position: absolute;
+  z-index: -3;
+  inset: auto 0 calc(var(--sea-h) - var(--sk) * 6px);
+  height: calc(var(--sk) * 120px);
+  pointer-events: none;
+  transform: translate3d(calc(var(--sway) * 2.4), var(--skyline-y), 0);
+}
+
+.hero-skyline i {
+  display: block;
+  height: 100%;
+  background: url("/media/skyline.png") 0 100% / calc(var(--sk) * 320px) calc(var(--sk) * 120px) repeat-x;
+  image-rendering: pixelated;
+  opacity: 0.95;
+  animation: creep 90s linear infinite;
 }
 
 .sky-traffic {
@@ -287,13 +470,10 @@ h1, h2, h3 {
 .gull {
   position: absolute;
   display: block;
-  image-rendering: pixelated;
-}
-
-.gull {
   width: calc(var(--s) * 14px);
   height: calc(var(--s) * 12px);
   background: url("/media/seagull.png") 0 0 / calc(var(--s) * 56px) calc(var(--s) * 12px);
+  image-rendering: pixelated;
   animation: flap 0.5s steps(4) infinite, cross-r 26s linear infinite;
 }
 
@@ -319,7 +499,8 @@ h1, h2, h3 {
   width: calc(var(--ls) * 121px);
   height: calc(var(--ls) * 17px);
   max-width: 100%;
-  filter: drop-shadow(0 0 calc(var(--s) * 4px) rgba(238, 176, 62, 0.28));
+  filter: drop-shadow(0 0 calc(var(--s) * 4px) rgba(238, 176, 62, 0.3));
+  animation: land 700ms steps(5) both;
 }
 
 .tagline {
@@ -334,7 +515,7 @@ h1, h2, h3 {
 }
 
 .tagline i {
-  width: clamp(24px, 8vw, 90px);
+  width: clamp(24px, 8vw, 120px);
   height: 3px;
   background: repeating-linear-gradient(90deg, var(--amber-d) 0 6px, transparent 6px 12px);
 }
@@ -367,12 +548,18 @@ h1, h2, h3 {
   letter-spacing: 0.06em;
 }
 
-/* the sea band and the boat that crosses it */
+@media (min-width: 1080px) {
+  .hero-stage { gap: 24px; }
+  .pitch { max-width: 44ch; font-size: 1.12em; }
+  .tags li { font-size: 10px; padding: 8px 12px; }
+}
+
+/* the sea band and the ship that crosses it */
 .sea {
   position: absolute;
   inset: auto 0 0;
   z-index: 0;
-  height: calc(var(--ws) * 32px);
+  height: var(--sea-h);
   pointer-events: none;
 }
 
@@ -380,6 +567,7 @@ h1, h2, h3 {
   position: absolute;
   inset: 0;
   background: url("/media/water.png") 0 0 / calc(var(--ws) * 64px) calc(var(--ws) * 32px) repeat;
+  image-rendering: pixelated;
   border-top: calc(var(--ws) * 1px) solid rgba(226, 240, 240, 0.55);
   box-shadow: inset 0 calc(var(--ws) * 3px) 0 rgba(226, 240, 240, 0.14);
   animation: swell 9s linear infinite;
@@ -393,17 +581,20 @@ h1, h2, h3 {
   background: linear-gradient(180deg, rgba(6, 15, 26, 0) 0%, rgba(6, 15, 26, 0.5) 100%);
 }
 
+/* A three-frame strip: bow wave, wash and funnel smoke are stepped, never
+   cross-faded, because a pixel ship with soft edges is not a pixel ship. */
 .boat {
   position: absolute;
   z-index: 1;
-  bottom: calc(var(--ws) * 11px);
+  bottom: calc(var(--ws) * 10px);
   left: 0;
   display: block;
-  width: calc(var(--bs) * 124px);
-  height: calc(var(--bs) * 78px);
-  background: url("/media/ship-side.png") 0 0 / 100% 100%;
+  width: calc(var(--bs) * 228px);
+  height: calc(var(--bs) * 88px);
+  background: url("/media/ship-side.png") 0 0 / calc(var(--bs) * 684px) calc(var(--bs) * 88px);
   image-rendering: pixelated;
-  animation: sail 54s linear infinite, bob 1.6s steps(1) infinite alternate;
+  filter: drop-shadow(0 calc(var(--bs) * 2px) 0 rgba(6, 15, 26, 0.55));
+  animation: sail 62s linear infinite, chug 0.66s steps(3) infinite;
 }
 
 .cue {
@@ -419,7 +610,10 @@ h1, h2, h3 {
   font-size: 8px;
   letter-spacing: 0.08em;
   text-decoration: none;
+  transition: color 140ms linear, border-color 140ms linear;
 }
+
+.cue:hover { color: var(--amber-l); border-color: var(--amber-d); }
 
 .cue .mark { --m: 1; animation: nudge 1.6s steps(2) infinite; }
 
@@ -441,11 +635,13 @@ h1, h2, h3 {
   animation: tape 42s linear infinite;
 }
 
-.wire-tape .mark { --m: 1; margin: 0 0.4em; color: var(--amber-d); }
+.wire-tape .mark { --m: 1; margin: 0 0.5em; color: var(--amber-d); }
 
 .wire-tape p {
+  display: flex;
+  align-items: center;
   margin: 0;
-  padding-right: 2em;
+  padding-right: 1em;
   white-space: nowrap;
   color: var(--amber);
   font-family: "HC Display", monospace;
@@ -457,6 +653,7 @@ h1, h2, h3 {
   position: relative;
   height: calc(var(--ws) * 44px);
   background: url("/media/road.png") 0 0 / calc(var(--ws) * 64px) calc(var(--ws) * 44px) repeat-x;
+  image-rendering: pixelated;
   overflow: hidden;
 }
 
@@ -506,14 +703,18 @@ h1, h2, h3 {
 
 /* ------------------------------------------------------------- SECTIONS */
 .bay,
+.yard,
 .manifest,
 .berth {
   max-width: var(--wide);
   margin: 0 auto;
-  padding: clamp(44px, 5vw, 66px) var(--gutter);
+  padding: clamp(44px, 5vw, 74px) var(--gutter);
 }
 
 .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   margin: 0 0 14px;
   color: var(--amber);
   font-family: "HC Display", monospace;
@@ -521,7 +722,15 @@ h1, h2, h3 {
   letter-spacing: 0.16em;
 }
 
+.eyebrow::before {
+  content: "";
+  width: 26px;
+  height: 3px;
+  background: repeating-linear-gradient(90deg, var(--amber-d) 0 6px, transparent 6px 12px);
+}
+
 .bay h2,
+.yard h2,
 .manifest h2,
 .berth h2 {
   font-size: clamp(15px, 4.2vw, 26px);
@@ -530,12 +739,21 @@ h1, h2, h3 {
 }
 
 .bay h2 b,
+.yard h2 b,
 .berth h2 b {
   color: var(--amber);
   font-weight: 400;
 }
 
-.steps {
+@media (min-width: 1080px) {
+  .bay h2,
+  .yard h2,
+  .manifest h2,
+  .berth h2 { font-size: clamp(22px, 2.4vw, 32px); }
+}
+
+.steps,
+.cards {
   display: grid;
   gap: clamp(20px, 3vw, 30px);
   margin: clamp(32px, 5vw, 52px) 0 0;
@@ -560,6 +778,7 @@ h1, h2, h3 {
   flex-direction: column;
   align-items: center;
   text-align: center;
+  transition: transform 160ms steps(3), box-shadow 160ms steps(3);
 }
 
 .step-num {
@@ -575,29 +794,56 @@ h1, h2, h3 {
 }
 
 .step-art {
+  position: relative;
   display: block;
   width: 100%;
-  height: calc(var(--ai) * 84px);
+  height: calc(var(--ai) * 88px);
   background-repeat: no-repeat;
   background-position: center bottom;
   image-rendering: pixelated;
   filter: drop-shadow(0 calc(var(--ai) * 3px) 0 rgba(6, 15, 26, 0.55));
 }
 
-.art-ship {
-  background-image: url("/media/ship-side.png");
-  background-size: calc(var(--ai) * 124px) calc(var(--ai) * 78px);
-  animation: bob 1.8s steps(1) infinite alternate;
+/* The feeder: the hero ship's little sister, same drawing routine, three bays
+   instead of six, so it fits a card without being scaled off the grid. The
+   sprite lives on an inner element because a strip animated by
+   `background-position` cannot also be centred by one. */
+.art-ship i {
+  display: block;
+  width: calc(var(--ai) * 150px);
+  height: calc(var(--ai) * 88px);
+  max-width: 100%;
+  margin: 0 auto;
+  background: url("/media/ship-feeder.png") 0 0 / calc(var(--ai) * 450px) calc(var(--ai) * 88px);
+  image-rendering: pixelated;
+  animation: chug-card 0.66s steps(3) infinite;
 }
 
 .art-crane {
   background-image: url("/media/crane.png");
   background-size: calc(var(--ai) * 56px) calc(var(--ai) * 66px);
+  background-position: center bottom;
+}
+
+/* The box on the hook, running the lift the card is describing. The sprite's
+   boom reaches out to the left over the water, so the box hangs 22 source
+   pixels left of the crane's centre rather than under its legs. */
+.art-crane i {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--ai) * 2px);
+  width: calc(var(--ai) * 24px);
+  height: calc(var(--ai) * 13px);
+  margin-left: calc(var(--ai) * -22px);
+  background: url("/media/containers.png") calc(var(--ai) * -48px) 0 / calc(var(--ai) * 192px) calc(var(--ai) * 13px);
+  image-rendering: pixelated;
+  animation: hoist 4.2s steps(6) infinite;
 }
 
 .art-map {
   background-image: url("/media/world-map.png");
   background-size: calc(var(--ai) * 96px) calc(var(--ai) * 48px);
+  background-position: center 40%;
   filter: saturate(0.82) brightness(0.94) drop-shadow(0 calc(var(--ai) * 3px) 0 rgba(6, 15, 26, 0.55));
 }
 
@@ -607,16 +853,65 @@ h1, h2, h3 {
   font-size: clamp(12px, 3.1vw, 15px);
 }
 
-.step p {
+.step p,
+.card p {
   margin: 0;
   color: #c3cedb;
   font-size: 0.94em;
 }
 
+/* ---------------------------------------------------------------- YARD */
+.yard { padding-top: 0; }
+
+@media (min-width: 620px) {
+  .cards { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1080px) {
+  .cards { grid-template-columns: repeat(4, 1fr); gap: 22px; }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform 160ms steps(3), box-shadow 160ms steps(3);
+}
+
+.card h3 {
+  margin: 0;
+  color: var(--amber-l);
+  font-size: clamp(11px, 2.6vw, 13px);
+  line-height: 1.6;
+}
+
+.chip {
+  display: block;
+  width: calc(var(--ds) * 16px);
+  height: calc(var(--ds) * 16px);
+  background-image: url("/media/chips.png");
+  background-size: calc(var(--ds) * 64px) calc(var(--ds) * 16px);
+  image-rendering: pixelated;
+}
+
+.chip-globe { background-position: calc(var(--ds) * -16px) 0; }
+.chip-coin { background-position: calc(var(--ds) * -32px) 0; }
+.chip-box { background-position: calc(var(--ds) * -48px) 0; }
+
+/* Lift on hover, on pointers that can hover. A card that jumps under a thumb
+   is a card that looks broken. */
+@media (hover: hover) and (pointer: fine) {
+  .step:hover,
+  .card:hover {
+    transform: translateY(calc(var(--k) * -2px));
+    box-shadow: 0 calc(var(--k) * 4px) 0 rgba(6, 15, 26, 0.75);
+  }
+}
+
 /* -------------------------------------------------------------- MANIFEST */
 .board {
   position: relative;
-  max-width: 640px;
+  max-width: 680px;
   margin: 0 auto;
   padding: 6px 4px 10px;
   color: var(--paper-ink);
@@ -702,7 +997,9 @@ h1, h2, h3 {
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: clamp(20px, 4vw, 34px) 12px clamp(24px, 4vw, 38px);
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(20px, 4vw, 40px) 12px clamp(24px, 4vw, 44px);
   text-align: center;
   overflow: hidden;
 }
@@ -721,12 +1018,15 @@ h1, h2, h3 {
   color: #c3cedb;
 }
 
+/* Six boxes, three to a row at every size: exactly three widths plus two gaps,
+   so the stack never leaves one box stranded on a row of its own. */
 .stack {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: calc(var(--s) * 2px);
   align-items: flex-end;
+  max-width: min(100%, calc(var(--s) * 76px));
   margin-top: 8px;
 }
 
@@ -737,15 +1037,16 @@ h1, h2, h3 {
   background-image: url("/media/containers.png");
   background-size: calc(var(--s) * 192px) calc(var(--s) * 13px);
   image-rendering: pixelated;
+  animation: settle 620ms steps(4) both;
 }
 
 .stack i:nth-child(odd) { margin-bottom: calc(var(--s) * 2px); }
-.stack i:nth-child(1) { background-position: 0 0; }
-.stack i:nth-child(2) { background-position: calc(var(--s) * -24px) 0; }
-.stack i:nth-child(3) { background-position: calc(var(--s) * -48px) 0; }
-.stack i:nth-child(4) { background-position: calc(var(--s) * -96px) 0; }
-.stack i:nth-child(5) { background-position: calc(var(--s) * -144px) 0; }
-.stack i:nth-child(6) { background-position: calc(var(--s) * -168px) 0; }
+.stack i:nth-child(1) { background-position: 0 0; animation-delay: 60ms; }
+.stack i:nth-child(2) { background-position: calc(var(--s) * -24px) 0; animation-delay: 140ms; }
+.stack i:nth-child(3) { background-position: calc(var(--s) * -48px) 0; animation-delay: 220ms; }
+.stack i:nth-child(4) { background-position: calc(var(--s) * -96px) 0; animation-delay: 300ms; }
+.stack i:nth-child(5) { background-position: calc(var(--s) * -144px) 0; animation-delay: 380ms; }
+.stack i:nth-child(6) { background-position: calc(var(--s) * -168px) 0; animation-delay: 460ms; }
 
 /* ---------------------------------------------------------------- FOOTER */
 .dock {
@@ -775,6 +1076,7 @@ h1, h2, h3 {
 /* -------------------------------------------------------------- MOVEMENT */
 /* Scrolled past the hero, nothing in it needs to keep running. */
 .hero.is-parked .hero-sky,
+.hero.is-parked .hero-skyline i,
 .hero.is-parked .gull,
 .hero.is-parked .sea-water,
 .hero.is-parked .boat {
@@ -783,8 +1085,10 @@ h1, h2, h3 {
 
 .reveal {
   opacity: 0;
-  transform: translateY(18px);
-  transition: opacity 420ms steps(6), transform 420ms steps(6);
+  transform: translateY(20px);
+  transition:
+    opacity 460ms steps(8) calc(var(--i, 0) * 90ms),
+    transform 460ms steps(8) calc(var(--i, 0) * 90ms);
 }
 
 .reveal.seen {
@@ -797,9 +1101,19 @@ h1, h2, h3 {
   56%, 100% { opacity: 0.18; }
 }
 
+@keyframes lamp {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
 @keyframes drift {
   from { background-position: center 0; }
   to { background-position: center -520px; }
+}
+
+@keyframes creep {
+  from { background-position-x: 0; }
+  to { background-position-x: calc(var(--sk) * -320px); }
 }
 
 @keyframes flap {
@@ -812,24 +1126,41 @@ h1, h2, h3 {
   to { transform: translateX(112vw); }
 }
 
-@keyframes cross-l {
-  from { transform: translateX(112vw) scaleX(-1); }
-  to { transform: translateX(-16vw) scaleX(-1); }
-}
-
 @keyframes swell {
   from { background-position-x: 0; }
   to { background-position-x: calc(var(--ws) * -64px); }
 }
 
 @keyframes sail {
-  from { transform: translateX(-30vw); }
-  to { transform: translateX(110vw); }
+  from { transform: translateX(calc(var(--bs) * -240px)); }
+  to { transform: translateX(102vw); }
 }
 
-@keyframes bob {
-  from { margin-bottom: 0; }
-  to { margin-bottom: calc(var(--s) * 1px); }
+@keyframes chug {
+  from { background-position-x: 0; }
+  to { background-position-x: calc(var(--bs) * -684px); }
+}
+
+@keyframes chug-card {
+  from { background-position-x: 0; }
+  to { background-position-x: calc(var(--ai) * -450px); }
+}
+
+@keyframes hoist {
+  0% { transform: translateY(0); }
+  30% { transform: translateY(calc(var(--ai) * -46px)); }
+  70% { transform: translateY(calc(var(--ai) * -46px)); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes land {
+  from { opacity: 0; transform: translateY(-14px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes settle {
+  from { opacity: 0; transform: translateY(-18px); }
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes nudge {
@@ -861,6 +1192,7 @@ h1, h2, h3 {
   html { scroll-behavior: auto; }
 
   .hero-sky,
+  .hero-skyline i,
   .gull,
   .sea-water,
   .boat,
@@ -869,11 +1201,17 @@ h1, h2, h3 {
   .coin,
   .wire-tape,
   .rig,
-  .art-ship,
+  .art-ship i,
+  .art-crane i,
+  .btn-lg::after,
+  .wordmark img,
+  .stack i,
   .cat {
     animation: none !important;
   }
 
+  /* A frozen animation parks its element at the untransformed position, which
+     stacks them all on top of each other unless they are laid out here. */
   .gull-1 { transform: translateX(16vw); }
   .gull-2 { transform: translateX(54vw); }
   .gull-3 { transform: translateX(78vw); }
@@ -882,7 +1220,8 @@ h1, h2, h3 {
   .rig-3 { transform: translateX(52vw); }
   .rig-4 { transform: translateX(82vw) scaleX(-1); }
   .rig-5 { transform: translateX(88vw); }
-  .boat { transform: translateX(12vw); }
+  .boat { transform: translateX(8vw); }
+  .btn-lg::after { opacity: 0.7; }
 
   .reveal {
     opacity: 1;

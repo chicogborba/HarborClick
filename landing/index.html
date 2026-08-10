@@ -7,6 +7,14 @@
   <meta name="description" content="HarborClick é um porto de contêineres em pixel art. Descarregue navios, compre máquinas e veja o terminal girar sozinho. Grátis, no navegador.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
+  <meta property="og:locale:alternate" content="en">
+  <meta property="og:locale:alternate" content="es">
+  <meta property="og:locale:alternate" content="fr">
+  <meta property="og:locale:alternate" content="de">
+  <meta property="og:locale:alternate" content="it">
+  <meta property="og:locale:alternate" content="ru">
+  <meta property="og:locale:alternate" content="pl">
+  <meta property="og:locale:alternate" content="tr">
   <meta property="og:site_name" content="HarborClick">
   <meta property="og:title" content="HarborClick — o porto nunca dorme">
   <meta property="og:description" content="Um porto vivo em pixel art. Jogue grátis no navegador.">
@@ -19,23 +27,34 @@
   <meta name="twitter:description" content="Navios, contêineres e máquinas. Tudo se move.">
   <meta name="twitter:image" content="https://142-93-242-85.nip.io/media/og.png">
   <link rel="icon" href="/media/anchor.png" type="image/png">
-  <link rel="preload" href="/media/press-start-2p.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/media/press-start-2p-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/media/logo.png" as="image">
   <link rel="preload" href="/media/port-strip.png" as="image">
-  <link rel="stylesheet" href="/styles.css?v=20260805-arcade">
-  <noscript><style>.reveal { opacity: 1; transform: none; }</style></noscript>
+  <link rel="stylesheet" href="/styles.css?v=20260809-fleet">
+  <noscript><style>.reveal { opacity: 1; transform: none; } .lang { display: none; }</style></noscript>
   <title>HarborClick — o porto nunca dorme</title>
 </head>
 <body>
-  <a class="skip" href="#conteudo">Pular para o conteúdo</a>
+  <a class="skip" href="#conteudo" data-i18n="skip">Pular para o conteúdo</a>
 
   <header class="hud">
     <a class="hud-brand" href="#topo">
       <img src="/media/anchor.png" width="28" height="30" alt="">
       <span>HARBORCLICK</span>
     </a>
-    <p class="hud-state"><i aria-hidden="true"></i>PORTO ONLINE</p>
-    <a class="btn btn-sm hud-cta" href="/jogar/">JOGAR<i class="mark m-play" aria-hidden="true"></i></a>
+
+    <p class="hud-state"><i aria-hidden="true"></i><span data-i18n="hud.state">PORTO ONLINE</span></p>
+
+    <div class="hud-right">
+      <div class="lang">
+        <button type="button" class="lang-btn" id="lang-btn" aria-haspopup="listbox"
+                aria-expanded="false" aria-controls="lang-list" aria-label="Idioma">
+          <span data-lang-tag>PT</span><i class="mark m-down" aria-hidden="true"></i>
+        </button>
+        <ul class="lang-list" id="lang-list" role="listbox" hidden></ul>
+      </div>
+      <a class="btn btn-sm hud-cta" href="/jogar/"><span data-i18n="hud.play">JOGAR</span><i class="mark m-play" aria-hidden="true"></i></a>
+    </div>
   </header>
 
   <main id="conteudo">
@@ -50,33 +69,36 @@
         <i class="gull gull-3"></i>
       </div>
 
+      <div class="hero-skyline" aria-hidden="true"><i></i></div>
+
       <div class="hero-stage">
         <h1 class="wordmark">
           <img src="/media/logo.png" width="121" height="17" alt="HarborClick" fetchpriority="high">
         </h1>
-        <p class="tagline"><i aria-hidden="true"></i>O PORTO NUNCA DORME<i aria-hidden="true"></i></p>
-        <p class="pitch">Navios chegam a noite inteira. Cada caixa que desce é sua — e o cais só cresce.</p>
-        <a class="btn btn-lg" href="/jogar/"><i class="mark m-play" aria-hidden="true"></i>JOGAR AGORA</a>
+        <p class="tagline"><i aria-hidden="true"></i><span data-i18n="hero.tagline">O PORTO NUNCA DORME</span><i aria-hidden="true"></i></p>
+        <p class="pitch" data-i18n="hero.pitch">Navios chegam a noite inteira. Cada caixa que desce é sua — e o cais só cresce.</p>
+        <a class="btn btn-lg" href="/jogar/"><i class="mark m-play" aria-hidden="true"></i><span data-i18n="hero.cta">JOGAR AGORA</span></a>
         <ul class="tags">
-          <li>GRÁTIS</li>
-          <li>SEM INSTALAR</li>
-          <li>FEITO PRA CELULAR</li>
+          <li data-i18n="hero.tag.free">GRÁTIS</li>
+          <li data-i18n="hero.tag.noinstall">SEM INSTALAR</li>
+          <li data-i18n="hero.tag.mobile">FEITO PRA CELULAR</li>
         </ul>
-        <a class="cue" href="#giro"><i class="mark m-down" aria-hidden="true"></i>DESÇA AO CAIS</a>
+        <a class="cue" href="#giro"><i class="mark m-down" aria-hidden="true"></i><span data-i18n="hero.cue">DESÇA AO CAIS</span></a>
       </div>
 
       <div class="sea" aria-hidden="true">
         <div class="sea-water"></div>
         <i class="boat"></i>
       </div>
-
     </section>
 
     <!-- ----------------------------------------------------------- TICKER -->
     <div class="wire" aria-hidden="true">
+      <!-- Rebuilt by i18n.js from one pipe-separated string; the Portuguese
+           copy is inline so the tape is never empty without scripting. -->
       <div class="wire-tape">
-        <p>TERMINAL 01 ONLINE <i class="mark m-dia" aria-hidden="true"></i> NAVIO ATRACADO NO BERÇO 2 <i class="mark m-dia" aria-hidden="true"></i> 4 GUINDASTES ATIVOS <i class="mark m-dia" aria-hidden="true"></i> PÁTIO 62% <i class="mark m-dia" aria-hidden="true"></i> TURNO DA NOITE <i class="mark m-dia" aria-hidden="true"></i> NENHUMA PAUSA <i class="mark m-dia" aria-hidden="true"></i></p>
-        <p>TERMINAL 01 ONLINE <i class="mark m-dia" aria-hidden="true"></i> NAVIO ATRACADO NO BERÇO 2 <i class="mark m-dia" aria-hidden="true"></i> 4 GUINDASTES ATIVOS <i class="mark m-dia" aria-hidden="true"></i> PÁTIO 62% <i class="mark m-dia" aria-hidden="true"></i> TURNO DA NOITE <i class="mark m-dia" aria-hidden="true"></i> NENHUMA PAUSA <i class="mark m-dia" aria-hidden="true"></i></p>
+        <p data-wire>TERMINAL 01 ONLINE <i class="mark m-dia"></i> NAVIO ATRACADO NO BERÇO 2 <i class="mark m-dia"></i> 4 GUINDASTES ATIVOS <i class="mark m-dia"></i> PÁTIO 62% <i class="mark m-dia"></i> TURNO DA NOITE <i class="mark m-dia"></i> NENHUMA PAUSA <i class="mark m-dia"></i> NOVE IDIOMAS A BORDO <i class="mark m-dia"></i></p>
+        <p data-wire>TERMINAL 01 ONLINE <i class="mark m-dia"></i> NAVIO ATRACADO NO BERÇO 2 <i class="mark m-dia"></i> 4 GUINDASTES ATIVOS <i class="mark m-dia"></i> PÁTIO 62% <i class="mark m-dia"></i> TURNO DA NOITE <i class="mark m-dia"></i> NENHUMA PAUSA <i class="mark m-dia"></i> NOVE IDIOMAS A BORDO <i class="mark m-dia"></i></p>
       </div>
       <div class="road">
         <i class="rig rig-1"></i>
@@ -89,44 +111,82 @@
 
     <!-- ------------------------------------------------------------- LOOP -->
     <section class="bay" id="giro" aria-labelledby="giro-titulo">
-      <p class="eyebrow">COMO O PORTO GIRA</p>
-      <h2 id="giro-titulo">UMA CAIXA VIRA<br><b>UM TERMINAL INTEIRO</b></h2>
+      <p class="eyebrow reveal" data-i18n="loop.eyebrow">COMO O PORTO GIRA</p>
+      <h2 id="giro-titulo" class="reveal">
+        <span data-i18n="loop.title.a">UMA CAIXA VIRA</span><br>
+        <b data-i18n="loop.title.b">UM TERMINAL INTEIRO</b>
+      </h2>
 
       <ol class="steps">
-        <li class="panel step reveal">
+        <li class="panel step reveal" style="--i: 0">
           <span class="step-num">01</span>
-          <span class="step-art art-ship" aria-hidden="true"></span>
-          <h3>DESCARREGUE</h3>
-          <p>Toque no navio atracado. O guindaste desce, a caixa sobe no pátio e o dinheiro entra.</p>
+          <span class="step-art art-ship" aria-hidden="true"><i></i></span>
+          <h3 data-i18n="step.1.title">DESCARREGUE</h3>
+          <p data-i18n="step.1.body">Toque no navio atracado. O guindaste desce, a caixa sobe no pátio e o dinheiro entra.</p>
         </li>
-        <li class="panel step reveal">
+        <li class="panel step reveal" style="--i: 1">
           <span class="step-num">02</span>
-          <span class="step-art art-crane" aria-hidden="true"></span>
-          <h3>AUTOMATIZE</h3>
-          <p>Compre pórtico, RTG, empilhadeira e caminhão. O pátio passa a andar sem você.</p>
+          <span class="step-art art-crane" aria-hidden="true"><i></i></span>
+          <h3 data-i18n="step.2.title">AUTOMATIZE</h3>
+          <p data-i18n="step.2.body">Compre pórtico, transtêiner, empilhadeira e caminhão. O pátio passa a andar sem você.</p>
         </li>
-        <li class="panel step reveal">
+        <li class="panel step reveal" style="--i: 2">
           <span class="step-num">03</span>
           <span class="step-art art-map" aria-hidden="true"></span>
-          <h3>EXPANDA</h3>
-          <p>Abra terreno, abra rota, abra porto novo. O mapa inteiro é destino de carga.</p>
+          <h3 data-i18n="step.3.title">EXPANDA</h3>
+          <p data-i18n="step.3.body">Abra terreno, abra rota, abra porto novo. O mapa inteiro vira destino de carga.</p>
         </li>
       </ol>
+    </section>
+
+    <!-- -------------------------------------------------------------- YARD -->
+    <section class="yard" aria-labelledby="yard-titulo">
+      <p class="eyebrow reveal" data-i18n="yard.eyebrow">O QUE TEM NO CAIS</p>
+      <h2 id="yard-titulo" class="reveal">
+        <span data-i18n="yard.title.a">UM TERMINAL</span>
+        <b data-i18n="yard.title.b">QUE NÃO PARA</b>
+      </h2>
+
+      <ul class="cards">
+        <li class="panel card reveal" style="--i: 0">
+          <i class="chip chip-crane" aria-hidden="true"></i>
+          <h3 data-i18n="yard.1.title">15 MÁQUINAS</h3>
+          <p data-i18n="yard.1.body">Do reach stacker ao portal orbital. Cada terreno aberto libera a próxima.</p>
+        </li>
+        <li class="panel card reveal" style="--i: 1">
+          <i class="chip chip-globe" aria-hidden="true"></i>
+          <h3 data-i18n="yard.2.title">NOVE IDIOMAS</h3>
+          <p data-i18n="yard.2.body">Português, inglês, espanhol, francês, alemão, italiano, russo, polonês e turco.</p>
+        </li>
+        <li class="panel card reveal" style="--i: 2">
+          <i class="chip chip-coin" aria-hidden="true"></i>
+          <h3 data-i18n="yard.3.title">ABRIR CAPITAL</h3>
+          <p data-i18n="yard.3.body">Reinicie o porto por ações douradas. Cada uma vale +2% para sempre.</p>
+        </li>
+        <li class="panel card reveal" style="--i: 3">
+          <i class="chip chip-box" aria-hidden="true"></i>
+          <h3 data-i18n="yard.4.title">TUDO EM PIXEL</h3>
+          <p data-i18n="yard.4.body">Sprites, fonte e som gerados por código. Nada de loja de assets.</p>
+        </li>
+      </ul>
     </section>
 
     <!-- --------------------------------------------------------- MANIFEST -->
     <section class="manifest" aria-labelledby="manifesto-titulo">
       <article class="board reveal">
-        <p class="doc-code">MANIFESTO HC-001</p>
-        <h2 id="manifesto-titulo">O QUE ESTE PORTO<br>NÃO FAZ COM VOCÊ</h2>
+        <p class="doc-code" data-i18n="manifest.code">MANIFESTO HC-001</p>
+        <h2 id="manifesto-titulo">
+          <span data-i18n="manifest.title.a">O QUE ESTE PORTO</span><br>
+          <span data-i18n="manifest.title.b">NÃO FAZ COM VOCÊ</span>
+        </h2>
         <ul class="rules">
-          <li><i class="mark m-cross" aria-hidden="true"></i>Nenhuma espera artificial pra te vender pressa.</li>
-          <li><i class="mark m-cross" aria-hidden="true"></i>Nenhum anúncio, nenhum cadastro, nenhuma conta.</li>
-          <li><i class="mark m-check" aria-hidden="true"></i>Salva sozinho, no seu próprio navegador.</li>
-          <li><i class="mark m-check" aria-hidden="true"></i>Um gato mora no pátio. Ele fica.</li>
+          <li><i class="mark m-cross" aria-hidden="true"></i><span data-i18n="manifest.rule.1">Nenhuma espera artificial pra te vender pressa.</span></li>
+          <li><i class="mark m-cross" aria-hidden="true"></i><span data-i18n="manifest.rule.2">Nenhum anúncio, nenhum cadastro, nenhuma conta.</span></li>
+          <li><i class="mark m-check" aria-hidden="true"></i><span data-i18n="manifest.rule.3">Salva sozinho, no seu próprio navegador.</span></li>
+          <li><i class="mark m-check" aria-hidden="true"></i><span data-i18n="manifest.rule.4">Um gato mora no pátio. Ele fica.</span></li>
         </ul>
         <p class="board-foot">
-          <span class="stamp" aria-hidden="true">LIBERADO</span>
+          <span class="stamp" aria-hidden="true" data-i18n="manifest.stamp">LIBERADO</span>
           <i class="cat" aria-hidden="true"></i>
         </p>
       </article>
@@ -135,10 +195,13 @@
     <!-- -------------------------------------------------------------- CTA -->
     <section class="berth" aria-labelledby="cta-titulo">
       <div class="panel cabinet reveal">
-        <p class="coin" aria-hidden="true">INSIRA A FICHA</p>
-        <h2 id="cta-titulo">SEU TURNO<br><b>COMEÇA AGORA</b></h2>
-        <p>Abre em segundos. Nada pra baixar.</p>
-        <a class="btn btn-lg" href="/jogar/"><i class="mark m-play" aria-hidden="true"></i>ENTRAR NO PORTO</a>
+        <p class="coin" aria-hidden="true" data-i18n="cta.coin">INSIRA A FICHA</p>
+        <h2 id="cta-titulo">
+          <span data-i18n="cta.title.a">SEU TURNO</span><br>
+          <b data-i18n="cta.title.b">COMEÇA AGORA</b>
+        </h2>
+        <p data-i18n="cta.body">Abre em segundos. Nada pra baixar.</p>
+        <a class="btn btn-lg" href="/jogar/"><i class="mark m-play" aria-hidden="true"></i><span data-i18n="cta.button">ENTRAR NO PORTO</span></a>
         <div class="stack" aria-hidden="true">
           <i></i><i></i><i></i><i></i><i></i><i></i>
         </div>
@@ -147,10 +210,11 @@
   </main>
 
   <footer class="dock">
-    <span>HARBORCLICK © 2026 · FEITO EM PIXELS</span>
+    <span data-i18n="footer.made">HARBORCLICK © 2026 · FEITO EM PIXELS</span>
     <a href="https://github.com/chicogborba/HarborClick" target="_blank" rel="noreferrer">GITHUB <i class="mark m-out" aria-hidden="true"></i></a>
   </footer>
 
-  <script src="/script.js?v=20260805-arcade" defer></script>
+  <script src="/i18n.js?v=20260809-fleet" defer></script>
+  <script src="/script.js?v=20260809-fleet" defer></script>
 </body>
 </html>

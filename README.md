@@ -113,7 +113,8 @@ assets/
   fonts/       fonte pixel BMFont gerada
   audio/       WAVs gerados (tools/audio)
   shaders/     água top-down, névoa
-landing/       página pública responsiva; apresenta o jogo e leva a /jogar/
+landing/       página pública responsiva nos mesmos nove idiomas do jogo;
+               apresenta o porto e leva a /jogar/ (ver landing/README.md)
 scripts/
   autoload/    EventBus, GameState, TimeManager, Progression, SaveManager,
                AudioManager
@@ -140,6 +141,7 @@ tools/
                de resolução e falha se algum overlay sair do viewport) e
                medição de frame time no cenário de estresse
   docs/        gerador do mapa completo do código
+  fonts/       baixa e conserta os subsets de fonte que a landing hospeda
   qa/          documentação fresca + import + todas as suítes em um comando
   export/      build do jogo, pacote landing + /jogar e servidor com COOP/COEP
 tests/         regressão headless: core/save, backup manual, UI, acessibilidade,
@@ -251,6 +253,38 @@ de deixar o jogador construir uma run que evapora no reload.
 
 ## Sistemas
 
+- **Idiomas** — português do Brasil, inglês, espanhol, francês, alemão,
+  italiano, russo, polonês e turco: os nove mercados que concentram a maior
+  parte da base instalada de jogos mobile fora do bloco chinês/árabe/hindi
+  (ver limite abaixo). Uma instalação nova lê `OS.get_locale()` e escolhe
+  sozinha; a escolha explícita fica em `preferences.cfg` (`language`), e
+  "automático" é um estado salvo, não a ausência de um. As strings vivem em
+  `scripts/i18n/strings_*.gd`, uma linha por chave e uma coluna por idioma, e
+  `Loc.t("chave", {"slot": valor})` é a única forma de pedir texto. Trocar de
+  idioma é ao vivo: `Loc.language_changed` reescreve as telas abertas, porque
+  exigir reinício seria um bug que o jogador não tem como entender.
+  `Loc.tn()` só sabe separar "um" de "outros" — russo e polonês têm uma
+  terceira forma (contagem 2-4) que cai em "outros"; é uma lacuna conhecida,
+  não descuidada, e some sozinha se o jogo um dia trocar de motor de plural.
+  `tests/i18n_test_runner.gd` reprova o build se uma chave ficar sem idioma, se
+  um `{slot}` sumir numa tradução, se algum caractere traduzido não existir na
+  fonte, ou se uma etiqueta traduzida não couber na faixa de abas da loja ou na
+  linha de idiomas dos ajustes — foi exatamente essa checagem que pegou "AUTO"
+  virando "AU" mudo no dia em que o nono idioma entrou.
+  - **O limite é a fonte, não a vontade.** A interface inteira é uma fonte
+    bitmap de células 5×7 (`tools/sprites/gen_font.py`), e latim + cirílico
+    cabem nela como letra-base mais um acento — foi assim que russo entrou:
+    66 glifos novos, nenhum redesenho do resto. Chinês, japonês e coreano
+    precisam de um caractere Han legível por célula, o que pede uma tela bem
+    maior e milhares de glifos em vez de um punhado de acentos sobre 26
+    letras — não é uma extensão desta fonte, é outro pipeline. Árabe pede
+    texto da direita para a esquerda com ligadura contextual entre letras, que
+    este renderizador não tem caminho nenhum para fazer. Tailandês e hindi
+    empilham vários diacríticos por letra, dos dois lados, de um jeito que a
+    faixa de duas linhas de acento deste formato não expressa. Nenhum desses
+    é "faltou traduzir" — é um sistema de fonte diferente, e fica para depois
+    de decidir se vale trazer uma fonte real para esses scripts (quebrando a
+    regra de "tudo gerado por código") ou não.
 - **Economia** — TEUs como moeda, custo `base × 1.15^n`, 15 equipamentos,
   ~18 melhorias, 8 parcelas de terreno, prestígio ("abrir capital" → ações
   douradas com +2% permanente cada).
@@ -673,7 +707,26 @@ crescer no dígito e imprime `10000000Dc`.
 
 ---
 
-### 9. Fechamento de plataforma
+### 9. Terminar a tradução do conteúdo
+
+A casca do jogo está nos nove idiomas: título, console, relógio, contador,
+loja (abas, ordens permanentes, ramal, capataz, decoração), mapa de rotas e
+ajustes. O conteúdo dos catálogos ainda não está, e num aparelho em qualquer um
+dos outros oito idiomas ele aparece em português no meio de uma tela
+traduzida — que é pior do que uma tela inteira em português.
+
+- [ ] `structure_db` e `upgrade_db`: nome, piada e efeito de cada máquina.
+- [ ] `achievement_db`, `contract_db`, `task_board` e `npc_catalog`.
+- [ ] `land_db`, `cosmetic_db`, `prestige_db`, `special_call_db`,
+      `ship_catalog`.
+- [ ] Marcos de `game_state.gd`, avisos de `save_manager.gd`, tutorial,
+      diário, prestígio, popup offline e os dois minigames.
+- [ ] Um teste que falhe quando um catálogo ganhar texto sem chave, para o
+      conjunto não voltar a divergir sozinho.
+
+---
+
+### 10. Fechamento de plataforma
 
 - [ ] Medir 60 FPS num aparelho móvel real.
 - [ ] Testar pause/background/resume em Android e iOS.

@@ -1,8 +1,12 @@
-/* Landing behaviour: reveal on scroll, a shallow parallax on the port backdrop,
-   and stopping both when the hero is off-screen. No dependencies — the page has
-   to be cheap on a phone before it is anything else. */
+/* Landing behaviour: reveal on scroll, layered parallax on the hero, a small
+   pointer sway on desktop, and stopping all three when the hero is off-screen.
+   No dependencies — the page has to be cheap on a phone before it is anything
+   else, and every value it writes is a whole pixel, because a backdrop landing
+   between two source pixels is a backdrop that shimmers. */
 (() => {
-  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  "use strict";
+
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const panels = document.querySelectorAll(".reveal");
 
   if (still || !("IntersectionObserver" in window)) {
@@ -16,16 +20,17 @@
       entry.target.classList.add("seen");
       revealer.unobserve(entry.target);
     });
-  }, { threshold: 0.15, rootMargin: "0px 0px -6%" });
+  }, { threshold: 0.12, rootMargin: "0px 0px -6%" });
 
   panels.forEach((panel) => revealer.observe(panel));
 
   const hero = document.querySelector(".hero");
-  const sky = document.querySelector(".hero-sky");
-  if (!hero || !sky) return;
+  if (!hero) return;
 
+  const root = document.documentElement.style;
   let onScreen = true;
   let queued = false;
+  let sway = 0;
 
   const park = new IntersectionObserver(([entry]) => {
     onScreen = entry.isIntersecting;
@@ -33,17 +38,36 @@
   }, { threshold: 0 });
   park.observe(hero);
 
-  const drawParallax = () => {
+  // The backdrop, the skyline and the water are three distances, so they move
+  // at three rates. The skyline is the nearest of the three and therefore the
+  // fastest; without it the two remaining layers read as one flat picture.
+  const draw = () => {
     queued = false;
     if (!onScreen) return;
-    // A third of the scroll distance, snapped to whole pixels so the backdrop
-    // never lands between two source pixels.
-    sky.style.transform = `translateY(${Math.round(window.scrollY / 3)}px)`;
+    const y = scrollY;
+    root.setProperty("--sky-y", `${Math.round(y / 3)}px`);
+    root.setProperty("--skyline-y", `${Math.round(y / 1.7)}px`);
+    root.setProperty("--sway", `${sway}px`);
   };
 
-  addEventListener("scroll", () => {
+  const schedule = () => {
     if (queued) return;
     queued = true;
-    requestAnimationFrame(drawParallax);
-  }, { passive: true });
+    requestAnimationFrame(draw);
+  };
+
+  addEventListener("scroll", schedule, { passive: true });
+
+  // A few pixels of drift under the pointer. Only where there is a real
+  // pointer: on a touch screen this would either never fire or fire on a tap.
+  if (matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    addEventListener("pointermove", (event) => {
+      const next = Math.round((event.clientX / innerWidth - 0.5) * -8);
+      if (next === sway) return;
+      sway = next;
+      schedule();
+    }, { passive: true });
+  }
+
+  draw();
 })();
