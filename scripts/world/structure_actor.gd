@@ -1333,6 +1333,21 @@ func _corridor_route(from: Vector2, to: Vector2) -> Array[Vector2]:
 	## driving lane to reach the block, because those are the only two stretches
 	## of this terminal that are actually road — cutting the corner drives it
 	## straight over other people's stacks.
+	##
+	## The fence is a third stretch this has to respect and used to not: a
+	## road-plated hauler's home is `PortLayout.gate_entry()`, off-site and
+	## north of `FENCE_Y`, so its first relay leg starts on the wrong side of a
+	## wall that has exactly one gap. The plain spine route used to cross that
+	## wall wherever the quay lane happens to sit — nowhere near the gate — and
+	## drive the machine straight through the fence posts to prove it. A leg
+	## that actually changes sides threads the gate first, at the lane it is
+	## already using for one-way road traffic, and only picks up the ordinary
+	## spine routing once it is on the correct side.
+	if _crosses_fence(from.y, to.y):
+		var gate_x := PortLayout.ROAD_IN_X if to.y > from.y else PortLayout.ROAD_OUT_X
+		var route: Array[Vector2] = [Vector2(gate_x, from.y), Vector2(gate_x, to.y)]
+		route.append_array(_corridor_route(Vector2(gate_x, to.y), to))
+		return route
 	var spine := PortLayout.interchange_spine_x()
 	var route: Array[Vector2] = []
 	if absf(from.y - to.y) > 1.0:
@@ -1341,6 +1356,10 @@ func _corridor_route(from: Vector2, to: Vector2) -> Array[Vector2]:
 		route.append(Vector2(spine, to.y))
 	route.append(to)
 	return route
+
+
+func _crosses_fence(y1: float, y2: float) -> bool:
+	return (y1 < PortLayout.FENCE_Y) != (y2 < PortLayout.FENCE_Y)
 
 
 func _abandon_relay() -> void:

@@ -126,7 +126,7 @@ Inventory: **188 authored code/config/scene files**.
 | `scripts/world/road_truck.gd` | 624 | class `RoadTruck`; 33 functions | A city truck on the terminal's road: a tractor unit and the chassis it pulls. |
 | `scripts/world/ship.gd` | 942 | class `Ship`; 64 functions | View of the berth manifest.  BerthCallController owns the workflow; this |
 | `scripts/world/skyscape.gd` | 168 | class `Skyscape`; 9 functions | Weather and sky, expressed the way a top-down camera can actually see them. |
-| `scripts/world/structure_actor.gd` | 2006 | class `StructureActor`; 104 functions | One visible instance of a bought structure. |
+| `scripts/world/structure_actor.gd` | 2025 | class `StructureActor`; 105 functions | One visible instance of a bought structure. |
 | `scripts/world/structure_layer.gd` | 282 | class `StructureLayer`; 16 functions | Places the visible copies of bought structures around the terminal. |
 | `scripts/world/water_foam.gd` | 130 | class `WaterFoam`; 10 functions | A tiny sprite layer over the shader: static quay foam and a few ambient |
 | `scripts/world/water_quality.gd` | 26 | class `WaterQuality`; 3 functions | Automatic visual budget. This intentionally does not read or write player |
@@ -168,7 +168,7 @@ Inventory: **188 authored code/config/scene files**.
 | `tests/profile_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/rail_test_runner.gd` | 627 | 26 functions | The branch line: block trains from the interior, and the shunt that lets one |
 | `tests/rail_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/relay_test_runner.gd` | 398 | 14 functions | Container relay regression suite. |
+| `tests/relay_test_runner.gd` | 446 | 15 functions | Container relay regression suite. |
 | `tests/relay_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/route_test_runner.gd` | 248 | 13 functions | Trade lanes. |
 | `tests/route_test_runner.tscn` | 6 | 1 nodes | Godot scene |

@@ -149,6 +149,7 @@ func _run() -> void:
 	await _test_a_late_tractor_never_freezes_the_box()
 	await _test_force_land_releases_every_claim()
 	await _test_a_full_call_still_completes()
+	await _test_a_road_plated_hauler_threads_the_gate_not_the_fence()
 
 	_world.queue_free()
 	await get_tree().process_frame
@@ -156,7 +157,7 @@ func _run() -> void:
 	SaveManager.wipe()
 
 	if failures.is_empty():
-		print("RELAY TESTS PASSED (arc fallback, hand-off, abandonment, force-land, full call)")
+		print("RELAY TESTS PASSED (arc fallback, hand-off, abandonment, force-land, full call, gate crossing)")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -359,6 +360,48 @@ func _test_a_full_call_still_completes() -> void:
 			% _world.yard._reservations.size())
 
 
+func _test_a_road_plated_hauler_threads_the_gate_not_the_fence() -> void:
+	## The reported bug, as a test. `empilhadeira` and `reach_stacker` park
+	## off-site at `PortLayout.gate_entry()` when idle — see
+	## `structure_layer.gd`'s `_place()` — so their first relay leg starts
+	## north of `FENCE_Y` and has to cross it to reach a box. The plain spine
+	## route used to cross wherever the quay lane happens to sit, nowhere near
+	## the one gap in the fence, and drove the machine through the posts to
+	## prove it.
+	for id: String in ["empilhadeira", "reach_stacker"]:
+		await _own([id])
+		var actor: StructureActor = null
+		for candidate in _world.machines():
+			if candidate.id == id:
+				actor = candidate
+		_expect(actor != null, "%s is on the payroll to inspect" % id)
+		if actor == null:
+			continue
+		_expect(actor.position.y < PortLayout.FENCE_Y,
+			"%s starts off-site, at the gate (y=%.1f)" % [id, actor.position.y])
+
+		var pickup := Vector2(94.0, 243.0)                # deep in the yard
+		_expect(actor.take_relay_haul(pickup, Vector2(150.0, 300.0)),
+			"%s accepts a relay haul from the gate" % id)
+
+		var trail: Array[Vector2] = [actor.position]
+		trail.append_array(actor._waypoints)
+		for i in trail.size() - 1:
+			var a: Vector2 = trail[i]
+			var b: Vector2 = trail[i + 1]
+			if (a.y < PortLayout.FENCE_Y) == (b.y < PortLayout.FENCE_Y):
+				continue
+			# This leg crosses the fence, which has exactly one gap: the
+			# carriageway between the kerbs.
+			_expect(a.x >= PortLayout.ROAD_X0 and a.x <= PortLayout.ROAD_X1,
+				"%s crosses the fence on the road (x=%.1f), not through it"
+					% [id, a.x])
+			_expect(is_equal_approx(a.x, b.x),
+				"%s crosses the fence going straight, not on the diagonal" % id)
+		_expect(trail[trail.size() - 1] == pickup,
+			"%s's route still ends at the box (%s)" % [id, trail[trail.size() - 1]])
+
+
 # ------------------------------------------------------------------- helpers
 
 func _own(ids: Array) -> void:
@@ -368,6 +411,11 @@ func _own(ids: Array) -> void:
 	GameState.teus = 1e21
 	GameState.lifetime_teus = 1e21
 	for id in ids:
+		# Some machines wait on a parcel — `reach_stacker` on `patio_norte`, for
+		# one — and `buy_structure` is a silent no-op against a locked one.
+		var gate := LandDB.gate_for(str(id))
+		if not gate.is_empty():
+			GameState.land[str(gate.id)] = true
 		GameState.buy_structure(str(id))
 	_world.structures.rebuild()
 	await get_tree().process_frame
