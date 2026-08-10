@@ -82,6 +82,25 @@ const ITEMS: Array[Dictionary] = [
 const HOME := Vector2(0.355, 0.678)
 
 
+static func display_name(id: String) -> String:
+	## What the chart calls this lane, in the player's language. The `name` in
+	## `ITEMS` stays as the authored Brazilian Portuguese and is the fallback:
+	## a lane added to the table but not yet to the translations shows up under
+	## its real name rather than under a key.
+	return _localized(id, "name")
+
+
+static func display_desc(id: String) -> String:
+	return _localized(id, "desc")
+
+
+static func _localized(id: String, field: String) -> String:
+	var key := "route.%s.%s" % [id, field]
+	if Loc.has(key):
+		return Loc.t(key)
+	return str(get_item(id).get(field, id))
+
+
 static func get_item(id: String) -> Dictionary:
 	for item in ITEMS:
 		if str(item.id) == id:

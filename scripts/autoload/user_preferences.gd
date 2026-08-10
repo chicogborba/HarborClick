@@ -18,6 +18,11 @@ var reduce_motion := false
 var floating_numbers := true
 var ui_scale := 1.00
 var fullscreen := false
+## Which language the interface is in, or `Loc.FOLLOW_DEVICE` for "whatever the
+## phone says". Kept here rather than in the save because it is a fact about the
+## player and their device, not about any one terminal — switching profiles must
+## not switch the language back.
+var language: StringName = &"auto"
 ## Which terminal the player was last in. Lives here rather than in a save file
 ## because it is a fact about the *player*, not about any one run — and the title
 ## screen has to answer "continue where?" before any profile is loaded.
@@ -51,6 +56,10 @@ func load_preferences() -> void:
 	fullscreen = bool(config.get_value("preferences", "fullscreen", fullscreen))
 	last_profile = clampi(int(config.get_value("preferences", "last_profile",
 		last_profile)), 0, 9)
+	# Absent from every file written before the game had more than one language,
+	# and the honest answer for those saves is the one a fresh install gets: ask
+	# the device.
+	language = StringName(config.get_value("preferences", "language", "auto"))
 	if source != _config_path:
 		var result := save_preferences()
 		if result != OK:
@@ -111,6 +120,13 @@ func set_fullscreen(value: bool) -> void:
 	_apply_fullscreen()
 	fullscreen_changed.emit(fullscreen)
 	_commit(&"fullscreen")
+
+
+func set_language(code: StringName) -> void:
+	if language == code:
+		return
+	language = code
+	_commit(&"language")
 
 
 func set_last_profile(slot: int) -> void:
@@ -179,6 +195,7 @@ func save_preferences() -> Error:
 	config.set_value("preferences", "ui_scale", ui_scale)
 	config.set_value("preferences", "fullscreen", fullscreen)
 	config.set_value("preferences", "last_profile", last_profile)
+	config.set_value("preferences", "language", String(language))
 	var result := config.save(_temp_path)
 	if result != OK:
 		return result

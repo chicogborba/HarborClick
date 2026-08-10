@@ -110,14 +110,15 @@ func setup() -> void:
 	_rate_tag.mouse_filter = Control.MOUSE_FILTER_STOP
 	_rate_tag.focus_mode = Control.FOCUS_ALL
 	_rate_tag.gui_input.connect(_on_rate_input)
-	UiTheme.describe(_rate_tag, "Taxa por segundo",
-		"Abre de onde vem a taxa")
+	UiTheme.describe(_rate_tag, Loc.t("readout.rate.name"),
+		Loc.t("readout.rate.hint"))
 	row.add_child(_rate_tag)
 	var rate := HBoxContainer.new()
 	rate.add_theme_constant_override(&"separation", 4)
 	rate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rate_tag.add_child(rate)
-	_rate_label = UiTheme.label("0 TEU/s", UiTheme.SIZE_SMALL, UiTheme.TEAL_LIGHT)
+	_rate_label = UiTheme.label("0" + Loc.t("readout.per_second"),
+		UiTheme.SIZE_SMALL, UiTheme.TEAL_LIGHT)
 	rate.add_child(_rate_label)
 	# Rides inside the tag rather than beside it, so announcing a lift cannot
 	# resize the instrument the rest of the bar is measured from.
@@ -134,8 +135,8 @@ func setup() -> void:
 	_boost_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.STEEL_DIM)
 	_boost_row.add_child(_boost_label)
 
-	UiTheme.describe(self, "Contêineres movimentados",
-		"Total do terminal e a taxa por segundo")
+	UiTheme.describe(self, Loc.t("readout.total.name"),
+		Loc.t("readout.total.hint"))
 	EventBus.teus_changed.connect(_on_teus)
 	EventBus.cps_changed.connect(_on_cps)
 	_on_teus(GameState.teus)
@@ -221,7 +222,7 @@ func _on_cps(cps: float) -> void:
 	## a shop is covering the screen is a number nobody sees change — which is
 	## most of "I buy things and nothing happens".
 	var lift := 0.0 if _last_cps <= 0.0 else (cps - _last_cps) / _last_cps
-	_rate_label.text = GameState.fmt(cps) + " TEU/s"
+	_rate_label.text = GameState.fmt(cps) + Loc.t("readout.per_second")
 	if cps > _last_cps and lift >= LIFT_FLOOR and UserPreferences.can_animate():
 		_lift_label.text = "+%d%%" % roundi(lift * 100.0)
 		_lift_label.visible = true

@@ -19,8 +19,10 @@ const WEATHER := preload("res://assets/sprites/ui_weather.png")
 const FACE := preload("res://assets/sprites/prop_clock_face.png")
 const BEZEL := preload("res://assets/sprites/prop_clock_bezel.png")
 const GLYPH := 14
-## Beaufort in three steps, which is all a glance needs.
-const WIND_WORDS := ["CALMO", "FRESCO", "FORTE"]
+## Beaufort in three steps, which is all a glance needs. Keys rather than words:
+## the pips are what the player sees, and the word only ever reaches a screen
+## reader — which is exactly the audience that must not be read Portuguese.
+const WIND_KEYS := ["clock.wind.calm", "clock.wind.fresh", "clock.wind.strong"]
 
 var _board: HBoxContainer
 var _dial: Control
@@ -85,7 +87,8 @@ func _ready() -> void:
 	foot.add_theme_constant_override(&"separation", 4)
 	foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(foot)
-	_day = UiTheme.label("DIA 1", UiTheme.SIZE_SMALL, UiTheme.STEEL_DIM)
+	_day = UiTheme.label(Loc.t("clock.day", {"n": 1}), UiTheme.SIZE_SMALL,
+		UiTheme.STEEL_DIM)
 	foot.add_child(_day)
 	# The wind used to be spelled out, and "VENTO FRESCO" is eleven characters of
 	# the bar spent on a value with three states. Three pips say the same thing in
@@ -114,7 +117,7 @@ func _process(_delta: float) -> void:
 	if not visible:
 		return
 	_time.text = TimeManager.clock_text()
-	_day.text = "DIA %d" % TimeManager.day
+	_day.text = Loc.t("clock.day", {"n": TimeManager.day})
 	_set_glyph(TimeManager.weather_glyph())
 	_set_wind(_wind_step_now())
 	# Counter-clockwise on screen, because the disc is painted with the hours
@@ -135,8 +138,8 @@ func _set_wind(step: int) -> void:
 	for index in _wind_pips.size():
 		_wind_pips[index].color = UiTheme.TEAL_LIGHT if index <= step \
 			else UiTheme.HULL_EDGE
-	UiTheme.describe(_board, "Relógio do porto",
-		"Dia, hora, tempo e vento %s no terminal" % WIND_WORDS[step].to_lower())
+	UiTheme.describe(_board, Loc.t("clock.name"),
+		Loc.t("clock.hint", {"wind": Loc.t(WIND_KEYS[step])}))
 
 
 func _set_glyph(index: int) -> void:

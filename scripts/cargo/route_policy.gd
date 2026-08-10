@@ -33,17 +33,12 @@ const FASTEST := &"cadencia"
 
 const POLICIES: Array[StringName] = [MIX, RICHEST, FASTEST]
 
-const LABELS := {
-	MIX: "MISTURA",
-	RICHEST: "MAIOR FRETE",
-	FASTEST: "MAIS ESCALAS",
-}
+static func label(policy: StringName) -> String:
+	return Loc.t("order.route.%s.label" % coerce(policy))
 
-const BLURBS := {
-	MIX: "As rotas se revezam. Frete e cadência ficam na média de tudo que o porto tem.",
-	RICHEST: "Sempre a rota que paga mais. Cascos maiores, menos escalas, berço parado por mais tempo.",
-	FASTEST: "Sempre a rota que volta antes. Cascos pequenos, trabalho constante, bônus de partida mais vezes.",
-}
+
+static func blurb(policy: StringName) -> String:
+	return Loc.t("order.route.%s.blurb" % coerce(policy))
 
 
 static func coerce(policy: Variant) -> StringName:

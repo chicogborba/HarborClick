@@ -27,14 +27,16 @@ const BERTH_ART := [
 	preload("res://assets/sprites/ui_berth_b.png"),
 	preload("res://assets/sprites/ui_berth_c.png"),
 ]
-## The four corner keys, and what each of them opens.
+## The four corner keys, and what each of them opens. `label` is a translation
+## key, not a word — the corners are the first text on the first screen.
 const CORNERS := [
-	{"id": "feedback", "label": "FEEDBACK", "icon": UiTheme.Icon.CHAT,
+	{"id": "feedback", "label": "title.feedback", "icon": UiTheme.Icon.CHAT,
 		"corner": "tl"},
-	{"id": "site", "label": "SITE", "icon": UiTheme.Icon.GLOBE, "corner": "tr"},
-	{"id": "comunidade", "label": "COMUNIDADE", "icon": UiTheme.Icon.CREW,
+	{"id": "site", "label": "title.site", "icon": UiTheme.Icon.GLOBE,
+		"corner": "tr"},
+	{"id": "comunidade", "label": "title.community", "icon": UiTheme.Icon.CREW,
 		"corner": "bl"},
-	{"id": "creditos", "label": "CRÉDITOS", "icon": UiTheme.Icon.TROPHY,
+	{"id": "creditos", "label": "title.credits", "icon": UiTheme.Icon.TROPHY,
 		"corner": "br"},
 ]
 const REPO_URL := "https://github.com/chicogborba/HarborClick"
@@ -278,7 +280,7 @@ func _build_marquee() -> void:
 	# `tools/sprites/gen_font.py` and has no dingbats, so a literal star is a
 	# missing-glyph box.
 	motto_row.add_child(UiTheme.icon(UiTheme.Icon.STAR, 1))
-	motto_row.add_child(UiTheme.label("CONSTRUA. EXPANDA. FATURE.",
+	motto_row.add_child(UiTheme.label(Loc.t("title.motto"),
 		UiTheme.SIZE_SMALL, UiTheme.AMBER))
 	motto_row.add_child(UiTheme.icon(UiTheme.Icon.STAR, 1))
 
@@ -316,7 +318,7 @@ func _build_marquee() -> void:
 	var play := UiTheme.button("", &"amber", UiTheme.SIZE_TITLE)
 	_dress_key(play, &"amber")
 	play.custom_minimum_size.y = 48.0
-	UiTheme.describe(play, "Jogar", "Escolher um dos três terminais")
+	UiTheme.describe(play, Loc.t("title.play.name"), Loc.t("title.play.hint"))
 	play.pressed.connect(_show_board)
 	_actions.add_child(play)
 	_play_key = play
@@ -330,7 +332,8 @@ func _build_marquee() -> void:
 	left_star.modulate = UiTheme.AMBER_DEEP
 	left_star.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	play_row.add_child(left_star)
-	var play_word := UiTheme.label("JOGAR", UiTheme.SIZE_TITLE, UiTheme.INK)
+	var play_word := UiTheme.label(Loc.t("title.play"), UiTheme.SIZE_TITLE,
+		UiTheme.INK)
 	play_word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	play_row.add_child(play_word)
 	var right_star := UiTheme.icon(UiTheme.Icon.STAR, 1)
@@ -351,7 +354,7 @@ func _build_marquee() -> void:
 	continue_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	continue_column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_continue_key.add_child(continue_column)
-	var continue_word := UiTheme.label("CONTINUAR", UiTheme.SIZE_BODY,
+	var continue_word := UiTheme.label(Loc.t("title.continue"), UiTheme.SIZE_BODY,
 		UiTheme.TEAL_LIGHT)
 	continue_word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	continue_column.add_child(continue_word)
@@ -362,7 +365,8 @@ func _build_marquee() -> void:
 	var settings := UiTheme.button("", &"steel", UiTheme.SIZE_BODY)
 	_dress_key(settings, &"steel")
 	settings.custom_minimum_size.y = 38.0
-	UiTheme.describe(settings, "Ajustes", "Som, movimento e tela")
+	UiTheme.describe(settings, Loc.t("title.settings.name"),
+		Loc.t("title.settings.hint"))
 	settings.pressed.connect(_open_options)
 	_actions.add_child(settings)
 	var settings_row := HBoxContainer.new()
@@ -374,7 +378,7 @@ func _build_marquee() -> void:
 	var gear := UiTheme.icon(UiTheme.Icon.GEAR, 1)
 	gear.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	settings_row.add_child(gear)
-	var settings_word := UiTheme.label("AJUSTES", UiTheme.SIZE_BODY,
+	var settings_word := UiTheme.label(Loc.t("settings.title"), UiTheme.SIZE_BODY,
 		UiTheme.STEEL_TEXT)
 	settings_word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	settings_row.add_child(settings_word)
@@ -588,7 +592,7 @@ func _corner_key(spec: Dictionary) -> PanelContainer:
 	key.focus_mode = Control.FOCUS_ALL
 	key.add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
 	key.set_meta("corner", str(spec.corner))
-	UiTheme.describe(key, str(spec.label))
+	UiTheme.describe(key, Loc.t(str(spec.label)))
 	var column := VBoxContainer.new()
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
 	column.add_theme_constant_override(&"separation", 1)
@@ -598,7 +602,7 @@ func _corner_key(spec: Dictionary) -> PanelContainer:
 	var glyph := UiTheme.icon(spec.icon as UiTheme.Icon, 2)
 	glyph.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	column.add_child(glyph)
-	var caption := UiTheme.label(str(spec.label), UiTheme.SIZE_SMALL,
+	var caption := UiTheme.label(Loc.t(str(spec.label)), UiTheme.SIZE_SMALL,
 		UiTheme.STEEL_TEXT)
 	caption.clip_text = true
 	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -642,12 +646,12 @@ func _build_board() -> void:
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override(&"separation", 4)
 	column.add_child(header)
-	var back := UiTheme.button("VOLTAR", &"ghost", UiTheme.SIZE_SMALL)
+	var back := UiTheme.button(Loc.t("title.back"), &"ghost", UiTheme.SIZE_SMALL)
 	back.custom_minimum_size = Vector2(56, 22)
-	UiTheme.describe(back, "Voltar", "Voltar à tela inicial")
+	UiTheme.describe(back, Loc.t("title.back"), Loc.t("title.back.hint"))
 	back.pressed.connect(_show_marquee)
 	header.add_child(back)
-	var title := UiTheme.label("ESCOLHA SEU TERMINAL", UiTheme.SIZE_BODY,
+	var title := UiTheme.label(Loc.t("title.pick_terminal"), UiTheme.SIZE_BODY,
 		UiTheme.INK)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -685,7 +689,7 @@ func _build_board() -> void:
 	_status = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_status.text = "PROGRESSO SALVO NESTE DISPOSITIVO"
+	_status.text = Loc.t("title.saved_here")
 	column.add_child(_status)
 
 
@@ -719,9 +723,10 @@ func _refresh_continue() -> void:
 		return
 	# No em dashes: the pixel font is drawn glyph by glyph in `gen_font.py` and
 	# has no punctuation beyond ASCII, so anything fancier is a tofu box.
-	_continue_detail.text = "DIA %d" % int(summary.get("day", 1))
-	UiTheme.describe(_continue_key, "Continuar",
-		"Terminal %d, dia %d" % [slot, int(summary.get("day", 1))])
+	_continue_detail.text = Loc.t("clock.day", {"n": int(summary.get("day", 1))})
+	UiTheme.describe(_continue_key, Loc.t("title.continue.name"),
+		Loc.t("title.continue.hint",
+			{"slot": slot, "day": int(summary.get("day", 1))}))
 
 
 func _continue_last() -> void:
@@ -735,24 +740,43 @@ func _continue_last() -> void:
 # --------------------------------------------------------------------- sheets
 
 func _open_options() -> void:
-	_open_sheet("AJUSTES", [
-		{"kind": "toggle", "label": "MÚSICA",
-			"get": func() -> bool: return AudioManager.music_on,
-			"set": func(on: bool) -> void: AudioManager.set_music_on(on)},
-		{"kind": "toggle", "label": "EFEITOS",
-			"get": func() -> bool: return AudioManager.sfx_on,
-			"set": func(on: bool) -> void: AudioManager.set_sfx_on(on)},
-		{"kind": "toggle", "label": "REDUZIR MOVIMENTO",
+	var languages: Array = [{
+		"value": Loc.FOLLOW_DEVICE,
+		"text": Loc.t("settings.language.auto_tag"),
+		"name": Loc.t("settings.language.auto"),
+	}]
+	for entry in Loc.LANGUAGES:
+		languages.append({"value": StringName(entry.code), "text": str(entry.tag),
+			"name": str(entry.native)})
+	_open_sheet(Loc.t("settings.title"), [
+		{"kind": "choice", "label": Loc.t("settings.section.language"),
+			"options": languages,
+			"get": func() -> Variant: return Loc.preference,
+			"set": func(code: Variant) -> void:
+				Loc.set_preference(StringName(code))
+				# The sheet is written in the language it is switching away from,
+				# so it has to be built again rather than repainted.
+				_open_options.call_deferred()},
+		{"kind": "level", "label": Loc.t("settings.music"),
+			"get": func() -> float: return AudioManager.music_volume,
+			"set": func(v: float) -> void: AudioManager.set_music_volume(v),
+			"muted": func() -> bool: return not AudioManager.music_on,
+			"set_muted": func(on: bool) -> void: AudioManager.set_music_on(not on)},
+		{"kind": "level", "label": Loc.t("settings.sfx"),
+			"get": func() -> float: return AudioManager.sfx_volume,
+			"set": func(v: float) -> void: AudioManager.set_sfx_volume(v),
+			"muted": func() -> bool: return not AudioManager.sfx_on,
+			"set_muted": func(on: bool) -> void: AudioManager.set_sfx_on(not on)},
+		{"kind": "toggle", "label": Loc.t("title.reduce_motion"),
 			"get": func() -> bool: return UserPreferences.reduce_motion,
 			"set": func(on: bool) -> void: UserPreferences.set_reduce_motion(on)},
-		{"kind": "toggle", "label": "NÚMEROS FLUTUANTES",
+		{"kind": "toggle", "label": Loc.t("settings.numbers"),
 			"get": func() -> bool: return UserPreferences.floating_numbers,
 			"set": func(on: bool) -> void: UserPreferences.set_floating_numbers(on)},
-		{"kind": "toggle", "label": "TELA CHEIA",
+		{"kind": "toggle", "label": Loc.t("settings.fullscreen"),
 			"get": func() -> bool: return UserPreferences.fullscreen,
 			"set": func(on: bool) -> void: UserPreferences.set_fullscreen(on)},
-		{"kind": "note", "label":
-			"O resto dos ajustes — save, backup e tutorial — fica dentro do terminal, porque pertence a uma operação e não ao aparelho."},
+		{"kind": "note", "label": Loc.t("title.options_note")},
 	])
 
 
@@ -760,26 +784,27 @@ func _open_corner(id: String) -> void:
 	AudioManager.play_sfx("tap")
 	match id:
 		"creditos":
-			_open_sheet("CRÉDITOS", [
+			_open_sheet(Loc.t("title.credits"), [
 				{"kind": "note", "label": "HarborClick — %s" % VERSION_LINE},
 				{"kind": "note", "label": "%s" % STUDIO_LINE},
-				{"kind": "note", "label": "Feito em Godot 4. Cada sprite, fonte, efeito e trilha deste jogo é gerado por código: nada foi desenhado à mão."},
-				{"kind": "note", "label": "Jargão de terminal conferido com quem trabalha em porto brasileiro."},
+				{"kind": "note", "label": Loc.t("title.credits.made_with")},
+				{"kind": "note", "label": Loc.t("title.credits.jargon")},
 			])
 		"site":
-			_open_sheet("SITE", [
-				{"kind": "note", "label": "O projeto inteiro é aberto, código e geradores de arte."},
-				{"kind": "link", "label": "ABRIR REPOSITÓRIO", "url": REPO_URL},
+			_open_sheet(Loc.t("title.site"), [
+				{"kind": "note", "label": Loc.t("title.site.blurb")},
+				{"kind": "link", "label": Loc.t("title.site.link"), "url": REPO_URL},
 			])
 		"feedback":
-			_open_sheet("FEEDBACK", [
-				{"kind": "note", "label": "Achou um bug ou tem uma ideia? Abra uma issue — é o caminho que a gente lê."},
-				{"kind": "link", "label": "ABRIR ISSUES", "url": REPO_URL + "/issues"},
+			_open_sheet(Loc.t("title.feedback"), [
+				{"kind": "note", "label": Loc.t("title.feedback.blurb")},
+				{"kind": "link", "label": Loc.t("title.feedback.link"),
+					"url": REPO_URL + "/issues"},
 			])
 		_:
-			_open_sheet("COMUNIDADE", [
-				{"kind": "note", "label": "Estratégia, builds e reclamação sobre o pátio cheio."},
-				{"kind": "link", "label": "ABRIR DISCUSSÕES",
+			_open_sheet(Loc.t("title.community"), [
+				{"kind": "note", "label": Loc.t("title.community.blurb")},
+				{"kind": "link", "label": Loc.t("title.community.link"),
 					"url": REPO_URL + "/discussions"},
 			])
 
@@ -816,7 +841,7 @@ func _open_sheet(title: String, rows: Array) -> void:
 	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(heading)
 	var close := UiTheme.icon_button(UiTheme.Icon.CLOSE)
-	UiTheme.describe(close, "Fechar")
+	UiTheme.describe(close, Loc.t("common.close"))
 	close.pressed.connect(_close_sheet)
 	header.add_child(close)
 	column.add_child(UiTheme.divider())
@@ -825,6 +850,10 @@ func _open_sheet(title: String, rows: Array) -> void:
 		match str(row.get("kind", "note")):
 			"toggle":
 				column.add_child(_toggle_row(row))
+			"level":
+				column.add_child(_level_row(row))
+			"choice":
+				column.add_child(_choice_row(row))
 			"link":
 				var open := UiTheme.button(str(row.label), &"amber",
 					UiTheme.SIZE_SMALL)
@@ -854,14 +883,110 @@ func _toggle_row(row: Dictionary) -> HBoxContainer:
 	key.custom_minimum_size = Vector2(58, 22)
 	var paint := func() -> void:
 		var on := bool(getter.call())
-		key.text = "LIGADO" if on else "DESLIGADO"
-		UiTheme.describe(key, str(row.label), "Ligado" if on else "Desligado")
+		key.text = Loc.t("common.on" if on else "common.off")
+		UiTheme.describe(key, str(row.label), key.text)
 	paint.call()
 	key.pressed.connect(func() -> void:
 		setter.call(not bool(getter.call()))
 		paint.call())
 	line.add_child(key)
 	return line
+
+
+func _level_row(row: Dictionary) -> VBoxContainer:
+	## The same volume control the in-game board has. The title screen used to
+	## offer music as on/off while the port offered a level, which is two answers
+	## to one question depending on which screen you happened to be looking at.
+	var block := VBoxContainer.new()
+	block.add_theme_constant_override(&"separation", 2)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override(&"separation", 6)
+	var label := UiTheme.label(str(row.label), UiTheme.SIZE_SMALL, UiTheme.INK)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(label)
+	var readout := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP)
+	readout.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	readout.custom_minimum_size.x = 52.0
+	head.add_child(readout)
+	block.add_child(head)
+
+	var getter: Callable = row.get
+	var setter: Callable = row.set
+	var muted: Callable = row.muted
+	var mute_setter: Callable = row.set_muted
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override(&"separation", 4)
+	var mute := UiTheme.icon_button(UiTheme.Icon.SOUND, &"alt", 24.0)
+	mute.custom_minimum_size = Vector2(30.0, 24.0)
+	line.add_child(mute)
+	var slider := PixelSlider.new(float(getter.call()),
+		AudioManager.VOLUME_STEP)
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	slider.accessible_label = str(row.label)
+	line.add_child(slider)
+	block.add_child(line)
+
+	var paint := func() -> void:
+		var off := bool(muted.call())
+		readout.text = Loc.t("settings.muted") if off \
+			else "%d%%" % roundi(float(getter.call()) * 100.0)
+		readout.label_settings.font_color = UiTheme.INK_SOFT if off \
+			else UiTheme.AMBER_DEEP
+		slider.modulate = Color(1, 1, 1, 0.45 if off else 1.0)
+		UiTheme.style_button(mute, &"off" if off else &"alt")
+		UiTheme.describe(mute, Loc.t(
+			"settings.unmute_name" if off else "settings.mute_name",
+			{"label": str(row.label)}))
+		slider.set_value_silently(float(getter.call()))
+	paint.call()
+	slider.value_changed.connect(func(value: float) -> void:
+		setter.call(value)
+		if value > 0.0 and bool(muted.call()):
+			mute_setter.call(false)
+		paint.call())
+	mute.pressed.connect(func() -> void:
+		var was := bool(muted.call())
+		mute_setter.call(not was)
+		if was and float(getter.call()) <= 0.0:
+			setter.call(0.5)
+		paint.call())
+	return block
+
+
+func _choice_row(row: Dictionary) -> VBoxContainer:
+	## A segmented picker. Used for the language, which has to be reachable from
+	## the very first screen: a player whose phone put the game into a language
+	## they cannot read must not have to navigate it to fix that.
+	var block := VBoxContainer.new()
+	block.add_theme_constant_override(&"separation", 2)
+	block.add_child(UiTheme.label(str(row.label), UiTheme.SIZE_SMALL,
+		UiTheme.INK))
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override(&"separation", 2)
+	line.custom_minimum_size.y = 24.0
+	block.add_child(line)
+	var getter: Callable = row.get
+	var setter: Callable = row.set
+	var buttons: Array[Dictionary] = []
+	for option: Dictionary in row.options:
+		var button := UiTheme.segment(str(option.text), false)
+		button.custom_minimum_size.y = 24.0
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.clip_text = true
+		UiTheme.describe(button, str(option.get("name", option.text)))
+		line.add_child(button)
+		buttons.append({"button": button, "value": option.value})
+	var paint := func() -> void:
+		var current: Variant = getter.call()
+		for entry: Dictionary in buttons:
+			UiTheme.style_segment(entry.button, entry.value == current)
+	paint.call()
+	for entry: Dictionary in buttons:
+		(entry.button as Button).pressed.connect(func() -> void:
+			setter.call(entry.value)
+			paint.call())
+	return block
 
 
 func _close_sheet() -> void:
@@ -879,7 +1004,7 @@ func _refresh() -> void:
 	for slot in range(1, SaveManager.PROFILE_COUNT + 1):
 		_slots.add_child(_make_slot(SaveManager.profile_summary(slot)))
 	if not SaveManager.storage_available():
-		_status.text = "Este navegador não está guardando o progresso."
+		_status.text = Loc.t("title.no_storage")
 		_status.label_settings.font_color = UiTheme.DANGER
 	_refresh_continue()
 
@@ -915,18 +1040,20 @@ func _make_slot(summary: Dictionary) -> PanelContainer:
 	text.add_theme_constant_override(&"separation", 1)
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(text)
-	text.add_child(_line("TERMINAL %d" % slot, UiTheme.SIZE_BODY, UiTheme.INK))
+	text.add_child(_line(Loc.t("title.slot", {"n": slot}), UiTheme.SIZE_BODY,
+		UiTheme.INK))
 	if used:
-		text.add_child(_line("%s TEU  •  DIA %d" % [
-			GameState.fmt(float(summary.get("teus", 0.0))),
-			int(summary.get("day", 1))], UiTheme.SIZE_SMALL, UiTheme.INK_SOFT))
+		text.add_child(_line(Loc.t("title.slot.summary", {
+			"teus": GameState.fmt(float(summary.get("teus", 0.0))),
+			"day": int(summary.get("day", 1)),
+		}), UiTheme.SIZE_SMALL, UiTheme.INK_SOFT))
 		var flotations := int(summary.get("prestige", 0))
 		text.add_child(_line(
-			"%d reconstrução(ões)" % flotations if flotations > 0
-				else "primeira operação",
+			Loc.tn("title.slot.rebuilds", flotations) if flotations > 0
+				else Loc.t("title.slot.first_run"),
 			UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP))
 	else:
-		text.add_child(_line("CAIS LIVRE", UiTheme.SIZE_SMALL,
+		text.add_child(_line(Loc.t("title.slot.empty"), UiTheme.SIZE_SMALL,
 			UiTheme.INK_SOFT))
 
 	var keys := VBoxContainer.new()
@@ -938,20 +1065,22 @@ func _make_slot(summary: Dictionary) -> PanelContainer:
 	keys.custom_minimum_size.x = 76.0
 	row.add_child(keys)
 
-	var play := UiTheme.button("CONTINUAR" if used else "COMEÇAR", &"amber",
+	var play := UiTheme.button(Loc.t("title.continue" if used
+		else "title.slot.start"), &"amber",
 		UiTheme.SIZE_SMALL)
 	play.custom_minimum_size.y = 26.0
-	UiTheme.describe(play, "%s o terminal %d"
-		% ["Continuar" if used else "Começar", slot])
+	UiTheme.describe(play, Loc.t("title.slot.open_name" if used
+		else "title.slot.start_name", {"n": slot}))
 	play.pressed.connect(_play.bind(slot))
 	keys.add_child(play)
 
 	if used:
-		var erase := UiTheme.button("APAGAR?" if armed else "APAGAR",
+		var erase := UiTheme.button(Loc.t("title.slot.erase_armed" if armed
+			else "title.slot.erase"),
 			&"danger" if armed else &"ghost", UiTheme.SIZE_SMALL)
 		erase.custom_minimum_size.y = 24.0
-		UiTheme.describe(erase, "Apagar o terminal %d" % slot,
-			"Toque duas vezes. A operação não pode ser desfeita.")
+		UiTheme.describe(erase, Loc.t("title.slot.erase_name", {"n": slot}),
+			Loc.t("title.slot.erase_hint"))
 		erase.pressed.connect(_erase.bind(slot))
 		keys.add_child(erase)
 	return card
@@ -980,7 +1109,7 @@ func _erase(slot: int) -> void:
 	## armed, or a mis-tap deletes a run the player never selected.
 	if _armed_delete != slot:
 		_armed_delete = slot
-		_status.text = "Apagar o terminal %d é definitivo. Toque em APAGAR? de novo." % slot
+		_status.text = Loc.t("title.slot.erase_confirm", {"n": slot})
 		_status.label_settings.font_color = UiTheme.DANGER
 		AudioManager.play_sfx("deny")
 		_refresh()
@@ -989,7 +1118,7 @@ func _erase(slot: int) -> void:
 	if int(UserPreferences.last_profile) == slot:
 		UserPreferences.set_last_profile(0)
 	_armed_delete = 0
-	_status.text = "Terminal %d apagado." % slot
+	_status.text = Loc.t("title.slot.erased", {"n": slot})
 	_status.label_settings.font_color = UiTheme.INK_SOFT
 	AudioManager.play_sfx("tap")
 	_refresh()

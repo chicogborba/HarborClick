@@ -43,6 +43,9 @@ var _next_button: Button
 var _next_label: Label
 var _next_pip: TextureRect
 var _bar_keys: HBoxContainer
+## `{button, stem}` for every key on the console, so `_apply_language` can
+## rewrite the words without rebuilding the controls under them.
+var _key_labels: Array[Dictionary] = []
 var _shop_pip: TextureRect
 var _shop_alert := Callable()
 var _shop_eta := Callable()
@@ -56,6 +59,8 @@ func _ready() -> void:
 	_build_bar()
 	get_viewport().size_changed.connect(_layout)
 	EventBus.prestiged.connect(func(_s: int) -> void: _refresh_next())
+	Loc.language_changed.connect(func(_code: StringName) -> void:
+		_apply_language())
 	_layout()
 
 
@@ -82,13 +87,20 @@ func _build_bar() -> void:
 	# 12px glyph in it, which is the "settings icon is rubbish" from the playtest.
 	# Stacking the glyph buys every key a real word inside 80px.
 	var shop_key: Button = null
-	for spec in [["LOJA", UiTheme.Icon.CRANE, &"amber", "Abrir a loja do terminal", shop_requested],
-			["ROTAS", UiTheme.Icon.GLOBE, &"steel", "Abrir o mapa de rotas", routes_requested],
-			["DIÁRIO", UiTheme.Icon.TROPHY, &"steel", "Abrir o Diário do Porto", journal_requested],
-			["AJUSTES", UiTheme.Icon.GEAR, &"steel", "Abrir os ajustes", settings_requested]]:
-		var key := _make_key(str(spec[0]), spec[1], spec[2], str(spec[3]), spec[4])
+	for spec in [
+			["rail.shop", UiTheme.Icon.CRANE, &"amber", shop_requested],
+			["rail.routes", UiTheme.Icon.GLOBE, &"steel", routes_requested],
+			["rail.journal", UiTheme.Icon.TROPHY, &"steel", journal_requested],
+			["rail.settings", UiTheme.Icon.GEAR, &"steel", settings_requested]]:
+		var stem := str(spec[0])
+		var key := _make_key(Loc.t(stem), spec[1], spec[2],
+			Loc.t("%s.name" % stem), spec[3])
 		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		key.custom_minimum_size = Vector2(0.0, BAR_KEY_H)
+		# Remembered by key rather than by text, so a language change can rewrite
+		# the console without rebuilding it — the pip below is parented to one of
+		# these buttons and a rebuild would throw it away.
+		_key_labels.append({"button": key, "stem": stem})
 		_bar_keys.add_child(key)
 		if shop_key == null:
 			shop_key = key
@@ -114,7 +126,7 @@ func _build_head() -> Control:
 	head.custom_minimum_size.y = HEAD_H
 	_head = head
 
-	_objective_button = _flat_button("Abrir o Diário do Porto", journal_requested)
+	_objective_button = _flat_button(Loc.t("rail.journal.name"), journal_requested)
 	# The objective takes the room the chip does not, so a long goal title is
 	# trimmed by its own label rather than pushing the chip off the console.
 	_objective_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -140,7 +152,7 @@ func _build_head() -> Control:
 	_objective_value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	objective_row.add_child(_objective_value)
 
-	_next_button = _flat_button("Próxima ação", shop_requested)
+	_next_button = _flat_button(Loc.t("rail.next_action"), shop_requested)
 	head.add_child(_next_button)
 	var next_row := HBoxContainer.new()
 	next_row.add_theme_constant_override(&"separation", 3)
@@ -205,6 +217,39 @@ func _make_key(text: String, icon: UiTheme.Icon, kind: StringName,
 	return key
 
 
+func _apply_language() -> void:
+	## The console is on screen the whole session, so it is the one place a
+	## language change is most obviously wrong if it does not take.
+	for entry in _key_labels:
+		var key: Button = entry.button
+		if not is_instance_valid(key):
+			continue
+		var label := key.get_node_or_null(^"VBoxContainer/KeyText") as Label
+		if label == null:
+			# The group container is auto-named; find the word by name instead of
+			# by path so a rename cannot silently stop translating the keys.
+			label = _find_key_text(key)
+		if label != null:
+			label.text = Loc.t(str(entry.stem))
+		UiTheme.describe(key, Loc.t("%s.name" % str(entry.stem)))
+	if _objective_button != null:
+		UiTheme.describe(_objective_button, Loc.t("rail.journal.name"))
+	if _next_button != null:
+		UiTheme.describe(_next_button, Loc.t("rail.next_action"))
+	_refresh_objective()
+	_refresh_next()
+
+
+func _find_key_text(root: Node) -> Label:
+	for child in root.get_children():
+		if child.name == &"KeyText" and child is Label:
+			return child as Label
+		var found := _find_key_text(child)
+		if found != null:
+			return found
+	return null
+
+
 func _key_ink(kind: StringName) -> Color:
 	## The word on a key follows the key's own face. A steel key carries the same
 	## cream as the enamel it is bolted to; an amber one carries ink.
@@ -256,12 +301,12 @@ func _refresh_objective() -> void:
 		var value: Variant = _objective_source.call()
 		objective = value if value is Dictionary else {}
 	if objective.is_empty():
-		_objective_label.text = "Toque no navio pra mover carga"
+		_objective_label.text = Loc.t("rail.objective.none")
 		_objective_value.text = ""
 		return
 	var pinned := bool(objective.get("pinned", false))
-	_objective_label.text = ("FIXADA: " if pinned else "") \
-		+ str(objective.get("title", "Meta"))
+	_objective_label.text = (Loc.t("rail.objective.pinned") if pinned else "") \
+		+ str(objective.get("title", Loc.t("rail.objective.fallback")))
 	_objective_value.text = "%s/%s" % [
 		GameState.fmt(float(objective.get("progress", 0.0))),
 		GameState.fmt(float(objective.get("target", 0.0)))]
@@ -277,22 +322,22 @@ func _refresh_next() -> void:
 	if _shop_pip != null:
 		_shop_pip.visible = affordable
 	if GameState.can_prestige():
-		_set_next("CAPITAL +%d" % GameState.prestige_gain(), UiTheme.AMBER, true,
-			"Reconstruir o porto e emitir ações", prestige_requested)
+		_set_next(Loc.t("rail.prestige", {"n": GameState.prestige_gain()}),
+			UiTheme.AMBER, true, Loc.t("rail.prestige.name"), prestige_requested)
 		return
 	if affordable:
-		_set_next("COMPRAR", UiTheme.AMBER, true, "Abrir a loja do terminal",
-			shop_requested)
+		_set_next(Loc.t("rail.buy"), UiTheme.AMBER, true,
+			Loc.t("rail.shop.name"), shop_requested)
 		return
 	var eta := float(_shop_eta.call()) if _shop_eta.is_valid() else -1.0
 	if eta < 0.0:
 		# Nothing revealed, or nothing the port's income will ever reach. Saying
 		# "em ∞" is worse than saying nothing.
-		_set_next("", UiTheme.STEEL_DIM, false, "Abrir a loja do terminal",
+		_set_next("", UiTheme.STEEL_DIM, false, Loc.t("rail.shop.name"),
 			shop_requested)
 		return
 	_set_next(_fmt_eta(eta), UiTheme.STEEL_DIM, false,
-		"Abrir a loja do terminal", shop_requested)
+		Loc.t("rail.shop.name"), shop_requested)
 
 
 func _set_next(text: String, ink: Color, lit: bool, control_name: String,
@@ -324,10 +369,11 @@ static func _fmt_eta(seconds: float) -> String:
 	## countdown ticking every second on a bar the player is not looking at is
 	## movement for its own sake.
 	if seconds < 60.0:
-		return "em %ds" % maxi(1, int(ceilf(seconds)))
+		return Loc.t("rail.eta.seconds", {"n": maxi(1, int(ceilf(seconds)))})
 	if seconds < 3600.0:
-		return "em %dmin" % maxi(1, int(ceilf(seconds / 60.0)))
-	return "em %dh" % int(ceilf(seconds / 3600.0))
+		return Loc.t("rail.eta.minutes",
+			{"n": maxi(1, int(ceilf(seconds / 60.0)))})
+	return Loc.t("rail.eta.hours", {"n": int(ceilf(seconds / 3600.0))})
 
 
 # -------------------------------------------------------------------- layout

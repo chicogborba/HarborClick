@@ -23,6 +23,9 @@ Progression="*res://scripts/progression/progression_manager.gd"
 SaveManager="*res://scripts/autoload/save_manager.gd"
 AudioManager="*res://scripts/autoload/audio_manager.gd"
 UserPreferences="*res://scripts/autoload/user_preferences.gd"
+; After UserPreferences, which holds the saved language choice, and before
+; anything that draws a string.
+Loc="*res://scripts/i18n/loc.gd"
 PortraitFrame="*res://scripts/autoload/portrait_frame.gd"
 
 [display]

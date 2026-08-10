@@ -98,7 +98,11 @@ func _test_pin_and_objective_contract() -> void:
 	console.set_objective_source(func() -> Dictionary:
 		return {"title": "Movimente carga", "progress": 4.0, "target": 10.0,
 			"pinned": true})
-	_expect(console._objective_label.text.begins_with("FIXADA:"),
+	# Against the translation, not against the Portuguese: the console speaks the
+	# player's language now, so asserting a literal here would only pass on a
+	# machine whose phone happens to be set to pt-BR.
+	_expect(console._objective_label.text.begins_with(
+			Loc.t("rail.objective.pinned")),
 		"the console labels a pinned objective as pinned")
 	_expect(console._objective_value.text == "4/10",
 		"the console renders the pinned objective's progress")

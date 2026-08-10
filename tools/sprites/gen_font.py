@@ -2,8 +2,20 @@
 that Godot imports directly.
 
 Cell is 6x10: two rows of headroom for accents, a 5x7 glyph body, one row of
-descender. Portuguese accented letters are composed from a base glyph plus an
-accent mark, so they stay perfectly consistent with their plain forms.
+descender. Accented letters are composed from a base glyph plus an accent
+mark (drawn above) or a below-mark (drawn in the descender row), so every
+language's diacritics stay consistent with the plain Latin forms instead of
+being drawn as one-off shapes.
+
+Ten languages ship as of 2026-08: pt-BR, en, es, fr, de, it, ru, pl, tr. Latin
+and Cyrillic both fit this bitmap approach — a 5x7 monospace cell is enough
+letterform for either alphabet. CJK, Arabic, Thai and Hindi do not: a legible
+Han character needs a much larger canvas and thousands of unique glyphs
+instead of a few accent marks over 26 letters, Arabic needs right-to-left
+shaping this renderer has no path for, and Thai/Hindi stack multiple
+diacritics in ways this two-row accent band cannot express. Those scripts need
+a different font pipeline, not more entries in this file — see the README
+roadmap.
 """
 import os
 
@@ -104,9 +116,105 @@ G = {
     ">": [".#...", "..#..", "...#.", "....#", "...#.", "..#..", ".#..."],
     "#": [".#.#.", "#####", ".#.#.", ".#.#.", "#####", ".#.#.", "....."],
     "x_mult": [".....", ".....", "#...#", ".#.#.", "..#..", ".#.#.", "#...#"],
+    # Spanish opens a question and an exclamation as well as closing them, and a
+    # bitmap font that cannot draw them turns every Spanish question into a box.
+    # Drawn as the vertical mirror of their closing forms so the pair matches.
+    "¿": ["..#..", ".....", "..#..", ".##..", "#....", "#...#", ".###."],
+    "¡": ["..#..", ".....", "..#..", "..#..", "..#..", "..#..", "..#.."],
     "•": [".....", ".....", ".##..", ".##..", ".....", ".....", "....."],
     "→": [".....", "..#..", "...#.", "#####", "...#.", "..#..", "....."],
     "▸": [".....", ".#...", ".##..", ".###.", ".##..", ".#...", "....."],
+    # Russian typography quotes with guillemets rather than curly quotes.
+    "«": [".....", ".#.#.", "#.#..", ".#.#.", ".....", ".....", "....."],
+    "»": [".....", "#.#..", ".#.#.", "#.#..", ".....", ".....", "....."],
+
+    # ---------------------------------------------------------- direct glyphs
+    # Letters that are not an existing base plus an accent mark — the shape
+    # itself differs from anything already drawn, so it gets its own entry
+    # instead of a COMPOSED row.
+    "ı": [".....", ".....", ".##..", "..#..", "..#..", "..#..", ".###."],
+    # German's sharp s. No capital form is needed anywhere in this game's UI
+    # vocabulary (menus and short labels), so ẞ is not drawn.
+    "ß": [".##..", "#..#.", "#..#.", ".##..", "#...#", "#...#", ".##.#"],
+    "œ": [".....", ".....", ".####", "#.#.#", "#.###", "#....", ".####"],
+    "Œ": ["####.", "#...#", "#.###", "#....", "#.###", "#...#", "####."],
+    # Polish ł/Ł: an l/L with a diagonal stroke, not decomposable from the
+    # plain letter plus a mark.
+    "ł": [".##..", "..#..", ".##..", "..#..", "..#..", "..#..", ".###."],
+    "Ł": ["#....", "#....", "#....", "##...", "#....", "#....", "#####"],
+
+    # ------------------------------------------------------------- Cyrillic
+    # Uppercase where the printed Cyrillic letterform is visually identical to
+    # a Latin one already above (А, В, Е, К, М, Н, О, Р, С, Т, Х) reuses that
+    # glyph rather than redrawing the same shape under a second name — that is
+    # also just how real Cyrillic type design works: the two alphabets share
+    # letterforms wherever they historically diverged from the same source.
+    "А": ["..#..", ".#.#.", "#...#", "#...#", "#####", "#...#", "#...#"],
+    "Б": ["#####", "#....", "#....", "####.", "#...#", "#...#", "####."],
+    "В": ["####.", "#...#", "#...#", "####.", "#...#", "#...#", "####."],
+    "Г": ["#####", "#....", "#....", "#....", "#....", "#....", "#...."],
+    "Д": ["..#..", ".#.#.", ".#.#.", ".#.#.", ".#.#.", "#####", "#...#"],
+    "Е": ["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
+    "Ж": ["#.#.#", "#.#.#", "#.#.#", ".###.", "#.#.#", "#.#.#", "#.#.#"],
+    "З": ["####.", "....#", "....#", ".###.", "....#", "....#", "####."],
+    "И": ["#...#", "#..##", "#.#.#", "##..#", "#...#", "#...#", "#...#"],
+    "К": ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
+    "Л": ["..#..", ".#.#.", ".#.#.", "#...#", "#...#", "#...#", "#...#"],
+    "М": ["#...#", "##.##", "#.#.#", "#...#", "#...#", "#...#", "#...#"],
+    "Н": ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+    "О": [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+    "П": ["#####", "#...#", "#...#", "#...#", "#...#", "#...#", "#...#"],
+    "Р": ["####.", "#...#", "#...#", "####.", "#....", "#....", "#...."],
+    "С": [".###.", "#...#", "#....", "#....", "#....", "#...#", ".###."],
+    "Т": ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
+    "У": ["#...#", "#...#", ".#.#.", "..#..", ".#...", "#....", "#...."],
+    "Ф": [".#.#.", "#.#.#", "#.#.#", "#.#.#", "#.#.#", ".#.#.", "..#.."],
+    "Х": ["#...#", "#...#", ".#.#.", "..#..", ".#.#.", "#...#", "#...#"],
+    # Ц and Щ share this comb with Ш; their tail is a below-mark (`tick`), the
+    # same mechanism a cedilla uses, so the plain and tailed forms cannot drift
+    # apart from each other.
+    "Ц": ["#.#.#", "#.#.#", "#.#.#", "#.#.#", "#.#.#", "#.#.#", "#####"],
+    "Ч": ["#...#", "#...#", "#...#", ".####", "....#", "....#", "....#"],
+    "Ш": ["#.#.#", "#.#.#", "#.#.#", "#.#.#", "#.#.#", "#.#.#", "#####"],
+    "Щ": ["#.#.#", "#.#.#", "#.#.#", "#.#.#", "#.#.#", "#.#.#", "#####"],
+    "Ъ": ["##...", ".#...", ".#...", ".####", ".#..#", ".#..#", ".####"],
+    "Ы": ["#...#", "#...#", "#...#", "#.##.", "#.#.#", "#.#.#", "#.##."],
+    "Ь": ["#....", "#....", "#....", "####.", "#...#", "#...#", "####."],
+    "Э": ["#####", "....#", "....#", ".####", "....#", "....#", "#####"],
+    "Ю": ["#.##.", "#.#.#", "#.#.#", "###.#", "#.#.#", "#.#.#", "#.##."],
+    "Я": [".####", "#...#", "#...#", ".####", "..#.#", ".#..#", "#...#"],
+
+    "а": [".....", ".....", ".###.", "....#", ".####", "#...#", ".####"],
+    "б": [".###.", "#...#", "#....", "####.", "#...#", "#...#", ".###."],
+    "в": [".....", ".....", "###..", "#..#.", "###..", "#..#.", "###.."],
+    "г": [".....", ".....", "####.", "#....", "#....", "#....", "#...."],
+    "д": [".....", ".....", ".###.", "#.#.#", "#.#.#", "#####", "#...#"],
+    "е": [".....", ".....", ".###.", "#...#", "#####", "#....", ".###."],
+    "ж": [".....", ".....", "#.#.#", ".###.", "#.#.#", ".###.", "#.#.#"],
+    "з": [".....", ".....", ".##..", "...#.", ".##..", "...#.", ".##.."],
+    "и": [".....", ".....", "#...#", "#..##", "#.#.#", "##..#", "#...#"],
+    "к": [".....", ".....", "#..#.", "#.#..", "##...", "#.#..", "#..#."],
+    "л": [".....", ".....", ".#.#.", ".#.#.", ".#.#.", "#...#", "#...#"],
+    "м": [".....", ".....", "#...#", "##.##", "#.#.#", "#...#", "#...#"],
+    "н": [".....", ".....", "#...#", "#...#", "#####", "#...#", "#...#"],
+    "о": [".....", ".....", ".###.", "#...#", "#...#", "#...#", ".###."],
+    "п": [".....", ".....", "#####", "#...#", "#...#", "#...#", "#...#"],
+    "р": [".....", ".....", "####.", "#...#", "####.", "#....", "#...."],
+    "с": [".....", ".....", ".###.", "#....", "#....", "#....", ".###."],
+    "т": [".....", ".....", "#####", "..#..", "..#..", "..#..", "..#.."],
+    "у": [".....", ".....", "#...#", "#...#", ".####", "....#", ".###."],
+    "ф": [".#.#.", "#.#.#", "#.#.#", "#.#.#", "#.#.#", ".#.#.", "..#.."],
+    "х": [".....", ".....", "#...#", ".#.#.", "..#..", ".#.#.", "#...#"],
+    "ц": [".....", ".....", "#.#.#", "#.#.#", "#.#.#", "#.#.#", "#####"],
+    "ч": [".....", ".....", "#...#", "#...#", ".####", "....#", "....#"],
+    "ш": [".....", ".....", "#.#.#", "#.#.#", "#.#.#", "#.#.#", "#####"],
+    "щ": [".....", ".....", "#.#.#", "#.#.#", "#.#.#", "#.#.#", "#####"],
+    "ъ": [".....", ".....", "##...", ".#...", ".####", ".#..#", ".####"],
+    "ы": [".....", ".....", "#...#", "#...#", "#.##.", "#.#.#", "#.##."],
+    "ь": [".....", ".....", "#....", "####.", "#...#", "#...#", "####."],
+    "э": [".....", ".....", ".####", "....#", ".###.", "....#", ".####"],
+    "ю": [".....", ".....", "#.##.", "#.#.#", "###.#", "#.#.#", "#.##."],
+    "я": [".....", ".....", ".###.", "#...#", ".####", ".#..#", "#...#"],
 }
 
 # accent marks drawn in the 2 rows above the body
@@ -116,6 +224,11 @@ ACCENTS = {
     "circ":  ["..#..", ".#.#."],
     "tilde": [".##.#", "#..#."],
     "diaer": [".#.#.", "....."],
+    # Turkish ğ/Ğ. Drawn as `circ` flipped vertically, so the two marks read as
+    # a matched pair rather than as two unrelated shapes.
+    "breve": [".#.#.", "..#.."],
+    # Polish ż/Ż: a single raised dot, distinct from the diaeresis' pair.
+    "dot": [".....", "..#.."],
 }
 
 # base letter + accent -> composed character
@@ -128,10 +241,62 @@ COMPOSED = [
     ("Ã", "A", "tilde"), ("É", "E", "acute"), ("Ê", "E", "circ"),
     ("Í", "I", "acute"), ("Ó", "O", "acute"), ("Ô", "O", "circ"),
     ("Õ", "O", "tilde"), ("Ú", "U", "acute"),
+    # Spanish. The tilde mark is already the one Portuguese draws over a vowel,
+    # so ñ is consistent with ã by construction rather than by hand.
+    ("ñ", "n", "tilde"), ("Ñ", "N", "tilde"),
+    # French.
+    ("è", "e", "grave"), ("È", "E", "grave"),
+    ("ë", "e", "diaer"),
+    ("î", "i", "circ"), ("Î", "I", "circ"), ("ï", "i", "diaer"),
+    ("ù", "u", "grave"), ("Ù", "U", "grave"),
+    ("û", "u", "circ"), ("Û", "U", "circ"),
+    ("ÿ", "y", "diaer"),
+    # German. Every vowel diaeresis needs both cases: German capitalises whole
+    # words on buttons ("ZURÜCK"), not just sentence-initial letters.
+    ("ä", "a", "diaer"), ("Ä", "A", "diaer"),
+    ("ö", "o", "diaer"), ("Ö", "O", "diaer"),
+    ("Ü", "U", "diaer"),
+    # Italian.
+    ("ì", "i", "grave"), ("Ì", "I", "grave"),
+    ("ò", "o", "grave"), ("Ò", "O", "grave"),
+    # Turkish: ğ/Ğ take the breve, İ is a capital I with the dot the plain
+    # Latin "I" never draws (ı, its dotless lower case, is a direct glyph
+    # above — the two are different letters, not a case pair here).
+    ("ğ", "g", "breve"), ("Ğ", "G", "breve"),
+    ("İ", "I", "dot"),
+    # Polish: ć/ń/ś/ź take the same acute as é; ż is the dot, distinct from ź.
+    ("ć", "c", "acute"), ("Ć", "C", "acute"),
+    ("ń", "n", "acute"), ("Ń", "N", "acute"),
+    ("ś", "s", "acute"), ("Ś", "S", "acute"),
+    ("ź", "z", "acute"), ("Ź", "Z", "acute"),
+    ("ż", "z", "dot"), ("Ż", "Z", "dot"),
+    # Russian ё/Ё (yo) and й/Й (i kratkoye) are their plain letters plus a
+    # mark, same as every other composed letter here — only the mark differs.
+    ("ё", "е", "diaer"), ("Ё", "Е", "diaer"),
+    ("й", "и", "breve"), ("Й", "И", "breve"),
 ]
 
-# cedilla is drawn below instead of above
-CEDILLA = [("ç", "c"), ("Ç", "C")]
+# below-marks, drawn in the single descender row under the body
+BELOW = {
+    "cedilla": [(2, 0)],
+    # Two pixels toward the right edge rather than cedilla's single centred
+    # one — the row is only one pixel tall, so position is the only thing
+    # available to tell the two marks apart.
+    "ogonek": [(3, 0), (4, 0)],
+    # Cyrillic Ц/Щ's tail, offset further right again so it reads as a
+    # separate stroke rather than a wider cedilla.
+    "tick": [(4, 0)],
+}
+
+# base letter + below-mark -> composed character
+BELOW_COMPOSED = [
+    ("ç", "c", "cedilla"), ("Ç", "C", "cedilla"),
+    ("ş", "s", "cedilla"), ("Ş", "S", "cedilla"),
+    ("ą", "a", "ogonek"), ("Ą", "A", "ogonek"),
+    ("ę", "e", "ogonek"), ("Ę", "E", "ogonek"),
+    ("ц", "ц", "tick"), ("Ц", "Ц", "tick"),
+    ("щ", "щ", "tick"), ("Щ", "Щ", "tick"),
+]
 
 
 def build_charset():
@@ -140,9 +305,9 @@ def build_charset():
         if len(ch) == 1:
             chars[ch] = list(body)
     chars["×"] = list(G["x_mult"])       # × multiplication sign
-    for ch, base, accent in COMPOSED:
+    for ch, base, _accent in COMPOSED:
         chars[ch] = list(G[base])
-    for ch, base in CEDILLA:
+    for ch, base, _mark in BELOW_COMPOSED:
         chars[ch] = list(G[base])
     return chars
 
@@ -155,7 +320,7 @@ def render():
     atlas = Image.new("RGBA", (cols * CELL_W, rows * CELL_H), (0, 0, 0, 0))
 
     accent_of = {ch: acc for ch, _base, acc in COMPOSED}
-    cedilla_of = {ch for ch, _base in CEDILLA}
+    below_of = {ch: mark for ch, _base, mark in BELOW_COMPOSED}
 
     entries = []
     for i, ch in enumerate(ordered):
@@ -171,8 +336,9 @@ def render():
                 for rx, cell in enumerate(row):
                     if cell == "#":
                         atlas.putpixel((cx + rx, cy + ry), INK)
-        if ch in cedilla_of:
-            atlas.putpixel((cx + 2, cy + BODY_TOP + 7), INK)
+        if ch in below_of:
+            for dx, dy in BELOW[below_of[ch]]:
+                atlas.putpixel((cx + dx, cy + BODY_TOP + 7 + dy), INK)
         entries.append((ch, cx, cy))
 
     os.makedirs(OUT_SPRITES, exist_ok=True)

@@ -60,7 +60,8 @@ run_suite() {
 scenes=(
   core cargo ui_p0 phase3_economy phase3_progression_ui
   phase4_ship phase4_water traffic notification contrast a11y
-  backup profile automation gate rail wake route npc special relay
+  backup profile automation gate rail wake route route_ui npc special relay
+  i18n settings
 )
 
 for suite in "${scenes[@]}"; do

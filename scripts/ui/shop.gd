@@ -14,12 +14,14 @@ extends CanvasLayer
 
 signal open_changed(opened: bool)
 
+## Tab id, translation key, glyph. The word is a key rather than a literal so
+## the board can be relabelled without being rebuilt.
 const TABS := [
-	["structures", "EQUIP.", UiTheme.Icon.CRANE],
-	["upgrades", "MELH.", UiTheme.Icon.STAR],
-	["land", "TERRA", UiTheme.Icon.LAND],
-	["orders", "ORDENS", UiTheme.Icon.SHIP],
-	["cosmetics", "DECOR.", UiTheme.Icon.PAW],
+	["structures", "shop.tab.structures", UiTheme.Icon.CRANE],
+	["upgrades", "shop.tab.upgrades", UiTheme.Icon.STAR],
+	["land", "shop.tab.land", UiTheme.Icon.LAND],
+	["orders", "shop.tab.orders", UiTheme.Icon.SHIP],
+	["cosmetics", "shop.tab.cosmetics", UiTheme.Icon.PAW],
 ]
 const BUY_MODES: Array[StringName] = [&"x1", &"x10", &"x25", &"max"]
 ## Which yard sprite stands for each purchase. Upgrades borrow the sprite of
@@ -98,9 +100,9 @@ func _build() -> void:
 	_backdrop.gui_input.connect(_on_backdrop_input)
 	add_child(_backdrop)
 
-	_launcher = UiTheme.button("LOJA", &"amber", UiTheme.SIZE_BODY)
+	_launcher = UiTheme.button(Loc.t("shop.title"), &"amber", UiTheme.SIZE_BODY)
 	_launcher.icon = UiTheme.icon_texture(UiTheme.Icon.CRANE)
-	_launcher.tooltip_text = "Abrir a loja do terminal"
+	_launcher.tooltip_text = Loc.t("rail.shop.name")
 	_launcher.pressed.connect(func() -> void: _on_tab(_active))
 	add_child(_launcher)
 
@@ -164,9 +166,9 @@ func _build_header() -> Control:
 	header.add_child(gap)
 
 	var close_btn := UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0,
-		"Fechar a loja")
+		Loc.t("shop.close_name"))
 	close_btn.custom_minimum_size = Vector2(30, 24)
-	close_btn.tooltip_text = "Fechar (Esc)"
+	close_btn.tooltip_text = Loc.t("common.close_hint")
 	close_btn.pressed.connect(_close)
 	header.add_child(close_btn)
 	return header
@@ -178,7 +180,7 @@ func _build_tabs() -> Control:
 	_tabs_row.custom_minimum_size.y = 24.0
 	for tab: Array in TABS:
 		var button := Button.new()
-		button.text = str(tab[1])
+		button.text = Loc.t(str(tab[1]))
 		button.icon = UiTheme.icon_texture(tab[2])
 		button.clip_text = true
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -194,13 +196,15 @@ func _build_bulk() -> Control:
 	_bulk_row = HBoxContainer.new()
 	_bulk_row.add_theme_constant_override(&"separation", 2)
 	_bulk_row.custom_minimum_size.y = 18.0
-	var caption := UiTheme.label("LOTE", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	var caption := UiTheme.label(Loc.t("shop.bulk"), UiTheme.SIZE_SMALL,
+		UiTheme.INK_SOFT)
 	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_bulk_row.add_child(caption)
 	for mode in BUY_MODES:
 		var button := UiTheme.segment(_buy_mode_label(mode), mode == _buy_mode)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.tooltip_text = "Comprar %s de uma vez" % _buy_mode_label(mode)
+		button.tooltip_text = Loc.t("shop.bulk.name",
+			{"mode": _buy_mode_label(mode)})
 		button.pressed.connect(_set_buy_mode.bind(mode))
 		_bulk_row.add_child(button)
 		_buy_buttons[mode] = button
@@ -208,7 +212,7 @@ func _build_bulk() -> Control:
 
 
 func _buy_mode_label(mode: StringName) -> String:
-	return "MAX" if mode == &"max" else String(mode).to_upper()
+	return Loc.t("shop.bulk.max") if mode == &"max" else String(mode).to_upper()
 
 
 # ------------------------------------------------------------------- content
@@ -261,8 +265,7 @@ func _rebuild_upgrades() -> void:
 		_cards[uid] = card
 	var hint := list.get_node_or_null(^"EmptyHint")
 	if wanted.is_empty() and hint == null:
-		var note := UiTheme.label(
-			"Nada novo na prancheta.\nMovimente mais carga e volte aqui.",
+		var note := UiTheme.label(Loc.t("shop.empty"),
 			UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 		note.name = "EmptyHint"
 		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -293,11 +296,11 @@ func _build_cosmetics() -> void:
 	## is the reason the tab exists at all: a decoration you cannot take back off
 	## is a decoration nobody risks buying.
 	var list: VBoxContainer = _lists["cosmetics"]
-	list.add_child(_orders_caption("O PORTO"))
+	list.add_child(_orders_caption(Loc.t("shop.cosmetics.port")))
 	var intro := UiTheme.label(
 		# Hyphens, never em dashes: the bitmap font has no glyph for one and
 		# prints a hollow box in its place.
-		"Enfeite não paga TEU. Compra uma vez e é sua para sempre - nem a reconstrução leva. Liga e desliga quando quiser.",
+		Loc.t("shop.cosmetics.blurb"),
 		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	list.add_child(intro)
@@ -305,7 +308,7 @@ func _build_cosmetics() -> void:
 	for item: Dictionary in CosmeticDb.all():
 		if StringName(item.kind) == CosmeticDb.KIND_CREW and not crew_done:
 			crew_done = true
-			list.add_child(_orders_caption("A EQUIPE"))
+			list.add_child(_orders_caption(Loc.t("shop.cosmetics.crew")))
 		list.add_child(_cosmetic_card(item))
 
 
@@ -390,14 +393,15 @@ func _refresh_cosmetics() -> void:
 			buy.visible = not owned
 			buy.text = GameState.fmt(float(item.cost))
 			buy.disabled = not GameState.can_afford(float(item.cost))
-			UiTheme.describe(buy, "Comprar %s" % str(item.name),
-				"%s TEUs" % GameState.fmt(float(item.cost)))
+			UiTheme.describe(buy, Loc.t("shop.buy_name", {"name": str(item.name)}),
+				Loc.t("shop.cost", {"amount": GameState.fmt(float(item.cost))}))
 		if toggle != null:
 			toggle.visible = owned
-			toggle.text = "LIGADO" if on else "DESLIG."
+			toggle.text = Loc.t("shop.cosmetics.on" if on
+				else "shop.cosmetics.off")
 			UiTheme.style_button(toggle, &"amber" if on else &"steel")
-			UiTheme.describe(toggle, "%s %s"
-				% ["Desligar" if on else "Ligar", str(item.name)])
+			UiTheme.describe(toggle, Loc.t("shop.cosmetics.toggle_off" if on
+				else "shop.cosmetics.toggle_on", {"name": str(item.name)}))
 
 
 func _build_orders() -> void:
@@ -407,9 +411,9 @@ func _build_orders() -> void:
 	## not a preference — it changes what the port produces, and it is the answer
 	## to a question the player only starts having once they own machines.
 	var list: VBoxContainer = _lists["orders"]
-	list.add_child(_orders_caption("A GANGUE"))
+	list.add_child(_orders_caption(Loc.t("shop.orders.gang")))
 	var intro := UiTheme.label(
-		"A gangue é uma só. Com mais de um berço trabalhando, você decide quem leva as máquinas.",
+		Loc.t("shop.orders.gang.blurb"),
 		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	intro.name = "Intro"
 	# Wrapped, not hard-broken: a Label without autowrap reports the width of its
@@ -472,7 +476,7 @@ func _build_route_orders(list: VBoxContainer) -> void:
 	## something: which lane the port books next. See `RoutePolicy`.
 	list.add_child(UiTheme.spacer(4.0))
 	list.add_child(UiTheme.divider())
-	list.add_child(_orders_caption("ROTA DA PRÓXIMA ESCALA"))
+	list.add_child(_orders_caption(Loc.t("shop.orders.lane")))
 	for policy: StringName in RoutePolicy.POLICIES:
 		var card := PanelContainer.new()
 		card.name = "Lane_%s" % policy
@@ -483,8 +487,8 @@ func _build_route_orders(list: VBoxContainer) -> void:
 		button.focus_mode = Control.FOCUS_ALL
 		button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		button.add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
-		UiTheme.describe(button, str(RoutePolicy.LABELS[policy]),
-			str(RoutePolicy.BLURBS[policy]))
+		UiTheme.describe(button, RoutePolicy.label(policy),
+			RoutePolicy.blurb(policy))
 		button.pressed.connect(_on_pick_lane_policy.bind(policy))
 		card.add_child(button)
 		var row := VBoxContainer.new()
@@ -502,11 +506,11 @@ func _build_route_orders(list: VBoxContainer) -> void:
 		var lamp := UiTheme.led(UiTheme.Led.OFF)
 		lamp.name = "Lamp"
 		head.add_child(lamp)
-		var title := UiTheme.label(str(RoutePolicy.LABELS[policy]),
+		var title := UiTheme.label(RoutePolicy.label(policy),
 			UiTheme.SIZE_SMALL, UiTheme.INK)
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		head.add_child(title)
-		var blurb := UiTheme.label(str(RoutePolicy.BLURBS[policy]),
+		var blurb := UiTheme.label(RoutePolicy.blurb(policy),
 			UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 		blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		blurb.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -538,7 +542,7 @@ func _build_rail_orders(list: VBoxContainer) -> void:
 	list.add_child(section)
 	section.add_child(UiTheme.spacer(4.0))
 	section.add_child(UiTheme.divider())
-	section.add_child(_orders_caption("O RAMAL FERROVIÁRIO"))
+	section.add_child(_orders_caption(Loc.t("shop.orders.rail")))
 
 	var status := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP)
 	status.name = "Status"
@@ -609,20 +613,22 @@ func _rail_status_text() -> String:
 		# Honest about what it is: without the bought branch the terminal still
 		# gets a trip freight, and a player wondering why their train is short
 		# deserves the answer on the same board as the order.
-		return "Sem ramal próprio: o interior manda um frete curto de vez em quando."
+		return Loc.t("shop.rail.none")
 	if bool(report.idle):
-		return "Linha livre. Próximo trem em %ds." % int(ceilf(float(report.eta)))
+		return Loc.t("shop.rail.idle",
+			{"seconds": int(ceilf(float(report.eta)))})
 	if bool(report.standing):
-		return "No ramal agora: %d para descarregar, %d para embarcar. Sai em %ds."\
-			% [int(report.drops), int(report.lifts), int(ceilf(float(report.dwell)))]
+		return Loc.t("shop.rail.working", {
+			"inbound": int(report.drops), "outbound": int(report.lifts),
+			"seconds": int(ceilf(float(report.dwell)))})
 	match int(report.stage):
 		int(RailYard.Stage.ARRIVING):
-			return "Trem entrando no ramal."
+			return Loc.t("shop.rail.arriving")
 		int(RailYard.Stage.RUNAROUND):
-			return "A locomotiva está contornando a composição."
+			return Loc.t("shop.rail.runaround")
 		_:
-			return "Trem saindo, %d de %d movimentos feitos."\
-				% [int(report.moved), int(report.booked)]
+			return Loc.t("shop.rail.departing",
+				{"done": int(report.moved), "total": int(report.booked)})
 
 
 func _orders_caption(text: String) -> Control:
@@ -641,9 +647,9 @@ func _build_foreman(list: VBoxContainer) -> void:
 	list.add_child(section)
 	section.add_child(UiTheme.spacer(4.0))
 	section.add_child(UiTheme.divider())
-	section.add_child(_orders_caption("O CAPATAZ"))
+	section.add_child(_orders_caption(Loc.t("shop.orders.foreman")))
 	var intro := UiTheme.label(
-		"Compra sozinho, uma de cada vez, e nunca encosta na reserva. Terreno é sempre seu.",
+		Loc.t("shop.orders.foreman.blurb"),
 		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	section.add_child(intro)
@@ -651,7 +657,7 @@ func _build_foreman(list: VBoxContainer) -> void:
 	# Above the controls it disables, not below them: the reason has to arrive
 	# before the greyed-out row, or the row just reads as broken.
 	var locked := UiTheme.label(
-		"Ele só assume depois da primeira reconstrução. Abra capital e ele estará esperando.",
+		Loc.t("shop.orders.foreman.locked"),
 		UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP)
 	locked.name = "Locked"
 	locked.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -680,7 +686,8 @@ func _build_foreman(list: VBoxContainer) -> void:
 	reserve_row.name = "Reserve"
 	reserve_row.add_theme_constant_override(&"separation", 2)
 	section.add_child(reserve_row)
-	var reserve_caption := UiTheme.label("RESERVA", UiTheme.SIZE_SMALL,
+	var reserve_caption := UiTheme.label(Loc.t("shop.orders.reserve"),
+		UiTheme.SIZE_SMALL,
 		UiTheme.INK_SOFT)
 	reserve_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	reserve_row.add_child(reserve_caption)
@@ -690,9 +697,9 @@ func _build_foreman(list: VBoxContainer) -> void:
 		button.name = "Reserve_%d" % roundi(value * 100.0)
 		button.clip_text = true
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		UiTheme.describe(button, "Reserva de %s"
-			% str(Foreman.RESERVE_LABELS[value]),
-			"O capataz nunca gasta esta parte do caixa.")
+		UiTheme.describe(button, Loc.t("shop.orders.reserve.name",
+			{"percent": str(Foreman.RESERVE_LABELS[value])}),
+			Loc.t("shop.orders.reserve.hint"))
 		button.pressed.connect(_on_pick_reserve.bind(value))
 		reserve_row.add_child(button)
 
@@ -840,7 +847,7 @@ func _update_tab_badges() -> void:
 	var button: Button = _tab_buttons.get("upgrades")
 	if button == null:
 		return
-	var base: String = TABS[1][1]
+	var base := Loc.t(str(TABS[1][1]))
 	button.text = "%s %d" % [base, ready_upgrades] if ready_upgrades > 0 else base
 
 
@@ -981,7 +988,7 @@ func _layout() -> void:
 		var tab: Array = TABS[index]
 		var tab_button: Button = _tab_buttons.get(tab[0])
 		if tab_button != null:
-			tab_button.text = str(tab[1])
+			tab_button.text = Loc.t(str(tab[1]))
 	_update_tab_badges()
 	_update_orders_tab()
 
@@ -1101,8 +1108,8 @@ func _refresh() -> void:
 			continue
 		# A machine waiting on ground says so on its own card, with the name of
 		# the parcel. Greying it out and saying nothing is the same as a bug.
-		card.set_effect("Requer: %s" % str(gate.get("name", "")) \
-			if not gate.is_empty() else "")
+		card.set_effect(Loc.t("shop.requires",
+			{"name": str(gate.get("name", ""))}) if not gate.is_empty() else "")
 		card.refresh(float(quote.get("total_cost", INF)), count,
 			bool(quote.get("ok", false)), false,
 			int(quote.get("quantity", 0)),
@@ -1142,5 +1149,5 @@ func _refresh_teaser(item: Dictionary) -> void:
 		_teaser.visible = false
 		return
 	_teaser.visible = true
-	_teaser.show_locked("???", "Movimente %s TEU no total para liberar."
-		% GameState.fmt(float(item.cost) * 0.25))
+	_teaser.show_locked("???", Loc.t("shop.teaser",
+		{"amount": GameState.fmt(float(item.cost) * 0.25)}))
