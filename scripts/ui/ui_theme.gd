@@ -308,7 +308,10 @@ const PORTRAITS := preload("res://assets/sprites/portrait_sheet.png")
 const PORTRAIT_HAT := preload("res://assets/sprites/portrait_hat.png")
 const BADGE_CLIP := preload("res://assets/sprites/ui_badge_clip.png")
 const PORTRAIT_SIZE := Vector2(24, 28)
-const PORTRAIT_COUNT := 6
+## The sheet is two halves of four: index 0-3 are drawn masculine, 4-7
+## feminine. `portrait_index()` below picks a half by the person, not by hash,
+## so the count matters to more than just the atlas math.
+const PORTRAIT_COUNT := 8
 
 
 static func badge_style(content: int = 6) -> StyleBoxTexture:
@@ -372,11 +375,15 @@ static func _portrait_layer(atlas: Texture2D, region: Rect2,
 static func portrait_index(profile: NpcProfile) -> int:
 	## Stable per person: the same operator has the same face for the whole run,
 	## and across a reload, because it is derived from the identity rather than
-	## rolled when the card opens.
+	## rolled when the card opens. Which half of the sheet is not left to the
+	## hash at all — `profile.presents_feminine()` picks it, and only the face
+	## within that half is.
 	if profile == null:
 		return 0
 	var key := profile.uid if not profile.uid.is_empty() else profile.slot
-	return posmod(key.hash(), PORTRAIT_COUNT)
+	var half := PORTRAIT_COUNT / 2
+	var offset := posmod(key.hash(), half)
+	return offset + half if profile.presents_feminine() else offset
 
 
 static func badge_clip() -> TextureRect:

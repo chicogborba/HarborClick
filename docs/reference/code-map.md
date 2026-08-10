@@ -79,8 +79,8 @@ Inventory: **188 authored code/config/scene files**.
 | `scripts/i18n/strings_content.gd` | 157 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
 | `scripts/i18n/strings_ui.gd` | 1181 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
 | `scripts/main.gd` | 658 | 24 functions | Root: assembles world, camera and UI. |
-| `scripts/npc/npc_catalog.gd` | 192 | class `NpcCatalog`; 6 functions | Who works here, and why the port would stop without them. |
-| `scripts/npc/npc_profile.gd` | 80 | class `NpcProfile`; 8 functions | One person on the terminal's books. |
+| `scripts/npc/npc_catalog.gd` | 218 | class `NpcCatalog`; 8 functions | Who works here, and why the port would stop without them. |
+| `scripts/npc/npc_profile.gd` | 92 | class `NpcProfile`; 9 functions | One person on the terminal's books. |
 | `scripts/npc/npc_roster.gd` | 157 | class `NpcRoster`; 12 functions | The terminal's payroll: who holds each station slot, since when. |
 | `scripts/npc/task_board.gd` | 533 | class `TaskBoard`; 31 functions | What the terminal needs next, and exactly one owner for each of it. |
 | `scripts/progression/progression_manager.gd` | 604 | class `ProgressionManager`; 48 functions | Pure progression state owner for Phase 3. It intentionally does not touch autoloads. |
@@ -109,7 +109,7 @@ Inventory: **188 authored code/config/scene files**.
 | `scripts/ui/title_screen.gd` | 1244 | 39 functions | The first thing the game shows. |
 | `scripts/ui/tutorial.gd` | 228 | class `Tutorial`; 12 functions | Seu Waldemar walks new players through the first minute. |
 | `scripts/ui/tutorial_spotlight.gd` | 161 | class `TutorialSpotlight`; 13 functions | Seven data-driven harbour orientation steps. Target callbacks can return a |
-| `scripts/ui/ui_theme.gd` | 713 | class `UiTheme`; 55 functions | The one place the interface is described. |
+| `scripts/ui/ui_theme.gd` | 720 | class `UiTheme`; 55 functions | The one place the interface is described. |
 | `scripts/world/atmosphere.gd` | 254 | class `Atmosphere`; 14 functions | Day/night lighting for the top-down port: global tint, flood-light masts |
 | `scripts/world/cargo_relay.gd` | 349 | class `CargoRelay`; 19 functions | The visible chain of custody for one container. |
 | `scripts/world/container_yard.gd` | 637 | class `ContainerYard`; 50 functions | Physical, identity-preserving yard.  A reservation is capacity only; a box |
@@ -153,7 +153,7 @@ Inventory: **188 authored code/config/scene files**.
 | `tests/i18n_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/notification_test_runner.gd` | 119 | 8 functions | Notification policy suite. |
 | `tests/notification_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/npc_test_runner.gd` | 708 | 18 functions | The crew: identity, the task board, and the vessel's answer to a box landing. |
+| `tests/npc_test_runner.gd` | 753 | 19 functions | The crew: identity, the task board, and the vessel's answer to a box landing. |
 | `tests/npc_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/phase3_economy_test_runner.gd` | 260 | 17 functions | Godot --headless --path . res://tests/phase3_economy_test_runner.tscn |
 | `tests/phase3_economy_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -213,7 +213,7 @@ Inventory: **188 authored code/config/scene files**.
 | `tools/sprites/gen_font.py` | 371 | 2 functions | Generates the game's pixel font: a PNG atlas plus a BMFont .fnt descriptor |
 | `tools/sprites/gen_ground.py` | 199 | 11 functions | Top-down ground tiles, Stardew-flavoured: textured asphalt, worn concrete, |
 | `tools/sprites/gen_landing.py` | 1014 | 31 functions | Generates every pixel asset the public landing page ships. |
-| `tools/sprites/gen_people.py` | 295 | 16 functions | Top-down dock workers, Stardew-ish: hard hat and hi-vis vest seen from above. |
+| `tools/sprites/gen_people.py` | 357 | 21 functions | Top-down dock workers, Stardew-ish: hard hat and hi-vis vest seen from above. |
 | `tools/sprites/gen_pixellab.py` | 108 | 6 functions | Turns the cached PixelLab generations into game-ready PNGs. |
 | `tools/sprites/gen_props.py` | 741 | 27 functions | Top-down scenery props: lamps, bollards, greenery, wildlife, FX. |
 | `tools/sprites/gen_rail.py` | 126 | 4 functions | Furniture for the branch line: the signal, the level crossing, the boards. |

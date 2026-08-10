@@ -89,6 +89,7 @@ func _run() -> void:
 	_test_the_catalog_only_staffs_the_container_chain()
 	_test_a_person_is_persistent_and_unique()
 	_test_the_special_crew_is_where_it_says_it_is()
+	_test_a_face_is_picked_to_fit_the_name()
 	await _test_one_key_one_owner()
 	await _test_two_drivers_are_never_sent_to_one_stack()
 	_test_every_station_says_what_it_is_doing()
@@ -241,6 +242,50 @@ func _test_the_special_crew_is_where_it_says_it_is() -> void:
 			"%s holds their reserved station" % special.name)
 		_expect(profile.dossier.length() > 40,
 			"%s has a dossier worth reading" % special.name)
+
+
+func _test_a_face_is_picked_to_fit_the_name() -> void:
+	## The portrait sheet is two halves of four (`UiTheme.PORTRAIT_COUNT`),
+	## masculine then feminine, and which half a person is drawn from has to
+	## follow the name next to the photo rather than a hash that has never
+	## read a name in its life.
+	_expect(UiTheme.PORTRAIT_COUNT == 8 and UiTheme.PORTRAIT_COUNT % 2 == 0,
+		"the portrait sheet is an even count so the sheet splits in half")
+
+	_expect(not NpcCatalog.special_presents_feminine(&"alisson"),
+		"Alisson draws from the masculine half")
+	_expect(not NpcCatalog.special_presents_feminine(&"valdir"),
+		"Seu Valdir draws from the masculine half")
+	_expect(NpcCatalog.special_presents_feminine(&"neusa"),
+		"Dona Neusa draws from the feminine half")
+	_expect(not NpcCatalog.special_presents_feminine(&"not-a-real-special"),
+		"an unknown special id defaults masculine rather than crashing")
+
+	# Every name on the roll call is classified one way or the other, and
+	# `FEMININE_NAMES` is a subset of it — the two lists are authored
+	# independently, so nothing catches a typo between them but this.
+	for first: String in NpcCatalog.FIRST_NAMES:
+		var feminine := NpcCatalog.presents_feminine(first)
+		_expect(feminine == NpcCatalog.FEMININE_NAMES.has(first),
+			"%s is classified consistently" % first)
+	for name: String in NpcCatalog.FEMININE_NAMES:
+		_expect(NpcCatalog.FIRST_NAMES.has(name),
+			"%s in the feminine list is also a real first name" % name)
+
+	var roster := NpcRoster.new()
+	var half: int = UiTheme.PORTRAIT_COUNT / 2
+	for role: String in NpcCatalog.ROLES:
+		var profile := roster.profile_for(role, 0)
+		var index := UiTheme.portrait_index(profile)
+		_expect(index >= 0 and index < UiTheme.PORTRAIT_COUNT,
+			"%s's portrait index is on the sheet" % profile.display_name)
+		var feminine := profile.presents_feminine()
+		_expect((index >= half) == feminine,
+			"%s (%s) is drawn from the %s half" % [profile.display_name,
+				"feminine" if feminine else "masculine",
+				"feminine" if feminine else "masculine"])
+		_expect(UiTheme.portrait_index(profile) == index,
+			"%s's face does not change between two askings" % profile.display_name)
 
 
 # ------------------------------------------------------------------ the board

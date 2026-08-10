@@ -175,31 +175,130 @@ def gen_foreman():
 ## at a size that can carry a face: taken against the same flat backdrop, in the
 ## vest they work in, so a wall of them reads as one set of staff photographs.
 ##
-## Six of them, picked from the person's uid, so the same operator always has the
-## same face. The hard hat is a separate greyscale overlay for the same reason
-## the walking sprite's is: a named crew member's helmet colour has to multiply
+## Eight of them. The first pass drew every face from the same mould — a
+## perfect ellipse head, a full-width eyebrow slab sitting on the hairline, and
+## an eye made of one dark pixel jammed against one stark white one — and it
+## read as a mannequin rather than a co-worker: the crew's names are half
+## masculine and half feminine, but the portrait set had exactly one hairstyle
+## and no version of it was ever chosen to fit the person it was drawn for.
+## `FEMININE` marks which half of the set that is, and `NpcCatalog` decides who
+## gets pulled from which half — see `presents_feminine()` there and in
+## `npc_profile.gd`. The face itself is plainer than before on purpose: fewer
+## brush strokes read as a person at 24x28 more reliably than more of them do,
+## a lesson the old eyebrow-and-highlight combo learned the hard way.
+##
+## Picked from the person's uid, so the same operator always has the same
+## face. The hard hat is a separate greyscale overlay for the same reason the
+## walking sprite's is: a named crew member's helmet colour has to multiply
 ## into a shaded hat, not flatten it into a patch.
 PORTRAIT_W, PORTRAIT_H = 24, 28
+PORTRAIT_COUNT = 8
 
 BACKDROP = (118, 138, 158, 255)
 BACKDROP_L = (146, 166, 184, 255)
 BACKDROP_D = (92, 110, 130, 255)
 
-SKINS = [P.SKIN, P.SKIN_D, P.SKIN_DARK, P.SKIN_DARK_D, P.SKIN, P.SKIN_DARK]
-HAIRS = [(62, 44, 38, 255), (34, 30, 34, 255), (152, 88, 44, 255),
-         (126, 122, 126, 255), (86, 58, 40, 255), (44, 40, 54, 255)]
-## 0 = clean shaven, 1 = full beard, 2 = moustache.
-BEARDS = [0, 1, 0, 2, 1, 0]
+# Row half-widths for the head, hand-tuned rather than an ellipse formula: a
+# jaw that tapers reads as a face, and a perfect oval reads as a balloon.
+HEAD_ROWS = {
+    6: 3, 7: 5, 8: 6, 9: 6, 10: 7, 11: 7, 12: 7, 13: 7,
+    14: 7, 15: 7, 16: 6, 17: 6, 18: 5, 19: 4, 20: 3,
+}
+HEAD_CX = 12
+HEAD_TOP, HEAD_BOTTOM = 6, 20
+
+# index 0-3 short hair, one variant bearded, one moustached, one grey and
+# clean; index 4-7 hair past the jaw, never facial hair.
+FEMININE = [False, False, False, False, True, True, True, True]
+SKINS = [P.SKIN, P.SKIN_D, P.SKIN_DARK, P.SKIN_DARK_D,
+         P.SKIN_D, P.SKIN, P.SKIN_DARK_D, P.SKIN_DARK]
+HAIRS = [
+    (66, 46, 38, 255), (30, 27, 31, 255), (150, 88, 46, 255), (150, 148, 150, 255),
+    (54, 35, 30, 255), (26, 23, 27, 255), (128, 66, 42, 255), (172, 168, 168, 255),
+]
+## 0 clean shaven, 1 full beard, 2 moustache. Only the masculine half ever
+## carries one.
+BEARDS = [0, 1, 2, 0, 0, 0, 0, 0]
 
 
 def _shade(color, k):
     return (int(color[0] * k), int(color[1] * k), int(color[2] * k), 255)
 
 
+def _head_half(y):
+    return HEAD_ROWS.get(y, 0)
+
+
+def _draw_head(img, skin, dark):
+    for y in range(HEAD_TOP, HEAD_BOTTOM + 1):
+        half = _head_half(y)
+        if half <= 0:
+            continue
+        rect(img, HEAD_CX - half, y, half, 1, skin)
+        rect(img, HEAD_CX, y, half, 1, dark)
+    ear_y = (HEAD_TOP + HEAD_BOTTOM) // 2
+    half = _head_half(ear_y)
+    px(img, HEAD_CX - half - 1, ear_y, skin)
+    px(img, HEAD_CX + half, ear_y, dark)
+
+
+def _draw_hair(img, hair, hair_l, feminine, fringe_shift):
+    ## The cap: the top third of the head silhouette, cut by a fringe line
+    ## that sits a little lower on one side than the other.
+    for y in range(HEAD_TOP, HEAD_TOP + 5):
+        half = _head_half(y)
+        if half <= 0:
+            continue
+        cut = half if y < HEAD_TOP + 2 else max(0, half - 2 - fringe_shift)
+        rect(img, HEAD_CX - half, y, half - cut + half, 1, hair)
+        # a lit strip along the crown, so the cap reads as hair and not ink
+        if y == HEAD_TOP:
+            hline(img, HEAD_CX - half, y, half * 2, hair_l)
+    if not feminine:
+        return
+    # A solid curtain flanking the face, from the temple down past the
+    # shoulder — width is what reads as hair; the wire-thin first draft of
+    # this read as a chinstrap instead.
+    for y in range(HEAD_TOP + 2, HEAD_BOTTOM + 5):
+        half = _head_half(min(y, HEAD_BOTTOM))
+        width = 4 if y <= HEAD_BOTTOM else 3
+        rect(img, HEAD_CX - half - width, y, width, 1, hair)
+        rect(img, HEAD_CX + half, y, width, 1, hair)
+        if y % 3 == 0:
+            px(img, HEAD_CX - half - width, y, hair_l)
+            px(img, HEAD_CX + half + width - 1, y, hair_l)
+
+
+def _draw_face(img, skin, dark, shadow):
+    ## One dark pixel per eye, a one-pixel nose shadow, one short mouth line.
+    ## The old brow-plus-highlight version was busier than a 24px face can
+    ## carry and read as startled; this reads as a face from across a room,
+    ## which is the only distance this asset is ever seen from.
+    for eye_x in (HEAD_CX - 3, HEAD_CX + 2):
+        px(img, eye_x, 14, (44, 37, 41, 255))
+    px(img, HEAD_CX - 1, 16, shadow)
+    px(img, HEAD_CX, 16, shadow)
+    hline(img, HEAD_CX - 2, 18, 4, shadow)
+
+
+def _draw_beard(img, hair, shadow, style):
+    if style == 1:
+        for y in range(17, HEAD_BOTTOM + 1):
+            half = max(2, _head_half(y) - 1)
+            for x in range(HEAD_CX - half, HEAD_CX + half):
+                if not (17 <= y <= 18 and HEAD_CX - 2 <= x < HEAD_CX + 2):
+                    px(img, x, y, hair)
+        hline(img, HEAD_CX - 2, 18, 4, shadow)          # the mouth in the beard
+    elif style == 2:
+        hline(img, HEAD_CX - 3, 17, 6, hair)
+
+
 def _portrait(index):
     img = new_img(PORTRAIT_W, PORTRAIT_H)
+    feminine = FEMININE[index % len(FEMININE)]
     skin = SKINS[index % len(SKINS)]
     dark = _shade(skin, 0.80)
+    shadow = _shade(skin, 0.62)
     hair = HAIRS[index % len(HAIRS)]
     hair_l = _shade(hair, 1.35)
     beard = BEARDS[index % len(BEARDS)]
@@ -221,54 +320,17 @@ def _portrait(index):
     hline(img, 2, 25, 20, P.VEST_L)          # the reflective band
     hline(img, 2, 26, 20, P.VEST_D)
     rect(img, 9, 19, 6, 3, dark)             # neck, in its own shadow
-    hline(img, 9, 21, 6, _shade(skin, 0.66))
+    hline(img, 9, 21, 6, shadow)
 
-    # Head.
-    for y in range(PORTRAIT_H):
-        for x in range(PORTRAIT_W):
-            ex = (x - 11.5) / 5.7
-            ey = (y - 13.5) / 7.7
-            if ex * ex + ey * ey <= 1.0:
-                px(img, x, y, skin if x + y < 27 else dark)
-    for ear_y in (14, 15):
-        px(img, 5, ear_y, skin)
-        px(img, 18, ear_y, dark)
-
-    # Hair: a cap over the crown, with the fringe line the variant decides.
-    for y in range(6, 12):
-        for x in range(PORTRAIT_W):
-            ex = (x - 11.5) / 5.7
-            ey = (y - 13.5) / 7.7
-            if ex * ex + ey * ey > 1.0:
-                continue
-            if y < 10 or x < 7 + (index % 2) or x > 16 - (index % 2):
-                px(img, x, y, hair if x + y > 20 else hair_l)
-
-    for eye_x in (8, 14):
-        rect(img, eye_x, 12, 2, 1, hair)             # brow
-        px(img, eye_x, 14, (48, 40, 44, 255))        # eye
-        px(img, eye_x + 1, 14, (240, 240, 244, 255))
-    rect(img, 11, 15, 2, 2, dark)                    # nose
-    px(img, 11, 17, _shade(skin, 0.66))
-
-    if beard == 1:
-        for y in range(16, 21):
-            for x in range(PORTRAIT_W):
-                ex = (x - 11.5) / 5.7
-                ey = (y - 13.5) / 7.7
-                if ex * ex + ey * ey <= 1.0 and not (17 <= y <= 18 and 10 <= x <= 13):
-                    px(img, x, y, hair)
-        rect(img, 10, 18, 4, 1, _shade(skin, 0.58))  # the mouth in the beard
-    elif beard == 2:
-        rect(img, 9, 17, 6, 1, hair)
-        rect(img, 10, 19, 4, 1, _shade(skin, 0.58))
-    else:
-        rect(img, 10, 18, 4, 1, _shade(skin, 0.58))
+    _draw_head(img, skin, dark)
+    _draw_hair(img, hair, hair_l, feminine, index % 2)
+    _draw_face(img, skin, dark, shadow)
+    _draw_beard(img, hair, shadow, beard)
     return img
 
 
 def gen_portraits():
-    save(sheet([_portrait(i) for i in range(6)]), "portrait_sheet",
+    save(sheet([_portrait(i) for i in range(PORTRAIT_COUNT)]), "portrait_sheet",
          preview_scale=4)
 
     # The hard hat, in greys, aligned to the same 24x28 cell.

@@ -97,6 +97,21 @@ static func duty_of(role: String) -> String:
 	return str(ROLES.get(role, {}).get("duty", ""))
 
 
+static func presents_feminine(first_name: String) -> bool:
+	## Which half of the portrait set (`UiTheme.PORTRAIT_COUNT`) a rolled crew
+	## member's face should come from — see `NpcProfile.presents_feminine()`,
+	## the only caller. A face picked with no regard for the name it sits next
+	## to is the bug this exists to not have.
+	return FEMININE_NAMES.has(first_name)
+
+
+static func special_presents_feminine(id: StringName) -> bool:
+	for special in SPECIALS:
+		if StringName(special.id) == id:
+			return bool(special.get("feminine", false))
+	return false
+
+
 ## Three people the port would be different without, seeded at a fixed station
 ## so they are always found among the crew rather than rolled for.
 ##
@@ -126,12 +141,15 @@ const SPECIALS := [
 		"role": "alfandega",
 		"slot": 0,
 		"name": "Dona Neusa",
+		"feminine": true,
 		"dossier": "Conhece a placa de cada carreta que entra aqui e o nome de quem dirige. Papel errado não passa da guarita, e ninguém tenta duas vezes.",
 		"trait": "Café às seis. A cancela abre depois do café.",
 	},
 ]
 
-## Names for everybody else. Gaúchos, porque é onde o porto está.
+## Names for everybody else. Gaúchos, porque é onde o porto está. Deliberately
+## half and half — see `presents_feminine()`, which is the reason it matters
+## that this list is a fixed set rather than a name generator.
 const FIRST_NAMES := [
 	"Ademar", "Bruna", "Cleber", "Daiane", "Everton", "Fabiane", "Gilmar",
 	"Helena", "Ivete", "Jocelito", "Kelen", "Loivo", "Marilda", "Nilson",
@@ -142,6 +160,14 @@ const SURNAMES := [
 	"Krause", "Lemos", "Moraes", "Nunes", "Ortiz", "Pacheco", "Quadros",
 	"Rodrigues", "Silveira", "Tavares", "Vargas", "Weber", "Xavier",
 	"Zambrano",
+]
+## The feminine half of `FIRST_NAMES`, exactly — not a suffix rule. Portuguese
+## has plenty of counter-examples (Ivete, Odete, Rejane end in "e"; several
+## masculine names here end in "o" but so does "Loivo"), so this is a lookup
+## table, not a heuristic.
+const FEMININE_NAMES := [
+	"Bruna", "Daiane", "Fabiane", "Helena", "Ivete", "Kelen", "Marilda",
+	"Odete", "Rejane", "Zaira",
 ]
 
 ## One line of texture per station, so a rolled crew member still reads as a

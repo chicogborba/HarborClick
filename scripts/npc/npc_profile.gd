@@ -37,6 +37,18 @@ func is_special() -> bool:
 	return special_id != &""
 
 
+func presents_feminine() -> bool:
+	## Which half of the portrait sheet this person's face is drawn from.
+	## Nothing is stored for it: a rolled crew member's name already says it
+	## (`NpcCatalog.FEMININE_NAMES`), and a special's does not follow the same
+	## pattern ("Dona Neusa" is not a `FIRST_NAMES` entry), so that half asks
+	## the catalog by id instead. Deriving it here rather than saving it means
+	## an old save picks it up for free the next time this runs.
+	if is_special():
+		return NpcCatalog.special_presents_feminine(special_id)
+	return NpcCatalog.presents_feminine(display_name.split(" ")[0])
+
+
 func wears_special_hat() -> bool:
 	return hat_color.a > 0.0
 
