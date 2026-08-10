@@ -20,9 +20,16 @@ card. Do not edit the PNGs by hand: change the generator and run
 tools/venv/bin/python tools/sprites/gen_landing.py
 ```
 
-Sprites the page borrows from the game (crane, containers, seagull, cat, world
-map, anchor) are copied by the same script, so the front door can never drift
-from the terminal behind it.
+Sprites the page borrows from the game (crane, containers, cat, world map,
+anchor) are copied by the same script, so the front door can never drift from
+the terminal behind it.
+
+**The gulls are drawn here too.** `prop_seagull` is seen from directly above,
+because that is the angle the game is played at; crossing a hero in front of a
+side-on ship and a side-on sea, a bird seen from above reads as a little person
+holding its arms out. `GULL_FRAMES` draws four side-on frames of one flap
+instead, each frame whole rather than a body with a wing pasted onto it — at
+sixteen pixels the join is most of the bird.
 
 **The ship is drawn here, not borrowed.** The hero used to reuse `ship_cute`,
 the game's little top-down harbour boat, which on a wide screen read as a bath
@@ -31,7 +38,9 @@ vessel instead — hull, forecastle, accommodation block, funnel and a stack of
 the game's own boxes — and the same routine produces the small feeder on the
 first card, with three bays instead of six. Both ship in three-frame strips:
 bow wave, wash and funnel smoke are stepped by CSS, never cross-faded, because
-a pixel ship with soft edges is not a pixel ship.
+a pixel ship with soft edges is not a pixel ship. The strip carries
+`SMOKE_ROOM` blank rows above the funnel — without them the plume ran into the
+top edge of the sprite and came out flat.
 
 ## Pixel discipline
 

@@ -97,7 +97,7 @@
      rides it and the skyline behind both, so none of the three ever share
      space with the copy. */
   --sea-h: calc(var(--ws) * 32px);
-  --sea-room: calc(var(--sea-h) + var(--bs) * 60px);
+  --sea-room: calc(var(--sea-h) + var(--bs) * 70px);
   --gutter: 20px;
   --wide: 1120px;
 
@@ -470,9 +470,9 @@ h1, h2, h3 {
 .gull {
   position: absolute;
   display: block;
-  width: calc(var(--s) * 14px);
-  height: calc(var(--s) * 12px);
-  background: url("/media/seagull.png") 0 0 / calc(var(--s) * 56px) calc(var(--s) * 12px);
+  width: calc(var(--s) * 16px);
+  height: calc(var(--s) * 16px);
+  background: url("/media/seagull.png") 0 0 / calc(var(--s) * 64px) calc(var(--s) * 16px);
   image-rendering: pixelated;
   animation: flap 0.5s steps(4) infinite, cross-r 26s linear infinite;
 }
@@ -590,8 +590,8 @@ h1, h2, h3 {
   left: 0;
   display: block;
   width: calc(var(--bs) * 228px);
-  height: calc(var(--bs) * 88px);
-  background: url("/media/ship-side.png") 0 0 / calc(var(--bs) * 684px) calc(var(--bs) * 88px);
+  height: calc(var(--bs) * 104px);
+  background: url("/media/ship-side.png") 0 0 / calc(var(--bs) * 684px) calc(var(--bs) * 104px);
   image-rendering: pixelated;
   filter: drop-shadow(0 calc(var(--bs) * 2px) 0 rgba(6, 15, 26, 0.55));
   animation: sail 62s linear infinite, chug 0.66s steps(3) infinite;
@@ -667,39 +667,27 @@ h1, h2, h3 {
   image-rendering: pixelated;
 }
 
-.rig-1 {
-  top: calc(var(--ws) * 4px);
-  background-position: 0 0;
-  animation: haul-r 13s linear infinite;
-}
-
-.rig-2 {
-  top: calc(var(--ws) * 24px);
-  background-position: calc(var(--ws) * -65px) 0;
-  animation: haul-l 17s linear infinite;
-  animation-delay: -6s;
-}
-
-.rig-3 {
-  top: calc(var(--ws) * 4px);
-  background-position: calc(var(--ws) * -130px) 0;
-  animation: haul-r 21s linear infinite;
-  animation-delay: -14s;
-}
-
-.rig-4 {
-  top: calc(var(--ws) * 24px);
-  background-position: 0 0;
-  animation: haul-l 26s linear infinite;
-  animation-delay: -21s;
-}
-
+/* Two lanes, and every rig in a lane runs at the same speed with its delay
+   spread evenly across the loop. They used to have a duration each, which
+   meant the faster ones drove straight through the slower ones. */
+.rig-1,
+.rig-3,
 .rig-5 {
   top: calc(var(--ws) * 4px);
-  background-position: calc(var(--ws) * -65px) 0;
-  animation: haul-r 30s linear infinite;
-  animation-delay: -27s;
+  animation: haul-r 22s linear infinite;
 }
+
+.rig-2,
+.rig-4 {
+  top: calc(var(--ws) * 24px);
+  animation: haul-l 27s linear infinite;
+}
+
+.rig-1 { background-position: 0 0; }
+.rig-3 { background-position: calc(var(--ws) * -130px) 0; animation-delay: -7.33s; }
+.rig-5 { background-position: calc(var(--ws) * -65px) 0; animation-delay: -14.66s; }
+.rig-2 { background-position: calc(var(--ws) * -65px) 0; }
+.rig-4 { background-position: 0 0; animation-delay: -13.5s; }
 
 /* ------------------------------------------------------------- SECTIONS */
 .bay,
@@ -708,7 +696,7 @@ h1, h2, h3 {
 .berth {
   max-width: var(--wide);
   margin: 0 auto;
-  padding: clamp(44px, 5vw, 74px) var(--gutter);
+  padding: clamp(38px, 4vw, 60px) var(--gutter);
 }
 
 .eyebrow {
@@ -733,9 +721,9 @@ h1, h2, h3 {
 .yard h2,
 .manifest h2,
 .berth h2 {
-  font-size: clamp(15px, 4.2vw, 26px);
-  line-height: 1.7;
-  text-shadow: 0 3px 0 rgba(6, 15, 26, 0.9);
+  font-size: clamp(14px, 3.6vw, 20px);
+  line-height: 1.75;
+  text-shadow: 0 2px 0 rgba(6, 15, 26, 0.8);
 }
 
 .bay h2 b,
@@ -749,7 +737,7 @@ h1, h2, h3 {
   .bay h2,
   .yard h2,
   .manifest h2,
-  .berth h2 { font-size: clamp(22px, 2.4vw, 32px); }
+  .berth h2 { font-size: clamp(17px, 1.7vw, 23px); }
 }
 
 .steps,
@@ -797,7 +785,7 @@ h1, h2, h3 {
   position: relative;
   display: block;
   width: 100%;
-  height: calc(var(--ai) * 88px);
+  height: calc(var(--ai) * 104px);
   background-repeat: no-repeat;
   background-position: center bottom;
   image-rendering: pixelated;
@@ -811,10 +799,10 @@ h1, h2, h3 {
 .art-ship i {
   display: block;
   width: calc(var(--ai) * 150px);
-  height: calc(var(--ai) * 88px);
+  height: calc(var(--ai) * 104px);
   max-width: 100%;
   margin: 0 auto;
-  background: url("/media/ship-feeder.png") 0 0 / calc(var(--ai) * 450px) calc(var(--ai) * 88px);
+  background: url("/media/ship-feeder.png") 0 0 / calc(var(--ai) * 450px) calc(var(--ai) * 104px);
   image-rendering: pixelated;
   animation: chug-card 0.66s steps(3) infinite;
 }
@@ -1118,7 +1106,7 @@ h1, h2, h3 {
 
 @keyframes flap {
   from { background-position-x: 0; }
-  to { background-position-x: calc(var(--s) * -56px); }
+  to { background-position-x: calc(var(--s) * -64px); }
 }
 
 @keyframes cross-r {

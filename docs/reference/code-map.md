@@ -211,7 +211,7 @@ Inventory: **187 authored code/config/scene files**.
 | `tools/sprites/gen_cranes.py` | 212 | 7 functions | Top-down quay cranes: STS (straddles the quay, boom reaching over the ship) |
 | `tools/sprites/gen_font.py` | 371 | 2 functions | Generates the game's pixel font: a PNG atlas plus a BMFont .fnt descriptor |
 | `tools/sprites/gen_ground.py` | 199 | 11 functions | Top-down ground tiles, Stardew-flavoured: textured asphalt, worn concrete, |
-| `tools/sprites/gen_landing.py` | 817 | 27 functions | Generates every pixel asset the public landing page ships. |
+| `tools/sprites/gen_landing.py` | 928 | 29 functions | Generates every pixel asset the public landing page ships. |
 | `tools/sprites/gen_people.py` | 295 | 16 functions | Top-down dock workers, Stardew-ish: hard hat and hi-vis vest seen from above. |
 | `tools/sprites/gen_pixellab.py` | 108 | 6 functions | Turns the cached PixelLab generations into game-ready PNGs. |
 | `tools/sprites/gen_props.py` | 741 | 27 functions | Top-down scenery props: lamps, bollards, greenery, wildlife, FX. |

@@ -14,8 +14,8 @@ import random
 from PIL import Image
 
 import palette as P
-from common import (hline, new_img, outline, px, rect, speckle, text,
-                    text_width, vline)
+from common import (hline, new_img, outline, px, rect, sheet, speckle,
+                    text, text_width, vline)
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SPRITES = os.path.join(ROOT, "assets", "sprites")
@@ -177,6 +177,108 @@ def gen_road():
     save(img, "road")
 
 
+# --------------------------------------------------------------------------
+# Gulls
+# --------------------------------------------------------------------------
+# The page used to borrow `prop_seagull`, which is drawn from directly above
+# because that is the angle the game is played at. Crossing a hero in front of
+# a side-on ship and a side-on sea, a bird seen from above reads as a little
+# person holding its arms out. These are drawn from the side instead: one body,
+# one wing, four positions through a beat.
+GULL_W, GULL_H = 16, 16
+
+# Drawn whole per frame rather than as a body plus a pasted wing: at sixteen
+# pixels the join between the two is most of the bird, and a wing that floats a
+# pixel clear of the shoulder reads as a bird that has come apart.
+GULL_FRAMES = [
+    # wing at the top of the stroke
+    ["................",
+     "....oo..........",
+     "...o##o.........",
+     "...o###o........",
+     "....o###o.......",
+     ".....o###o......",
+     "......o###o.....",
+     ".......o###o....",
+     "........o###o...",
+     "..ooooo######oo.",
+     ".o#############y",
+     ".o############yy",
+     "..oo#########o..",
+     "....ooooooooo...",
+     "................",
+     "................"],
+    # coming down
+    ["................",
+     "................",
+     "................",
+     "..ooo...........",
+     ".o###o..........",
+     "..o###oo........",
+     "...o#####o......",
+     "....o######o....",
+     ".....o######o...",
+     "..ooooo######oo.",
+     ".o#############y",
+     ".o############yy",
+     "..oo#########o..",
+     "....ooooooooo...",
+     "................",
+     "................"],
+    # level, swept back
+    ["................",
+     "................",
+     "................",
+     "................",
+     "................",
+     "................",
+     "oo..............",
+     "o##ooo..........",
+     ".o######ooooo...",
+     "..ooo########oo.",
+     ".o#############y",
+     ".o############yy",
+     "..oo#########o..",
+     "....ooooooooo...",
+     "................",
+     "................"],
+    # bottom of the stroke
+    ["................",
+     "................",
+     "................",
+     "................",
+     "................",
+     "................",
+     "................",
+     "................",
+     ".....ooooooooo..",
+     "..ooo#########oo",
+     ".o#############y",
+     ".o############yy",
+     "..oo#########o..",
+     "..o####ooooooo..",
+     ".o#####o........",
+     "o###oo.........."],
+]
+
+GULL_INK = {"#": P.FOAM, "o": P.OUTLINE, "y": P.SAFETY}
+
+
+def _gull(frame: int) -> Image.Image:
+    img = new_img(GULL_W, GULL_H)
+    for ry, row in enumerate(GULL_FRAMES[frame]):
+        for rx, cell in enumerate(row):
+            if cell in GULL_INK:
+                px(img, rx, ry, GULL_INK[cell])
+    px(img, 12, 10, P.OUTLINE)                # eye
+    return img
+
+
+def gen_seagull():
+    """Four frames of one flap, as a strip the page steps through."""
+    save(sheet([_gull(frame) for frame in range(4)]), "seagull")
+
+
 def gen_skyline():
     """A seamless 320x120 band of terminal silhouettes for the hero's middle
     distance.
@@ -307,6 +409,7 @@ DECK_Y = 60       # main deck line
 WATER_Y = 78      # the ship's own waterline: 18 rows of freeboard
 KEEL_Y = 83       # last hull row drawn; the page's water covers the rest
 SHIP_H = 88
+SMOKE_ROOM = 16   # blank rows above the funnel for the plume to climb into
 BOW_RAKE = 20     # how far the stem leans forward over that freeboard
 FORECASTLE = 34   # length of the raised bow deck
 
@@ -507,43 +610,49 @@ def _draw_ship(tiers, name: str) -> Image.Image:
     return outline(img)
 
 
-def _wash(img: Image.Image, frame: int, bow: int, stern: int) -> None:
+def _wash(img: Image.Image, frame: int, bow: int, stern: int,
+          top: int = 0) -> None:
     """Bow wave, quarter wake and funnel smoke — the three things that make a
-    still ship read as a moving one. One frame's worth, drawn in place."""
+    still ship read as a moving one. One frame's worth, drawn in place.
+
+    `top` is where the hull was pasted into the taller canvas: the smoke needs
+    room above the funnel, and without it the plume was flat-topped against the
+    edge of the sprite."""
     rng = random.Random(4700 + frame * 31)
     foam = _night(P.FOAM, 0.94)
     spray = _night(P.SEA_SPARK, 0.9)
     stem = bow - BOW_RAKE
+    water = WATER_Y + top
 
     # bow wave: a shoulder of white thrown out ahead of and beside the stem
     for i in range(14):
         x = stem - 4 + i
-        crest = WATER_Y - 2 + abs(i - 5) // 3
+        crest = water - 2 + abs(i - 5) // 3
         px(img, x, crest, foam)
         if (i + frame) % 2 == 0:
             px(img, x, crest + 1, spray)
     for i in range(7):
-        px(img, stem + 6 + i, WATER_Y + 1 + i // 3, foam if i < 4 else spray)
+        px(img, stem + 6 + i, water + 1 + i // 3, foam if i < 4 else spray)
 
     # a broken line of wash down the waterline
     for x in range(stern + 10, stem - 6, 3):
         if (x // 3 + frame) % 3 == 0:
-            px(img, x, WATER_Y - 1, foam)
-            px(img, x + 1, WATER_Y - 1, spray)
+            px(img, x, water - 1, foam)
+            px(img, x + 1, water - 1, spray)
 
     # quarter wake trailing aft of the stern
     for i in range(20):
         x = stern - 1 - i
         if x < 0:
             break
-        y = WATER_Y + (i // 7)
+        y = water + (i // 7)
         if (i + frame) % 2 == 0:
             px(img, x, y, foam if i < 9 else spray)
             px(img, x, y - 1, spray if i < 5 else P.TRANSPARENT)
 
     # funnel smoke, drifting aft and thinning as it goes
-    puffs = ((0, 0, 3), (-5, -3, 3), (-11, -5, 2), (-18, -6, 2), (-25, -6, 1))
-    base_x, base_y = stern + 23, 4
+    puffs = ((0, 0, 3), (-5, -4, 3), (-11, -7, 2), (-18, -9, 2), (-25, -10, 1))
+    base_x, base_y = stern + 23, top + 2
     for index, (dx, dy, r) in enumerate(puffs):
         cx = base_x + dx - frame * 3
         cy = base_y + dy - frame
@@ -568,13 +677,15 @@ def gen_ship():
     ):
         base = _draw_ship(tiers, name)
         stern, bow = 6, base.width - 4
-        strip = new_img(base.width * frames, SHIP_H)
+        tall = SHIP_H + SMOKE_ROOM
+        strip = new_img(base.width * frames, tall)
         for frame in range(frames):
-            cell = base.copy()
-            _wash(cell, frame, bow, stern)
+            cell = new_img(base.width, tall)
+            cell.paste(base, (0, SMOKE_ROOM))
+            _wash(cell, frame, bow, stern, SMOKE_ROOM)
             strip.paste(cell, (frame * base.width, 0))
         save(strip, out)
-        print(f"      frame {base.width}x{SHIP_H}")
+        print(f"      frame {base.width}x{tall}")
 
 
 # --------------------------------------------------------------------------
@@ -788,7 +899,6 @@ BORROWED = {
     "ui_title_anchor": "anchor",
     "sts": "crane",
     "container_sheet": "containers",
-    "prop_seagull": "seagull",
     "prop_cat": "cat",
     "map_world": "world-map",
 }
@@ -805,6 +915,7 @@ if __name__ == "__main__":
     gen_port_strip()
     gen_water()
     gen_road()
+    gen_seagull()
     gen_skyline()
     gen_truck()
     gen_ship()
