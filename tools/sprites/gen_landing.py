@@ -717,12 +717,12 @@ MARKS = [
 
 
 def gen_chips():
-    """Four 16x16 badges for the feature cards: crane, globe, share, box.
+    """Five 16x16 badges for the cards: crane, globe, share, box, cat.
 
     Drawn rather than borrowed because the shop icons they would otherwise come
     from are sized for a 320px board and read as mush at card scale."""
     cell = 16
-    img = new_img(cell * 4, cell)
+    img = new_img(cell * 5, cell)
 
     def at(index, x, y, w, h, color):
         rect(img, index * cell + x, y, w, h, color)
@@ -763,6 +763,19 @@ def gen_chips():
         at(3, rib, 5, 1, 6, P.CONTAINERS["rust"][1])
     at(3, 1, 3, 3, 1, P.STEEL_L)
     at(3, 12, 3, 3, 1, P.STEEL_L)
+
+    # the cat, sitting, tail curled round its feet
+    fur, fur_d = (206, 186, 138, 255), (160, 142, 102, 255)
+    at(4, 4, 2, 2, 2, fur)               # ears
+    at(4, 9, 2, 2, 2, fur)
+    at(4, 3, 4, 9, 5, fur)               # head
+    at(4, 4, 9, 7, 5, fur)               # body
+    at(4, 3, 12, 9, 2, fur_d)            # haunches
+    at(4, 11, 8, 2, 6, fur)              # tail up the back
+    at(4, 12, 13, 3, 1, fur_d)           # tail tip round the front
+    px(img, 4 * cell + 5, 6, P.OUTLINE)  # eyes
+    px(img, 4 * cell + 9, 6, P.OUTLINE)
+    px(img, 4 * cell + 7, 8, P.CRANE_L)  # nose
 
     save(outline(img), "chips")
 

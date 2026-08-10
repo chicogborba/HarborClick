@@ -699,23 +699,6 @@ h1, h2, h3 {
   padding: clamp(38px, 4vw, 60px) var(--gutter);
 }
 
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 14px;
-  color: var(--amber);
-  font-family: "HC Display", monospace;
-  font-size: 10px;
-  letter-spacing: 0.16em;
-}
-
-.eyebrow::before {
-  content: "";
-  width: 26px;
-  height: 3px;
-  background: repeating-linear-gradient(90deg, var(--amber-d) 0 6px, transparent 6px 12px);
-}
 
 .bay h2,
 .yard h2,
@@ -726,12 +709,6 @@ h1, h2, h3 {
   text-shadow: 0 2px 0 rgba(6, 15, 26, 0.8);
 }
 
-.bay h2 b,
-.yard h2 b,
-.berth h2 b {
-  color: var(--amber);
-  font-weight: 400;
-}
 
 @media (min-width: 1080px) {
   .bay h2,
@@ -744,7 +721,7 @@ h1, h2, h3 {
 .cards {
   display: grid;
   gap: clamp(20px, 3vw, 30px);
-  margin: clamp(32px, 5vw, 52px) 0 0;
+  margin: clamp(24px, 3vw, 36px) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -878,13 +855,14 @@ h1, h2, h3 {
   width: calc(var(--ds) * 16px);
   height: calc(var(--ds) * 16px);
   background-image: url("/media/chips.png");
-  background-size: calc(var(--ds) * 64px) calc(var(--ds) * 16px);
+  background-size: calc(var(--ds) * 80px) calc(var(--ds) * 16px);
   image-rendering: pixelated;
 }
 
 .chip-globe { background-position: calc(var(--ds) * -16px) 0; }
 .chip-coin { background-position: calc(var(--ds) * -32px) 0; }
 .chip-box { background-position: calc(var(--ds) * -48px) 0; }
+.chip-cat { background-position: calc(var(--ds) * -64px) 0; }
 
 /* Lift on hover, on pointers that can hover. A card that jumps under a thumb
    is a card that looks broken. */
@@ -899,7 +877,7 @@ h1, h2, h3 {
 /* -------------------------------------------------------------- MANIFEST */
 .board {
   position: relative;
-  max-width: 680px;
+  max-width: 520px;
   margin: 0 auto;
   padding: 6px 4px 10px;
   color: var(--paper-ink);
@@ -932,13 +910,6 @@ h1, h2, h3 {
   transform: rotate(-8deg);
 }
 
-.doc-code {
-  margin: 0 0 10px;
-  color: #6d6250;
-  font-family: "HC Display", monospace;
-  font-size: 9px;
-  letter-spacing: 0.14em;
-}
 
 .rules {
   margin: 22px 0 0;

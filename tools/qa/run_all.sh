@@ -15,6 +15,9 @@ if [ ! -x "$PYTHON" ]; then
   PYTHON="${PYTHON_BIN:-python3}"
 fi
 "$PYTHON" tools/docs/generate_code_map.py --check
+# The landing has no Godot suite, and a key renamed on one side of it publishes
+# the key itself to the front page in nine languages.
+"$PYTHON" tools/qa/check_landing_strings.py
 # Import before the suites, and *fail* if it could not: a suite whose sprite the
 # importer has never seen does not fail cleanly — see run_suite below.
 "$GODOT" --headless --quiet --path . --editor --quit

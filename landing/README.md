@@ -91,6 +91,17 @@ where "follow the device" is the default rather than the absence of a choice.
 `?lang=en` overrides both, so a link can point at one language, and so a
 screenshot pass can walk all nine.
 
+`tools/qa/check_landing_strings.py` runs in `run_all.sh` and fails the build if
+a key is in the markup but not the table, in the table but used by nothing, or
+short a language. A missing key is not a blank label here: `t()` returns the
+key, so the front page publishes the literal text `yard.2.body`.
+
+**On the copy.** This is one person's small game, and the page should sound
+like it: short lines, plain words, no manifesto. If a sentence could appear in
+a press release it is wrong. The ticker is the night shift talking to itself
+rather than a feature list, the deal is four words each, and the last card is
+about the cat.
+
 ## Preview
 
 The page uses absolute `/media/...` paths, so open it through a server that
