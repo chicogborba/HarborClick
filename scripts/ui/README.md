@@ -33,10 +33,21 @@ Entry points:
   and an on/off switch afterwards, and the switch is the reason the tab works —
   a decoration you cannot take back off is one nobody risks buying. See
   `scripts/data/cosmetic_db.gd`.
-  - **The upgrades tab is a map, not a list.** See `upgrade_map.gd` below. It is
-    the one tab with no `ScrollContainer`: it pans and zooms itself, and a scroll
-    container wrapped round something that already handles drag fights it for
-    every gesture and wins.
+  - **The upgrades tab is a list first, with the map one key away.** The
+    transit map was the only view for a while, and on a phone it was fifty grey
+    dots with half their names cut off — nobody could tell what was for sale,
+    what it did or what it cost without tapping stations one by one. The list
+    answers those in the order they are asked: DISPONÍVEIS (cheapest first; the
+    affordable ones light up), PRÓXIMAS (nodes whose parents are all owned,
+    each with the one sentence that shuts it), and COMPRADAS folded away. Every
+    card carries the node's effect in words (`GameState.upgrade_preview`) — a
+    kind with no effect text is a test failure in `ui_p0`.
+    - **Cards are built once and moved, never rebuilt** (`_build_upgrade_cards`,
+      `_refresh_upgrade_list`). Order and membership only change on a purchase or
+      an unlock, the list compares a key before moving anything, and it never
+      re-lays itself while a pointer is down.
+    - The MAPA key swaps in `upgrade_map.gd` and its ticket, which keep their
+      own rules below.
   - **A shut station says what shuts it.** `_gate_reason` turns the two ways a
     node can be blocked — an unbought prerequisite, a fleet the port has not got
     — into one sentence naming the thing to go and do. A dead control with no
@@ -70,6 +81,13 @@ Entry points:
   foot open it: `StructureActor.is_person()`, not `is_crew()`. A crewed machine
   is still a machine, and inspecting by crew turned every reach stacker in the
   yard into a personnel card waiting to open.
+- `wheel_button.gd` / `lucky_wheel_panel.gd`, `daily_orders_button.gd` /
+  `daily_orders_panel.gd` — the two steel keys stacked under the gantry's left
+  end and the paper boards they open: the Roda da Sorte and the Missões do Dia.
+  Both boards fit their height a frame after their width (an autowrapped label
+  measured at width 0 reports a fantasy height, which once pushed the wheel's
+  board off a phone), and both open() let that settle before `pop_open`
+  records the resting position. Rows are built once and rewritten in place.
 - `notice_bell.gd` — every notice, collected instead of thrown. Nothing
   interrupts the port: `NotificationCoordinator` still decides what is worth
   keeping and still collapses repeats, and this lights a lamp on the gantry and

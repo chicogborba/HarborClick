@@ -12,6 +12,8 @@ extends Node
 signal state_changed
 signal token_earned
 signal prize_applied(prize: Dictionary, amount: float)
+## A spin decided a prize (the daily "spin" mission listens to this).
+signal spun
 
 const SECTION_ID := &"lucky_wheel"
 
@@ -36,6 +38,7 @@ func spin() -> Dictionary:
 	## wheel cannot spin right now (nothing ready, or a prize still unclaimed).
 	var prize := wheel.spin(Time.get_unix_time_from_system(), _rng)
 	if not prize.is_empty():
+		spun.emit()
 		state_changed.emit()
 	return prize
 
@@ -60,6 +63,18 @@ func claim_and_apply() -> Dictionary:
 	prize_applied.emit(prize, amount)
 	state_changed.emit()
 	return prize
+
+
+func grant_token(count: int = 1) -> void:
+	## A bonus source outside the wheel itself (the golden gull) handing tokens
+	## straight to the rack. Capped at `LuckyWheel.MAX_TOKENS`; `token_earned`
+	## fires only when a token was actually added, `state_changed` on every
+	## grant so the panel and the button refresh either way.
+	var before := wheel.tokens
+	wheel.tokens = mini(wheel.tokens + maxi(0, count), LuckyWheel.MAX_TOKENS)
+	if wheel.tokens > before:
+		token_earned.emit()
+	state_changed.emit()
 
 
 func _on_ship_departed() -> void:

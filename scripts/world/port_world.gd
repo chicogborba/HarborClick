@@ -38,6 +38,9 @@ signal npc_inspected(profile: NpcProfile, dossier: Dictionary)
 ## Somebody is in the player's hand. The camera has to stop panning while they
 ## are, or dragging a person across the yard drags the terminal with them.
 signal npc_grab_changed(held: bool)
+## The golden gull was tapped. The prize is already rolled; applying it to the
+## economy is Main's job, so the world only reports what was caught and where.
+signal golden_gull_caught(prize: Dictionary, world_pos: Vector2)
 
 ## Every berth on the quay, north to south, and the controller that works it.
 ## `ship` and `berth` are berth 0 — the names the rest of the game and every
@@ -102,6 +105,17 @@ var _relay_claimed_crane := false
 ## themselves off a flight's own duration and need the box's arrival to be a
 ## function of the clock rather than of where a tractor happens to be.
 var relays_enabled := true
+## The gaivota dourada: a session-scoped reward clock (never persisted — a
+## reward clock that survived a reload could be farmed by reloading), its own
+## RNG so nothing else's seeded draws move because a gull flew, and the gull
+## currently crossing the terminal, if any.
+var _gull_policy := GoldenGullPolicy.new()
+var _rng := RandomNumberGenerator.new()
+var _gull: GoldenGull
+## The first gull of a session announces itself. Once a session rather than
+## once ever, because a hint is not worth a persisted field — and a player who
+## comes back a week later has forgotten the bird anyway.
+var _gull_hint_shown := false
 
 
 @onready var _containers: Texture2D = preload("res://assets/sprites/container_sheet.png")
@@ -130,6 +144,7 @@ func _exit_tree() -> void:
 
 
 func _ready() -> void:
+	_rng.randomize()
 	_build_water()
 	_build_ground()
 
@@ -549,6 +564,7 @@ func _process(delta: float) -> void:
 	_drive_rail_furniture(delta)
 	_drive_arrivals(delta)
 	_tick_hold(delta)
+	_tick_golden_gull(delta)
 	# The outlines are a hover affordance, and answering "can this be worked?"
 	# walks the whole yard once per ship and once per truck. At sixty hertz on a
 	# bought-out port that was the frame; nobody can see the difference at eight.
@@ -1217,9 +1233,13 @@ func _to_world(screen_pos: Vector2) -> Vector2:
 
 
 func _try_tap(world_pos: Vector2) -> void:
-	## Cargo first, people second. Working the ship and working a parked carreta
-	## are the game; a dossier is something you go and look at, and it must never
-	## eat the tap that moves a box.
+	## The gull first of all, then cargo, then people. Working the ship and
+	## working a parked carreta are the game; a dossier is something you go and
+	## look at — but a tap on the golden gull must never be eaten by whatever
+	## happens to be under the bird.
+	if _gull != null and is_instance_valid(_gull) and _gull.hit_test(world_pos):
+		_catch_gull()
+		return
 	if _tap_a_berth(world_pos):
 		AudioManager.play_sfx("click", 0.12)
 	elif critters != null and critters.tap_cat(world_pos):
@@ -1437,6 +1457,88 @@ func _tap_a_berth(world_pos: Vector2) -> bool:
 			if controller != null:
 				return controller.handle_tap(world_pos)
 	return false
+
+
+# ---------- the golden gull ----------
+
+func _tick_golden_gull(delta: float) -> void:
+	## The reward clock only runs while the port is actually being played: a
+	## terminal with no base income, or one whose input is blocked by an
+	## overlay, has nothing worth rewarding and is not owed a gull.
+	if _gull != null and is_instance_valid(_gull):
+		return
+	if _gull_policy.tick(delta, GameState.base_cps > 0.0 and _input_enabled, _rng):
+		_spawn_golden_gull()
+
+
+func _spawn_golden_gull() -> void:
+	## One gull crossing the part of the terminal the player can actually see:
+	## the visible rect mapped into world space and clamped to the world's
+	## width, with the 70 px the HUD and the console cover left clear at the
+	## top and bottom. It flies from 24 px outside one side to 24 px outside
+	## the other, on a random side.
+	var world_rect: Rect2 = get_canvas_transform().affine_inverse() \
+		* get_viewport().get_visible_rect()
+	world_rect.position.x = clampf(world_rect.position.x, 0.0, PortLayout.WORLD_W)
+	world_rect.size.x = clampf(world_rect.end.x, 0.0, PortLayout.WORLD_W) \
+		- world_rect.position.x
+	var y0 := world_rect.position.y + 70.0
+	var y1 := world_rect.end.y - 70.0
+	var y := _rng.randf_range(y0, y1) if y1 > y0 \
+		else world_rect.position.y + world_rect.size.y * 0.5
+	var west_first := _rng.randf() < 0.5
+	var from := Vector2(
+		world_rect.position.x - 24.0 if west_first else world_rect.end.x + 24.0, y)
+	var to := Vector2(
+		world_rect.end.x + 24.0 if west_first else world_rect.position.x - 24.0, y)
+	_gull = GoldenGull.new()
+	_gull.setup(from, to, GoldenGullPolicy.FLIGHT_SECONDS)
+	_gull.escaped.connect(_on_gull_escaped)
+	overhead.add_child(_gull)
+	AudioManager.play_sfx("gull", 0.1)
+	if not _gull_hint_shown:
+		# Riding with the bird, not in the notice bell: the bell collects news
+		# for later, and this is worth something only in the next nine seconds.
+		_gull_hint_shown = true
+		_gull.show_hint(Loc.t("gull.hint"))
+
+
+func _on_gull_escaped() -> void:
+	## It flew off uncaught. Missing costs nothing — that is the whole point of
+	## the bonus — but the miss is counted.
+	_gull_policy.missed += 1
+	_gull = null
+
+
+func _catch_gull() -> void:
+	## A tap on the bird: roll the prize, burst it, count the catch and hand the
+	## prize to Main with the position it was caught at.
+	var prize := _gull_policy.roll(_rng)
+	var pos := _gull.global_position
+	_gull.catch()
+	_gull = null
+	_gull_policy.caught += 1
+	AudioManager.play_sfx("coins", 0.05)
+	if UserPreferences.floating_numbers:
+		var ft := FloatText.new()
+		# A crit float adds its own "!", and the strings carry one for the
+		# places that print them plainly.
+		ft.setup(Loc.t("gull.%s" % str(prize.get("id", "lucky"))).trim_suffix("!"),
+			pos, true)
+		overhead.add_child(ft)
+	golden_gull_caught.emit(prize, pos)
+
+
+func gull_policy() -> GoldenGullPolicy:
+	## For tests and the capture harness.
+	return _gull_policy
+
+
+func active_gull() -> GoldenGull:
+	## The gull currently crossing, or null. For tests and the capture harness.
+	if _gull != null and is_instance_valid(_gull):
+		return _gull
+	return null
 
 
 # ---------- yard traffic dispatch ----------

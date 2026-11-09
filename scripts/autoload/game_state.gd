@@ -697,7 +697,37 @@ func upgrade_preview(item: Dictionary) -> Dictionary:
 			return {"cps_gain": maxf(0.0, delta), "click_gain": 0.0,
 				"text": "%s vira multiplicador: %s%s TEU/s agora" % [machine,
 					"+" if delta >= 0.0 else "-", fmt(absf(delta))]}
+		"rail_stat":
+			# These move a real knob on the branch rather than a rate, and their
+			# card used to print nothing at all: a node costing two hundred billion
+			# whose ticket was blank. Say the knob and how far it moves.
+			var parts := PackedStringArray()
+			for entry in UpgradeDB.stats_of(item):
+				parts.append(_rail_stat_text(entry))
+			return {"cps_gain": 0.0, "click_gain": 0.0, "text": " • ".join(parts)}
 	return {"cps_gain": 0.0, "click_gain": 0.0, "text": ""}
+
+
+static func _rail_stat_text(entry: Dictionary) -> String:
+	var stat := str(entry.get("stat", ""))
+	var op := str(entry.get("operation", ""))
+	var v := float(entry.get("value", 0.0))
+	match stat:
+		"service_gap":
+			if op == "mult" and v < 1.0:
+				return "Trens %d%% mais frequentes" % roundi((1.0 / v - 1.0) * 100.0)
+			return "Intervalo entre trens +%d%%" % roundi((v - 1.0) * 100.0)
+		"rake_length":
+			return "+%d vagões por trem" % roundi(v)
+		"dwell":
+			return "Trem fica %s%ds na rampa" % ["+" if v >= 0.0 else "-", absi(roundi(v))]
+		"auto_rate":
+			return "Ramal automático +%s caixas/s" % String.num(v, 2)
+		"auto_cap":
+			return "teto +%s" % String.num(v, 1)
+		"completion":
+			return "Bônus de trem completo x%s" % String.num(v, 1)
+	return stat
 
 
 func _upgrade_global_multiplier() -> float:

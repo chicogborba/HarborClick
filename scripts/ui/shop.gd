@@ -59,6 +59,24 @@ var _ticket_effect: Label
 var _ticket_price: PanelContainer
 var _ticket_price_label: Label
 var _ticket_buy: Button
+## The upgrades tab is a list first and a map on request. The map was the only
+## view, and on a phone it was fifty grey dots with half their names cut off:
+## nobody could tell what was for sale, what it did or what it cost without
+## tapping stations one by one.
+var _up_list_view: Control
+var _up_map_view: Control
+var _up_summary: Label
+var _up_view_toggle: Button
+var _up_list: VBoxContainer
+var _up_caption_ready: Control
+var _up_caption_next: Control
+var _up_more: Label
+var _up_owned_toggle: Button
+var _up_owned_open := false
+var _up_showing_map := false
+## Order and membership the list was last laid out with, so a refresh that
+## changes nothing moves nothing.
+var _up_layout_key := ""
 
 
 func _ready() -> void:
@@ -243,6 +261,7 @@ func _populate() -> void:
 	_teaser.setup("", "teaser", "", "", "")
 	_teaser.visible = false
 	_lists["structures"].add_child(_teaser)
+	_build_upgrade_cards()
 	_refresh_upgrades()
 	_rebuild_land()
 	_build_orders()
@@ -250,20 +269,70 @@ func _populate() -> void:
 
 
 func _build_upgrade_page() -> Control:
-	## Map on top, the selected station's ticket underneath.
+	## A list of what can be bought, with the map one key away.
 	##
-	## The split is the whole design. A transit map is for deciding *where to go*,
-	## and it can only do that if it stays a map — the moment every station carries
-	## its price, its effect and a buy button it is a list again, drawn diagonally.
-	## So the map carries shape and state and nothing else, and one panel below
-	## answers everything about whichever station you last touched.
+	## The list answers the three questions in the order a player asks them —
+	## what can I buy now, what is next, what have I got — and every card says
+	## what it does and what it costs without a tap. The transit map is still
+	## there for the shape of the tree; it is just no longer the only way in.
 	var page := VBoxContainer.new()
 	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page.add_theme_constant_override(&"separation", 3)
 
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override(&"separation", 4)
+	page.add_child(head)
+	_up_summary = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	_up_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_up_summary.clip_text = true
+	head.add_child(_up_summary)
+	_up_view_toggle = UiTheme.button(Loc.t("shop.upgrades.map"), &"ghost",
+		UiTheme.SIZE_SMALL)
+	_up_view_toggle.custom_minimum_size = Vector2(64.0, 22.0)
+	_up_view_toggle.pressed.connect(_toggle_upgrade_view)
+	head.add_child(_up_view_toggle)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	UiTheme.style_scroll(scroll)
+	page.add_child(scroll)
+	_up_list_view = scroll
+	# The scrollbar is drawn over the last few pixels of a full-width child, so
+	# the gutter is reserved by hand (see the live-panel note in scripts/ui).
+	var gutter := MarginContainer.new()
+	gutter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gutter.add_theme_constant_override(&"margin_right", UiTheme.SCROLL_WIDTH)
+	scroll.add_child(gutter)
+	_up_list = VBoxContainer.new()
+	_up_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_up_list.add_theme_constant_override(&"separation", 4)
+	gutter.add_child(_up_list)
+	_up_caption_ready = _orders_caption(Loc.t("shop.upgrades.available"))
+	_up_list.add_child(_up_caption_ready)
+	_up_caption_next = _orders_caption(Loc.t("shop.upgrades.next"))
+	_up_list.add_child(_up_caption_next)
+	_up_more = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	_up_more.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_up_list.add_child(_up_more)
+	_up_owned_toggle = UiTheme.button("", &"ghost", UiTheme.SIZE_SMALL)
+	_up_owned_toggle.custom_minimum_size.y = 24.0
+	_up_owned_toggle.pressed.connect(func() -> void:
+		_up_owned_open = not _up_owned_open
+		_up_layout_key = ""
+		_refresh_upgrade_list())
+	_up_list.add_child(_up_owned_toggle)
+
+	var map_page := VBoxContainer.new()
+	map_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	map_page.add_theme_constant_override(&"separation", 3)
+	map_page.visible = false
+	page.add_child(map_page)
+	_up_map_view = map_page
+
 	var well := UiTheme.panel(UiTheme.well_style(2))
 	well.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	page.add_child(well)
+	map_page.add_child(well)
 	_map = UpgradeMap.new()
 	_map.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -274,7 +343,7 @@ func _build_upgrade_page() -> Control:
 	# A floor, so the map's EXPAND_FILL can never squeeze the answer panel to
 	# nothing on a short screen — the map is the part that should give way.
 	_ticket.custom_minimum_size.y = 84.0
-	page.add_child(_ticket)
+	map_page.add_child(_ticket)
 	var row := VBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 2)
 	_ticket.add_child(row)
@@ -307,6 +376,154 @@ func _build_upgrade_page() -> Control:
 	_ticket_buy.pressed.connect(func() -> void: _on_buy_upgrade(_map_pick))
 	buy_row.add_child(_ticket_buy)
 	return page
+
+
+func _build_upgrade_cards() -> void:
+	## One card per upgrade, built once. Refreshing moves and restyles them; it
+	## never frees one, because a card freed between press and release is a tap
+	## that never lands.
+	for item in UpgradeDB.ITEMS:
+		var card := ShopCard.new()
+		card.setup(str(item.id), "upgrade", _upgrade_art(item), str(item.name),
+			str(item.get("desc", "")))
+		card.pressed_card.connect(_on_buy_upgrade)
+		card.visible = false
+		_up_list.add_child(card)
+		_cards["up_" + str(item.id)] = card
+
+
+func _upgrade_art(item: Dictionary) -> String:
+	## The machine a node is fitted to is the clearest picture of what it does.
+	## A click upgrade is the docker's; a port-wide one wears its trunk's art.
+	var targets := UpgradeDB.targets_of(item)
+	if not targets.is_empty() and PortIcon.ART.has(targets[0]):
+		return targets[0]
+	if str(item.get("kind", "")).begins_with("click"):
+		return "estivador"
+	var branch := UpgradeDB.branch_of(item)
+	for entry: Dictionary in UpgradeDB.BRANCHES:
+		if str(entry.id) == branch:
+			return str(entry.get("art", ""))
+	return ""
+
+
+func _toggle_upgrade_view() -> void:
+	_up_showing_map = not _up_showing_map
+	_up_list_view.visible = not _up_showing_map
+	_up_map_view.visible = _up_showing_map
+	_up_view_toggle.text = Loc.t("shop.upgrades.list" if _up_showing_map
+		else "shop.upgrades.map")
+	AudioManager.play_sfx("tap")
+	_refresh_upgrades()
+
+
+func _upgrade_frontier(item: Dictionary) -> bool:
+	## A node worth showing before it can be bought: everything it hangs off is
+	## owned, so the only thing between the player and it is a number they are
+	## already growing. Deeper nodes stay off the list — eight greyed rows about
+	## machines you do not run yet is noise, not a plan.
+	return UpgradeDB.blocked_by(item, GameState.upgrades).is_empty()
+
+
+func _refresh_upgrade_list() -> void:
+	if _up_list == null:
+		return
+	var available: Array[Dictionary] = []
+	var next: Array[Dictionary] = []
+	var owned: Array[Dictionary] = []
+	var hidden := 0
+	for item in UpgradeDB.ITEMS:
+		var id := str(item.id)
+		if GameState.has_upgrade(id):
+			owned.append(item)
+		elif GameState.upgrade_available(item):
+			available.append(item)
+		elif _upgrade_frontier(item):
+			next.append(item)
+		else:
+			hidden += 1
+	var by_price := func(a: Dictionary, b: Dictionary) -> bool:
+		return UpgradeDB.price_for(a, GameState.upgrades) \
+			< UpgradeDB.price_for(b, GameState.upgrades)
+	available.sort_custom(by_price)
+	next.sort_custom(by_price)
+
+	var ready := 0
+	for item in available:
+		if GameState.can_afford(UpgradeDB.price_for(item, GameState.upgrades)):
+			ready += 1
+	_up_summary.text = Loc.t("shop.upgrades.summary", {
+		"owned": str(owned.size()), "total": str(UpgradeDB.ITEMS.size()),
+		"ready": str(ready)})
+	_up_more.text = Loc.t("shop.upgrades.more", {"n": str(hidden)}) if hidden > 0 else ""
+	_up_more.visible = hidden > 0
+	_up_owned_toggle.text = Loc.t("shop.upgrades.owned", {"n": str(owned.size())}) \
+		+ ("  -" if _up_owned_open else "  +")
+	_up_owned_toggle.visible = not owned.is_empty()
+	_up_caption_ready.visible = not available.is_empty()
+	_up_caption_next.visible = not next.is_empty()
+
+	# Membership and order change on a purchase or an unlock, not on every
+	# credited box — so the list is only re-laid when they actually did, and
+	# never under a finger that is still down.
+	var key := "%s|%s|%s|%s" % [_ids(available), _ids(next), _ids(owned), _up_owned_open]
+	if key != _up_layout_key and not _pointer_down():
+		_up_layout_key = key
+		var at := 0
+		_up_list.move_child(_up_caption_ready, at)
+		at += 1
+		for item in available:
+			_up_list.move_child(_cards["up_" + str(item.id)], at)
+			at += 1
+		_up_list.move_child(_up_caption_next, at)
+		at += 1
+		for item in next:
+			_up_list.move_child(_cards["up_" + str(item.id)], at)
+			at += 1
+		_up_list.move_child(_up_more, at)
+		at += 1
+		_up_list.move_child(_up_owned_toggle, at)
+		at += 1
+		for item in owned:
+			_up_list.move_child(_cards["up_" + str(item.id)], at)
+			at += 1
+
+	for item in UpgradeDB.ITEMS:
+		var id := str(item.id)
+		var card: ShopCard = _cards.get("up_" + id)
+		if card == null:
+			continue
+		var price := UpgradeDB.price_for(item, GameState.upgrades)
+		if GameState.has_upgrade(id):
+			card.visible = _up_owned_open
+			card.set_effect(str(GameState.upgrade_preview(item).get("text", "")))
+			card.refresh(price, 0, false, true)
+		elif GameState.upgrade_available(item):
+			card.visible = true
+			var effect := str(GameState.upgrade_preview(item).get("text", ""))
+			var refits := UpgradeDB.conflicts_with(item, GameState.upgrades)
+			if not refits.is_empty():
+				effect = "%s\n%s" % [effect, Loc.t("shop.upgrade.swap", {"name": str(
+					UpgradeDB.get_item(refits[0]).get("name", refits[0]))})]
+			card.set_effect(effect)
+			card.refresh(price, 0, GameState.can_afford(price), false, 1,
+				float(GameState.upgrade_preview(item).get("cps_gain", 0.0)))
+		elif _upgrade_frontier(item):
+			card.visible = true
+			card.show_gated(_gate_reason(item), price)
+		else:
+			card.visible = false
+
+
+static func _ids(items: Array[Dictionary]) -> String:
+	var out := PackedStringArray()
+	for item in items:
+		out.append(str(item.id))
+	return ",".join(out)
+
+
+func _pointer_down() -> bool:
+	return Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
 
 
 func _on_map_node(id: String) -> void:
@@ -362,9 +579,12 @@ func _refresh_upgrades() -> void:
 	## this runs off the shop's refresh timer while the tab is open, and the
 	## version of this screen that tore down and re-created its rows on that timer
 	## ate every tap that landed during a rebuild.
-	if _map != null:
-		_map.refresh()
-	_refresh_ticket()
+	if _up_showing_map:
+		if _map != null:
+			_map.refresh()
+		_refresh_ticket()
+	else:
+		_refresh_upgrade_list()
 	_update_tab_badges()
 
 
@@ -1174,9 +1394,11 @@ func _on_buy_structure(id: String) -> void:
 
 
 func _on_buy_upgrade(id: String) -> void:
-	var card: ShopCard = _cards.get(id)
+	var card: ShopCard = _cards.get("up_" + id)
 	if GameState.buy_upgrade(id):
 		AudioManager.play_sfx("upgrade")
+		if card != null:
+			card.flash_ok()
 	elif card != null:
 		card.shake_deny()
 		AudioManager.play_sfx("deny")

@@ -489,8 +489,11 @@ static func pop_open(board: Control, scrim: CanvasItem = null,
 	## animates the board's alpha only, for boards an async `_fit_to_content()`
 	## moves a frame later — sliding those would land on a stale position.
 	##
-	## If the board is laid out again during the 0.18s (a resize), the tween
-	## still lands on the remembered final; 0.18s is short enough to accept.
+	## If the board is laid out again during the 0.18s (a resize, a rotation),
+	## the slide adopts the layout's new position as its resting place instead
+	## of dragging the board back to the one it remembered. It used to do the
+	## latter: a shop laid out for a tall viewport that shrank mid-open ended
+	## 137px low with its bottom off the screen, until the next resize.
 	if not UserPreferences.can_animate():
 		board.modulate.a = 1.0
 		return
@@ -500,13 +503,22 @@ static func pop_open(board: Control, scrim: CanvasItem = null,
 		previous = board.get_meta(&"pop_tween") as Tween
 	if previous != null and previous.is_running():
 		previous.kill()
-	var final := board.position
 	board.modulate.a = 0.0
-	if slide:
-		board.position = final + Vector2(0, 10)
+	# `final` is where the layout put the board; `last` is where the slide
+	# itself last put it. Any difference between `last` and the board's actual
+	# position means something else moved it — that is the new resting place.
+	var slide_state := {"final": board.position, "last": board.position}
 	var tween := board.create_tween().set_parallel()
 	if slide:
-		tween.tween_property(board, "position", final, 0.18) \
+		slide_state.last = board.position + Vector2(0, 10)
+		board.position = slide_state.last
+		tween.tween_method(func(offset: float) -> void:
+			if not is_instance_valid(board):
+				return
+			if board.position != slide_state.last:
+				slide_state.final = board.position
+			slide_state.last = slide_state.final + Vector2(0, offset)
+			board.position = slide_state.last, 10.0, 0.0, 0.18) \
 			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_property(board, "modulate:a", 1.0, 0.12) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)

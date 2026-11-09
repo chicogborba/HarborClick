@@ -23,9 +23,12 @@ var maze: MazeMinigame
 var wheel_service: WheelService
 var wheel_panel: LuckyWheelPanel
 var wheel_button: WheelButton
+var daily_service: DailyOrdersService
+var daily_panel: DailyOrdersPanel
+var daily_button: DailyOrdersButton
 var _overlay_state := {"shop": false, "settings": false, "journal": false,
 	"prestige": false, "routes": false, "crew": false, "special": false,
-	"minigame": false, "notices": false, "wheel": false}
+	"minigame": false, "notices": false, "wheel": false, "daily": false}
 ## Whoever's dossier is open, so the objective on it keeps up with the yard.
 var _inspected: Object
 ## The two reasons the camera stops answering a drag: a board is up over the
@@ -40,6 +43,12 @@ func _ready() -> void:
 	wheel_service = WheelService.new()
 	wheel_service.name = "WheelService"
 	add_child(wheel_service)
+	# Same reason, and it pays its rewards into the wheel's token rack.
+	daily_service = DailyOrdersService.new()
+	daily_service.name = "DailyOrdersService"
+	daily_service.setup(wheel_service)
+	add_child(daily_service)
+	wheel_service.spun.connect(daily_service.note_spin)
 
 	# Normally the title screen has already chosen a slot. Running this scene
 	# directly — F6, the capture harness, the dev probe — falls back to the
@@ -78,6 +87,16 @@ func _ready() -> void:
 	add_child(wheel_button)
 	wheel_button.pressed.connect(wheel_panel.open)
 	wheel_panel.open_changed.connect(_on_overlay_changed.bind("wheel"))
+	daily_panel = DailyOrdersPanel.new()
+	daily_panel.name = "DailyOrdersPanel"
+	daily_panel.setup(daily_service)
+	add_child(daily_panel)
+	daily_button = DailyOrdersButton.new()
+	daily_button.name = "DailyOrdersButton"
+	daily_button.setup(daily_service)
+	add_child(daily_button)
+	daily_button.pressed.connect(daily_panel.open)
+	daily_panel.open_changed.connect(_on_overlay_changed.bind("daily"))
 	wheel_service.token_earned.connect(func() -> void:
 		EventBus.notification_requested.emit({
 			"id": "wheel_token", "kind": &"milestone", "priority": 1,
@@ -181,6 +200,7 @@ func _ready() -> void:
 			_inspected = null)
 	world.npc_inspected.connect(_on_npc_inspected)
 	world.npc_grab_changed.connect(_on_npc_grabbed)
+	world.golden_gull_caught.connect(_on_golden_gull_caught)
 
 	special_alert = SpecialCallAlert.new()
 	special_alert.name = "SpecialCallAlert"
@@ -458,6 +478,10 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		wheel_panel.apply_view_metrics(metrics)
 	if wheel_button != null:
 		wheel_button.apply_view_metrics(metrics)
+	if daily_panel != null:
+		daily_panel.apply_view_metrics(metrics)
+	if daily_button != null:
+		daily_button.apply_view_metrics(metrics)
 	if minigame != null:
 		minigame.apply_view_metrics(metrics)
 	if maze != null:
@@ -479,7 +503,8 @@ func _on_overlay_changed(opened: bool, source: String) -> void:
 			or bool(_overlay_state.journal) or bool(_overlay_state.prestige)
 			or bool(_overlay_state.routes) or bool(_overlay_state.crew)
 			or bool(_overlay_state.special) or bool(_overlay_state.minigame)
-			or bool(_overlay_state.notices) or bool(_overlay_state.wheel))
+			or bool(_overlay_state.notices) or bool(_overlay_state.wheel)
+			or bool(_overlay_state.daily))
 
 
 func _on_world_input_blocked(blocked: bool) -> void:
@@ -494,6 +519,22 @@ func _on_npc_grabbed(held: bool) -> void:
 	## and the terminal ends up somewhere nobody asked for.
 	_carrying = held
 	_apply_camera_input()
+
+
+func _on_golden_gull_caught(prize: Dictionary, _world_pos: Vector2) -> void:
+	## The gull's prize lands here, where a claimed reward touches the economy.
+	## Cash is prize money (no prestige progress), a surge is session-scoped
+	## like every burst, a token goes straight to the wheel's rack.
+	match StringName(prize.get("kind", &"")):
+		&"cash":
+			GameState.grant_nonproductive_reward(
+				world.gull_policy().cash_amount(prize, GameState.base_cps))
+		&"surge":
+			GameState.grant_surge(float(prize.get("mult", 1.0)),
+				float(prize.get("seconds", 0.0)))
+		&"token":
+			wheel_service.grant_token(int(prize.get("tokens", 1)))
+	daily_service.note_gull()
 
 
 func _apply_camera_input() -> void:

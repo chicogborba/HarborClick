@@ -6,6 +6,7 @@ extends Node
 ##   godot --path . tools/capture/capture.tscn -- 390x844
 ##   godot --path . tools/capture/capture.tscn -- matrix
 ##   godot --path . tools/capture/capture.tscn -- 1280x720 shop settings
+##   godot --path . tools/capture/capture.tscn -- lang=pt_BR 390x844 upgrades
 ##
 ## `matrix` walks the QA resolution list in one run, resizing the live window
 ## between passes, which is also the resize/rotation test: every overlay has to
@@ -40,7 +41,11 @@ func _ready() -> void:
 	TimeManager.from_save({})
 	DirAccess.make_dir_recursive_absolute(SHOT_DIR)
 	for arg in OS.get_cmdline_user_args():
-		if arg == "matrix":
+		if arg.begins_with("lang="):
+			# The interface follows the machine's locale, and the machine taking
+			# the screenshots is rarely set to the language the shot is for.
+			Loc.set_language_for_tests(StringName(arg.substr(5)))
+		elif arg == "matrix":
 			_sizes.assign(MATRIX)
 		elif arg.contains("x") and arg.split("x").size() == 2 \
 				and arg.split("x")[0].is_valid_int():
@@ -760,6 +765,22 @@ func _run(size: Vector2i) -> void:
 		await _shot("wheel")
 		_main.wheel_panel.close()
 		await get_tree().create_timer(0.2).timeout
+	if _wants("daily"):
+		# Two orders done and one claimed, so the shot shows every row state:
+		# claimed, ready to claim, and still in progress.
+		var orders: DailyOrders = _main.daily_service.orders
+		if orders.missions.size() >= 3:
+			orders.missions[0].progress = int(orders.missions[0].goal)
+			orders.missions[0].claimed = true
+			orders.missions[1].progress = int(orders.missions[1].goal)
+			orders.missions[2].progress = int(orders.missions[2].goal) / 3
+		_main.daily_service.state_changed.emit()
+		_main.daily_panel.open()
+		await get_tree().create_timer(0.3).timeout
+		_check("daily", _main.daily_panel._board, size)
+		await _shot("daily")
+		_main.daily_panel.close()
+		await get_tree().create_timer(0.2).timeout
 	if _wants("offline"):
 		await _capture_offline(size)
 
@@ -912,6 +933,11 @@ func _check(what: String, panel: Control, size: Vector2i) -> void:
 
 
 func _shot(shot_name: String) -> void:
+	# An agent's window is unfocused, and macOS stops presenting frames to a
+	# window nobody is looking at: the shot then waits forever on a frame that
+	# never comes, or saves a stale one. Raising it first is what closeup.gd does.
+	DisplayServer.window_move_to_foreground()
+	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var image := get_viewport().get_texture().get_image()
 	if image == null or image.is_empty():

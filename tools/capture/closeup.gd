@@ -4,6 +4,7 @@ extends Node
 ##   godot --path . tools/capture/closeup.tscn -- rail
 ##   godot --path . tools/capture/closeup.tscn -- rail_shunt 3
 ##   godot --path . tools/capture/closeup.tscn -- yard 2.5 150 260
+##   godot --path . tools/capture/closeup.tscn -- gull 3
 ##
 ## Arguments: a scenario, then optionally a zoom and a world-space centre.
 ## Writes `user://uishots/closeup_<scenario>.png` and quits.
@@ -89,6 +90,17 @@ func _stage(scenario: String) -> Vector2:
 				rail.send_away()
 				await get_tree().create_timer(2.6).timeout
 			return Vector2(PortLayout.WORLD_W * 0.5, PortLayout.rail_y() - 4.0)
+		"gull":
+			# A golden gull mid-crossing, held still so the shot shows the bird
+			# and its trail rather than wherever it had flown to.
+			await get_tree().create_timer(1.0).timeout
+			var world: PortWorld = _main.world
+			world._spawn_golden_gull()
+			await get_tree().create_timer(2.2).timeout
+			var gull := world.active_gull()
+			if gull != null:
+				return gull.global_position
+			return Vector2(-1, -1)
 		"ship":
 			await get_tree().create_timer(1.5).timeout
 			return Vector2(PortLayout.WATER_X0 + 30.0, 200.0)

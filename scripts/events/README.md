@@ -1,7 +1,7 @@
 # Events domain
 
-Rare, interrupting, refusable things. Today that is one family: the special
-call.
+Rare, interrupting, refusable things. Today that is two families: the special
+call, and the golden gull.
 
 - `special_call_director.gd` — the clock and the state machine. When a charter is
   offered, which berth takes it, when the minigame is cued, what a result pays.
@@ -52,6 +52,25 @@ asked to do the job.
   that can only ever fine you. The suite checks it over forty seeds.
 - **The director never touches cargo.** The special hull is a variant handed to
   `BerthCallController.seed_new`, which still mints every UID.
+
+## Gaivota dourada
+
+The rare thing that needs no berth: every few minutes a golden gull carrying a
+parcel crosses the visible part of the terminal for about nine seconds. Tapping
+it pays a prize; letting it fly off costs nothing.
+
+- `golden_gull_policy.gd` — the clock and the prize table. Pure rules, and
+  **session-scoped, deliberately NOT persisted**: a reward clock that survived
+  a reload could be farmed by reloading (quit a second before the gull, come
+  back to one already owed) — the same reason `GameState.surge_*` never
+  survives a reload. Nothing in it is registered with `SaveManager`.
+- `golden_gull.gd` — the presentation: the flight across the visible rect, the
+  fixed sparkle pool, the catch burst. `PortWorld` owns the spawn (in the
+  `overhead` layer) and taps the gull before anything else in `_try_tap`;
+  `Main` applies the prize — `cash` through `grant_nonproductive_reward`,
+  `surge` through `grant_surge`, `token` through `WheelService.grant_token`.
+
+Run the `gull` suite after changing anything here.
 
 Run the `special` suite plus `cargo` and `phase3_progression_ui` after changing
 anything here, and the `charter` / `minigame` captures for the two boards.

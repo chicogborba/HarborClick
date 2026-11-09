@@ -99,15 +99,58 @@ def gen_warehouse():
     save(img, "bld_warehouse")
 
 
+def small_building(w, h, roof_base, wall_base, eave, door_x=None, windows=()):
+    """A small building in the yard's 3/4 view: pitched roof over a south wall.
+
+    The same grammar as the warehouse, so a booth and a shed stand on the same
+    ground: north slope lit, south slope in shade, the wall under the eaves in
+    the roof's shadow, a cast shadow east and south. Returns the image, the
+    ramps and the eave row so callers can add their own details."""
+    img = new_img(w, h)
+    roof = P.ramp(roof_base, 5, hue_shift=14.0, dark=0.4, light=0.5)
+    wall = P.ramp(wall_base, 5, hue_shift=12.0, dark=0.3, light=0.6)
+    x0, x1 = 1, w - 4
+    ridge = (1 + eave) // 2
+    base = h - 4
+    rect(img, x0, 1, x1 - x0 + 1, ridge - 1, roof[3])
+    rect(img, x0, ridge + 1, x1 - x0 + 1, eave - ridge - 1, roof[2])
+    for rx in range(x0 + 2, x1, 3):
+        vline(img, rx, 2, ridge - 2, roof[4])
+        vline(img, rx, ridge + 1, eave - ridge - 2, roof[3])
+    hline(img, x0, ridge, x1 - x0 + 1, roof[4])
+    hline(img, x0, ridge + 1, x1 - x0 + 1, roof[0])
+    hline(img, x0, 1, x1 - x0 + 1, roof[4])
+    hline(img, x0, eave, x1 - x0 + 1, roof[0])
+    vline(img, x1, 1, eave, roof[1])
+    rect(img, x0, eave + 1, x1 - x0 + 1, base - eave, wall[2])
+    hline(img, x0, eave + 1, x1 - x0 + 1, P.mix(wall[1], roof[0], 0.45))
+    hline(img, x0, base, x1 - x0 + 1, wall[0])
+    glass = P.ramp(P.GLASS, 5, hue_shift=10.0)
+    for wx in windows:
+        rect(img, wx, eave + 3, 4, 3, glass[1])
+        px(img, wx, eave + 3, glass[4])
+        hline(img, wx, eave + 6, 4, wall[0])
+    if door_x is not None:
+        rect(img, door_x, eave + 3, 4, base - eave - 3, P.ramp(P.WOOD, 5)[1])
+        px(img, door_x + 3, (eave + base) // 2 + 1, P.SAFETY_L)
+    img = outline(img)
+    for y in range(3, base + 2):
+        for x in (x1 + 2, x1 + 3):
+            if 0 <= x < w and img.getpixel((x, y))[3] == 0:
+                px(img, x, y, P.SHADOW)
+    for x in range(3, x1 + 3):
+        if base + 2 < h and img.getpixel((x, base + 2))[3] == 0:
+            px(img, x, base + 2, P.SHADOW)
+    return img, roof, wall
+
+
 def gen_customs():
-    """Customs / gate booth with a barrier arm. 28x24 + separate arm."""
-    img = new_img(28, 24)
-    ridged_roof(img, 2, 2, 24, 20, P.ROOF_BLUE, (110, 142, 176, 255),
-                P.ROOF_BLUE_D, ridge_step=4)
-    rect(img, 9, 8, 10, 8, P.GLASS)      # skylight over the counter
-    hline(img, 9, 8, 10, P.GLASS_D)
-    rect(img, 4, 4, 4, 3, P.SAFETY)      # roof beacon
-    save(outline(img), "bld_customs")
+    """Customs / gate booth, 28x24, with its barrier arm drawn separately."""
+    img, roof, wall = small_building(28, 24, P.ROOF_BLUE, (224, 220, 206), 13,
+                                     door_x=16, windows=(5, 10))
+    rect(img, 4, 3, 3, 2, P.SAFETY)          # roof beacon
+    px(img, 4, 3, P.SAFETY_L)
+    save(img, "bld_customs")
 
     arm = new_img(40, 6)
     for i in range(0, 38, 6):
@@ -198,14 +241,11 @@ def gen_portal():
 
 def gen_office():
     """Small port office / admin building used as generic filler. 34x26."""
-    w, h = 34, 26
-    img = new_img(w, h)
-    ridged_roof(img, 2, 2, w - 4, h - 4, P.WOOD, P.WOOD_L, P.WOOD_D, 4)
-    rect(img, 8, 6, 8, 5, P.GLASS)
-    hline(img, 8, 6, 8, P.GLASS_D)
-    rect(img, 20, h - 12, 8, 5, P.GLASS)
-    rect(img, 5, h - 9, 5, 5, (86, 78, 78, 255))   # chimney
-    save(outline(img), "bld_office")
+    img, roof, wall = small_building(34, 26, P.WOOD, (230, 214, 190), 14,
+                                     door_x=13, windows=(5, 20, 25))
+    rect(img, 23, 3, 4, 4, (86, 78, 78, 255))   # chimney
+    hline(img, 23, 3, 4, (120, 110, 108, 255))
+    save(img, "bld_office")
 
 
 if __name__ == "__main__":

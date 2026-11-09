@@ -26,6 +26,8 @@ func _run() -> void:
 	await _test_responsive_shell_profiles_without_main_scene()
 	await _test_safe_area_reaches_primary_ui()
 	await _test_upgrade_map_is_a_navigable_graph()
+	await _test_upgrade_list_sells_in_sections()
+	await _test_pop_open_yields_to_a_layout_mid_slide()
 
 	SaveManager.wipe()
 	_expect(not FileAccess.file_exists(TEST_SAVE_PATH), "cleanup removes UI test save")
@@ -373,6 +375,84 @@ func _card_screen_drag(card: ShopCard, position: Vector2) -> void:
 	var event := InputEventScreenDrag.new()
 	event.position = position
 	card._gui_input(event)
+
+
+func _test_pop_open_yields_to_a_layout_mid_slide() -> void:
+	## The open slide used to remember where the board was when it started and
+	## drag it back there at the end. A resize during those 0.18s re-laid the
+	## board correctly and the tween then undid it: the capture matrix caught the
+	## shop at 360x800 ending 137px low, its bottom off the screen.
+	UserPreferences.reduce_motion = false
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	var board := PanelContainer.new()
+	board.size = Vector2(200, 100)
+	board.position = Vector2(6, 275)
+	layer.add_child(board)
+	UiTheme.pop_open(board)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	board.position = Vector2(6, 138)          # the layout, answering a resize
+	await get_tree().create_timer(0.35).timeout
+	_expect(board.position.is_equal_approx(Vector2(6, 138)),
+		"the slide lands where the latest layout put the board (%s)" % board.position)
+	_expect(is_equal_approx(board.modulate.a, 1.0), "and fully opaque")
+	UserPreferences.reduce_motion = true
+	layer.queue_free()
+	await get_tree().process_frame
+
+
+func _test_upgrade_list_sells_in_sections() -> void:
+	## The upgrades tab opens on a list: what can be bought now (cheapest first),
+	## what is next and why it is shut, and what is owned, folded away. Three
+	## things it must never do: lose a card, rebuild a card under a finger, or
+	## show a card with no effect line — the rail nodes used to print nothing.
+	GameState.from_save({"owned": {"estivador": 30}, "upgrades": ["luvas"],
+		"teus": 1e9, "lifetime": 1e9, "all_time_teus": 1e9})
+	GameState.recompute()
+	var viewport := _make_viewport(Vector2i(390, 844))
+	var shop := Shop.new()
+	viewport.add_child(shop)
+	await get_tree().process_frame
+	shop._on_tab("upgrades")
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	for item in UpgradeDB.ITEMS:
+		_expect(shop._cards.has("up_" + str(item.id)),
+			"every upgrade has a card (%s)" % item.id)
+		_expect(not str(GameState.upgrade_preview(item).get("text", "")).is_empty(),
+			"every upgrade can say what it does (%s)" % item.id)
+	var gancho: ShopCard = shop._cards["up_gancho"]
+	var luvas: ShopCard = shop._cards["up_luvas"]
+	_expect(gancho.visible, "a node whose parent is owned is on sale")
+	_expect(gancho.get_index() < shop._up_caption_next.get_index(),
+		"and listed under DISPONÍVEIS, above what comes next")
+	_expect(not luvas.visible, "owned nodes are folded away by default")
+
+	var before := gancho.get_instance_id()
+	shop._refresh_upgrades()
+	shop._refresh_upgrades()
+	_expect(gancho.get_instance_id() == before and is_instance_valid(gancho),
+		"refreshing restyles cards, it never rebuilds them")
+
+	gancho.pressed_card.emit("gancho")
+	await get_tree().process_frame
+	_expect(GameState.has_upgrade("gancho"), "tapping an available card buys it")
+	shop._refresh_upgrades()
+	_expect(not gancho.visible and shop._up_owned_toggle.text.contains("2"),
+		"and it folds into COMPRADAS, which now counts two")
+	shop._up_owned_toggle.emit_signal("pressed")
+	_expect(luvas.visible and gancho.visible, "unfolding COMPRADAS shows them")
+
+	shop._up_view_toggle.emit_signal("pressed")
+	_expect(shop._up_map_view.visible and not shop._up_list_view.visible,
+		"the map is one key away")
+	shop._up_view_toggle.emit_signal("pressed")
+	_expect(shop._up_list_view.visible, "and so is the way back")
+	viewport.queue_free()
+	await get_tree().process_frame
+	GameState.from_save({})
 
 
 func _test_upgrade_map_is_a_navigable_graph() -> void:

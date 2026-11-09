@@ -1017,6 +1017,40 @@ const STRINGS := {
 	"ru": "Каждая линия - ветка. Тяните, чтобы двигаться, сводите пальцы для масштаба.",
 	"pl": "Każda linia to gałąź. Przeciągnij, aby się poruszać, uszczypnij, aby przybliżyć.",
 	"tr": "Her hat bir daldır. Kaydırarak gezin, sıkıştırarak yakınlaş."},
+"shop.upgrades.available": {
+	"pt_BR": "DISPONÍVEIS", "en": "AVAILABLE", "es": "DISPONIBLES",
+	"fr": "DISPONIBLES", "de": "VERFÜGBAR", "it": "DISPONIBILI",
+	"ru": "ДОСТУПНО", "pl": "DOSTĘPNE", "tr": "MEVCUT"},
+"shop.upgrades.next": {
+	"pt_BR": "PRÓXIMAS", "en": "COMING UP", "es": "PRÓXIMAS",
+	"fr": "BIENTÔT", "de": "ALS NÄCHSTES", "it": "PROSSIME",
+	"ru": "СЛЕДУЮЩИЕ", "pl": "NASTĘPNE", "tr": "SIRADAKİ"},
+"shop.upgrades.owned": {
+	"pt_BR": "COMPRADAS ({n})", "en": "OWNED ({n})", "es": "COMPRADAS ({n})",
+	"fr": "ACQUISES ({n})", "de": "GEKAUFT ({n})", "it": "ACQUISTATE ({n})",
+	"ru": "КУПЛЕНО ({n})", "pl": "KUPIONE ({n})", "tr": "ALINANLAR ({n})"},
+"shop.upgrades.summary": {
+	"pt_BR": "{owned}/{total} compradas • {ready} prontas",
+	"en": "{owned}/{total} owned • {ready} ready",
+	"es": "{owned}/{total} compradas • {ready} listas",
+	"fr": "{owned}/{total} acquises • {ready} prêtes",
+	"de": "{owned}/{total} gekauft • {ready} bereit",
+	"it": "{owned}/{total} acquistate • {ready} pronte",
+	"ru": "{owned}/{total} куплено • {ready} готово",
+	"pl": "{owned}/{total} kupione • {ready} gotowe",
+	"tr": "{owned}/{total} alındı • {ready} hazır"},
+"shop.upgrades.more": {
+	"pt_BR": "+{n} mais adiante na árvore", "en": "+{n} further up the tree",
+	"es": "+{n} más adelante en el árbol", "fr": "+{n} plus loin dans l'arbre",
+	"de": "+{n} weiter oben im Baum", "it": "+{n} più avanti nell'albero",
+	"ru": "+{n} дальше по дереву", "pl": "+{n} dalej w drzewie",
+	"tr": "+{n} ağaçta ileride"},
+"shop.upgrades.map": {
+	"pt_BR": "MAPA", "en": "MAP", "es": "MAPA", "fr": "CARTE", "de": "KARTE",
+	"it": "MAPPA", "ru": "КАРТА", "pl": "MAPA", "tr": "HARİTA"},
+"shop.upgrades.list": {
+	"pt_BR": "LISTA", "en": "LIST", "es": "LISTA", "fr": "LISTE", "de": "LISTE",
+	"it": "LISTA", "ru": "СПИСОК", "pl": "LISTA", "tr": "LİSTE"},
 "shop.map.buy": {
 	"pt_BR": "COMPRAR", "en": "BUY", "es": "COMPRAR", "fr": "ACHETER",
 	"de": "KAUFEN", "it": "COMPRA", "ru": "КУПИТЬ", "pl": "KUP",
@@ -1476,10 +1510,103 @@ const STRINGS := {
 	"ru": "ОТКРЫТЬ ОБСУЖДЕНИЯ", "pl": "OTWÓRZ DYSKUSJE",
 	"tr": "TARTIŞMALARI AÇ"},
 
+# ------------------------------------------------------ missões do dia (daily)
+# Mission labels, kept short like the wheel's. Multipliers are written with
+# the letter x, never the × glyph, to keep the rows uniform.
+
+"daily.title": {
+	"pt_BR": "MISSÕES DO DIA", "en": "DAILY MISSIONS", "es": "MISIONES DEL DÍA",
+	"fr": "MISSIONS DU JOUR", "de": "TAGESMISSIONEN", "it": "MISSIONI DEL GIORNO",
+	"ru": "ЗАДАНИЯ ДНЯ", "pl": "ZADANIA DNIA", "tr": "GÜNLÜK GÖREVLER"},
+"daily.streak": {
+	"pt_BR": "SEQUÊNCIA: {n} DIAS", "en": "STREAK: {n} DAYS", "es": "RACHA: {n} DÍAS",
+	"fr": "SÉRIE: {n} JOURS", "de": "SERIE: {n} TAGE", "it": "SERIE: {n} GIORNI",
+	"ru": "СЕРИЯ: {n} ДНЕЙ", "pl": "SERIA: {n} DNI", "tr": "SERİ: {n} GÜN"},
+"daily.best": {
+	"pt_BR": "recorde {n}", "en": "best {n}", "es": "récord {n}",
+	"fr": "record {n}", "de": "Rekord {n}", "it": "record {n}",
+	"ru": "рекорд {n}", "pl": "rekord {n}", "tr": "rekor {n}"},
+"daily.claim": {
+	"pt_BR": "RESGATAR", "en": "CLAIM", "es": "RECLAMAR",
+	"fr": "RÉCLAMER", "de": "EINLÖSEN", "it": "RITIRA",
+	"ru": "ЗАБРАТЬ", "pl": "ODBIERZ", "tr": "AL"},
+"daily.done": {
+	"pt_BR": "FEITO", "en": "DONE", "es": "HECHO",
+	"fr": "FAIT", "de": "ERLEDIGT", "it": "FATTO",
+	"ru": "ГОТОВО", "pl": "GOTOWE", "tr": "BİTTİ"},
+"daily.bonus": {
+	"pt_BR": "Todas as 3: TURBO x3 por 2 min + 1 ficha",
+	"en": "All 3: TURBO x3 for 2 min + 1 token",
+	"es": "Las 3: TURBO x3 2 min + 1 ficha",
+	"fr": "Les 3: TURBO x3 2 min + 1 jeton",
+	"de": "Alle 3: TURBO x3 2 Min + 1 Chip",
+	"it": "Tutte 3: TURBO x3 2 min + 1 gettone",
+	"ru": "Все 3: ТУРБО x3 2 мин + 1 фишка",
+	"pl": "3/3: TURBO x3 2 min + 1 żeton",
+	"tr": "3'ü de: TURBO x3 2 dk + 1 jeton"},
+"daily.reset": {
+	"pt_BR": "novas missões em {time}", "en": "new missions in {time}",
+	"es": "nuevas misiones en {time}", "fr": "nouvelles missions dans {time}",
+	"de": "neue Missionen in {time}", "it": "nuove missioni in {time}",
+	"ru": "новые задания через {time}", "pl": "nowe zadania za {time}",
+	"tr": "yeni görevler {time}"},
+"daily.mission.unload": {
+	"pt_BR": "Mova {goal} contêineres", "en": "Move {goal} containers",
+	"es": "Mueve {goal} contenedores", "fr": "Bouge {goal} conteneurs",
+	"de": "Bewege {goal} Container", "it": "Sposta {goal} container",
+	"ru": "Перемести {goal} конт.", "pl": "Przenieś {goal} kontenery",
+	"tr": "{goal} konteyner taşı"},
+"daily.mission.taps": {
+	"pt_BR": "Toque no navio {goal} vezes", "en": "Tap the ship {goal} times",
+	"es": "Toca el barco {goal} veces", "fr": "Touche le navire {goal} fois",
+	"de": "Tippe {goal}x auf das Schiff", "it": "Tocca la nave {goal} volte",
+	"ru": "Тапни по судну {goal} раз", "pl": "Stuknij statek {goal} razy",
+	"tr": "Gemiye {goal} kez dokun"},
+"daily.mission.ships": {
+	"pt_BR": "Despache {goal} navios", "en": "Dispatch {goal} ships",
+	"es": "Despacha {goal} barcos", "fr": "Expédie {goal} navires",
+	"de": "Schicke {goal} Schiffe ab", "it": "Spedisci {goal} navi",
+	"ru": "Отправь {goal} судов", "pl": "Wyślij {goal} statków",
+	"tr": "{goal} gemi gönder"},
+"daily.mission.machines": {
+	"pt_BR": "Compre {goal} máquinas", "en": "Buy {goal} machines",
+	"es": "Compra {goal} máquinas", "fr": "Achète {goal} machines",
+	"de": "Kaufe {goal} Maschinen", "it": "Compra {goal} macchine",
+	"ru": "Купи {goal} машин", "pl": "Kup {goal} maszyn",
+	"tr": "{goal} makine al"},
+"daily.mission.upgrade": {
+	"pt_BR": "Compre {goal} melhoria", "en": "Buy {goal} upgrade",
+	"es": "Compra {goal} mejora", "fr": "Achète {goal} amélioration",
+	"de": "Kaufe {goal} Upgrade", "it": "Compra {goal} upgrade",
+	"ru": "Купи {goal} улучшение", "pl": "Kup {goal} ulepszenie",
+	"tr": "{goal} yükseltme al"},
+"daily.mission.spin": {
+	"pt_BR": "Gire a Roda da Sorte", "en": "Spin the Lucky Wheel",
+	"es": "Gira la Ruleta", "fr": "Tourne la Roulette",
+	"de": "Drehe am Glücksrad", "it": "Gira la Ruota",
+	"ru": "Крути колесо", "pl": "Zakręć kołem",
+	"tr": "Çarkı çevir"},
+"daily.mission.gull": {
+	"pt_BR": "Pegue uma gaivota dourada", "en": "Catch a golden gull",
+	"es": "Atrapa una gaviota dorada", "fr": "Attrape une mouette dorée",
+	"de": "Fang die Goldmöwe", "it": "Prendi un gabbiano dorato",
+	"ru": "Поймай золотую чайку", "pl": "Złap złotą mewę",
+	"tr": "Altın martı yakala"},
+
 # ------------------------------------------------------- roda da sorte (wheel)
 # Small labels, so every translation stays short. The × is in the bitmap font
 # (see tools/sprites/gen_font.py, "x_mult").
 
+"wheel.earn": {
+	"pt_BR": "+1 ficha a cada 3 navios ({have}/{need})",
+	"en": "+1 token every 3 ships ({have}/{need})",
+	"es": "+1 ficha cada 3 barcos ({have}/{need})",
+	"fr": "+1 jeton tous les 3 navires ({have}/{need})",
+	"de": "+1 Chip alle 3 Schiffe ({have}/{need})",
+	"it": "+1 gettone ogni 3 navi ({have}/{need})",
+	"ru": "+1 фишка за 3 судна ({have}/{need})",
+	"pl": "+1 żeton co 3 statki ({have}/{need})",
+	"tr": "Her 3 gemide +1 jeton ({have}/{need})"},
 "wheel.title": {
 	"pt_BR": "RODA DA SORTE", "en": "LUCKY WHEEL", "es": "RULETA",
 	"fr": "ROULETTE", "de": "GLÜCKSRAD", "it": "RUOTA",
@@ -1540,5 +1667,27 @@ const STRINGS := {
 	"pt_BR": "FRENESI ×7", "en": "FRENZY ×7", "es": "FRENESÍ ×7",
 	"fr": "FOLIE ×7", "de": "RASEREI ×7", "it": "FRENZIA ×7",
 	"ru": "ШТУРМ ×7", "pl": "SZAŁ ×7", "tr": "ÇILGIN ×7"},
+
+# ------------------------------------------- gaivota dourada (golden gull)
+# The prize label shown as a big crit float text where the gull was caught, so
+# it has to stay short. The multiplier is written with the letter x, not the ×
+# glyph, to keep the row uniform with the rest of the short labels.
+
+"gull.hint": {
+	"pt_BR": "TOQUE NA GAIVOTA!", "en": "TAP THE GULL!", "es": "¡TOCA LA GAVIOTA!",
+	"fr": "TOUCHE LA MOUETTE!", "de": "TIPP DIE MÖWE AN!", "it": "TOCCA IL GABBIANO!",
+	"ru": "ЖМИ НА ЧАЙКУ!", "pl": "DOTKNIJ MEWY!", "tr": "MARTIYA DOKUN!"},
+"gull.lucky": {
+	"pt_BR": "SORTE GRANDE!", "en": "GREAT LUCK!", "es": "¡GRAN SUERTE!",
+	"fr": "CHANCE FOLLE!", "de": "RIESENGLÜCK!", "it": "GRAN FORTUNA!",
+	"ru": "БОЛЬШАЯ УДАЧА!", "pl": "SZCZĘŚCIE!", "tr": "BÜYÜK ŞANS!"},
+"gull.frenzy": {
+	"pt_BR": "FRENESI x7!", "en": "FRENZY x7!", "es": "FRENESÍ x7!",
+	"fr": "FOLIE x7!", "de": "RASEREI x7!", "it": "FRENZIA x7!",
+	"ru": "ШТУРМ x7!", "pl": "SZAŁ x7!", "tr": "ÇILGIN x7!"},
+"gull.token": {
+	"pt_BR": "+1 FICHA!", "en": "+1 TOKEN", "es": "+1 FICHA",
+	"fr": "+1 JETON", "de": "+1 JETON", "it": "+1 GETTONE",
+	"ru": "+1 ФИШКА", "pl": "+1 ŻETON", "tr": "+1 JETON"},
 
 }

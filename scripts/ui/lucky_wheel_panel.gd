@@ -51,6 +51,9 @@ var _pointer_atlas: AtlasTexture
 var _coin_atlas: AtlasTexture
 var _icons: Array[TextureRect] = []
 var _status: Label
+## How the next token is earned, and how close it is. A wheel with no spin left
+## and no word on how to get one is a locked door with no handle.
+var _earn: Label
 var _prize: Label
 var _detail: Label
 var _spin_button: Button
@@ -108,6 +111,12 @@ func _ready() -> void:
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_column.add_child(_status)
+	_earn = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	_earn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Clipped, never wrapped: a wrapping label with no width yet reports a
+	# fantasy height, which is the bug that once pushed this board off a phone.
+	_earn.clip_text = true
+	_column.add_child(_earn)
 	# The thick dark outline is what FloatText uses so bright type survives
 	# over any pixel art; a prize name is exactly that kind of loud.
 	_prize = UiTheme.label("", UiTheme.SIZE_TITLE, UiTheme.AMBER)
@@ -383,7 +392,7 @@ func _apply_angle() -> void:
 
 
 func _on_peg() -> void:
-	AudioManager.play_sfx("click", 0.08, -8.0)
+	AudioManager.play_sfx("wheel_tick", 0.1, -4.0)
 	_pointer_atlas.region = Rect2(POINTER_SIZE.x, 0, POINTER_SIZE.x, POINTER_SIZE.y)
 	_peg_t = 0.06
 
@@ -407,7 +416,8 @@ func _reveal(prize: Dictionary) -> void:
 	_prize.visible = true
 	_detail.visible = true
 	_layout()
-	AudioManager.play_sfx("milestone")
+	AudioManager.play_sfx("wheel_win")
+	AudioManager.play_sfx("coins", 0.05, -3.0)
 	if id == &"jackpot":
 		AudioManager.play_sfx("prestige")
 	_flash_t = 1.2
@@ -532,4 +542,7 @@ func _refresh_status() -> void:
 	var state := Loc.t("wheel.free") if free \
 		else Loc.t("wheel.next_free", {"time": time_str})
 	_status.text = "%s  •  %s" % [Loc.t("wheel.tokens", {"n": wheel.tokens}), state]
+	if _earn != null:
+		_earn.text = Loc.t("wheel.earn", {"have": str(wheel.departures),
+			"need": str(LuckyWheel.DEPARTURES_PER_TOKEN)})
 	_spin_button.disabled = _spinning or not wheel.can_spin(now)

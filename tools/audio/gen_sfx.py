@@ -297,6 +297,39 @@ def sfx_milestone():
     save_wav(buf, "milestone")
 
 
+def sfx_wheel_tick():
+    """A peg passing the wheel's pointer: a dry wooden tick, very short, so a
+    fast spin is a rattle and a slow one is a count."""
+    buf = render(0.05)
+    add_noise(buf, 0.0, 0.025, 0.35, env=(0.0005, 0.01, 0.2, 0.012), lowpass=0.55)
+    add_tone(buf, 0.0, 0.02, 1760, "square", 0.12, duty=0.2,
+             env=(0.0005, 0.008, 0.2, 0.01))
+    save_wav(buf, "wheel_tick")
+
+
+def sfx_wheel_win():
+    """The wheel stops on a prize: a bright little fanfare, rising to a chord."""
+    buf = render(0.9)
+    for i, name in enumerate(["C5", "E5", "G5"]):
+        add_tone(buf, i * 0.08, 0.16, note_freq(name), "square", 0.18, duty=0.3,
+                 env=(0.003, 0.04, 0.5, 0.08))
+    for name in ("C6", "E6", "G6"):
+        add_tone(buf, 0.26, 0.55, note_freq(name), "triangle", 0.14,
+                 env=(0.005, 0.1, 0.6, 0.35))
+    save_wav(buf, "wheel_win")
+
+
+def sfx_coins():
+    """Coins spilling: a quick sparkle of high pings over a soft shimmer."""
+    buf = render(0.6)
+    pings = ["E6", "B6", "G6", "E7", "C7", "G7"]
+    for i, name in enumerate(pings):
+        add_tone(buf, i * 0.045, 0.18, note_freq(name), "triangle", 0.12,
+                 env=(0.001, 0.03, 0.3, 0.12))
+    add_noise(buf, 0.0, 0.35, 0.06, env=(0.01, 0.1, 0.3, 0.2), lowpass=0.9)
+    save_wav(buf, "coins")
+
+
 if __name__ == "__main__":
     print("sfx:")
     sfx_tap()
@@ -317,3 +350,6 @@ if __name__ == "__main__":
     sfx_meow()
     sfx_prestige()
     sfx_milestone()
+    sfx_wheel_tick()
+    sfx_wheel_win()
+    sfx_coins()

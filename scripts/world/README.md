@@ -211,6 +211,22 @@ The catalogue's Feeder/Panamax/New Panamax entries scale and recolour that same
 texture; they do not swap in class-specific PNGs or change the 24-box berth
 grid. Newer route class names are compatibility aliases onto those three views.
 
+The recolour goes on paint only. `ship_paint.png` is the hull strake and the
+funnel band on the same 66x232 canvas, a child of the hull sprite tinted with
+the livery (`_paint.self_modulate`); the hull sprite itself stays white. Tinting
+the whole hull, as it once did, multiplied the deck, the white house and the
+lifeboats by brick red or bottle green, and every ship was one muddy colour.
+
+## The branch-line rake is drawn at its shown size
+
+`gen_train.py` draws the loco, the three wagons and the eight rail-box liveries
+facing east at 1:1 — a wagon is exactly `RAIL_WAGON_PITCH` wide, couplers
+included — and `RailRake` places them on whole pixels, unscaled and unrotated;
+turning round is `flip_h`. It used to be nose-up art rotated a quarter turn and
+scaled to 62%, which put pixels of two sizes on screen and carried the boxes a
+third smaller than the yard's. The rail suite checks the texture sizes against
+the constants both sides assume.
+
 `Ship.BAY_Y0`, the deck-light coordinates and the wake shader use that source
 coordinate system. The local multi-berth manoeuvre and transactional cargo code
 remain intact: restoring the GitHub art contract does not roll back gameplay
