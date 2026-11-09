@@ -140,6 +140,7 @@ func open(tab := "next") -> void:
 	_layout()
 	UiTheme.focus_first(_sheet)
 	open_changed.emit(true)
+	UiTheme.pop_open(_sheet, _backdrop)
 
 
 func close() -> void:
@@ -352,16 +353,30 @@ func _make_crew_card(member: Dictionary) -> PanelContainer:
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.add_theme_constant_override(&"separation", 1)
 	row.add_child(text)
-	var name_label := UiTheme.label("%s  -  %s" % [str(member.get("name", "")),
-		str(member.get("title", ""))], UiTheme.SIZE_SMALL, UiTheme.INK)
+	# Three lines, not two.
+	#
+	# Name and role used to share one clipped line, and on a phone that produced a
+	# whole shift of "Fabiane Silveira  -  Conferente de ..." — every row cut at
+	# the same place, so the column read as one repeated word. A person's name is
+	# the thing this list is *for*; it gets a line of its own, the role gets the
+	# next, and the task is allowed to wrap rather than be truncated to a verb.
+	var name_label := UiTheme.label(str(member.get("name", "")),
+		UiTheme.SIZE_SMALL, UiTheme.INK)
 	name_label.clip_text = true
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	text.add_child(name_label)
+	var role := str(member.get("title", ""))
+	if not role.is_empty():
+		var role_label := UiTheme.label(role, UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+		role_label.clip_text = true
+		role_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		text.add_child(role_label)
 	var task := str(member.get("objective", ""))
 	var task_label := UiTheme.label(task if not task.is_empty() \
 		else "Sem tarefa agora.", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
-	task_label.clip_text = true
-	task_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	task_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	task_label.max_lines_visible = 2
+	task_label.custom_minimum_size.x = 0.0
 	text.add_child(task_label)
 	var tally := UiTheme.stamp(str(int(member.get("moves", 0))), UiTheme.AMBER,
 		UiTheme.SIZE_SMALL)

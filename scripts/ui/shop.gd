@@ -24,11 +24,6 @@ const TABS := [
 	["cosmetics", "shop.tab.cosmetics", UiTheme.Icon.PAW],
 ]
 const BUY_MODES: Array[StringName] = [&"x1", &"x10", &"x25", &"max"]
-## Which yard sprite stands for each purchase. Upgrades borrow the sprite of
-## the machine they improve, so an upgrade never looks like a generic box.
-const UPGRADE_ART := {"click_mult": "estivador", "click_cps_pct": "estivador",
-	"global_mult": "torre"}
-
 var _backdrop: ColorRect
 var _board: PanelContainer
 var _clip: TextureRect
@@ -54,6 +49,16 @@ var _rail: CommandRail
 ## The railway, not the console. `_rail` is the bottom bar; this is the branch
 ## line, and the orders board is the only screen it reports to.
 var _branch: RailYard
+## The upgrades tab: a network diagram, and the ticket that answers everything
+## about whichever station on it was last touched.
+var _map: UpgradeMap
+var _map_pick := ""
+var _ticket: PanelContainer
+var _ticket_name: Label
+var _ticket_effect: Label
+var _ticket_price: PanelContainer
+var _ticket_price_label: Label
+var _ticket_buy: Button
 
 
 func _ready() -> void:
@@ -68,7 +73,7 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_layout)
 	EventBus.teus_changed.connect(func(_t: float) -> void: _dirty = true)
 	EventBus.structure_bought.connect(func(_a: String, _b: int) -> void: _refresh())
-	EventBus.upgrade_bought.connect(func(_a: String) -> void: _rebuild_upgrades())
+	EventBus.upgrade_bought.connect(func(_a: String) -> void: _refresh_upgrades())
 	EventBus.land_bought.connect(func(_a: String) -> void: _refresh())
 	_refresh()
 	_layout()
@@ -83,7 +88,7 @@ func _process(delta: float) -> void:
 		_dirty = false
 		_refresh()
 		if _active == "upgrades":
-			_rebuild_upgrades()
+			_refresh_upgrades()
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -130,6 +135,16 @@ func _build() -> void:
 	sheet_col.add_child(_build_bulk())
 
 	for tab: Array in TABS:
+		if tab[0] == "upgrades":
+			# The upgrades tab is a map, not a list, so it gets no scroll
+			# container: it pans and zooms itself, and a ScrollContainer wrapped
+			# round something that already handles drag would fight it for every
+			# gesture and win.
+			var page := _build_upgrade_page()
+			page.visible = tab[0] == _active
+			sheet_col.add_child(page)
+			_scrolls[tab[0]] = page
+			continue
 		var scroll := ScrollContainer.new()
 		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -228,51 +243,153 @@ func _populate() -> void:
 	_teaser.setup("", "teaser", "", "", "")
 	_teaser.visible = false
 	_lists["structures"].add_child(_teaser)
-	_rebuild_upgrades()
+	_refresh_upgrades()
 	_rebuild_land()
 	_build_orders()
 	_build_cosmetics()
 
 
-func _upgrade_art(item: Dictionary) -> String:
-	var target := str(item.get("target", ""))
-	if not target.is_empty():
-		return target
-	return str(UPGRADE_ART.get(str(item.get("kind", "")), "torre"))
+func _build_upgrade_page() -> Control:
+	## Map on top, the selected station's ticket underneath.
+	##
+	## The split is the whole design. A transit map is for deciding *where to go*,
+	## and it can only do that if it stays a map — the moment every station carries
+	## its price, its effect and a buy button it is a list again, drawn diagonally.
+	## So the map carries shape and state and nothing else, and one panel below
+	## answers everything about whichever station you last touched.
+	var page := VBoxContainer.new()
+	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page.add_theme_constant_override(&"separation", 3)
+
+	var well := UiTheme.panel(UiTheme.well_style(2))
+	well.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page.add_child(well)
+	_map = UpgradeMap.new()
+	_map.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_map.node_selected.connect(_on_map_node)
+	well.add_child(_map)
+
+	_ticket = UiTheme.panel(UiTheme.paper_style(4))
+	# A floor, so the map's EXPAND_FILL can never squeeze the answer panel to
+	# nothing on a short screen — the map is the part that should give way.
+	_ticket.custom_minimum_size.y = 84.0
+	page.add_child(_ticket)
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 2)
+	_ticket.add_child(row)
+
+	_ticket_name = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK)
+	_ticket_name.clip_text = true
+	row.add_child(_ticket_name)
+
+	_ticket_effect = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	_ticket_effect.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	# Both of these matter. An autowrap label with no width to wrap *to* reports a
+	# minimum height of thousands of pixels, and a PanelContainer can never be
+	# smaller than its content — so the board grew past the screen and pushed this
+	# very panel off the bottom of it. `_layout` gives it a real width; the line
+	# cap stops a long swap warning doing the same thing more slowly.
+	_ticket_effect.max_lines_visible = 3
+	_ticket_effect.custom_minimum_size = Vector2(120.0, 30.0)
+	row.add_child(_ticket_effect)
+
+	var buy_row := HBoxContainer.new()
+	buy_row.add_theme_constant_override(&"separation", 4)
+	row.add_child(buy_row)
+	_ticket_price = UiTheme.stamp("", UiTheme.AMBER, UiTheme.SIZE_SMALL)
+	_ticket_price.custom_minimum_size.x = 68.0
+	buy_row.add_child(_ticket_price)
+	_ticket_price_label = UiTheme.stamp_label(_ticket_price)
+	_ticket_buy = UiTheme.button(Loc.t("shop.map.buy"), &"amber", UiTheme.SIZE_SMALL)
+	_ticket_buy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_ticket_buy.custom_minimum_size.y = 26.0
+	_ticket_buy.pressed.connect(func() -> void: _on_buy_upgrade(_map_pick))
+	buy_row.add_child(_ticket_buy)
+	return page
 
 
-func _rebuild_upgrades() -> void:
-	var list: VBoxContainer = _lists["upgrades"]
-	var wanted: Array[String] = []
-	for item in UpgradeDB.ITEMS:
-		if not GameState.has_upgrade(item.id) and GameState.upgrade_unlocked(item):
-			wanted.append(item.id)
-	for child in list.get_children():
-		var card := child as ShopCard
-		if card != null and not wanted.has(card.id):
-			_cards.erase(card.id)
-			card.queue_free()
-	for uid in wanted:
-		if _cards.has(uid):
-			continue
-		var item := UpgradeDB.get_item(uid)
-		var card := ShopCard.new()
-		card.setup(uid, "upgrade", _upgrade_art(item), item.name, item.desc,
-			UiTheme.Icon.STAR)
-		card.set_effect(str(GameState.upgrade_preview(item).get("text", "")))
-		card.pressed_card.connect(_on_buy_upgrade)
-		list.add_child(card)
-		_cards[uid] = card
-	var hint := list.get_node_or_null(^"EmptyHint")
-	if wanted.is_empty() and hint == null:
-		var note := UiTheme.label(Loc.t("shop.empty"),
-			UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
-		note.name = "EmptyHint"
-		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		list.add_child(note)
-	elif not wanted.is_empty() and hint != null:
-		hint.queue_free()
+func _on_map_node(id: String) -> void:
+	_map_pick = id
+	_refresh_ticket()
+	AudioManager.play_sfx("tap")
+
+
+func _refresh_ticket() -> void:
+	## Everything about one station, in the order a player asks it: what is this,
+	## what does it do for me, what does it cost, can I have it.
+	if _ticket == null:
+		return
+	if _map_pick.is_empty():
+		_ticket_name.text = Loc.t("shop.map.pick")
+		_ticket_effect.text = Loc.t("shop.map.hint")
+		_ticket_price.visible = false
+		_ticket_buy.disabled = true
+		_ticket_buy.text = Loc.t("shop.map.buy")
+		return
+	var item := UpgradeDB.get_item(_map_pick)
+	if item.is_empty():
+		return
+	_ticket_name.text = str(item.get("name", _map_pick))
+	_ticket_price.visible = true
+	if GameState.has_upgrade(_map_pick):
+		_ticket_effect.text = str(GameState.upgrade_preview(item).get("text", ""))
+		_ticket_price_label.text = Loc.t("shop.map.owned")
+		_ticket_buy.disabled = true
+		_ticket_buy.text = Loc.t("shop.map.owned")
+		return
+	var reason := _gate_reason(item)
+	var price := UpgradeDB.price_for(item, GameState.upgrades)
+	_ticket_price_label.text = GameState.fmt(price)
+	if not reason.is_empty():
+		_ticket_effect.text = "%s\n%s" % [reason, str(item.get("desc", ""))]
+		_ticket_buy.disabled = true
+		_ticket_buy.text = Loc.t("shop.map.shut")
+		return
+	var refits := UpgradeDB.conflicts_with(item, GameState.upgrades)
+	var effect := str(GameState.upgrade_preview(item).get("text", ""))
+	if not refits.is_empty():
+		effect = "%s\n%s" % [effect, Loc.t("shop.upgrade.swap", {"name": str(
+			UpgradeDB.get_item(refits[0]).get("name", refits[0]))})]
+	_ticket_effect.text = effect
+	_ticket_buy.disabled = not GameState.can_afford(price)
+	_ticket_buy.text = Loc.t("shop.map.buy")
+
+
+func _refresh_upgrades() -> void:
+	## The map redraws itself only when a station actually changed state, and the
+	## ticket under it re-reads whichever station is selected. Nothing is rebuilt:
+	## this runs off the shop's refresh timer while the tab is open, and the
+	## version of this screen that tore down and re-created its rows on that timer
+	## ate every tap that landed during a rebuild.
+	if _map != null:
+		_map.refresh()
+	_refresh_ticket()
 	_update_tab_badges()
+
+
+func _gate_reason(item: Dictionary) -> String:
+	## Why this node is shut, in one line, naming the thing to go and do.
+	##
+	## A purchase gate is named first because it is the closer of the two and the
+	## one the player controls directly. "Faltam 40 estivadores" is a plan; a
+	## greyed-out row with no sentence is a bug report.
+	var missing := UpgradeDB.blocked_by(item, GameState.upgrades)
+	if not missing.is_empty():
+		return Loc.t("shop.upgrade.needs", {"name": str(
+			UpgradeDB.get_item(missing[0]).get("name", missing[0]))})
+	var unlock: Dictionary = item.get("unlock", {})
+	for sid: String in unlock.get("owned", {}):
+		var need := int(unlock.owned[sid])
+		var have := GameState.structure_count(sid)
+		if have < need:
+			return Loc.t("shop.upgrade.needs_fleet", {
+				"count": str(need - have),
+				"name": str(StructureDB.get_item(sid).get("name", sid))})
+	if unlock.has("teus") and GameState.lifetime_teus < float(unlock.teus):
+		return Loc.t("shop.upgrade.needs_teus",
+			{"amount": GameState.fmt(float(unlock.teus))})
+	return ""
 
 
 func _rebuild_land() -> void:
@@ -841,8 +958,12 @@ func _update_tab_badges() -> void:
 	## A tab only shouts when something on it is actually buyable right now.
 	var ready_upgrades := 0
 	for item in UpgradeDB.ITEMS:
-		if not GameState.has_upgrade(item.id) and GameState.upgrade_unlocked(item) \
-				and GameState.can_afford(item.cost):
+		# `upgrade_available` and not `upgrade_unlocked`: with the whole tree on the
+		# tab, a node whose parent is unbought is visible and priced but not
+		# buyable, and a badge that counted it would send the player to a tab where
+		# nothing can be pressed.
+		if not GameState.has_upgrade(item.id) and GameState.upgrade_available(item) \
+				and GameState.can_afford(UpgradeDB.price_for(item, GameState.upgrades)):
 			ready_upgrades += 1
 	var button: Button = _tab_buttons.get("upgrades")
 	if button == null:
@@ -898,11 +1019,7 @@ func _open_sheet() -> void:
 	_layout()
 	UiTheme.focus_first(_board)
 	open_changed.emit(true)
-	if not UserPreferences.can_animate():
-		_board.modulate.a = 1.0
-		return
-	_board.modulate.a = 0.0
-	create_tween().tween_property(_board, "modulate:a", 1.0, 0.14)
+	UiTheme.pop_open(_board, _backdrop)
 
 
 func _close() -> void:
@@ -935,8 +1052,8 @@ func has_affordable() -> bool:
 				.get("ok", false)):
 			return true
 	for item in UpgradeDB.ITEMS:
-		if not GameState.has_upgrade(item.id) and GameState.upgrade_unlocked(item) \
-				and GameState.can_afford(item.cost):
+		if not GameState.has_upgrade(item.id) and GameState.upgrade_available(item) \
+				and GameState.can_afford(UpgradeDB.price_for(item, GameState.upgrades)):
 			return true
 	var parcel := LandDB.next_parcel(GameState.land)
 	return not parcel.is_empty() and GameState.can_afford(float(parcel.cost))
@@ -961,8 +1078,8 @@ func next_purchase_eta() -> float:
 			continue
 		cheapest = minf(cheapest, GameState.structure_cost(item.id))
 	for item in UpgradeDB.ITEMS:
-		if not GameState.has_upgrade(item.id) and GameState.upgrade_unlocked(item):
-			cheapest = minf(cheapest, float(item.cost))
+		if not GameState.has_upgrade(item.id) and GameState.upgrade_available(item):
+			cheapest = minf(cheapest, UpgradeDB.price_for(item, GameState.upgrades))
 	var parcel := LandDB.next_parcel(GameState.land)
 	if not parcel.is_empty():
 		cheapest = minf(cheapest, float(parcel.cost))
@@ -991,6 +1108,9 @@ func _layout() -> void:
 			tab_button.text = Loc.t(str(tab[1]))
 	_update_tab_badges()
 	_update_orders_tab()
+	if _ticket_effect != null:
+		# Autowrap needs a real width before the column asks it for a height.
+		_ticket_effect.custom_minimum_size.x = _board.size.x - 40.0
 
 	_backdrop.visible = _open
 	_board.visible = _open
@@ -1116,16 +1236,7 @@ func _refresh() -> void:
 			float(quote.get("nominal_cps_gain", 0.0)))
 	_refresh_teaser(next_locked)
 
-	for item in UpgradeDB.ITEMS:
-		var card: ShopCard = _cards.get(item.id)
-		if card == null:
-			continue
-		# Recomputed on every refresh, not cached at setup: the gain a machine
-		# upgrade is worth moves every time another of that machine is bought.
-		var preview := GameState.upgrade_preview(item)
-		card.set_effect(str(preview.get("text", "")))
-		card.refresh(item.cost, 0, GameState.can_afford(item.cost), false, 1,
-			float(preview.get("cps_gain", 0.0)))
+	_refresh_upgrades()
 
 	var next := LandDB.next_parcel(GameState.land)
 	for item in LandDB.ITEMS:

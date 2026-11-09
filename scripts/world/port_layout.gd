@@ -162,7 +162,7 @@ static func berth_count() -> int:
 	## quay and the two can never disagree.
 	var count := 1
 	while count < BERTH_MAX \
-			and berth_y(count) + SHIP_H + 20.0 <= world_bottom():
+			and berth_y(count) + SHIP_H + BASIN_H <= world_bottom():
 		count += 1
 	return count
 
@@ -196,11 +196,29 @@ const PARCEL_SLOT_ROWS := 1
 
 ## The unpaved strip along the southern boundary. It used to be where the branch
 ## line ran, and the branch has moved inland — see `rail_y`.
-const SOUTH_MARGIN := 46.0
+##
+## It also carries `BASIN_H`: the world is that much deeper than the moorings
+## need, so reserving the basin costs no berths. Trimming this without trimming
+## that would quietly cost the terminal one.
+const SOUTH_MARGIN := 102.0
+
+## Clear water kept south of the last hull.
+##
+## The moorings pack down the quay until they run out of world, so without a
+## reserved basin there is no stretch of water some berth is not already using —
+## and `DecorLayer._duck_home` moors in exactly that water, on the stated promise
+## that it is always clear. It was 20, which is less than the 46 the duck moors
+## at, so the duck rode under the last hull; it only became visible when the
+## branch corridor grew and the packing shifted, which is what a latent geometry
+## bug looks like.
+const BASIN_H := 76.0
 ## Vertical room the branch corridor needs between the yard and the workshop
-## band: the run-around loop, the running line, and the signal that stands north
-## of both.
-const RAIL_BAND_H := 62.0
+## band: the run-around loop, the running line, the signal that stands north of
+## both, and — south of the rails — the goods platform the whole thing exists to
+## serve. It was 62 while the branch was two stripes of ballast on bare asphalt;
+## a railhead with no platform, no ramp and no shed is a level crossing with
+## ambitions, and the extra thirty pixels are where the station goes.
+const RAIL_BAND_H := 92.0
 
 
 static func block_rows() -> int:
@@ -260,13 +278,39 @@ static func role_heads_seaward(role: StringName) -> bool:
 	return role == ROLE_EXPORT
 
 
+## Which block row the branch corridor is threaded *before*. Everything from this
+## row on is laid out on the far side of the railway.
+##
+## The branch used to hang off `yard_bottom()`, which grows every time a parcel is
+## bought — so the railhead, its signal, its crossing and its board all slid a
+## block row further south each time the terminal expanded, and a player who had
+## learned where the station was found it somewhere else. A railhead is the one
+## piece of a port that is genuinely immovable: the line was there before the
+## terminal and the terminal was built around it. It is a fixed row now, and the
+## yard grows *past* it, which is also how a real terminal expands.
+const RAIL_ROW := BASE_BLOCK_ROWS
+
+
+static func block_row_pitch() -> float:
+	return BLOCK_H + BLOCK_GAP_Y
+
+
+static func block_row_y(row: int) -> float:
+	## Top edge of block row `row`, with the branch corridor threaded in at
+	## `RAIL_ROW`. The single place that knows the yard is interrupted — every
+	## other row calculation goes through here so a block, its driving lane and the
+	## machine that works it can never end up on opposite sides of the railway.
+	var y := YARD_Y0 + float(row) * block_row_pitch()
+	if row >= RAIL_ROW:
+		y += RAIL_BAND_H
+	return y
+
+
 static func block_origin(index: int) -> Vector2:
 	## Top-left corner of block `index` (row-major, left to right).
 	var col := index % BLOCK_COLUMNS
 	@warning_ignore("integer_division") var row := index / BLOCK_COLUMNS
-	return Vector2(
-		BLOCK_X0 + col * (BLOCK_W + BLOCK_GAP_X),
-		YARD_Y0 + row * (BLOCK_H + BLOCK_GAP_Y))
+	return Vector2(BLOCK_X0 + col * (BLOCK_W + BLOCK_GAP_X), block_row_y(row))
 
 
 static func slot_position(index: int) -> Vector2:
@@ -279,14 +323,21 @@ static func slot_position(index: int) -> Vector2:
 
 
 static func yard_bottom() -> float:
-	return YARD_Y0 + block_rows() * (BLOCK_H + BLOCK_GAP_Y)
+	## The southern edge of the last block row, corridor included when the yard has
+	## grown past it.
+	return block_row_y(block_rows() - 1) + block_row_pitch()
+
+
+static func rail_corridor_bottom() -> float:
+	return YARD_Y0 + float(RAIL_ROW) * block_row_pitch() + RAIL_BAND_H
 
 
 static func service_y() -> float:
-	## The workshop band sits south of the branch corridor, not north of it: the
-	## rails come between the container yard and the sheds, the way they do in a
-	## terminal that was built around them.
-	return yard_bottom() + RAIL_BAND_H + SERVICE_GAP
+	## The workshop band sits south of everything the terminal operates — the
+	## blocks and the branch both. On a young port the corridor is the lower of the
+	## two and sets this line; once the yard has grown past the railway the blocks
+	## do, and the sheds move down with them.
+	return maxf(yard_bottom(), rail_corridor_bottom()) + SERVICE_GAP
 
 
 static func world_bottom() -> float:
@@ -294,16 +345,21 @@ static func world_bottom() -> float:
 
 
 static func rail_y() -> float:
-	## Inland, immediately below the last block row.
+	## The running line. A constant, and it has to stay one.
 	##
-	## It used to be `world_bottom() - 26`, which put the whole branch — the
-	## running line, the loop, the shunt, the rake, the signal — on the southern
-	## boundary of the map, below the workshop band, in the one strip a player
-	## never pans to. The feature worked and nobody ever saw it work: a train
-	## arrived every two and a half minutes, stood for another two, and left
-	## again off screen. Everything else here is derived from this one number, so
-	## moving the branch is moving this line.
-	return yard_bottom() + 44.0
+	## Two earlier versions were not. The first was `world_bottom() - 26`, which
+	## put the whole branch on the southern boundary below the workshop band, in
+	## the one strip a player never pans to: the feature worked and nobody ever saw
+	## it work. The second was `yard_bottom() + 44`, which fixed the visibility and
+	## introduced a worse problem — the yard grows with every parcel, so the
+	## railhead crept a block row south each time the terminal expanded, and the
+	## station a player had learned the position of was simply somewhere else the
+	## next time they looked.
+	##
+	## It is pinned to `RAIL_ROW` now, and the yard is laid out around it. Every
+	## other figure on the branch derives from this one, so moving this line moves
+	## the railway — which is exactly why it does not move.
+	return YARD_Y0 + float(RAIL_ROW) * block_row_pitch() + 44.0
 
 
 # --- the branch line ------------------------------------------------------
@@ -353,12 +409,90 @@ static func rail_east_turnout_x() -> float:
 
 static func rail_west_turnout_x() -> float:
 	## Clear of the tail of the longest rake it will ever have to run round.
-	return rail_stop_x() - RAIL_WAGON_PITCH * 7.0
+	##
+	## Derived from `RailCargoPolicy.MAX_RAKE` rather than written down, because
+	## the branch's upgrades move the rake. A hardcoded seven pitches was correct
+	## exactly while six wagons was the only length the branch could produce; the
+	## first upgrade that added a wagon would have left the loco coupling up west
+	## of its own turnout.
+	return rail_stop_x() - RAIL_WAGON_PITCH * float(RailCargoPolicy.MAX_RAKE + 1)
 
 
 static func rail_wagon_x(slot: int) -> float:
 	## Wagon `slot` counted back from the head of the standing rake.
 	return rail_stop_x() - RAIL_WAGON_PITCH * (slot + 1)
+
+
+# --- the goods station ------------------------------------------------------
+## What makes the branch a *place* rather than a line the train happens to cross.
+##
+## A railhead in a container terminal is not bare track: it is a paved apron the
+## full length of the standing rake, at wagon-deck height, with a hard edge the
+## boxes are worked across and a shed at the end for whatever is not going
+## straight onto a stack. Without it the corridor read as two stripes of ballast
+## and a locomotive sliding over them, and the board naming the place stood in
+## the middle of the yard attached to nothing.
+##
+## It sits **south** of the running line — between the rails and the sheds —
+## because the loop is north and the loco has to be able to pass its own train.
+
+## Top of the platform, clear of the running line and its ballast shoulder.
+const RAIL_PLATFORM_DY := 11.0
+const RAIL_PLATFORM_H := 26.0
+## How far past the ends of the standing rake the apron runs. A platform exactly
+## as long as the train reads as a coincidence; a little over reads as built.
+const RAIL_PLATFORM_OVERRUN := 14.0
+
+
+static func rail_platform_top() -> float:
+	return rail_y() + RAIL_PLATFORM_DY
+
+
+static func rail_platform_rect() -> Rect2:
+	## The working face of the station, in world pixels.
+	##
+	## Sized off the longest rake the branch can ever stand, then cut back at both
+	## ends by the two things that were already there: the public road the branch
+	## crosses on the level, and the quay. Concrete poured across a live
+	## carriageway is not a platform, it is a paving error — and the first version
+	## of this did exactly that, running the apron out to x=9 straight over the
+	## road and the level crossing.
+	##
+	## A very long rake therefore has its last wagon or two standing off the end of
+	## the apron, over the crossing. That is correct rather than a compromise: it
+	## is what an over-length train does at a short goods platform, and it gives
+	## the shuttle a reason to be short.
+	var west := maxf(rail_wagon_x(RailCargoPolicy.MAX_RAKE - 1)
+		- RAIL_PLATFORM_OVERRUN, ROAD_X1 + 4.0)
+	var east := minf(rail_stop_x() + RAIL_PLATFORM_OVERRUN, QUAY_X0 - 4.0)
+	return Rect2(west, rail_platform_top(), east - west, RAIL_PLATFORM_H)
+
+
+static func rail_shed_rect() -> Rect2:
+	## The transit shed, at the buffer-stop end where the head of every rake
+	## stops. Cargo that is not going straight onto a stack waits here, and it is
+	## what gives the east end of the platform a reason to be the east end.
+	var platform := rail_platform_rect()
+	return Rect2(platform.end.x - 46.0, platform.position.y - 2.0, 44.0,
+		RAIL_PLATFORM_H + 4.0)
+
+
+static func rail_board_position() -> Vector2:
+	## The name board, standing on its own platform at the west end — the end a
+	## train arrives from, so the first thing a service passes is the sign saying
+	## where it has arrived. It used to float over the middle of the standing rake
+	## with nothing under it.
+	var platform := rail_platform_rect()
+	return Vector2(platform.position.x + 6.0, platform.position.y + 4.0)
+
+
+static func rail_gantry_x() -> float:
+	## Centre of the rail gantry that spans the running line and the apron. Over
+	## the middle of the platform rather than the middle of the longest possible
+	## rake: the crane works what the apron can serve, and parking it out over the
+	## level crossing would have it straddling the public road.
+	var platform := rail_platform_rect()
+	return platform.position.x + platform.size.x * 0.5
 
 
 static func rail_wagon_centre(slot: int) -> Vector2:
@@ -502,7 +636,7 @@ static func lane_ys() -> Array[float]:
 	## Horizontal driving lanes between the container block rows.
 	var lanes: Array[float] = []
 	for row in block_rows():
-		lanes.append(YARD_Y0 + row * (BLOCK_H + BLOCK_GAP_Y) + BLOCK_H + BLOCK_GAP_Y * 0.5)
+		lanes.append(block_row_y(row) + BLOCK_H + BLOCK_GAP_Y * 0.5)
 	return lanes
 
 
@@ -526,7 +660,7 @@ static func runway_xs() -> Array[float]:
 static func block_lane_y(block_index: int) -> float:
 	## The driving lane a machine works this block from (just below it).
 	@warning_ignore("integer_division") var row := block_index / BLOCK_COLUMNS
-	return YARD_Y0 + row * (BLOCK_H + BLOCK_GAP_Y) + BLOCK_H + BLOCK_GAP_Y * 0.5
+	return block_row_y(row) + BLOCK_H + BLOCK_GAP_Y * 0.5
 
 
 static func quay_lane_x() -> float:

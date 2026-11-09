@@ -20,26 +20,83 @@ def ridged_roof(img, x, y, w, h, base, light, dark, ridge_step=5):
 
 
 def gen_warehouse():
-    """Big shed with roller doors on the yard side. 76x48."""
+    """Big shed, 76x48: a pitched steel roof and the south wall under it.
+
+    Drawn the way the stacks are — top-down with the south face showing — so a
+    shed reads as a building with height rather than a red rug on the yard.
+    Light from the north-west: the north slope catches it, the south slope
+    turns away, and the wall under the eaves sits in the roof's shadow."""
     w, h = 76, 48
     img = new_img(w, h)
-    ridged_roof(img, 2, 2, w - 4, h - 4, P.ROOF_RED, P.ROOF_RED_L, P.ROOF_RED_D)
-    # skylight strips
-    for sx in range(8, w - 12, 16):
-        rect(img, sx, 8, 10, 5, P.GLASS)
-        hline(img, sx, 8, 10, P.GLASS_D)
-        rect(img, sx, h - 14, 10, 5, P.GLASS)
-        hline(img, sx, h - 14, 10, P.GLASS_D)
-    # roof vents on the ridge
-    for vx in range(14, w - 14, 18):
-        rect(img, vx, h // 2 - 3, 6, 6, P.STEEL)
-        hline(img, vx, h // 2 - 3, 6, P.STEEL_L)
-    # apron + roller doors along the left (yard) edge
-    rect(img, 0, 6, 3, h - 12, P.QUAY)
-    for dy in range(10, h - 14, 12):
-        rect(img, 0, dy, 3, 8, P.STEEL_D)
-        px(img, 1, dy, P.STEEL_L)
-    save(outline(img), "bld_warehouse")
+    roof = P.ramp(P.ROOF_RED, 5, hue_shift=14.0, dark=0.4, light=0.5)
+    wall = P.ramp((214, 206, 190), 5, hue_shift=12.0, dark=0.3, light=0.6)
+    steel = P.ramp(P.STEEL, 5, hue_shift=12.0)
+    x0, x1 = 1, 72                 # building, outline included later
+    ridge, eave, base = 15, 31, 45
+    # --- roof: north slope lit, south slope in shade, ribs running down both
+    rect(img, x0, 1, x1 - x0 + 1, ridge - 1, roof[3])
+    rect(img, x0, ridge + 1, x1 - x0 + 1, eave - ridge - 1, roof[2])
+    for rx in range(x0 + 2, x1, 3):
+        vline(img, rx, 2, ridge - 2, roof[4])
+        vline(img, rx + 1, 2, ridge - 2, P.mix(roof[3], roof[2], 0.5))
+        vline(img, rx, ridge + 1, eave - ridge - 2, roof[3])
+        vline(img, rx + 1, ridge + 1, eave - ridge - 2, roof[1])
+    hline(img, x0, ridge, x1 - x0 + 1, roof[4])         # ridge cap, in full sun
+    hline(img, x0, ridge + 1, x1 - x0 + 1, roof[0])
+    hline(img, x0, 1, x1 - x0 + 1, roof[4])
+    hline(img, x0, eave, x1 - x0 + 1, roof[0])          # the gutter
+    vline(img, x0, 1, eave, roof[4])
+    vline(img, x1, 1, eave, roof[1])
+    # skylights: translucent sheets on the north slope, one per bay
+    glass = P.ramp(P.GLASS, 5, hue_shift=10.0)
+    for sx in range(6, x1 - 8, 15):
+        rect(img, sx, 4, 8, 8, glass[2])
+        rect(img, sx, 4, 8, 1, glass[4])
+        rect(img, sx + 7, 5, 1, 7, glass[1])
+        px(img, sx + 1, 5, glass[4])
+        rect(img, sx, ridge + 4, 8, 6, P.mix(glass[1], roof[1], 0.4))
+    # turbine vents along the ridge
+    for vx in range(12, x1 - 6, 18):
+        rect(img, vx, ridge - 2, 4, 4, steel[2])
+        rect(img, vx, ridge - 2, 4, 1, steel[4])
+        px(img, vx + 1, ridge - 1, steel[0])
+        px(img, vx + 3, ridge + 1, steel[1])
+    # --- south wall, under the eaves
+    rect(img, x0, eave + 1, x1 - x0 + 1, base - eave, wall[2])
+    hline(img, x0, eave + 1, x1 - x0 + 1, P.mix(wall[1], roof[0], 0.45))  # eave shadow
+    hline(img, x0, eave + 2, x1 - x0 + 1, wall[1])
+    for px_ in range(x0 + 3, x1, 4):                    # cladding seams
+        vline(img, px_, eave + 3, base - eave - 3, wall[1])
+    hline(img, x0, base, x1 - x0 + 1, wall[0])          # plinth
+    # roller doors: three bays, slatted steel, one half open onto the dark inside
+    for i, dx in enumerate((6, 30, 54)):
+        rect(img, dx, eave + 4, 13, base - eave - 4, steel[1])
+        rect(img, dx, eave + 4, 13, 1, steel[3])
+        for sy in range(eave + 6, base, 2):
+            hline(img, dx, sy, 13, steel[0])
+        if i == 1:
+            rect(img, dx + 1, eave + 9, 11, base - eave - 9, (40, 34, 44, 255))
+            hline(img, dx + 1, eave + 9, 11, steel[0])
+        vline(img, dx - 1, eave + 4, base - eave - 4, wall[0])
+        vline(img, dx + 13, eave + 4, base - eave - 4, wall[3])
+        # yellow-black dock bumpers either side of each door
+        px(img, dx - 1, base - 2, P.SAFETY)
+        px(img, dx + 13, base - 2, P.SAFETY)
+    # a lit window and a personnel door between the bays
+    for wx in (22, 46):
+        rect(img, wx, eave + 5, 4, 3, glass[1])
+        px(img, wx, eave + 5, glass[4])
+        rect(img, wx + 1, eave + 10, 3, base - eave - 10, steel[0])
+    img = outline(img)
+    # cast shadow, east and south, onto the yard
+    for y in range(4, base + 2):
+        for x in (x1 + 2, x1 + 3):
+            if img.getpixel((x, y))[3] == 0:
+                px(img, x, y, P.SHADOW)
+    for x in range(4, x1 + 3):
+        if img.getpixel((x, base + 2))[3] == 0:
+            px(img, x, base + 2, P.SHADOW)
+    save(img, "bld_warehouse")
 
 
 def gen_customs():

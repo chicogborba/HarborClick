@@ -26,9 +26,14 @@ signal breakdown_requested
 ## sized off the instrument it carries: the glass counter plus the panel's lit
 ## lip and its amber edge.
 const BAR_H := 40.0
-## Width the clock and the notice bell own at the right-hand end of the bar. The
-## tally is clamped to what is left, so the two instruments can never overlap.
+## Fallback width for the clock and bell before a real clock is attached — tests
+## that build a bare `Hud`, mostly. With one attached the tally is measured
+## against where the dial actually is, because a fixed guess was wrong the moment
+## the day number or the language made the dial wider.
 const CLOCK_RESERVE := 96.0
+## Air left between the end of the rate tag and the brass of the dial.
+const CLOCK_GAP := 6.0
+var _clock: PortClock
 var _bar: PanelContainer
 var _readout: Readout
 var _quay: Array = []
@@ -127,7 +132,18 @@ func _layout() -> void:
 	# Hard stop before the clock. The tally is a fixed window but the rate tag
 	# beside it grows with its text, and the clock is anchored to the far end of
 	# the same bar — without a ceiling the two drew on top of each other.
-	_readout.set_width_budget(maxf(60.0, area.size.x - CLOCK_RESERVE - 14.0))
+	var stop := area.end.x - CLOCK_RESERVE - 7.0
+	if _clock != null and is_instance_valid(_clock) and is_finite(_clock.left_edge()):
+		stop = _clock.left_edge() - CLOCK_GAP
+	_readout.set_width_budget(maxf(60.0, stop - _readout.position.x))
+
+
+func set_clock(clock: PortClock) -> void:
+	## The tally's budget ends where the dial begins, and the dial moves.
+	_clock = clock
+	if _clock != null and not _clock.footprint_changed.is_connected(_layout):
+		_clock.footprint_changed.connect(_layout)
+	_layout()
 
 
 func apply_view_metrics(metrics: Dictionary) -> void:

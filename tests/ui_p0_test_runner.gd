@@ -15,12 +15,17 @@ func _run() -> void:
 	SaveManager.set_save_path_for_tests(TEST_SAVE_PATH)
 	SaveManager.wipe()
 	GameState.from_save({})
+	# Overlay open animations move boards for 0.18s; the layout contracts
+	# below assert final geometry, so motion is off for the whole run.
+	UserPreferences.reduce_motion = true
 
 	await _test_hud_fixed_tally_geometry()
+	await _test_rate_tag_never_runs_under_the_clock()
 	await _test_shop_card_release_and_drag_contract()
 	await _test_shop_backdrop_and_escape_contract()
 	await _test_responsive_shell_profiles_without_main_scene()
 	await _test_safe_area_reaches_primary_ui()
+	await _test_upgrade_map_is_a_navigable_graph()
 
 	SaveManager.wipe()
 	_expect(not FileAccess.file_exists(TEST_SAVE_PATH), "cleanup removes UI test save")
@@ -251,6 +256,90 @@ func _test_safe_area_reaches_primary_ui() -> void:
 	await get_tree().process_frame
 
 
+func _test_rate_tag_never_runs_under_the_clock() -> void:
+	## Reported from a real session: the cat boost's "x3 12s" drew under the
+	## compass. The tag's budget was measured once at layout, before the boost
+	## existed, and the clock's width was a fixed guess the day number and the
+	## language could both outgrow. This builds the worst gantry the game can
+	## produce — narrowest phone, longest day label, biggest rate, boost and lift
+	## badge all at once — and checks that the tag still stops short of the dial.
+	var restore_language := Loc.preference
+	var restore_day := TimeManager.day
+	var restore_boost := GameState.boost_time
+	var viewport := _make_viewport(Vector2i(320, 640))
+	var hud := Hud.new()
+	viewport.add_child(hud)
+	var clock := PortClock.new()
+	viewport.add_child(clock)
+	await get_tree().process_frame
+	var area := Rect2(Vector2.ZERO, Vector2(320.0, 640.0))
+	var metrics := {"profile": "portrait", "viewport_size": area.size,
+		"safe_rect": area, "world_rect": area}
+	hud.apply_view_metrics(metrics)
+	clock.apply_view_metrics(metrics)
+	hud.set_clock(clock)
+	var readout: Readout = hud._readout
+
+	# Roomy first: nothing may be trimmed when nothing needs to be.
+	var wide := _make_viewport(Vector2i(900, 640))
+	var roomy := Hud.new()
+	wide.add_child(roomy)
+	await get_tree().process_frame
+	roomy.apply_view_metrics({"safe_rect": Rect2(0, 0, 900, 640),
+		"world_rect": Rect2(0, 0, 900, 640)})
+	GameState.boost_time = 12.0
+	roomy._readout._process(0.06)
+	roomy._readout._on_cps(1000.0)
+	await get_tree().process_frame
+	_expect(roomy._readout._boost_label.text.ends_with("s"),
+		"a gantry with room shows the boost countdown in full")
+	_expect(not roomy._readout._rate_label.clip_text,
+		"and does not trim the rate")
+	wide.queue_free()
+
+	Loc.apply(&"it")
+	for day in [1, 100, 10000]:
+		# Settle the gantry with no boost on it first. The real bug only showed
+		# when the boost arrived *after* layout with nothing else moving — any
+		# other change in the same frame (a day rolling over, a resize) re-fitted
+		# the tag and hid it, which is exactly how a first draft of this test
+		# passed against the broken code.
+		GameState.boost_time = 0.0
+		readout._process(0.06)
+		TimeManager.day = day
+		clock._process(0.0)
+		readout._on_cps(8.0e30)
+		await get_tree().process_frame
+		# Now the cat, and a purchase, into a gantry nobody is re-laying out.
+		GameState.boost_time = 12.0
+		readout._process(0.06)
+		readout._on_cps(8.8e36)
+		await get_tree().process_frame
+		var tag := readout._rate_tag.get_global_rect()
+		var dial := clock._board.get_global_rect()
+		_expect(tag.end.x <= dial.position.x,
+			"the rate tag ends before the clock on day %d (%.1f > %.1f)"
+				% [day, tag.end.x, dial.position.x])
+		_expect(dial.end.x <= area.end.x - NoticeBell.RESERVE,
+			"and the clock stays clear of the notice bell on day %d" % day)
+		_expect(readout._rate_label.text.begins_with(GameState.fmt(8.8e36)),
+			"the rate is trimmed for room, never replaced (day %d)" % day)
+
+	# The boost ending hands its room back.
+	GameState.boost_time = 0.0
+	readout._process(0.06)
+	await get_tree().process_frame
+	_expect(not readout._boost_row.visible, "the boost badge goes when the boost does")
+	_expect(readout._rate_tag.get_global_rect().end.x <= clock._board.get_global_rect().position.x,
+		"and the tag still ends before the clock afterwards")
+
+	Loc.apply(StringName(restore_language))
+	TimeManager.day = restore_day
+	GameState.boost_time = restore_boost
+	viewport.queue_free()
+	await get_tree().process_frame
+
+
 func _make_viewport(size: Vector2i) -> SubViewport:
 	var viewport := SubViewport.new()
 	viewport.size = size
@@ -284,6 +373,63 @@ func _card_screen_drag(card: ShopCard, position: Vector2) -> void:
 	var event := InputEventScreenDrag.new()
 	event.position = position
 	card._gui_input(event)
+
+
+func _test_upgrade_map_is_a_navigable_graph() -> void:
+	## The upgrades tab is a diagram now, and a diagram has three ways of being
+	## quietly wrong that no screenshot review would catch: a station missing from
+	## it, a child drawn west of the thing that opens it, and a tap that lands on
+	## the wrong station because two are near each other.
+	GameState.from_save({"owned": {"estivador": 30},
+		"upgrades": ["cafe_forte"], "teus": 1e9, "all_time_teus": 1e9})
+	GameState.recompute()
+	var map := UpgradeMap.new()
+	map.size = Vector2(340, 380)
+	add_child(map)
+	await get_tree().process_frame
+
+	for item in UpgradeDB.ITEMS:
+		_expect(map._nodes.has(str(item.id)),
+			"every upgrade is a station on the map (%s)" % item.id)
+	_expect(map._nodes.size() == UpgradeDB.ITEMS.size(),
+		"and the map invents none of its own")
+
+	# West-to-east is the whole grammar of the picture: a station you can only
+	# reach through another has to be drawn further along the line than it.
+	for item in UpgradeDB.ITEMS:
+		var id := str(item.id)
+		for parent in UpgradeDB.requires_of(item):
+			_expect(float(map._nodes[parent].pos.x) < float(map._nodes[id].pos.x),
+				"%s is drawn east of %s" % [id, parent])
+
+	# The three states the map draws, against a port that has exactly one of each.
+	_expect(map._state_of("cafe_forte") == 2, "a bought station is lit")
+	_expect(map._state_of("carrinho_mao") == 1, "the next one along is open")
+	_expect(map._state_of("sindicato") == 0, "and the one past that is shut")
+
+	# A tap has to select the station under the finger, and a drag has to select
+	# nothing at all — this is the whole reason the map does its own panning.
+	map.reset_view()
+	var picked: Array[String] = []
+	map.node_selected.connect(func(id: String) -> void: picked.append(id))
+	var target: Vector2 = map._to_screen(Vector2(map._nodes["cafe_forte"].pos))
+	map._begin_press(target)
+	map._end_press(target)
+	_expect(picked.size() == 1 and picked[0] == "cafe_forte",
+		"a tap selects the station under it (%s)" % str(picked))
+	picked.clear()
+	map._begin_press(target)
+	map._end_press(target + Vector2(60.0, 0.0))
+	_expect(picked.is_empty(), "a drag pans the map instead of buying something")
+
+	# Zoom is about the finger, not about the origin: whatever was under the
+	# pinch has to still be under it afterwards, or the map fights the player.
+	var anchor := Vector2(170.0, 190.0)
+	var before := map._to_map(anchor)
+	map._set_zoom(map._zoom * 1.6, anchor)
+	_expect(map._to_map(anchor).distance_to(before) < 0.75,
+		"zoom keeps the point under the fingers where it was")
+	map.queue_free()
 
 
 func _same_rect(left: Rect2, right: Rect2) -> bool:

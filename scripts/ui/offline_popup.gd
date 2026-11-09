@@ -38,8 +38,8 @@ static func format_duration(seconds: float) -> String:
 static func greeting(report: Dictionary) -> String:
 	var away := float(report.get("away_seconds", 0.0))
 	if away <= 0.0:
-		return "Os guindastes trabalharam sem você:"
-	return "Fora por %s. O porto não parou:" % format_duration(away)
+		return Loc.t("offline.greeting.short")
+	return Loc.t("offline.greeting.away", {"time": format_duration(away)})
 
 
 static func breakdown_lines(report: Dictionary) -> Array[String]:
@@ -47,14 +47,14 @@ static func breakdown_lines(report: Dictionary) -> Array[String]:
 	var lines: Array[String] = []
 	if report.is_empty():
 		return lines
-	lines.append("%s contadas x %s TEU/s x %d%%" % [
-		format_duration(float(report.get("credited_seconds", 0.0))),
-		GameState.fmt(float(report.get("rate", 0.0))),
-		roundi(float(report.get("efficiency", 0.0)) * 100.0)])
+	lines.append(Loc.t("offline.counted", {
+		"time": format_duration(float(report.get("credited_seconds", 0.0))),
+		"rate": GameState.fmt(float(report.get("rate", 0.0))),
+		"pct": str(roundi(float(report.get("efficiency", 0.0)) * 100.0))}))
 	if float(report.get("capped_seconds", 0.0)) > 0.0:
-		lines.append("Limite de %s: %s TEU não entraram" % [
-			format_duration(float(report.get("cap_seconds", 0.0))),
-			GameState.fmt(float(report.get("lost_to_cap", 0.0)))])
+		lines.append(Loc.t("offline.capped", {
+			"time": format_duration(float(report.get("cap_seconds", 0.0))),
+			"amount": GameState.fmt(float(report.get("lost_to_cap", 0.0)))}))
 	return lines
 
 
@@ -71,7 +71,7 @@ func _build(amount: float, report: Dictionary) -> void:
 	col.add_theme_constant_override(&"separation", 6)
 	_panel.add_child(col)
 
-	var title := UiTheme.label("O PORTO NÃO DORMIU", UiTheme.SIZE_BODY, UiTheme.INK)
+	var title := UiTheme.label(Loc.t("offline.title"), UiTheme.SIZE_BODY, UiTheme.INK)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(title)
 
@@ -90,19 +90,14 @@ func _build(amount: float, report: Dictionary) -> void:
 
 	_add_breakdown(col, report)
 
-	var button := UiTheme.button("BELEZA")
+	var button := UiTheme.button(Loc.t("offline.ok"))
 	button.pressed.connect(func() -> void:
 		AudioManager.play_sfx("tap")
 		queue_free())
 	col.add_child(button)
 
 	_layout()
-	_panel.modulate.a = 0.0
-	_panel.scale = Vector2(0.92, 0.92)
-	var tween := create_tween().set_parallel()
-	tween.tween_property(_panel, "modulate:a", 1.0, 0.22)
-	tween.tween_property(_panel, "scale", Vector2.ONE, 0.34) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	UiTheme.pop_open(_panel, _dim)
 
 
 func _add_breakdown(col: VBoxContainer, report: Dictionary) -> void:

@@ -45,6 +45,11 @@ func test_fleet_uses_the_single_github_hull() -> void:
 		_expect(hull.bay_rows() == PortLayout.SHIP_BAY_ROWS
 				and hull.bay_capacity() == 24,
 			"%s keeps the fixed twelve-row, 24-box deck" % silhouette.id)
+		_expect((hull._hull as Sprite2D).modulate == Color.WHITE,
+			"%s leaves the deck and house their own colours" % silhouette.id)
+		_expect(hull._paint.self_modulate.is_equal_approx(
+				Color(str(ShipCatalog.PALETTES[0].hull))),
+			"%s puts the livery on the paint layer only" % silhouette.id)
 		var scale: Vector2 = silhouette.hull_scale
 		_expect((hull._hull as Sprite2D).scale.is_equal_approx(scale),
 			"%s applies the catalogue scale to the shared hull" % silhouette.id)

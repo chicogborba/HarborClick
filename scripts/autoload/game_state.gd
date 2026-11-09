@@ -74,8 +74,17 @@ const MILESTONES := [
 const REBUILD_ESTIMATE_TAPS := 2.0
 const CRIT_CHANCE := 0.03
 const CRIT_MULT := 7.0
-const CAT_BOOST_MULT := 7.0
+## The cat's surge. Below every charter reward — those are earned by playing a
+## minigame, this is found by looking at the right pixel — but on the whole port
+## rather than on a tap, which is what makes it worth finding at all.
+const CAT_BOOST_MULT := 3.0
 const CAT_BOOST_TIME := 25.0
+## The decimal mark for the current language, cached. `fmt` is called on the
+## counter every frame; looking a comma up in the string table that often is a
+## lookup nobody needs.
+var _decimal_mark := ","
+
+
 const SUFFIXES := ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"]
 const MANUAL_LEDGER_LIMIT := 512
 
@@ -84,7 +93,24 @@ var _manual_commits: Dictionary = {} # tx_id -> true
 
 
 func _ready() -> void:
+	# The mark is read once here and again whenever the player switches language,
+	# rather than on every `fmt` call. `Loc` is an autoload and may not have built
+	# its table yet at this point, so a missing key falls back to the comma the
+	# cache already holds.
+	# Deferred: autoload order does not guarantee `Loc` has built its table when
+	# this runs, and asking early both misses the answer and prints a missing-key
+	# warning for a key that is present.
+	_adopt_decimal_mark.call_deferred()
+	Loc.language_changed.connect(func(_code: StringName) -> void:
+		_adopt_decimal_mark())
 	recompute()
+
+
+func _adopt_decimal_mark() -> void:
+	if not Loc.has("number.decimal"):
+		return
+	var mark := Loc.t("number.decimal")
+	_decimal_mark = mark if mark.length() == 1 else ","
 
 
 func _process(delta: float) -> void:
@@ -156,7 +182,13 @@ func _foreman_candidates() -> Array:
 			"cost": float(quote.get("cost", 0.0)),
 			"cps_gain": float(quote.get("cps_gain", 0.0))})
 	for item in UpgradeDB.ITEMS:
-		if has_upgrade(str(item.id)) or not upgrade_unlocked(item):
+		if has_upgrade(str(item.id)) or not upgrade_available(item):
+			continue
+		# An exclusive pair is the one purchase on the board that throws something
+		# away, and which half of it a port wants is the player's call to make and
+		# to defend. A standing order that quietly refitted Estoque Profundo out
+		# for Giro Rápido would be undoing a decision, not automating one.
+		if not UpgradeDB.conflicts_with(item, upgrades).is_empty():
 			continue
 		if not can_afford(float(item.cost)):
 			continue
@@ -177,9 +209,27 @@ func _upgrade_cps_gain(item: Dictionary) -> float:
 	## not what the port earns on its own. That is what makes MELHOR RETORNO and
 	## MAIS BARATO genuinely different orders rather than two spellings of greed —
 	## the greedy line never buys a tap upgrade, and the cheap line does.
-	if str(item.get("kind", "")) != "global_mult":
-		return 0.0
-	return cps * maxf(0.0, float(item.get("value", 1.0)) - 1.0)
+	match str(item.get("kind", "")):
+		"global_mult":
+			return cps * maxf(0.0, float(item.get("value", 1.0)) - 1.0)
+		"structure_mult":
+			var gain := 0.0
+			for target in UpgradeDB.targets_of(item):
+				gain += structure_total_cps(target) \
+					* maxf(0.0, float(item.get("value", 1.0)) - 1.0)
+			return gain * _global_cps_multiplier() * _conductor_multiplier() \
+				* _upgrade_global_multiplier()
+		"synergy":
+			return structure_total_cps(str(item.get("target", ""))) \
+				* _synergy_bonus(item) * _global_cps_multiplier() \
+				* _conductor_multiplier() * _upgrade_global_multiplier()
+		"transform":
+			# A transform can score *negative* — Turma de Terra costs a port with
+			# four estivadores far more output than it hands back. The foreman is
+			# ranking by payback, so an honest negative here is what keeps it from
+			# gutting a tall port for a wide port's upgrade.
+			return _transform_cps_delta(item)
+	return 0.0
 
 
 func grant_surge(multiplier: float, seconds: float) -> void:
@@ -210,11 +260,22 @@ func apply_fine(amount: float) -> float:
 
 
 func grant_cat_boost() -> bool:
-	# A cat visit is a one-shot bonus. Repeated taps cannot extend its timer.
+	## A cat visit is a one-shot bonus. Repeated taps cannot extend its timer.
+	##
+	## It used to multiply `click_power` and nothing else, which made the rarest
+	## find in the game worthless the moment the port stopped being tapped — the
+	## reward for stumbling on something unusual expired quietly the day
+	## automation arrived. It grants a surge now, on everything the terminal
+	## earns, which is what `surge_mult` already does for a special call.
+	##
+	## Smaller than it was for exactly that reason: seven times a tap was a
+	## rounding error, seven times the whole port is not.
 	if boost_time > 0.0:
 		return false
 	boost_time = CAT_BOOST_TIME
-	recompute()
+	# `grant_surge` keeps the stronger of the two, so a cat wandering through a
+	# charter's ten-times surge extends it rather than cutting it to three.
+	grant_surge(CAT_BOOST_MULT, CAT_BOOST_TIME)
 	return true
 
 
@@ -520,14 +581,28 @@ func buy_upgrade(id: String) -> bool:
 	var item := UpgradeDB.get_item(id)
 	if item.is_empty() or has_upgrade(id):
 		return false
-	if not upgrade_unlocked(item):
+	if not upgrade_available(item):
 		return false
-	if not spend(item.cost):
+	# The exclusive halves are a refit, not a second fitting: the price carries the
+	# surcharge and the loser comes off in the same transaction, so the port can
+	# never be found running both sides of a choice it was asked to make.
+	var refits := UpgradeDB.conflicts_with(item, upgrades)
+	if not spend(UpgradeDB.price_for(item, upgrades)):
 		return false
+	for other in refits:
+		upgrades.erase(other)
 	upgrades[id] = true
 	recompute()
 	EventBus.upgrade_bought.emit(id)
 	return true
+
+
+func upgrade_available(item: Dictionary) -> bool:
+	## Both gates at once. `unlock` asks whether the port is big enough to have
+	## met this idea; `requires` asks whether the player has bought the node it
+	## hangs off. They fail differently and the tree says which, because "blocked"
+	## with no route out is the same as broken.
+	return upgrade_unlocked(item) and UpgradeDB.blocked_by(item, upgrades).is_empty()
 
 
 # ------------------------------------------------------------------ the shelf
@@ -577,13 +652,15 @@ func upgrade_preview(item: Dictionary) -> Dictionary:
 	var value := float(item.get("value", 1.0))
 	match kind:
 		"structure_mult":
-			var target := str(item.get("target", ""))
-			var machine := StructureDB.get_item(target)
-			var gain := structure_total_cps(target) * (value - 1.0) \
-				* _global_cps_multiplier() * _upgrade_global_multiplier()
+			var gain := 0.0
+			var names := PackedStringArray()
+			for target in UpgradeDB.targets_of(item):
+				gain += structure_total_cps(target) * (value - 1.0)
+				names.append(str(StructureDB.get_item(target).get("name", target)))
+			gain *= _global_cps_multiplier() * _conductor_multiplier() \
+				* _upgrade_global_multiplier()
 			return {"cps_gain": maxf(0.0, gain), "click_gain": 0.0,
-				"text": "%s: %s" % [str(machine.get("name", target)),
-					_scale_text(value)]}
+				"text": "%s: %s" % [", ".join(names), _scale_text(value)]}
 		"global_mult":
 			return {"cps_gain": maxf(0.0, base_cps * (value - 1.0)),
 				"click_gain": 0.0, "text": "Todo o porto: %s" % _scale_text(value)}
@@ -594,6 +671,32 @@ func upgrade_preview(item: Dictionary) -> Dictionary:
 		"click_cps_pct":
 			return {"cps_gain": 0.0, "click_gain": maxf(0.0, cps * value),
 				"text": "Toque ganha %d%% da produção" % roundi(value * 100.0)}
+		"synergy":
+			# A synergy card has to state the part the port has *already earned*,
+			# not only the rule. "+3% por cavalo" with no count is homework; "+3%
+			# por cavalo (hoje +36%)" is a reason to go and buy cavalos.
+			var target := str(item.get("target", ""))
+			var per := str(item.get("per", ""))
+			var bonus := _synergy_bonus(item)
+			var gain := structure_total_cps(target) * bonus \
+				* _global_cps_multiplier() * _conductor_multiplier() \
+				* _upgrade_global_multiplier()
+			return {"cps_gain": maxf(0.0, gain), "click_gain": 0.0,
+				"text": "%s: +%d%% por %s (hoje +%d%%)" % [
+					str(StructureDB.get_item(target).get("name", target)),
+					roundi(value * 100.0),
+					str(StructureDB.get_item(per).get("name", per)),
+					roundi(bonus * 100.0)]}
+		"transform":
+			# The one card on the board that can honestly show a loss. It says the
+			# net, in the units the counter uses, so a port that would be worse off
+			# taking it can see that before paying rather than after.
+			var delta := _transform_cps_delta(item)
+			var machine := str(StructureDB.get_item(
+				str(item.get("target", ""))).get("name", item.get("target", "")))
+			return {"cps_gain": maxf(0.0, delta), "click_gain": 0.0,
+				"text": "%s vira multiplicador: %s%s TEU/s agora" % [machine,
+					"+" if delta >= 0.0 else "-", fmt(absf(delta))]}
 	return {"cps_gain": 0.0, "click_gain": 0.0, "text": ""}
 
 
@@ -604,6 +707,99 @@ func _upgrade_global_multiplier() -> float:
 		if up.get("kind") == "global_mult":
 			value *= float(up.value)
 	return value
+
+
+func _synergy_bonus(item: Dictionary, override_id: String = "",
+		override_count: int = -1) -> float:
+	## What a synergy is worth to *this* port: the card's per-unit rate against how
+	## many of the feeding machine are running, bending towards the node's ceiling.
+	return EconomyMath.saturating_bonus(float(item.get("value", 0.0)),
+		float(item.get("cap", 1.0)),
+		_count_with_override(str(item.get("per", "")), override_id, override_count))
+
+
+func _conductor_multiplier(override_id: String = "",
+		override_count: int = -1) -> float:
+	## The wide build's whole argument, in one number.
+	##
+	## A conductor machine gives up almost all of its own output and pays the port
+	## a percentage for every unit of itself instead. Below its break-even count it
+	## is a straight loss; above it, the cheapest machine in the catalogue becomes
+	## the reason the expensive ones are worth anything. Multiplicative across
+	## nodes, capped inside each, which is what stops two conductors from turning
+	## into an exponent.
+	var value := 1.0
+	for uid: String in upgrades:
+		var up := UpgradeDB.get_item(uid)
+		if str(up.get("kind", "")) != "transform" \
+				or str(up.get("mode", "")) != "conductor":
+			continue
+		value *= 1.0 + EconomyMath.saturating_bonus(float(up.get("value", 0.0)),
+			float(up.get("cap", 1.0)), _count_with_override(
+				str(up.get("target", "")), override_id, override_count))
+	return value
+
+
+func _transform_cps_delta(item: Dictionary) -> float:
+	## What taking this transform would do to the rate, sign included.
+	##
+	## Two opposed movements: the target machine's own output collapses to
+	## `self_mult`, and everything the port runs is lifted by the conductor share.
+	## Computed against the current port rather than in the abstract, because the
+	## same node is a disaster at four machines and the best purchase on the board
+	## at forty.
+	if str(item.get("mode", "")) != "conductor":
+		return 0.0
+	# The conductors are one mutually exclusive group, so taking this one *drops*
+	# whatever was fitted before — and a swap moves two things, not one. The
+	# incoming machine stops producing; the outgoing machine starts again. Pricing
+	# only the first half made every swap look worse than it is, and pricing the
+	# share as a factor on top of the one already fitted made it look far better.
+	var refits := UpgradeDB.conflicts_with(item, upgrades)
+	var fitted: Array[String] = [str(item.get("id", ""))]
+	for uid: String in upgrades:
+		if not refits.has(uid) and uid != str(item.get("id", "")):
+			fitted.append(uid)
+
+	var before := _conductor_multiplier()
+	if before <= 0.0:
+		return 0.0
+	var after := 1.0
+	# `self_mult` per machine, before and after, so a node that transforms a
+	# machine some other node already transformed still composes correctly.
+	var new_self: Dictionary = {}
+	for uid in fitted:
+		var up := UpgradeDB.get_item(uid)
+		if str(up.get("kind", "")) != "transform" \
+				or str(up.get("mode", "")) != "conductor":
+			continue
+		var machine := str(up.get("target", ""))
+		after *= 1.0 + EconomyMath.saturating_bonus(float(up.get("value", 0.0)),
+			float(up.get("cap", 1.0)), structure_count(machine))
+		new_self[machine] = float(new_self.get(machine, 1.0)) \
+			* clampf(float(up.get("self_mult", 1.0)), 0.0001, 1.0)
+
+	# `structure_total_cps` already carries whatever is fitted *today*, so the
+	# adjustment per machine is the ratio between the two, not the new value.
+	var adjusted := base_cps
+	var scale_out := _global_cps_multiplier() * _conductor_multiplier() \
+		* _upgrade_global_multiplier()
+	var machines: Dictionary = {}
+	for machine: String in new_self:
+		machines[machine] = true
+	for uid in refits:
+		machines[str(UpgradeDB.get_item(uid).get("target", ""))] = true
+	for machine: String in machines:
+		var old_self := 1.0
+		for uid: String in upgrades:
+			var up := UpgradeDB.get_item(uid)
+			if str(up.get("kind", "")) == "transform" \
+					and str(up.get("mode", "")) == "conductor" \
+					and str(up.get("target", "")) == machine:
+				old_self *= clampf(float(up.get("self_mult", 1.0)), 0.0001, 1.0)
+		var factor := float(new_self.get(machine, 1.0)) / old_self
+		adjusted += structure_total_cps(machine) * scale_out * (factor - 1.0)
+	return (after / before) * adjusted - base_cps
 
 
 static func _scale_text(value: float) -> String:
@@ -628,32 +824,61 @@ func upgrade_unlocked(item: Dictionary) -> bool:
 	return true
 
 
-func structure_cps(id: String) -> float:
+func structure_cps(id: String, override_id: String = "",
+		override_count: int = -1) -> float:
 	## Effective CPS of one unit of the structure, upgrades applied.
+	##
+	## Three kinds land here, in the order they make sense to a player: the flat
+	## multipliers fitted to the machine, then what the *rest* of the port lends it
+	## through a synergy, then — last, because it overrides everything above it —
+	## the transform that took the machine off production altogether.
+	##
+	## The override is what a *quote* is asking: "if I bought N more of that, what
+	## would this be worth?". A synergy counts units of another machine, so without
+	## it the shop would price the tractor that feeds the block at its own output
+	## alone and hide the whole reason the node was bought.
 	var item := StructureDB.get_item(id)
 	if item.is_empty():
 		return 0.0
 	var value: float = item.cps
 	for uid: String in upgrades:
 		var up := UpgradeDB.get_item(uid)
-		if up.get("kind") == "structure_mult" and up.get("target") == id:
-			value *= up.value
+		match str(up.get("kind", "")):
+			"structure_mult":
+				if UpgradeDB.targets_of(up).has(id):
+					value *= float(up.get("value", 1.0))
+			"synergy":
+				if str(up.get("target", "")) == id:
+					value *= 1.0 + _synergy_bonus(up, override_id, override_count)
+			"transform":
+				if str(up.get("target", "")) == id \
+						and str(up.get("mode", "")) == "conductor":
+					value *= float(up.get("self_mult", 1.0))
 	return value
 
 
-func structure_total_cps(id: String, count: int = -1) -> float:
+func structure_total_cps(id: String, count: int = -1,
+		override_id: String = "", override_count: int = -1) -> float:
 	var amount := structure_count(id) if count < 0 else maxi(0, count)
-	return EconomyMath.total_cps(structure_cps(id), amount)
+	return EconomyMath.total_cps(
+		structure_cps(id, override_id, override_count), amount)
 
 
 func nominal_cps(override_id: String = "", override_count: int = -1) -> float:
 	var total := 0.0
 	for id: String in owned:
 		var count := override_count if id == override_id else structure_count(id)
-		total += structure_total_cps(id, count)
+		total += structure_total_cps(id, count, override_id, override_count)
 	if not override_id.is_empty() and not owned.has(override_id):
-		total += structure_total_cps(override_id, override_count)
-	return total * _global_cps_multiplier()
+		total += structure_total_cps(override_id, override_count,
+			override_id, override_count)
+	# The conductor share and the breadth share belong here rather than in
+	# `recompute`, and both have to see the *hypothetical* count: buying the
+	# fortieth estivador under Turma de Terra is worth almost nothing on its own
+	# line and a great deal on everyone else's, and a quote that priced only its
+	# own line would hide the entire reason the node was bought.
+	return total * _global_cps_multiplier(override_id, override_count) \
+		* _conductor_multiplier(override_id, override_count)
 
 
 func recompute() -> void:
@@ -678,9 +903,8 @@ func recompute() -> void:
 	var tree_cps_per_tap := _tree_scope_additive(&"manual", &"cps_per_tap")
 	click_power = (1.0 * click_mult * manual_meta) \
 		+ cps * (click_cps_pct + tree_cps_per_tap)
-	if boost_time > 0.0:
-		click_power *= CAT_BOOST_MULT
-	# A surge is on everything the port earns, taps included.
+	# A surge is on everything the port earns, taps included — and the cat is a
+	# surge now, so it needs no second multiplication here.
 	click_power *= surge_mult
 	EventBus.cps_changed.emit(cps)
 
@@ -714,6 +938,11 @@ func cps_breakdown() -> Array[Dictionary]:
 		{"label": "Marcos", "kind": "mult", "value": _ratio(with_milestones, raw)},
 		{"label": "Melhorias", "kind": "mult", "value": _ratio(with_upgrades, with_milestones)},
 		{"label": "Capital", "kind": "mult", "value": _global_cps_multiplier()},
+		# Its own line, not folded into "Capital": a player who converted a fleet
+		# into conductors traded away the "Melhorias" row to buy this one, and the
+		# panel is the formula — if the trade is invisible here it did not happen
+		# anywhere the player can see.
+		{"label": "Turmas", "kind": "mult", "value": _conductor_multiplier()},
 		{"label": "Melhorias globais", "kind": "mult", "value": global_mult},
 	]
 	var weather := TimeManager.weather_cps_mult()
@@ -728,10 +957,70 @@ func _ratio(numerator: float, denominator: float) -> float:
 	return 1.0 if denominator <= 0.0 else numerator / denominator
 
 
-func _global_cps_multiplier() -> float:
+func rail_stat(stat: StringName, base: float) -> float:
+	## A knob on the branch line, after everything fitted to it.
+	##
+	## `RailCargoPolicy` and `RailYard` keep the *baseline* — a six-wagon rake, a
+	## 46–74 s interval, a 150 s dwell — because those are the rules of the branch
+	## and they have to be readable and testable without a save. What the player
+	## bought is applied here, on top, so the policy stays pure and the shop stays
+	## the only place a number changes.
+	##
+	## Flat before multiplier, always: Trem Pesado adds six wagons and then Shuttle
+	## would halve the whole rake, and the two orders give different trains. Adding
+	## first is the one that matches how the cards read.
+	var flat := 0.0
+	var mult := 1.0
+	for uid: String in upgrades:
+		for entry in UpgradeDB.stats_of(UpgradeDB.get_item(uid)):
+			if StringName(entry.get("stat", "")) != stat:
+				continue
+			match str(entry.get("operation", "")):
+				"add_flat":
+					flat += float(entry.get("value", 0.0))
+				"mult":
+					mult *= float(entry.get("value", 1.0))
+	return (base + flat) * mult
+
+
+func _count_with_override(id: String, override_id: String,
+		override_count: int) -> int:
+	## The count a hypothetical purchase would leave behind, for the one machine
+	## the quote is about, and the real count for every other.
+	if override_count >= 0 and id == override_id:
+		return override_count
+	return structure_count(id)
+
+
+func _global_cps_multiplier(override_id: String = "",
+		override_count: int = -1) -> float:
 	return EconomyMath.prestige_multiplier(prestige_level_earned) \
-		* _tree_scope_multiplier(&"structures", &"cps_multiplier") \
+		* _breadth_multiplier(override_id, override_count) \
 		* _tree_scope_multiplier(&"global", &"cps_multiplier")
+
+
+func _breadth_multiplier(override_id: String = "",
+		override_count: int = -1) -> float:
+	## The capital tree's `structures` node, rebuilt to mean something.
+	##
+	## It used to be `add_pct` in the same product as `global`, which made
+	## `throughput_structural` and `throughput_global` the same effect with two
+	## names and two prices — the player paid twice for one number. The scope did
+	## not exist, so it is gone; the node now pays for *breadth*: a share for every
+	## kind of machine the terminal actually runs a working fleet of.
+	##
+	## That is a shape the other node cannot copy. A tall port with four hundred
+	## portêiners gets nothing from it; a port running ten different machines gets
+	## the lot, which is exactly the composition axis item 4 was missing.
+	var per_kind := _tree_scope_additive(&"structures", &"cps_per_kind")
+	if per_kind <= 0.0:
+		return 1.0
+	var kinds := 0
+	for item in StructureDB.ITEMS:
+		if _count_with_override(str(item.id), override_id, override_count) \
+				>= EconomyMath.BREADTH_MIN_COUNT:
+			kinds += 1
+	return 1.0 + per_kind * float(kinds)
 
 
 func _tree_scope_multiplier(scope: StringName, stat: StringName) -> float:
@@ -805,18 +1094,58 @@ func _tree_scope_best(scope: StringName, stat: StringName, base: float) -> float
 
 
 func fmt(n: float) -> String:
-	## 1234 -> "1.23K"; integers below 1000 stay plain.
+	## 1234 -> "1,23K"; integers below 1000 stay plain.
+	##
+	## Two things this has to get right that the first version did not.
+	##
+	## The decimal mark is localised. "1.2B" in a Brazilian game is one point two
+	## billion to the code and one comma two to everyone reading it, and a counter
+	## is the one string in the game a player reads a thousand times an hour.
+	##
+	## And the scale has an end. The suffix table stops at `Dc`, and the old loop
+	## stopped dividing when it ran out of suffixes — so a port past 10^36 printed
+	## "10000000Dc", a number that grows in the digits while claiming to be in the
+	## largest unit there is. Past the table it goes to exponent notation, which
+	## stays three significant figures wide for ever.
 	if n < 1000.0:
-		return str(int(n)) if absf(n - roundf(n)) < 0.05 or n >= 100.0 else "%.1f" % n
+		return str(int(n)) if absf(n - roundf(n)) < 0.05 or n >= 100.0 \
+			else _decimal("%.1f" % n)
 	var tier := 0
 	while n >= 1000.0 and tier < SUFFIXES.size() - 1:
 		n /= 1000.0
 		tier += 1
+	if n >= 1000.0:
+		# Off the end of the table, so the number goes to an exponent. Built by
+		# hand: Godot's `%` operator has no `%e`, and asking it for one raises
+		# "unsupported format character" — at 10^36, which is exactly the case
+		# this branch exists to handle and the last one anybody tests by playing.
+		var decade := int(floor(log(n) / log(10.0)))
+		var mantissa := n / pow(10.0, float(decade))
+		# `log(1000)/log(10)` is 2.9999999999999996, so the floor lands one decade
+		# low and the mantissa comes out as 10 — which prints "10,0e35" for a
+		# number that is 1e36. Normalise rather than trust the logarithm, and
+		# round to the digit that will actually be printed before deciding: a
+		# mantissa of 9.99 is displayed as "10.0", so it has to be carried here or
+		# the string says ten times its own exponent.
+		mantissa = snappedf(mantissa, 0.1)
+		while mantissa >= 10.0:
+			mantissa /= 10.0
+			decade += 1
+		while mantissa < 1.0 and mantissa > 0.0:
+			mantissa *= 10.0
+			decade -= 1
+		return "%se%d" % [_decimal("%.1f" % mantissa),
+			decade + (SUFFIXES.size() - 1) * 3]
 	if n >= 100.0:
 		return "%.0f%s" % [n, SUFFIXES[tier]]
 	elif n >= 10.0:
-		return "%.1f%s" % [n, SUFFIXES[tier]]
-	return "%.2f%s" % [n, SUFFIXES[tier]]
+		return _decimal("%.1f" % n) + SUFFIXES[tier]
+	return _decimal("%.2f" % n) + SUFFIXES[tier]
+
+
+func _decimal(text: String) -> String:
+	## The point `%f` produces, swapped for whatever this language writes.
+	return text if _decimal_mark == "." else text.replace(".", _decimal_mark)
 
 
 func to_save() -> Dictionary:

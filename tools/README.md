@@ -1,6 +1,11 @@
 # Tooling
 
-- `sprites/` — deterministic PIL generators for every PNG.
+- `sprites/` — deterministic PIL generators for every PNG. Two rail sprites are
+  not free to resize: `rail_gantry` stands on steel that
+  `GroundBaker._paint_rail_platform` paints, so `GANTRY_GAUGE` in `gen_rail.py`
+  and that spacing are one number kept in two files, and `rail_shed` is drawn to
+  `PortLayout.rail_shed_rect()`. Change one side only and the crane is parked in
+  mid-air over the ballast.
 - `sprites/pixellab/` — the handful of *illustrated* assets a loop cannot draw:
   prompts, the model's committed answers and the harmoniser that makes them
   match the rest. The build reads the cached answers and never calls the API;

@@ -24,7 +24,14 @@ const GLYPH := 14
 ## reader — which is exactly the audience that must not be read Portuguese.
 const WIND_KEYS := ["clock.wind.calm", "clock.wind.fresh", "clock.wind.strong"]
 
+## The dial moved or changed width. `Hud` listens, because the tally's budget is
+## "everything up to the clock", and the clock is not a fixed width: "DIA 1" and
+## "GIORNO 100" are different lengths, and the board is anchored by its right edge
+## so it grows leftwards towards the tally.
+signal footprint_changed
+
 var _board: HBoxContainer
+var _last_edge := NAN
 var _dial: Control
 var _sky: Sprite2D
 var _weather: TextureRect
@@ -117,7 +124,12 @@ func _process(_delta: float) -> void:
 	if not visible:
 		return
 	_time.text = TimeManager.clock_text()
-	_day.text = Loc.t("clock.day", {"n": TimeManager.day})
+	var day := Loc.t("clock.day", {"n": TimeManager.day})
+	if day != _day.text:
+		_day.text = day
+		# Day 9 to day 10, or a language switch, widens the board. It was laid out
+		# once and then simply grew to the right, over the notice bell.
+		_layout()
 	_set_glyph(TimeManager.weather_glyph())
 	_set_wind(_wind_step_now())
 	# Counter-clockwise on screen, because the disc is painted with the hours
@@ -174,3 +186,12 @@ func _layout() -> void:
 	_board.position = Vector2(
 		area.end.x - size.x - 7.0 - NoticeBell.RESERVE,
 		area.position.y + floorf((Hud.BAR_H - 4.0 - size.y) * 0.5))
+	var edge := left_edge()
+	if edge != _last_edge:
+		_last_edge = edge
+		footprint_changed.emit()
+
+
+func left_edge() -> float:
+	## Where the dial begins, in the same canvas space the gantry is laid out in.
+	return _board.get_global_rect().position.x if _board != null else INF

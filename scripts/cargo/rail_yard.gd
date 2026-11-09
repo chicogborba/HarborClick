@@ -91,7 +91,24 @@ func auto_rate() -> float:
 	var rate := 0.0
 	for id: String in AUTO_MOVERS:
 		rate += float(AUTO_MOVERS[id]) * float(GameState.structure_count(id))
-	return minf(rate, AUTO_RATE_CAP)
+	# A rail gantry is a machine bought for the ramp, so it moves both figures: the
+	# rate the branch works at and the ceiling that rate is held under. Lifting the
+	# rate alone would have sold an upgrade the cap immediately ate.
+	rate = GameState.rail_stat(&"auto_rate", rate)
+	return maxf(0.0, minf(rate, GameState.rail_stat(&"auto_cap", AUTO_RATE_CAP)))
+
+
+func dwell_seconds() -> float:
+	## How long a service will stand, for this port. The constant is the path the
+	## interior books; a run-round loop of the terminal's own is what buys more of
+	## it, and the exclusive pair trades it against how often a train comes at all.
+	return maxf(BALKED_DWELL, GameState.rail_stat(&"dwell", DWELL_SECONDS))
+
+
+func completion_seconds() -> float:
+	## Seconds of income paid for a rake worked clean. A dry port makes the branch
+	## the terminal's second front door, so it pays like one.
+	return maxf(0.0, GameState.rail_stat(&"completion", COMPLETION_SECONDS))
 
 
 func stage() -> Stage:
@@ -204,11 +221,18 @@ func _advance_transit() -> void:
 
 
 func _call_a_service() -> void:
-	var gap := RailCargoPolicy.service_gap(has_branch())
+	# The timetable is a band, not a number, so what is fitted to the branch scales
+	# both ends of it: signalling that halves the interval has to halve the long
+	# nights too, or the average would improve while the worst wait did not.
+	var factor := GameState.rail_stat(&"service_gap", 1.0)
+	var gap := RailCargoPolicy.clamp_gap(
+		RailCargoPolicy.service_gap(has_branch()) * factor)
 	_next_service = randf_range(gap.x, gap.y)
 	if not service.is_empty():
 		return
-	var length := RailCargoPolicy.rake_length(has_branch())
+	var length := RailCargoPolicy.clamp_rake(int(roundf(
+		GameState.rail_stat(&"rake_length",
+			float(RailCargoPolicy.rake_length(has_branch()))))))
 	var order := RailCargoPolicy.coerce_order(GameState.rail_order)
 	# The pure policy owns the inventory invariant: a service may add stock or
 	# exchange it, and may only clear a yard that has no room left to work a ship.
@@ -243,7 +267,7 @@ func _call_a_service() -> void:
 		"moved": 0,
 		"pending": 0,
 		"lifting": 0,
-		"dwell": DWELL_SECONDS,
+		"dwell": dwell_seconds(),
 		"stage": int(Stage.ARRIVING),
 		"transit": TRANSIT_TIMEOUT,
 	}
@@ -273,7 +297,7 @@ func notify_arrived() -> void:
 	if service.is_empty() or stage() != Stage.ARRIVING:
 		return
 	service["stage"] = int(Stage.WORKING)
-	service["dwell"] = DWELL_SECONDS
+	service["dwell"] = dwell_seconds()
 	# The dwell starts here, so this is the moment the offer is real: what the
 	# train wants, and how long it will wait. Said once, at the only point where
 	# going to look at it can still change the outcome.
@@ -322,7 +346,7 @@ func _settle_service() -> void:
 		_notice("rail_partial", "O trem partiu com %d de %d movimentos feitos."
 			% [moved, booked], &"rail", 1)
 		return
-	var bonus := maxf(GameState.cps, GameState.click_power) * COMPLETION_SECONDS
+	var bonus := maxf(GameState.cps, GameState.click_power) * completion_seconds()
 	if bonus <= 0.0:
 		return
 	# Career money: it spends, but it must not shortcut the prestige curve the
@@ -412,8 +436,11 @@ func _drop() -> bool:
 			yard.release_landing(str(landing.token))
 			wagons[slot] = u
 			service["drops"] = int(service.drops) + 1)
-	_fly(unit.color, wagon_position(slot), landing.pos, transfer,
-		PI / 2.0, 0.0)
+	# No turn in the air, either way. A box lies the same way on a wagon as it
+	# does in the stack: the branch and the block rows both run east-west, and the
+	# quarter turn this used to carry was the flight faithfully animating a box
+	# falling over onto a wagon it could not fit across.
+	_fly(unit.color, wagon_position(slot), landing.pos, transfer, 0.0, 0.0)
 	return true
 
 
@@ -445,8 +472,7 @@ func _lift() -> bool:
 			service["lifts"] = int(service.lifts) + 1
 			service["lifting"] = maxi(0, int(service.lifting) - 1)
 			yard.restore_taken(candidate))
-	_fly(unit.color, candidate.pos, wagon_position(slot), transfer,
-		0.0, PI / 2.0)
+	_fly(unit.color, candidate.pos, wagon_position(slot), transfer, 0.0, 0.0)
 	return true
 
 

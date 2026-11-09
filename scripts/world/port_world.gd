@@ -859,11 +859,29 @@ func _build_rail() -> void:
 	furniture.name = "Rail"
 	entities.add_child(furniture)
 
+	# The transit shed at the head of the platform, then the board on the platform
+	# at the other end. Both stand on the goods apron `GroundBaker` paints, which
+	# is what stopped them reading as props dropped onto bare tarmac: the board
+	# used to sit forty pixels north of the running line, in the middle of the
+	# yard, over the wagons, attached to nothing.
+	var shed := Sprite2D.new()
+	shed.texture = preload("res://assets/sprites/rail_shed.png")
+	shed.centered = false
+	shed.position = PortLayout.rail_shed_rect().position
+	furniture.add_child(shed)
+
+	var gantry := Sprite2D.new()
+	gantry.texture = preload("res://assets/sprites/rail_gantry.png")
+	gantry.centered = true
+	# Straddling the running line, standing on the two steel rails painted for it.
+	gantry.position = Vector2(PortLayout.rail_gantry_x(),
+		PortLayout.rail_y() + 3.0)
+	furniture.add_child(gantry)
+
 	var board := Sprite2D.new()
 	board.texture = preload("res://assets/sprites/rail_board.png")
 	board.centered = false
-	board.position = Vector2(PortLayout.rail_stop_x() - 24.0,
-		PortLayout.rail_y() - 40.0)
+	board.position = PortLayout.rail_board_position()
 	furniture.add_child(board)
 
 	var mast := Sprite2D.new()

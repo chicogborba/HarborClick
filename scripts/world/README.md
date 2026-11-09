@@ -1,5 +1,34 @@
 # World domain
 
+## The branch corridor is a fixed row
+
+`PortLayout.RAIL_ROW` is the block row the railway is threaded before, and
+`rail_y()` is a constant derived from it. Every row calculation — `block_origin`,
+`lane_ys`, `block_lane_y` — goes through `block_row_y(row)`, which is the single
+place that knows the yard is interrupted; a block, its driving lane and the
+machine that works it must never end up on opposite sides of the track.
+
+Two earlier versions were not constant, and both were wrong in ways that only
+showed up hours into a save: `world_bottom() - 26` put the whole branch on the
+southern boundary where nobody pans, and `yard_bottom() + 44` made the railhead
+creep a block row south every time a parcel was bought. A railhead is the one
+piece of a terminal that genuinely cannot move — the line was there before the
+port. The yard grows *past* it now.
+
+`BASIN_H` is the other half of that change. The moorings pack down the quay
+until they run out of world, so the water south of the last hull is clear only
+because something reserves it — and `DecorLayer._duck_home` moors there on the
+stated promise that it always is. `SOUTH_MARGIN` carries the same figure, so
+reserving the basin costs no berths; trim one without the other and the terminal
+quietly loses a mooring.
+
+The station furniture south of the rails (`rail_platform_rect`,
+`rail_shed_rect`, `rail_board_position`, `rail_gantry_x`) is all derived from
+that same line and clipped to the two things that were already on the ground: the
+public road it crosses on the level, and the quay. `RailCargoPolicy.MAX_RAKE`
+sets both the gantry's rail gauge and `rail_west_turnout_x`, so the crane and the
+run-around loop can never disagree about how long a train can be.
+
 A tap and a press-and-hold are two verbs sharing one press, and `PortWorld`
 owns the decision between them: `GRAB_HOLD` of finger-down on somebody lifts
 them off the ground, anything shorter opens their badge on release, and

@@ -25,6 +25,25 @@ const DRAIN_FILL := RoadCargoPolicy.DRAIN_FILL
 const SHORT_RAKE := 3
 const FULL_RAKE := 6
 
+## What the ground allows, which is not a matter of taste. The run-around loop
+## has to be long enough to hold the loco clear of the tail of the longest rake
+## the branch will ever stand, and both turnouts have to be on the map or the
+## shunt happens where nobody can watch it. `PortLayout.rail_west_turnout_x` is
+## derived from `MAX_RAKE`, so raising this moves the track and the two figures
+## can never disagree.
+##
+## The floor is one: a service is the door that opens when the yard is empty, and
+## a rake with no wagons is not a shorter train, it is no train.
+const MIN_RAKE := 1
+const MAX_RAKE := 8
+
+## Bounds on how often a service can be booked, whatever is fitted to the branch.
+## The floor is a full dwell plus the run-in and the shunt: any tighter and the
+## next train would be booked onto a section the last one has not cleared, which
+## is a collision, not a busier railway.
+const MIN_SERVICE_GAP := 20.0
+const MAX_SERVICE_GAP := 600.0
+
 ## --- standing orders -------------------------------------------------------
 ## What the branch is *for*.
 ##
@@ -78,6 +97,21 @@ static func coerce_order(id: StringName) -> StringName:
 
 static func rake_length(has_branch: bool) -> int:
 	return FULL_RAKE if has_branch else SHORT_RAKE
+
+
+static func clamp_rake(length: int) -> int:
+	## The branch's fitted stock, held inside what the ground allows. Every caller
+	## that lets an upgrade move the rake comes back through here, so no purchase
+	## can produce a train longer than the loop that has to run round it.
+	return clampi(length, MIN_RAKE, MAX_RAKE)
+
+
+static func clamp_gap(gap: Vector2) -> Vector2:
+	## Same argument for the timetable. An order-of-magnitude discount on the
+	## interval is a busier line; a discount past the dwell is two trains in one
+	## section.
+	return Vector2(clampf(gap.x, MIN_SERVICE_GAP, MAX_SERVICE_GAP),
+		clampf(maxf(gap.x, gap.y), MIN_SERVICE_GAP, MAX_SERVICE_GAP))
 
 
 static func service_plan(fill_ratio: float, target_fill: float,

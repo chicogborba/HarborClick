@@ -176,29 +176,86 @@ def gen_rtg_trolley():
 
 # ---------------------------------------------------- floating crane barge
 def gen_floating_crane():
-    """Crane barge seen from above, 46x62."""
+    """Crane barge seen from above, 46x62, bow up.
+
+    A pontoon with a revolving house aft and a lattice boom over the bow,
+    hook block at its head. The old one was an orange rectangle with a red
+    box on it — at a glance, a shipping container that had fallen in."""
     w, h = 46, 62
     img = new_img(w, h)
-    # pontoon
-    rect(img, 2, 4, w - 4, h - 8, P.SAFETY_D)
-    hline(img, 2, 4, w - 4, P.SAFETY)
-    vline(img, 2, 4, h - 8, P.SAFETY)
-    speckle(img, 3, 5, w - 6, h - 10, [P.SAFETY_D], 0.05, seed=4)
-    for cy in (6, h - 10):           # rounded corners
-        for cx in (2, w - 3):
-            px(img, cx, cy - 2, P.TRANSPARENT)
-    # slew ring + house
-    rect(img, 12, 24, 22, 20, P.CRANE)
-    hline(img, 12, 24, 22, P.CRANE_L)
-    vline(img, 33, 24, 20, P.CRANE_D)
-    rect(img, 16, 28, 8, 6, P.GLASS)
-    # lattice jib pointing up (bow)
-    for i in range(20):
-        y = 24 - i
-        half = 5 - i // 6
-        rect(img, 23 - half, y, half * 2, 1, P.CRANE_D if i % 3 else P.CRANE)
-    rect(img, 20, 2, 7, 4, P.STEEL_D)   # jib head
-    save(outline(img), "flutuante")
+    hull = P.ramp((70, 92, 112), 5, hue_shift=12.0, dark=0.4, light=0.5)
+    deck = P.ramp((150, 142, 128), 5, hue_shift=10.0, dark=0.35, light=0.45)
+    red = P.ramp(P.CRANE, 5, hue_shift=14.0, dark=0.4, light=0.5)
+    yel = P.ramp(P.SAFETY, 5, hue_shift=12.0)
+    steel = P.ramp(P.STEEL, 5)
+    # pontoon: a hull band round a working deck, corners chamfered
+    rect(img, 2, 18, w - 4, h - 20, hull[2])
+    for cx, cy in ((2, 18), (w - 3, 18), (2, h - 3), (w - 3, h - 3)):
+        px(img, cx, cy, (0, 0, 0, 0))
+    vline(img, 2, 19, h - 22, hull[4])
+    vline(img, w - 3, 19, h - 22, hull[1])
+    hline(img, 3, 18, w - 6, hull[4])
+    hline(img, 3, h - 3, w - 6, hull[0])
+    rect(img, 5, 21, w - 10, h - 26, deck[2])
+    for y in range(21, h - 5, 4):                     # deck plate seams
+        hline(img, 5, y, w - 10, deck[1])
+    for y in range(22, h - 5, 6):                     # fender tyres along the sides
+        px(img, 1, y, (40, 36, 42, 255))
+        px(img, w - 2, y, (40, 36, 42, 255))
+    for bx, by in ((7, 23), (w - 9, 23), (7, h - 8), (w - 9, h - 8)):
+        rect(img, bx, by, 2, 2, steel[1])              # bitts
+        px(img, bx, by, steel[4])
+    # revolving house: machinery and counterweight, aft
+    rect(img, 12, 34, 22, 18, red[2])
+    rect(img, 12, 34, 22, 1, red[4])
+    vline(img, 12, 35, 17, red[3])
+    vline(img, 33, 35, 17, red[0])
+    hline(img, 12, 51, 22, red[0])
+    rect(img, 14, 46, 18, 4, steel[1])                 # counterweight block
+    rect(img, 14, 46, 18, 1, steel[3])
+    for vx in range(16, 31, 4):
+        px(img, vx, 48, steel[0])
+    rect(img, 15, 37, 6, 5, (54, 98, 124, 255))        # operator's cab glass
+    px(img, 15, 37, (200, 236, 244, 255))
+    rect(img, 26, 37, 5, 3, steel[2])                  # winch drum housing
+    # A-frame at the boom foot
+    for i in range(6):
+        px(img, 16 + i // 2, 34 - i, yel[3])
+        px(img, 29 - i // 2, 34 - i, yel[1])
+    # lattice boom over the bow: a shaded web between two chords, laced
+    from PIL import ImageDraw
+    top = 3
+
+    def half_at(y):
+        k = (34 - y) / (34 - top)
+        return int(round(6 - k * 3))
+
+    for y in range(top, 34):
+        hw = half_at(y)
+        for x in range(23 - hw + 1, 22 + hw):
+            px(img, x, y, P.mix(yel[0], hull[1], 0.55))
+    draw = ImageDraw.Draw(img)
+    panel = 6
+    for i, y in enumerate(range(top, 34 - panel + 1, panel)):
+        y1 = y + panel
+        l0, r0 = 23 - half_at(y) + 1, 22 + half_at(y) - 1
+        l1, r1 = 23 - half_at(y1) + 1, 22 + half_at(y1) - 1
+        if i % 2 == 0:
+            draw.line([(l0, y), (r1, y1)], fill=yel[2])
+        else:
+            draw.line([(r0, y), (l1, y1)], fill=yel[2])
+        draw.line([(l1, y1), (r1, y1)], fill=yel[1])     # batten
+    for y in range(top, 34):
+        hw = half_at(y)
+        px(img, 23 - hw, y, yel[3])
+        px(img, 22 + hw, y, yel[1])
+    rect(img, 19, top - 1, 8, 3, yel[2])               # boom head sheaves
+    rect(img, 19, top - 1, 8, 1, yel[4])
+    # hook block hanging below the head, and its shadow on the water
+    rect(img, 21, top + 3, 4, 3, steel[1])
+    px(img, 22, top + 6, steel[3])
+    img = outline(img)
+    save(img, "flutuante")
 
 
 if __name__ == "__main__":

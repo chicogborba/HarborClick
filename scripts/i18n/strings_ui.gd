@@ -731,6 +731,304 @@ const STRINGS := {
 	"fr": "Nécessite : {name}", "de": "Erfordert: {name}",
 	"it": "Richiede: {name}", "ru": "Требуется: {name}",
 	"pl": "Wymaga: {name}", "tr": "Gerekli: {name}"},
+"shop.upgrade.needs": {
+	"pt_BR": "Abre com: {name}", "en": "Opens with: {name}",
+	"es": "Se abre con: {name}", "fr": "Ouvert par : {name}",
+	"de": "Öffnet mit: {name}", "it": "Si apre con: {name}",
+	"ru": "Открывает: {name}", "pl": "Otwiera: {name}",
+	"tr": "Şununla açılır: {name}"},
+"shop.upgrade.needs_fleet": {
+	"pt_BR": "Faltam {count} x {name}", "en": "Needs {count} more {name}",
+	"es": "Faltan {count} x {name}", "fr": "Il manque {count} x {name}",
+	"de": "Es fehlen {count} x {name}", "it": "Mancano {count} x {name}",
+	"ru": "Не хватает {count} x {name}", "pl": "Brakuje {count} x {name}",
+	"tr": "{count} x {name} eksik"},
+"shop.upgrade.needs_teus": {
+	"pt_BR": "Movimente {amount} TEU no total",
+	"en": "Handle {amount} TEU in total",
+	"es": "Mueva {amount} TEU en total",
+	"fr": "Déplacez {amount} TEU au total",
+	"de": "Bewegen Sie insgesamt {amount} TEU",
+	"it": "Muovi {amount} TEU in totale",
+	"ru": "Переместите всего {amount} TEU",
+	"pl": "Przenieś łącznie {amount} TEU",
+	"tr": "Toplam {amount} TEU taşıyın"},
+# Deliberately terse: the card's sub-label shows two lines and the second is
+# "+N TEU/s". A longer sentence pushes the gain off the card, and the gain is
+# half of what makes the swap a decision.
+"shop.upgrade.swap": {
+	"pt_BR": "Troca {name} - preço triplo",
+	"en": "Replaces {name} - triple price",
+	"es": "Sustituye {name} - precio triple",
+	"fr": "Remplace {name} - prix triple",
+	"de": "Ersetzt {name} - dreifach",
+	"it": "Sostituisce {name} - prezzo triplo",
+	"ru": "Заменит «{name}» - тройная цена",
+	"pl": "Zastąpi {name} - potrójna cena",
+	"tr": "{name} yerine - üç kat fiyat"},
+# Not a word, a punctuation mark — but it is localised text like any other, and
+# it belongs where the rest of it lives. "1.2B" in a pt-BR game reads as one
+# point two, which is a different number.
+# The offline board. Every one of these has to fit `OfflinePopup.MAX_LINE`
+# characters in all nine languages — the board does not autowrap, so a long
+# translation is a clipped one. `core_test_runner` checks that for every
+# language rather than only the one the tests happen to run in.
+# --- the first-run walkthrough -------------------------------------------
+# Seu Waldemar is a retired foreman handing over his port, and he talks like
+# one. The translations keep the voice — warm, direct, a bit gruff — rather than
+# flattening him into instructions, because the tone is doing the onboarding as
+# much as the words are.
+"tut.hint.tap": {
+	"pt_BR": "toque aqui para continuar", "en": "tap here to go on",
+	"es": "toque aquí para continuar", "fr": "touchez ici pour continuer",
+	"de": "hier tippen, um fortzufahren", "it": "tocca qui per continuare",
+	"ru": "нажмите здесь, чтобы продолжить", "pl": "dotknij, aby kontynuować",
+	"tr": "devam etmek için dokunun"},
+"tut.hint.ship": {
+	"pt_BR": "toque no navio ({count})", "en": "tap the ship ({count})",
+	"es": "toque el barco ({count})", "fr": "touchez le navire ({count})",
+	"de": "das Schiff antippen ({count})", "it": "tocca la nave ({count})",
+	"ru": "коснитесь судна ({count})", "pl": "dotknij statku ({count})",
+	"tr": "gemiye dokun ({count})"},
+"tut.hint.buy": {
+	"pt_BR": "compre um Estivador na loja", "en": "buy a Docker in the shop",
+	"es": "compre un Estibador en la tienda", "fr": "achetez un Docker en boutique",
+	"de": "im Laden einen Schauermann kaufen", "it": "compra uno Scaricatore nel negozio",
+	"ru": "купите докера в магазине", "pl": "kup Dokera w sklepie",
+	"tr": "dükkândan bir Liman İşçisi al"},
+"tut.hello": {
+	"pt_BR": "Opa! Seu Waldemar, capataz aposentado. Cuido deste porto há 40 anos - agora é teu.",
+	"en": "Hey! Waldemar, retired foreman. Ran this port for 40 years - it's yours now.",
+	"es": "¡Hola! Waldemar, capataz jubilado. Cuidé este puerto 40 años - ahora es tuyo.",
+	"fr": "Salut ! Waldemar, contremaître retraité. 40 ans dans ce port - il est à toi.",
+	"de": "Hallo! Waldemar, Vorarbeiter im Ruhestand. 40 Jahre hier - jetzt gehört er dir.",
+	"it": "Ehi! Waldemar, capo scalo in pensione. 40 anni qui - adesso è tuo.",
+	"ru": "Привет! Вальдемар, бригадир на пенсии. Сорок лет тут - теперь порт твой.",
+	"pl": "Hej! Waldemar, brygadzista na emeryturze. 40 lat tutaj - teraz jest twój.",
+	"tr": "Selam! Waldemar, emekli postabaşı. 40 yıl bu limandaydım - artık senin."},
+"tut.tap_ship": {
+	"pt_BR": "Tá vendo aquele navio atracado? Toca nele. Cada toque tira um container do convés.",
+	"en": "See that ship alongside? Tap it. Every tap lifts a box off the deck.",
+	"es": "¿Ves ese barco atracado? Tócalo. Cada toque saca un contenedor.",
+	"fr": "Tu vois ce navire à quai ? Touche-le. Chaque appui sort un conteneur.",
+	"de": "Siehst du das Schiff am Kai? Tipp drauf. Jeder Tipp holt eine Box vom Deck.",
+	"it": "Vedi quella nave ormeggiata? Toccala. Ogni tocco toglie un container.",
+	"ru": "Видишь судно у причала? Жми. Каждое нажатие снимает ящик с палубы.",
+	"pl": "Widzisz ten statek przy nabrzeżu? Stukaj. Każde stuknięcie zdejmuje kontener.",
+	"tr": "Rıhtımdaki gemiyi gördün mü? Dokun. Her dokunuş güverteden bir konteyner alır."},
+"tut.teu": {
+	"pt_BR": "Isso aí! Container movimentado é TEU no bolso. O contador lá em cima não mente.",
+	"en": "That's it! A box moved is a TEU banked. The counter up there doesn't lie.",
+	"es": "¡Eso es! Contenedor movido es TEU en el bolsillo. El contador no miente.",
+	"fr": "Voilà ! Un conteneur bougé, c'est un TEU en poche. Le compteur ne ment pas.",
+	"de": "Genau! Bewegte Box heißt TEU in der Tasche. Der Zähler oben lügt nicht.",
+	"it": "Ecco! Container mosso è TEU in tasca. Il contatore lassù non mente.",
+	"ru": "Вот так! Перемещённый ящик - это TEU в кармане. Счётчик наверху не врёт.",
+	"pl": "O to chodzi! Przeniesiony kontener to TEU w kieszeni. Licznik nie kłamie.",
+	"tr": "İşte bu! Taşınan konteyner cebe TEU demek. Yukarıdaki sayaç yalan söylemez."},
+"tut.shop": {
+	"pt_BR": "Agora abre a LOJA ali embaixo e contrata um Estivador. Ele descarrega sozinho.",
+	"en": "Now open the SHOP down there and hire a Docker. He unloads on his own.",
+	"es": "Ahora abre la TIENDA de abajo y contrata un Estibador. Descarga solo.",
+	"fr": "Ouvre la BOUTIQUE en bas et embauche un Docker. Il décharge tout seul.",
+	"de": "Öffne unten den LADEN und stell einen Schauermann ein. Der lädt allein ab.",
+	"it": "Apri il NEGOZIO lì sotto e assumi uno Scaricatore. Scarica da solo.",
+	"ru": "Открой МАГАЗИН внизу и найми докера. Он разгружает сам.",
+	"pl": "Otwórz SKLEP na dole i zatrudnij Dokera. Rozładowuje sam.",
+	"tr": "Aşağıdaki DÜKKANI aç ve bir Liman İşçisi tut. Kendi başına boşaltır."},
+"tut.passive": {
+	"pt_BR": "Pronto: TEU por segundo. Dorme, acorda, o porto continua rendendo.",
+	"en": "There: TEU a second. Sleep, wake up, the port keeps earning.",
+	"es": "Listo: TEU por segundo. Duerme, despierta, el puerto sigue rindiendo.",
+	"fr": "Voilà : des TEU par seconde. Dors, réveille-toi, le port produit.",
+	"de": "So: TEU pro Sekunde. Schlaf, wach auf, der Hafen verdient weiter.",
+	"it": "Ecco: TEU al secondo. Dormi, svegliati, il porto continua a rendere.",
+	"ru": "Вот: TEU в секунду. Спи, просыпайся - порт всё равно зарабатывает.",
+	"pl": "Proszę: TEU na sekundę. Śpij, budź się, port dalej zarabia.",
+	"tr": "İşte: saniyede TEU. Uyu, uyan, liman kazanmaya devam eder."},
+"tut.pan": {
+	"pt_BR": "Arrasta a tela pra cima pra ver o pátio inteiro. Enche ele de container até não caber mais.",
+	"en": "Drag the screen up to see the whole yard. Fill it with boxes until nothing fits.",
+	"es": "Arrastra la pantalla para ver todo el patio. Llénalo hasta que no quepa más.",
+	"fr": "Fais glisser l'écran pour voir tout le parc. Remplis-le à ras bord.",
+	"de": "Zieh den Bildschirm hoch für den ganzen Hof. Füll ihn, bis nichts mehr passt.",
+	"it": "Trascina lo schermo per vedere tutto il piazzale. Riempilo fino all'orlo.",
+	"ru": "Потяни экран вверх, чтобы увидеть весь двор. Забей его под завязку.",
+	"pl": "Przeciągnij ekran w górę, by zobaczyć cały plac. Zapełnij go po brzegi.",
+	"tr": "Tüm sahayı görmek için ekranı yukarı kaydır. Sığmayana kadar doldur."},
+"tut.done": {
+	"pt_BR": "Bom trabalho. O porto é teu.", "en": "Good work. The port is yours.",
+	"es": "Buen trabajo. El puerto es tuyo.", "fr": "Beau travail. Le port est à toi.",
+	"de": "Gute Arbeit. Der Hafen gehört dir.", "it": "Bel lavoro. Il porto è tuo.",
+	"ru": "Хорошая работа. Порт твой.", "pl": "Dobra robota. Port jest twój.",
+	"tr": "İyi iş. Liman senin."},
+
+# --- the spotlight tour --------------------------------------------------
+"spot.ship.title": {
+	"pt_BR": "NAVIO ATRACADO", "en": "SHIP ALONGSIDE", "es": "BARCO ATRACADO",
+	"fr": "NAVIRE À QUAI", "de": "SCHIFF AM KAI", "it": "NAVE ORMEGGIATA",
+	"ru": "СУДНО У ПРИЧАЛА", "pl": "STATEK PRZY NABRZEŻU", "tr": "RIHTIMDA GEMİ"},
+"spot.ship.text": {
+	"pt_BR": "Toque no navio para mover carga.", "en": "Tap the ship to move cargo.",
+	"es": "Toque el barco para mover carga.", "fr": "Touchez le navire pour bouger la cargaison.",
+	"de": "Tippen Sie das Schiff an, um Fracht zu bewegen.",
+	"it": "Tocca la nave per muovere il carico.",
+	"ru": "Коснитесь судна, чтобы двигать груз.",
+	"pl": "Dotknij statku, aby przenosić ładunek.",
+	"tr": "Yük taşımak için gemiye dokunun."},
+"spot.teu.title": {
+	"pt_BR": "CONTADOR TEU", "en": "TEU COUNTER", "es": "CONTADOR TEU",
+	"fr": "COMPTEUR TEU", "de": "TEU-ZÄHLER", "it": "CONTATORE TEU",
+	"ru": "СЧЁТЧИК TEU", "pl": "LICZNIK TEU", "tr": "TEU SAYACI"},
+"spot.teu.text": {
+	"pt_BR": "Aqui chega a receita do cais.", "en": "The quay's takings land here.",
+	"es": "Aquí llega el ingreso del muelle.", "fr": "Les recettes du quai arrivent ici.",
+	"de": "Hier landen die Einnahmen des Kais.", "it": "Qui arrivano gli incassi della banchina.",
+	"ru": "Сюда поступает выручка причала.", "pl": "Tu trafia utarg nabrzeża.",
+	"tr": "Rıhtımın geliri buraya düşer."},
+"spot.goal.title": {
+	"pt_BR": "META DO TURNO", "en": "SHIFT GOAL", "es": "META DEL TURNO",
+	"fr": "OBJECTIF DU QUART", "de": "SCHICHTZIEL", "it": "OBIETTIVO DEL TURNO",
+	"ru": "ЦЕЛЬ СМЕНЫ", "pl": "CEL ZMIANY", "tr": "VARDİYA HEDEFİ"},
+"spot.goal.text": {
+	"pt_BR": "Acompanhe a próxima operação.", "en": "Follow the next operation.",
+	"es": "Siga la próxima operación.", "fr": "Suivez la prochaine opération.",
+	"de": "Verfolgen Sie den nächsten Vorgang.", "it": "Segui la prossima operazione.",
+	"ru": "Следите за следующей операцией.", "pl": "Śledź następną operację.",
+	"tr": "Sonraki operasyonu takip edin."},
+"spot.journal.title": {
+	"pt_BR": "DIÁRIO DO PORTO", "en": "PORT LOGBOOK", "es": "DIARIO DEL PUERTO",
+	"fr": "JOURNAL DU PORT", "de": "HAFENLOGBUCH", "it": "DIARIO DEL PORTO",
+	"ru": "СУДОВОЙ ЖУРНАЛ", "pl": "DZIENNIK PORTU", "tr": "LİMAN DEFTERİ"},
+"spot.journal.text": {
+	"pt_BR": "Fixe uma meta para o próximo turno.", "en": "Pin a goal for the next shift.",
+	"es": "Fije una meta para el próximo turno.", "fr": "Épinglez un objectif pour le prochain quart.",
+	"de": "Heften Sie ein Ziel für die nächste Schicht an.",
+	"it": "Fissa un obiettivo per il prossimo turno.",
+	"ru": "Закрепите цель на следующую смену.",
+	"pl": "Przypnij cel na następną zmianę.",
+	"tr": "Sonraki vardiya için bir hedef sabitleyin."},
+"spot.shop.title": {
+	"pt_BR": "PRANCHETA", "en": "CLIPBOARD", "es": "PORTAPAPELES",
+	"fr": "PLANCHETTE", "de": "KLEMMBRETT", "it": "LAVAGNETTA",
+	"ru": "ПЛАНШЕТ", "pl": "PODKŁADKA", "tr": "PANO"},
+"spot.shop.text": {
+	"pt_BR": "Contrate equipe e equipamento.", "en": "Hire crew and equipment.",
+	"es": "Contrate personal y equipo.", "fr": "Embauchez équipe et matériel.",
+	"de": "Stellen Sie Mannschaft und Gerät ein.", "it": "Assumi equipaggio e mezzi.",
+	"ru": "Нанимайте людей и технику.", "pl": "Zatrudniaj załogę i sprzęt.",
+	"tr": "Ekip ve ekipman tutun."},
+"spot.capital.title": {
+	"pt_BR": "CAPITAL", "en": "CAPITAL", "es": "CAPITAL", "fr": "CAPITAL",
+	"de": "KAPITAL", "it": "CAPITALE", "ru": "КАПИТАЛ", "pl": "KAPITAŁ",
+	"tr": "SERMAYE"},
+"spot.capital.text": {
+	"pt_BR": "Reconstrua o porto quando o botão de ações aparecer.",
+	"en": "Rebuild the port when the shares key appears.",
+	"es": "Reconstruya el puerto cuando aparezca el botón de acciones.",
+	"fr": "Reconstruisez le port quand la touche actions apparaît.",
+	"de": "Bauen Sie den Hafen neu, wenn die Anteilstaste erscheint.",
+	"it": "Ricostruisci il porto quando appare il tasto azioni.",
+	"ru": "Перестройте порт, когда появится кнопка акций.",
+	"pl": "Odbuduj port, gdy pojawi się przycisk akcji.",
+	"tr": "Hisse tuşu göründüğünde limanı yeniden kurun."},
+"spot.routes.title": {
+	"pt_BR": "ROTAS DE CARGA", "en": "CARGO ROUTES", "es": "RUTAS DE CARGA",
+	"fr": "ROUTES DE FRET", "de": "FRACHTROUTEN", "it": "ROTTE DI CARICO",
+	"ru": "ГРУЗОВЫЕ МАРШРУТЫ", "pl": "TRASY ŁADUNKÓW", "tr": "YÜK ROTALARI"},
+"spot.routes.text": {
+	"pt_BR": "Novas rotas aparecerão no Diário conforme o porto cresce.",
+	"en": "New routes appear in the Logbook as the port grows.",
+	"es": "Nuevas rutas aparecerán en el Diario según crezca el puerto.",
+	"fr": "De nouvelles routes apparaissent dans le Journal quand le port grandit.",
+	"de": "Neue Routen erscheinen im Logbuch, wenn der Hafen wächst.",
+	"it": "Nuove rotte appaiono nel Diario man mano che il porto cresce.",
+	"ru": "Новые маршруты появляются в журнале по мере роста порта.",
+	"pl": "Nowe trasy pojawiają się w Dzienniku wraz z rozwojem portu.",
+	"tr": "Liman büyüdükçe Deftere yeni rotalar gelir."},
+"spot.next": {
+	"pt_BR": "PRÓXIMO", "en": "NEXT", "es": "SIGUIENTE", "fr": "SUIVANT",
+	"de": "WEITER", "it": "AVANTI", "ru": "ДАЛЕЕ", "pl": "DALEJ", "tr": "İLERİ"},
+"offline.title": {
+	"pt_BR": "O PORTO NÃO DORMIU", "en": "THE PORT NEVER SLEPT",
+	"es": "EL PUERTO NO DURMIÓ", "fr": "LE PORT N'A PAS DORMI",
+	"de": "DER HAFEN SCHLIEF NICHT", "it": "IL PORTO NON HA DORMITO",
+	"ru": "ПОРТ НЕ СПАЛ", "pl": "PORT NIE SPAŁ", "tr": "LİMAN UYUMADI"},
+"offline.greeting.short": {
+	"pt_BR": "Os guindastes trabalharam sem você:",
+	"en": "The cranes worked without you:",
+	"es": "Las grúas trabajaron sin usted:",
+	"fr": "Les grues ont travaillé sans vous :",
+	"de": "Die Krane arbeiteten ohne Sie:",
+	"it": "Le gru hanno lavorato senza di te:",
+	"ru": "Краны работали без вас:",
+	"pl": "Dźwigi pracowały bez ciebie:",
+	"tr": "Vinçler sensiz çalıştı:"},
+"offline.greeting.away": {
+	"pt_BR": "Fora por {time}. O porto não parou:",
+	"en": "Away {time}. The port kept going:",
+	"es": "Fuera {time}. El puerto siguió:",
+	"fr": "Absent {time}. Le port a continué :",
+	"de": "{time} weg. Der Hafen lief weiter:",
+	"it": "Via per {time}. Il porto è andato:",
+	"ru": "Вас не было {time}. Порт работал:",
+	"pl": "Nieobecny {time}. Port działał:",
+	"tr": "{time} yoktun. Liman çalıştı:"},
+"offline.counted": {
+	"pt_BR": "{time} contadas x {rate} TEU/s x {pct}%",
+	"en": "{time} counted x {rate} TEU/s x {pct}%",
+	"es": "{time} contadas x {rate} TEU/s x {pct}%",
+	"fr": "{time} comptées x {rate} TEU/s x {pct}%",
+	"de": "{time} gezählt x {rate} TEU/s x {pct}%",
+	"it": "{time} contate x {rate} TEU/s x {pct}%",
+	"ru": "{time} зачтено x {rate} TEU/s x {pct}%",
+	"pl": "{time} zliczone x {rate} TEU/s x {pct}%",
+	"tr": "{time} sayıldı x {rate} TEU/s x {pct}%"},
+"offline.capped": {
+	"pt_BR": "Limite de {time}: {amount} TEU fora",
+	"en": "{time} cap: {amount} TEU missed",
+	"es": "Límite de {time}: {amount} TEU fuera",
+	"fr": "Plafond {time} : {amount} TEU perdus",
+	"de": "Grenze {time}: {amount} TEU verpasst",
+	"it": "Limite {time}: {amount} TEU persi",
+	"ru": "Предел {time}: {amount} TEU мимо",
+	"pl": "Limit {time}: {amount} TEU poza",
+	"tr": "{time} sınırı: {amount} TEU dışta"},
+"offline.ok": {
+	"pt_BR": "BELEZA", "en": "GOT IT", "es": "VALE", "fr": "OK",
+	"de": "ALLES KLAR", "it": "OK", "ru": "ЯСНО", "pl": "JASNE",
+	"tr": "TAMAM"},
+"number.decimal": {
+	"pt_BR": ",", "en": ".", "es": ",", "fr": ",", "de": ",",
+	"it": ",", "ru": ",", "pl": ",", "tr": ","},
+"shop.map.pick": {
+	"pt_BR": "Toque numa estação", "en": "Tap a station",
+	"es": "Toque una estación", "fr": "Touchez une station",
+	"de": "Station antippen", "it": "Tocca una stazione",
+	"ru": "Коснитесь станции", "pl": "Dotknij stacji",
+	"tr": "Bir istasyona dokun"},
+"shop.map.hint": {
+	"pt_BR": "Cada linha é um ramo. Arraste para andar, pince para aproximar.",
+	"en": "Each line is a branch. Drag to move, pinch to zoom.",
+	"es": "Cada línea es una rama. Arrastre para mover, pellizque para acercar.",
+	"fr": "Chaque ligne est une branche. Glissez pour vous déplacer, pincez pour zoomer.",
+	"de": "Jede Linie ist ein Zweig. Ziehen zum Bewegen, kneifen zum Zoomen.",
+	"it": "Ogni linea è un ramo. Trascina per spostarti, pizzica per ingrandire.",
+	"ru": "Каждая линия - ветка. Тяните, чтобы двигаться, сводите пальцы для масштаба.",
+	"pl": "Każda linia to gałąź. Przeciągnij, aby się poruszać, uszczypnij, aby przybliżyć.",
+	"tr": "Her hat bir daldır. Kaydırarak gezin, sıkıştırarak yakınlaş."},
+"shop.map.buy": {
+	"pt_BR": "COMPRAR", "en": "BUY", "es": "COMPRAR", "fr": "ACHETER",
+	"de": "KAUFEN", "it": "COMPRA", "ru": "КУПИТЬ", "pl": "KUP",
+	"tr": "SATIN AL"},
+"shop.map.owned": {
+	"pt_BR": "PRONTO", "en": "DONE", "es": "LISTO", "fr": "FAIT",
+	"de": "FERTIG", "it": "FATTO", "ru": "ГОТОВО", "pl": "GOTOWE",
+	"tr": "TAMAM"},
+"shop.map.shut": {
+	"pt_BR": "FECHADO", "en": "SHUT", "es": "CERRADO", "fr": "FERMÉ",
+	"de": "ZU", "it": "CHIUSO", "ru": "ЗАКРЫТО", "pl": "ZAMKNIĘTE",
+	"tr": "KAPALI"},
 "shop.cost": {
 	"pt_BR": "{amount} TEUs", "en": "{amount} TEUs", "es": "{amount} TEUs",
 	"fr": "{amount} TEU", "de": "{amount} TEU", "it": "{amount} TEU",
@@ -1177,5 +1475,70 @@ const STRINGS := {
 	"de": "DISKUSSIONEN ÖFFNEN", "it": "APRI LE DISCUSSIONI",
 	"ru": "ОТКРЫТЬ ОБСУЖДЕНИЯ", "pl": "OTWÓRZ DYSKUSJE",
 	"tr": "TARTIŞMALARI AÇ"},
+
+# ------------------------------------------------------- roda da sorte (wheel)
+# Small labels, so every translation stays short. The × is in the bitmap font
+# (see tools/sprites/gen_font.py, "x_mult").
+
+"wheel.title": {
+	"pt_BR": "RODA DA SORTE", "en": "LUCKY WHEEL", "es": "RULETA",
+	"fr": "ROULETTE", "de": "GLÜCKSRAD", "it": "RUOTA",
+	"ru": "КОЛЕСО", "pl": "KOŁO", "tr": "ÇARK"},
+"wheel.spin": {
+	"pt_BR": "GIRAR", "en": "SPIN", "es": "GIRAR", "fr": "TOURNER",
+	"de": "DREHEN", "it": "GIRA", "ru": "КРУТЬ", "pl": "KRĘĆ",
+	"tr": "ÇEVİR"},
+"wheel.free": {
+	"pt_BR": "GRÁTIS!", "en": "FREE!", "es": "¡GRATIS!", "fr": "GRATUIT!",
+	"de": "GRATIS!", "it": "GRATIS!", "ru": "ДАРОМ", "pl": "ZA DARMO",
+	"tr": "BEDAVA"},
+"wheel.tokens": {
+	"pt_BR": "FICHAS: {n}", "en": "TOKENS: {n}", "es": "FICHAS: {n}",
+	"fr": "JETONS: {n}", "de": "JETONS: {n}", "it": "GETTONI: {n}",
+	"ru": "ФИШКИ: {n}", "pl": "ŻETONY: {n}", "tr": "JETON: {n}"},
+"wheel.next_free": {
+	"pt_BR": "GRÁTIS EM {time}", "en": "FREE {time}", "es": "GRATIS {time}",
+	"fr": "GRATIS {time}", "de": "GRATIS {time}", "it": "GRATIS {time}",
+	"ru": "ДАРОМ {time}", "pl": "DARMO {time}", "tr": "BEDAVA {time}"},
+"wheel.token_earned": {
+	"pt_BR": "+1 FICHA DA RODA", "en": "+1 TOKEN", "es": "+1 FICHA",
+	"fr": "+1 JETON", "de": "+1 JETON", "it": "+1 GETTONE",
+	"ru": "+1 ФИШКА", "pl": "+1 ŻETON", "tr": "+1 JETON"},
+"wheel.collect": {
+	"pt_BR": "COLETAR", "en": "COLLECT", "es": "COBRAR", "fr": "ENCAISSER",
+	"de": "EINLÖSEN", "it": "RITIRA", "ru": "ЗАБРАТЬ", "pl": "ODBIERZ",
+	"tr": "AL"},
+"wheel.prize.cash_s": {
+	"pt_BR": "TROCADO", "en": "SPARE", "es": "SUELTO", "fr": "MONNAIE",
+	"de": "KLEINGELD", "it": "POCHI", "ru": "МЕЛОЧЬ", "pl": "DROBNE",
+	"tr": "KIRINTI"},
+"wheel.prize.surge2": {
+	"pt_BR": "TURBO ×2", "en": "TURBO ×2", "es": "TURBO ×2",
+	"fr": "TURBO ×2", "de": "TURBO ×2", "it": "TURBO ×2",
+	"ru": "ТУРБО ×2", "pl": "TURBO ×2", "tr": "TURBO ×2"},
+"wheel.prize.cash_m": {
+	"pt_BR": "BOLADA", "en": "HAUL", "es": "BOLADA", "fr": "GROS LOT",
+	"de": "BATZEN", "it": "GROSSO", "ru": "КУШ", "pl": "BONUS",
+	"tr": "BÜYÜK"},
+"wheel.prize.respin": {
+	"pt_BR": "+1 FICHA", "en": "+1 TOKEN", "es": "+1 FICHA",
+	"fr": "+1 JETON", "de": "+1 JETON", "it": "+1 GETTONE",
+	"ru": "+1 ФИШКА", "pl": "+1 ŻETON", "tr": "+1 JETON"},
+"wheel.prize.jackpot": {
+	"pt_BR": "JACKPOT!", "en": "JACKPOT!", "es": "JACKPOT!",
+	"fr": "JACKPOT!", "de": "JACKPOT!", "it": "JACKPOT!",
+	"ru": "ДЖЕКПОТ!", "pl": "JACKPOT!", "tr": "JACKPOT!"},
+"wheel.prize.surge3": {
+	"pt_BR": "TURBO ×3", "en": "TURBO ×3", "es": "TURBO ×3",
+	"fr": "TURBO ×3", "de": "TURBO ×3", "it": "TURBO ×3",
+	"ru": "ТУРБО ×3", "pl": "TURBO ×3", "tr": "TURBO ×3"},
+"wheel.prize.cash_l": {
+	"pt_BR": "COFRE CHEIO", "en": "FULL CHEST", "es": "COFRE LLENO",
+	"fr": "COFFRE PLEIN", "de": "VOLLE TRUHE", "it": "COFANO PIENO",
+	"ru": "СУНДУК", "pl": "SKRZYNIA", "tr": "DOLU SANDIK"},
+"wheel.prize.frenzy": {
+	"pt_BR": "FRENESI ×7", "en": "FRENZY ×7", "es": "FRENESÍ ×7",
+	"fr": "FOLIE ×7", "de": "RASEREI ×7", "it": "FRENZIA ×7",
+	"ru": "ШТУРМ ×7", "pl": "SZAŁ ×7", "tr": "ÇILGIN ×7"},
 
 }

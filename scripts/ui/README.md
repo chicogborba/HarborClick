@@ -21,15 +21,44 @@ Entry points:
 - `hud.gd`, `readout.gd`, `command_rail.gd` — play HUD.
 - `rate_breakdown.gd` — the factors behind the rate, opened by pressing the rate
   tag on the counter. It is the formula, not a caption for it: machines at
-  catalogue rate, then milestones, fitted upgrades, capital, global upgrades,
-  fog and surge — multiply the rows and you land back on `GameState.base_cps`.
-  A game whose whole strategy layer is "why did that number go up" cannot only
-  ever show the product.
+  catalogue rate, then milestones, fitted upgrades, capital, turmas, global
+  upgrades, fog and surge — multiply the rows and you land back on
+  `GameState.base_cps`. A game whose whole strategy layer is "why did that number
+  go up" cannot only ever show the product. **Adding a factor to `recompute` means
+  adding a row here**: a port that converted a fleet into conductors traded the
+  "Melhorias" row away to buy the "Turmas" one, and a trade invisible in the
+  formula did not happen anywhere the player can see.
 - `shop.gd` — the purchase board. Its DECOR. tab is the one place in the game
   that sells nothing productive: a row there carries a price before it is owned
   and an on/off switch afterwards, and the switch is the reason the tab works —
   a decoration you cannot take back off is one nobody risks buying. See
   `scripts/data/cosmetic_db.gd`.
+  - **The upgrades tab is a map, not a list.** See `upgrade_map.gd` below. It is
+    the one tab with no `ScrollContainer`: it pans and zooms itself, and a scroll
+    container wrapped round something that already handles drag fights it for
+    every gesture and wins.
+  - **A shut station says what shuts it.** `_gate_reason` turns the two ways a
+    node can be blocked — an unbought prerequisite, a fleet the port has not got
+    — into one sentence naming the thing to go and do. A dead control with no
+    sentence is indistinguishable from a bug. The third case, a buy that refits an
+    exclusive sibling out, is not a state but a price, and it is on the ticket
+    before the press rather than in a dialog after it.
+- `upgrade_map.gd` — the upgrade graph drawn as a transit map: one coloured line
+  per trunk, one station per upgrade, depth as distance along the line. Bought
+  track is solid, unbought is a dashed survey line, and a node that excludes a
+  sibling is drawn as an interchange.
+  - **It is one `_draw()`, not fifty Controls.** Fifty stations made of Controls
+    are fifty layouts, and the tab refreshes on a timer while it is open.
+    `refresh()` compares every station's state against a cache and returns without
+    repainting when nothing moved.
+  - **Zoom is about the anchor.** `_set_zoom` keeps whatever was under the fingers
+    under them. Zooming about the origin instead throws the thing the player was
+    looking at off the edge, which on a map is the difference between a control
+    and a fight.
+  - **A tap is a press that did not travel.** `TAP_SLOP` separates selecting a
+    station from panning, and `_station_at` picks the *nearest* station rather
+    than the first hit — two stations can be a lane apart at low zoom and the one
+    whose circle you technically landed in is not always the one you aimed at.
 - `route_map.gd`, `port_journal.gd`, `settings_panel.gd`,
   `prestige_dialog.gd` — overlays. The journal's EQUIPE tab is the whole shift in
   one list, which the per-person dossier cannot give.

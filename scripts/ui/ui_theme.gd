@@ -186,7 +186,10 @@ static func title_button_style(kind: StringName,
 	## corners knocked off survives that. Same material as the plate above it, so
 	## the sign and its keys read as one object bolted to the same wall.
 	var sprite := "ui_title_key" if kind == &"amber" else "ui_title_key_steel"
-	return nine(sprite + ("_down" if down else ""), 10, 6)
+	# 13, matching the 34px slab `gen_title.py` draws: the bevel bands and the
+	# rivets live inside that corner, so a smaller margin would stretch them into
+	# streaks down the middle of every key.
+	return nine(sprite + ("_down" if down else ""), 13, 7)
 
 
 static func arcade_style(content: int = 8) -> StyleBoxTexture:
@@ -469,6 +472,59 @@ static func place_clip(clip: TextureRect, board: Control, safe: Rect2) -> void:
 	clip.visible = board.visible and top >= safe.position.y + 26.0
 	clip.position = Vector2(
 		board.position.x + (board.size.x - CLIP_SIZE.x) * 0.5, top)
+
+
+# ------------------------------------------------------------------ motion
+
+## Why overlays move at all: a board that appears in a single frame reads as a
+## glitch; one that rises 10px and settles reads as a thing put down on the
+## desk. `pop_open` is that motion, and it moves `position`, never `scale`, so
+## the pixel font is never resampled while the board travels.
+static func pop_open(board: Control, scrim: CanvasItem = null,
+		slide: bool = true) -> void:
+	## The OPEN animation for every overlay board. Call it at the END of the
+	## open path, after the board has been laid out for this open, so
+	## `board.position` is already final. `scrim`, when given and visible, is
+	## faded in alongside; its colour alpha is never touched. `slide = false`
+	## animates the board's alpha only, for boards an async `_fit_to_content()`
+	## moves a frame later — sliding those would land on a stale position.
+	##
+	## If the board is laid out again during the 0.18s (a resize), the tween
+	## still lands on the remembered final; 0.18s is short enough to accept.
+	if not UserPreferences.can_animate():
+		board.modulate.a = 1.0
+		return
+	# has_meta first: get_meta errors on a missing key even with a default.
+	var previous: Tween = null
+	if board.has_meta(&"pop_tween"):
+		previous = board.get_meta(&"pop_tween") as Tween
+	if previous != null and previous.is_running():
+		previous.kill()
+	var final := board.position
+	board.modulate.a = 0.0
+	if slide:
+		board.position = final + Vector2(0, 10)
+	var tween := board.create_tween().set_parallel()
+	if slide:
+		tween.tween_property(board, "position", final, 0.18) \
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(board, "modulate:a", 1.0, 0.12) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	if scrim != null and scrim.is_visible_in_tree():
+		scrim.modulate.a = 0.0
+		tween.tween_property(scrim, "modulate:a", 1.0, 0.15)
+	board.set_meta(&"pop_tween", tween)
+
+
+static func settle_open(board: Control) -> void:
+	## Lands a board that is mid-`pop_open` right now: kills the stored tween
+	## if it is still running and forces full alpha.
+	var previous: Tween = null
+	if board.has_meta(&"pop_tween"):
+		previous = board.get_meta(&"pop_tween") as Tween
+	if previous != null and previous.is_running():
+		previous.kill()
+	board.modulate.a = 1.0
 
 
 # ------------------------------------------------------------------ controls

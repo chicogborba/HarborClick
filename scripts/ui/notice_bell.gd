@@ -153,6 +153,7 @@ func open_log() -> void:
 	open_changed.emit(true)
 	UiTheme.focus_first(_board)
 	_fit_board()
+	UiTheme.pop_open(_board, _scrim)
 
 
 func close_log() -> void:

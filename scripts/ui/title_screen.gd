@@ -71,6 +71,10 @@ var _actions: VBoxContainer
 var _continue_key: Button
 var _corner_keys: Dictionary = {}     # id -> Control
 var _footer: VBoxContainer
+## The logo, kept so the layout pass can size it to whatever plate it gets.
+var _word: TextureRect
+## Enamel left showing around the word, each side, at the plate's own scale.
+const WORD_MARGIN := 10.0
 var _board_page: Control
 var _board: PanelContainer
 var _clip: TextureRect
@@ -568,7 +572,29 @@ func _wordmark() -> Control:
 	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	mark.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	mark.custom_minimum_size = mark.texture.get_size()
+	_word = mark
 	return mark
+
+
+func _fit_wordmark(plate_width: float, plate_height: float) -> void:
+	## The word fills the sign it is bolted to.
+	##
+	## It used to hang at 1:1 whatever the plate was given, so on a phone that
+	## grants the full 340 logical pixels the logo sat in the middle of it with
+	## seventy pixels of empty enamel either side and read as small. Scaled by
+	## whole numbers only: this is pixel art, and half a pixel of logo is a blurry
+	## logo. One is the floor, so a narrow phone crops the plate rather than
+	## shrinking the word into mush.
+	if _word == null or _word.texture == null:
+		return
+	var native := _word.texture.get_size()
+	if native.x <= 0.0 or native.y <= 0.0:
+		return
+	var room := Vector2(plate_width - WORD_MARGIN * 2.0,
+		plate_height - WORD_MARGIN * 2.0)
+	var factor := maxi(1, int(floor(minf(room.x / native.x, room.y / native.y))))
+	_word.custom_minimum_size = native * float(factor)
+	_word.size = native * float(factor)
 
 
 func _dress_key(key: Button, kind: StringName) -> void:
@@ -1165,6 +1191,7 @@ func _layout_marquee(view: Vector2, width: float, left: float, tight: bool,
 	# plate both want the top of the frame and the plate is the one that can move.
 	_plate.position = Vector2((view.x - plate_width) * 0.5,
 		margin + corner_size.y + (6.0 if tight else 12.0))
+	_fit_wordmark(plate_width, plate_height)
 
 	# The ribbon hangs under the plate, narrower than it, so the two read as a
 	# board and a strip screwed to it rather than one tall panel.
@@ -1205,11 +1232,31 @@ func _layout_marquee(view: Vector2, width: float, left: float, tight: bool,
 	_scrim.position = Vector2((view.x - scrim_size.x) * 0.5,
 		_actions.position.y - 42.0)
 
-	var footer_height := _footer.get_combined_minimum_size().y
-	_footer.custom_minimum_size.x = width
-	_footer.size = Vector2(width, footer_height)
-	_footer.position = Vector2(left,
-		view.y - footer_height - margin - (2.0 if tight else 6.0))
+	# Never across the two bottom corner keys.
+	#
+	# The footer used to be laid out on the board's own width and pinned to the
+	# bottom of the frame — which is exactly where COMUNIDADE and CRÉDITOS also
+	# live, so the version line ran straight through both captions and all three
+	# strings were unreadable at once.
+	#
+	# It takes the gap between the keys when the gap is genuinely wide enough for
+	# it, and otherwise steps up above them. Which of the two happens depends on
+	# the language: PORTSTACK STUDIOS is seventeen characters and a 320-wide phone
+	# leaves a hundred between two 78-wide keys, so this is not a hypothetical
+	# branch — it is the common one on the narrowest screen the game supports.
+	var gutter := corner_size.x + margin * 2.0
+	var footer_size := _footer.get_combined_minimum_size()
+	var between := view.x - gutter * 2.0
+	if footer_size.x + 8.0 <= between:
+		_footer.custom_minimum_size.x = between
+		_footer.size = Vector2(between, footer_size.y)
+		_footer.position = Vector2((view.x - between) * 0.5,
+			view.y - margin - corner_size.y * 0.5 - footer_size.y * 0.5)
+	else:
+		_footer.custom_minimum_size.x = width
+		_footer.size = Vector2(width, footer_size.y)
+		_footer.position = Vector2(left,
+			view.y - margin - corner_size.y - footer_size.y - 4.0)
 
 
 func _layout_board(view: Vector2, width: float, left: float,

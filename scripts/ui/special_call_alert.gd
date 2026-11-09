@@ -114,6 +114,9 @@ func open(offer: Dictionary, seconds: float) -> void:
 	AudioManager.play_sfx("milestone", 0.02, -2.0)
 	_accept.grab_focus()
 	_fit_to_content()
+	# `_fit_to_content` re-places the board a frame later, so this open only
+	# fades the board in; sliding would land on the stale position.
+	UiTheme.pop_open(_board, _scrim, false)
 
 
 func close() -> void:

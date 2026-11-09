@@ -1,48 +1,57 @@
 """Top-down containers, Stardew style.
 
-A 40ft box seen from above: 22x10 footprint. The sprite draws the roof plus a
-2px front lip so stacks read as solid volumes. Each colour also gets a
-"stack shadow" variant used under piled boxes.
+A 40ft box seen from above: 22x11 footprint. The sprite draws the roof plus a
+3px side wall so stacks read as solid volumes, shaded from a hue-shifted ramp
+per livery (`palette.CONTAINER_RAMPS`). The rail wagons carry the same liveries
+cut to their deck in `gen_train.py`.
 """
 import palette as P
 from common import new_img, rect, hline, vline, px, outline, sheet, save
 
 W, H = 24, 13          # canvas (22x11 box + 1px outline margin)
-BOX_W, BOX_H = 22, 11  # roof 22x9 + 2px front lip
+BOX_W, BOX_H = 22, 11  # roof 22x8 + 3px side wall
 
 
-def container(top, side):
+def container(ramp_):
+    """One forty-footer: 22x8 roof, 3px side wall, 1px ink outline.
+
+    Built from a five-step hue-shifted ramp (`P.CONTAINER_RAMPS`) rather than a
+    colour and a darker copy of it: the roof is the midtone, the corrugation
+    is lit on its north-west flank and shaded on the other, the side wall sits
+    a step down in cool shade and the bottom rail two. The wall is 3px because
+    a stack lifts `PortLayout.BOX_LIFT` (4) per tier: wall plus outline is
+    exactly one tier, so a stack shows every box's side like a real one."""
     img = new_img(W, H)
+    d0, d1, mid, lit, glint = ramp_
     x0, y0 = 1, 1
-    roof_h = 9
-    # roof
-    rect(img, x0, y0, BOX_W, roof_h, top)
-    # corrugation ribs running across the roof
-    rib = tuple(max(0, c - 22) for c in top[:3]) + (255,)
+    roof_h, wall_h = 8, 3
+    # roof, corrugated across its width
+    rect(img, x0, y0, BOX_W, roof_h, mid)
+    shade = P.mix(mid, d1, 0.55)
     for x in range(x0 + 2, x0 + BOX_W - 2, 3):
-        vline(img, x, y0 + 1, roof_h - 2, rib)
-    # top-left highlight edge (light from upper-left)
-    hi = tuple(min(255, c + 26) for c in top[:3]) + (255,)
-    hline(img, x0, y0, BOX_W, hi)
-    vline(img, x0, y0, roof_h, hi)
-    # right edge shade
-    vline(img, x0 + BOX_W - 1, y0, roof_h, side)
-    # corner castings
+        vline(img, x, y0 + 1, roof_h - 2, lit)
+        vline(img, x + 1, y0 + 1, roof_h - 2, shade)
+    hline(img, x0, y0, BOX_W, glint)                       # north edge in the light
+    vline(img, x0, y0, roof_h, P.mix(mid, glint, 0.5))     # west edge
+    vline(img, x0 + BOX_W - 1, y0 + 1, roof_h - 1, d1)     # east edge turns away
+    # corner castings: the four steel blocks a spreader locks into
     for cx in (x0, x0 + BOX_W - 1):
-        for cy in (y0, y0 + roof_h - 1):
-            px(img, cx, cy, P.OUTLINE_SOFT)
-    # front lip (the 2px face you see below the roof)
-    rect(img, x0, y0 + roof_h, BOX_W, 2, side)
-    hline(img, x0, y0 + roof_h + 1, BOX_W,
-          tuple(max(0, c - 26) for c in side[:3]) + (255,))
-    # door end detail on the right of the lip
-    px(img, x0 + BOX_W - 3, y0 + roof_h, P.OUTLINE_SOFT)
-    px(img, x0 + BOX_W - 5, y0 + roof_h, P.OUTLINE_SOFT)
+        px(img, cx, y0, P.mix(glint, P.OUTLINE, 0.3))
+        px(img, cx, y0 + roof_h - 1, P.mix(d1, P.OUTLINE, 0.4))
+    # side wall: vertical corrugation in shade, a bottom rail under it
+    rect(img, x0, y0 + roof_h, BOX_W, wall_h, d1)
+    for x in range(x0 + 1, x0 + BOX_W - 1, 2):
+        px(img, x, y0 + roof_h + 1, P.mix(d1, d0, 0.5))
+    hline(img, x0, y0 + roof_h, BOX_W, P.mix(d1, mid, 0.35))  # top rail catches a little
+    hline(img, x0, y0 + roof_h + wall_h - 1, BOX_W, d0)
+    # the door end, east: locking bars on the wall
+    for bx in (x0 + BOX_W - 4, x0 + BOX_W - 2):
+        px(img, bx, y0 + roof_h + 1, P.mix(mid, glint, 0.4))
     return outline(img)
 
 
 def gen_containers():
-    frames = [container(t, s) for t, s in P.CONTAINERS.values()]
+    frames = [container(P.CONTAINER_RAMPS[name]) for name in P.CONTAINER_NAMES]
     save(sheet(frames), "container_sheet")
 
 

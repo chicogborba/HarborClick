@@ -37,20 +37,36 @@ W, H = 320, 720
 GRASS_X1 = 30
 ROAD_X0, ROAD_X1 = 30, 54
 YARD_X0, YARD_X1 = 56, 210
-QUAY_X0, QUAY_X1 = 210, 236
-WATER_X0 = 236
+QUAY_X0, QUAY_X1 = 204, 228
+## The shore. Moved left rather than widening `W`: the backdrop is drawn COVERED
+## into a 320-wide viewport, so 320 is the one width that lands on an exact 1:1
+## and anything else makes every pixel in the picture shimmer.
+WATER_X0 = 228
 
 ## Bay grid: three rows of boxes across, five bays down, which is what fills the
 ## visible band without turning into wallpaper.
 BAY_XS = (62, 112, 162)
-BAY_YS = (96, 214, 332, 450, 568)
+## Four rows, starting below the service band. The first row used to sit at 96,
+## which is above the visible band anyway — see the note on `_buildings`.
+BAY_YS = (176, 294, 412, 530)
 BAY_W, BAY_H = 48, 78
 BOX_W, BOX_H = 24, 13
 
-## Late afternoon. Not a night filter — the yard the player is about to open is
-## bright, and a title three stops darker than the game is a different game.
-WARM = (1.03, 0.99, 0.92)
-SHADE = 0.92
+## Dusk, not noon.
+##
+## The picture used to be lit at 0.92 with a warm cast, which is the yard's own
+## daylight with the contrast taken out — everything landed in the same middle
+## value and the whole port read as flat. The hour is later now: the ground goes
+## down far enough for the lit windows and the lamp pools to be the brightest
+## things in the frame, and the cast is cooler so those warm notes have something
+## to be warm *against*.
+##
+## Still not a night filter. The terminal the player opens two taps later is
+## bright, and a title three stops darker than the game is a different game —
+## `title_screen.gd` also lays a 16% navy wash over this at runtime, so the grade
+## has to be judged in the running screen and not in the preview PNG.
+WARM = (0.94, 0.96, 1.06)
+SHADE = 0.80
 
 _rng = random.Random(20260806)
 
@@ -122,11 +138,12 @@ def _contact_shadow(img, x, y, art):
                                     int(base[2] * 0.76), 255))
 
 
-def tile(img, name, x0, y0, x1, y1, variants=None):
+def tile(img, name, x0, y0, x1, y1, variants=None, k=None, warm=None):
     """Fill a rect with a ground tile, exactly the way `GroundBaker` fills the
     real yard — including picking a variant per cell, which is what stops a
     hundred square metres of asphalt reading as one flat colour."""
-    tiles = [tint(sprite(n), SHADE) for n in (variants or [name])]
+    tiles = [tint(sprite(n), SHADE if k is None else k,
+                  warm=WARM if warm is None else warm) for n in (variants or [name])]
     step = tiles[0].width
     for ty in range(y0, y1, step):
         for tx in range(x0, x1, step):
@@ -138,10 +155,22 @@ def tile(img, name, x0, y0, x1, y1, variants=None):
             img.alpha_composite(art.crop(box), (tx + box[0], ty + box[1]))
 
 
+## Cargo is lit hotter than the ground it stands on.
+##
+## Everything used to go through the same `SHADE`, and the measurement said what
+## the eye already suspected: the boxes came out at luminance 83 against asphalt
+## at 89 — the subject of the picture was *darker* than the floor. A container
+## yard reads because the steel is the brightest, most saturated thing in it and
+## the tarmac is not, so the boxes get their own key above the ambient one.
+BOX_LIGHT = 1.55
+BOX_WARM = (1.05, 1.0, 0.94)
+
+
 def container(img, x, y, color, levels=1):
     """A box, or a pile of them. The sheet is the yard's own: eight liveries,
     24x13, and the pile is drawn bottom box first so the top one overlaps."""
-    sheet = tint(sprite("container_sheet"), SHADE)
+    sheet = tint(sprite("container_sheet"), SHADE * BOX_LIGHT, warm=BOX_WARM)
+    # The shadow stays on the ambient key — a lit box does not cast a lit shadow.
     shadow = tint(sprite("container_shadow"), SHADE)
     frame = sheet.crop((color % 8 * BOX_W, 0, color % 8 * BOX_W + BOX_W, BOX_H))
     img.alpha_composite(shadow, (int(x), int(y) + 2))
@@ -235,12 +264,22 @@ def _vignette(img, strength=0.26):
 # ---------------------------------------------------------------- the pieces
 
 def _ground(img):
-    tile(img, "gr_grass", 0, 0, GRASS_X1, H)
-    tile(img, "gr_yard_b", ROAD_X0, 0, ROAD_X1, H)
+    # Darker than the tint alone would make it: at dusk the one thing with no
+    # light on it at all is the ground outside the fence, and a bright green lawn
+    # beside a navy sea is where the eye goes instead of to the port.
+    verge = tint(sprite("gr_grass"), SHADE * 0.62, warm=(0.86, 0.98, 0.94))
+    for ty in range(0, H, verge.height):
+        for tx in range(0, GRASS_X1, verge.width):
+            img.alpha_composite(verge, (tx, ty))
+    tile(img, "gr_yard_b", ROAD_X0, 0, ROAD_X1, H, k=SHADE * 0.70)
     tile(img, "gr_yard", YARD_X0, 0, YARD_X1, H,
-         variants=["gr_yard_0", "gr_yard_1", "gr_yard_2", "gr_yard_3"])
-    tile(img, "gr_quay", QUAY_X0, 0, QUAY_X1, H)
+         variants=["gr_yard_0", "gr_yard_1", "gr_yard_2", "gr_yard_3"],
+         k=SHADE * 0.80)
+    # Concrete keeps its own value: the apron is the pale band that separates a
+    # dark yard from a dark sea, and flattening it into either loses the quay.
+    tile(img, "gr_quay", QUAY_X0, 0, QUAY_X1, H, k=SHADE * 1.02)
     tile(img, "gr_water", WATER_X0, 0, W, H)
+    _water_depth(img)
 
     # Kerbs either side of the carriageway, the way `GroundBaker` sets them.
     for ty in range(0, H, 16):
@@ -263,6 +302,34 @@ def _ground(img):
     foam = tint(sprite("gr_foam"), SHADE, alpha=0.85)
     for ty in range(0, H, 6):
         img.alpha_composite(foam.crop((0, 0, 10, 6)), (WATER_X0 - 2, ty))
+
+
+def _water_depth(img):
+    """Water that gets deeper as it leaves the quay.
+
+    One flat tile across ninety pixels reads as a painted floor, not as a sea:
+    the eye needs the shoal to be lighter than the channel to believe there is
+    anything under it. Four bands, each a step colder and darker than the last,
+    laid over the tile as a translucent wash so the tile's own ripple survives.
+
+    The lightest band hugs the quay, which is also where the ship sits — so the
+    hull gets a pale ground to read against and the deep navy stays out at the
+    edge of the frame where it does the most for the picture's contrast."""
+    bands = (
+        (0, 9, (170, 224, 228), 0.42),
+        (9, 24, (96, 168, 190), 0.34),
+        (24, 50, (32, 84, 124), 0.46),
+        (50, W - WATER_X0, (14, 38, 72), 0.62),
+    )
+    wash = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    for x0, x1, colour, alpha in bands:
+        rect(wash, WATER_X0 + x0, 0, x1 - x0, H,
+             colour + (int(round(alpha * 255)),))
+    img.alpha_composite(wash)
+    # A seam of light where the shoal meets the channel: the one line that says
+    # the bottom drops away rather than fading.
+    for y in range(0, H, 3):
+        px(img, WATER_X0 + 26, y, (168, 220, 226, 90))
 
 
 def _bays(img):
@@ -317,18 +384,42 @@ def _machines(img):
     paste(img, "veh_tt", ROAD_X0 + 3, 420, shadow=True)
 
 
+## The band of the 720px canvas a phone actually shows. The backdrop is drawn
+## COVERED into a 320-wide viewport, so it is 1:1 horizontally and cropped
+## vertically — roughly this. Anything painted outside it is invisible work.
+VISIBLE_Y0, VISIBLE_Y1 = 120, 600
+
+
 def _buildings(img):
-    """The service band. A terminal with no roof on it is a car park."""
-    paste(img, "bld_warehouse", 66, 14, shadow=True)
-    paste(img, "bld_office", 154, 20, shadow=True)
-    paste(img, "bld_customs", 194, 22, shadow=True)
-    paste(img, "bld_warehouse", 74, 654, shadow=True)
-    paste(img, "bld_tower", 168, 660, shadow=True)
-    paste(img, "bld_tower_radar", 173, 656)
-    # Lit windows, because late afternoon is when the offices are still on.
-    for wx, wy in ((160, 30), (166, 30), (200, 32), (176, 668)):
-        rect(img, wx, wy, 3, 2, (250, 216, 140, 255))
-        _bloom(img, wx + 1, wy + 1, 7, 26)
+    """The service band, and the only warm light in the picture.
+
+    Every roof and every lit window used to be painted at y 14-32 and y 654-668
+    — both *outside* the band a phone shows. The terminal therefore opened on a
+    strip of grass, a road and nothing else on its landward side, and the four
+    windows that were supposed to be the one warm note against all that blue
+    were never once on screen. They live in the frame now.
+
+    The sheds head the yard, the way they do at the landward end of a real
+    terminal, and the control tower closes it at the foot."""
+    paste(img, "bld_warehouse", 62, VISIBLE_Y0 + 8, shadow=True)
+    paste(img, "bld_office", 146, VISIBLE_Y0 + 12, shadow=True)
+    paste(img, "bld_customs", 184, VISIBLE_Y0 + 14, shadow=True)
+    paste(img, "bld_warehouse", 66, VISIBLE_Y1 - 54, shadow=True)
+    paste(img, "bld_tower", 168, VISIBLE_Y1 - 50, shadow=True)
+    paste(img, "bld_tower_radar", 173, VISIBLE_Y1 - 54)
+    # Lit windows. Late afternoon is when the offices are still on, and this is
+    # the picture's warm accent — a row of them, not a token pair, and bloomed
+    # hard enough to pool on the tarmac.
+    warm = (252, 220, 148, 255)
+    for wx, wy in ((70, VISIBLE_Y0 + 16), (82, VISIBLE_Y0 + 16),
+                   (94, VISIBLE_Y0 + 16), (106, VISIBLE_Y0 + 16),
+                   (118, VISIBLE_Y0 + 16),
+                   (152, VISIBLE_Y0 + 20), (160, VISIBLE_Y0 + 20),
+                   (190, VISIBLE_Y0 + 22),
+                   (74, VISIBLE_Y1 - 46), (86, VISIBLE_Y1 - 46),
+                   (98, VISIBLE_Y1 - 46), (176, VISIBLE_Y1 - 44)):
+        rect(img, wx, wy, 3, 2, warm)
+        _bloom(img, wx + 1, wy + 1, 9, 34)
 
 
 def _quay(img):
@@ -352,6 +443,31 @@ def _quay(img):
         paste(img, "prop_lamp_lit", QUAY_X0 + 1, ly)
         _bloom(img, QUAY_X0 + 7, ly + 12, 22, 34)
         _reflection(img, WATER_X0 + 6, ly + 20, 46, (90, 62, 24), ly)
+
+
+## The two strips of backdrop the finished screen actually leaves uncovered.
+##
+## The 320-wide viewport shows texture y 106-614, and the marquee then covers the
+## head of it with the plate and the ribbon, the middle with the three keys, and
+## the foot with the corner keys. What is left is these two bands — so a lamp
+## anywhere else is a lamp nobody sees, which is the same mistake `_buildings`
+## made with every one of its windows.
+LIT_STRIPS = ((267, 348), (488, 540))
+
+
+def _yard_lights(img):
+    """Lamp masts standing in the yard, in the bands the screen leaves open.
+
+    The quay already had lamps, but all four sat outside the open strips, so at
+    dusk the terminal's own lighting was invisible and the picture had no warm
+    note at all against ninety pixels of navy. These stand where they can be
+    seen, and they pool on the tarmac hard enough to read as light rather than
+    as a lighter patch of asphalt."""
+    for y0, y1 in LIT_STRIPS:
+        for mast_x in (58, 148, 200):
+            mast_y = y0 + (y1 - y0) // 2 - 6
+            paste(img, "prop_lamp_lit", mast_x, mast_y)
+            _bloom(img, mast_x + 6, mast_y + 12, 26, 46)
 
 
 def _clutter(img):
@@ -391,6 +507,39 @@ def _people(img):
         img.alpha_composite(frame, (x, y))
 
 
+def _remap(art, table, tolerance=26):
+    """Swap one palette family for another on a sprite as it is pasted.
+
+    Cheaper and safer than a second generator: the gantry the yard uses is
+    painted in the game's crane red, and the title wants the safety yellow a
+    ship-to-shore actually wears — but `gen_cranes.py` draws the machine the
+    *player* buys, and repainting it there would repaint the terminal too."""
+    out = art.copy()
+    pixels = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = pixels[x, y]
+            if a == 0:
+                continue
+            for src, dst in table:
+                if (abs(r - src[0]) <= tolerance and abs(g - src[1]) <= tolerance
+                        and abs(b - src[2]) <= tolerance):
+                    pixels[x, y] = (dst[0], dst[1], dst[2], a)
+                    break
+    return out
+
+
+## Crane red to safety yellow. A ship-to-shore gantry is the tallest thing in a
+## container terminal and it is painted so that it can be seen from the bridge of
+## a ship — three dark red girders laid across a dark quay at dusk is the one
+## object in this picture that had no business being hard to find.
+GANTRY_PAINT = (
+    ((150, 60, 58), (176, 116, 30)),
+    ((200, 92, 78), (238, 176, 62)),
+    ((232, 138, 112), (252, 216, 130)),
+)
+
+
 def _cranes(img):
     """Three ship-to-shore gantries, assembled from the same four sprites the
     machine in the yard is: beam, base, and — added by the title screen so it
@@ -398,10 +547,15 @@ def _cranes(img):
 
     Mirrored, because the world's boom reaches left over the yard and this one
     has to reach right over the ship."""
-    beam = tint(sprite("sts_beam").transpose(Image.FLIP_LEFT_RIGHT), SHADE)
+    beam = tint(_remap(sprite("sts_beam").transpose(Image.FLIP_LEFT_RIGHT),
+                       GANTRY_PAINT), SHADE * 1.12)
+    base = tint(_remap(sprite("sts_base"), GANTRY_PAINT), SHADE * 1.12)
     for base_y in CRANE_YS:
         img.alpha_composite(beam, (QUAY_X0 - 10, base_y + 8))
-        paste(img, "sts_base", QUAY_X0 + 10, base_y, center=True, shadow=True)
+        _contact_shadow(img, QUAY_X0 + 10 - base.width // 2,
+                        base_y - base.height // 2, base)
+        img.alpha_composite(base, (QUAY_X0 + 10 - base.width // 2,
+                                   base_y - base.height // 2))
 
 
 def _ship(img):
@@ -476,11 +630,11 @@ def _water_life(img):
 def _planting(img):
     """The landward edge. It is the only part of this picture that is not the
     terminal, and it is what makes the terminal read as *somewhere*."""
-    for index, ty in enumerate(range(6, H, 44)):
-        if index % 3 == 2:
-            paste(img, "prop_bush", 4 + (index % 2) * 14, ty + 6)
+    for index, ty in enumerate(range(6, H, 22)):
+        if index % 4 == 3:
+            paste(img, "prop_bush", 3 + (index % 3) * 8, ty + 4)
         else:
-            paste(img, "prop_tree", 2 + (index % 3) * 5, ty, shadow=True)
+            paste(img, "prop_tree", 1 + (index % 3) * 7, ty, shadow=True)
     # No fence line. Tiled down 720 pixels it became a picket wall taller than
     # anything else in the picture and read as the subject of it.
 
@@ -498,6 +652,7 @@ def gen_title_port():
     _machines(img)
     _quay(img)
     _clutter(img)
+    _yard_lights(img)
     _ship(img)
     _water_life(img)
     _people(img)
@@ -581,7 +736,14 @@ def gen_title_plate():
     w, h = 32, 34
     img = new_img(w, h)
     _rounded_plate(img, 0, 0, w, h, NAVY, NAVY_L, NAVY_D, radius=4)
+    # An inner rule all the way round, not a stripe along the bottom. A frame is
+    # what makes a panel read as a *sign*; one edge of it reads as a mistake, and
+    # on a nine-patch the middle stretches so only the four corners carry it —
+    # which is exactly where a real signboard's beading would be.
+    hline(img, 5, 4, w - 10, AMBER_D)
     hline(img, 5, h - 5, w - 10, AMBER_D)
+    vline(img, 4, 5, h - 10, AMBER_D)
+    vline(img, w - 5, 5, h - 10, AMBER_D)
     _rivets(img, w, h, NAVY_D, NAVY_L)
     save(img, "ui_title_plate", preview_scale=4)
 
@@ -597,6 +759,61 @@ def gen_title_ribbon():
     save(img, "ui_title_ribbon", preview_scale=4)
 
 
+def _key_slab(img, w, h, face, light, dark, ink=INK, radius=4, pressed=False):
+    """A pressed-steel key: ink edge, knocked corners, a banded bevel and rivets.
+
+    The first version drew a one-pixel highlight along the top and a one-pixel
+    shadow along the bottom. On a 26-pixel sprite that is a reasonable bevel; on
+    the 56-pixel-tall key the layout actually stretches it into, it is a hairline
+    nobody sees, and the biggest button on the screen read as a flat rectangle.
+    The bands are three pixels now and they live in the nine-patch's *corners*,
+    where stretching cannot thin them.
+    """
+    # Ink edge with the corners knocked off, two pixels thick.
+    for row in range(h):
+        inset = 0
+        for step in range(radius):
+            if row < radius - step or row >= h - (radius - step):
+                inset = step + 1
+        hline(img, inset, row, w - inset * 2, ink)
+    # The face, inset by the ink.
+    for row in range(2, h - 2):
+        inset = 2
+        for step in range(radius):
+            if row < radius - step or row >= h - (radius - step):
+                inset = step + 3
+        if w - inset * 2 <= 0:
+            continue
+        hline(img, inset, row, w - inset * 2, face)
+
+    top_ink, bottom_ink = (dark, light) if pressed else (light, dark)
+    # Banded bevel: three rows lit across the top, three shaded across the
+    # bottom, two columns down each side. Kept inside the corner radius so the
+    # knocked corners stay clean.
+    for band in range(3):
+        hline(img, 5 - band // 2, 2 + band, w - 10 + band, top_ink
+              if band == 0 else _mix(top_ink, face, 0.45 + band * 0.2))
+        hline(img, 5 - band // 2, h - 3 - band, w - 10 + band, bottom_ink
+              if band == 0 else _mix(bottom_ink, face, 0.45 + band * 0.2))
+    for band in range(2):
+        vline(img, 2 + band, 5, h - 10, top_ink if band == 0
+              else _mix(top_ink, face, 0.55))
+        vline(img, w - 3 - band, 5, h - 10, bottom_ink if band == 0
+              else _mix(bottom_ink, face, 0.55))
+
+    # Rivets, in the corners so the nine-patch keeps them whatever the key is
+    # stretched to. Two pixels with a lit top and a shaded bottom: one pixel is
+    # a speck, and a speck on a photograph is dirt.
+    for rx, ry in ((7, 7), (w - 9, 7), (7, h - 9), (w - 9, h - 9)):
+        rect(img, rx, ry, 2, 2, _mix(dark, ink, 0.35))
+        px(img, rx, ry, light)
+        px(img, rx + 1, ry + 1, ink)
+
+
+def _mix(a, b, t):
+    return tuple(int(round(a[i] * (1.0 - t) + b[i] * t)) for i in range(3)) + (255,)
+
+
 def gen_title_keys():
     """The three keys down the middle and the four in the corners.
 
@@ -604,19 +821,20 @@ def gen_title_keys():
     keys are steel bolted to the port and read against navy, and these have to
     read against whatever the backdrop is doing behind them. Same material as
     the plate, so the sign and its buttons are visibly one object."""
-    for name, face, light, dark in (
-            ("ui_title_key", (246, 186, 74, 255), (254, 226, 158, 255),
-             (176, 116, 30, 255)),
-            ("ui_title_key_down", (214, 158, 58, 255), (238, 196, 110, 255),
-             (150, 96, 24, 255)),
-            ("ui_title_key_steel", (46, 60, 84, 255), (74, 94, 126, 255),
-             (26, 34, 52, 255)),
-            ("ui_title_key_steel_down", (36, 48, 70, 255), (58, 74, 102, 255),
-             (20, 26, 42, 255))):
-        w, h = 26, 26
+    for name, face, light, dark, pressed in (
+            ("ui_title_key", (246, 186, 74, 255), (255, 232, 168, 255),
+             (158, 100, 22, 255), False),
+            ("ui_title_key_down", (208, 152, 54, 255), (240, 200, 118, 255),
+             (132, 82, 18, 255), True),
+            ("ui_title_key_steel", (48, 64, 92, 255), (96, 122, 160, 255),
+             (18, 24, 40, 255), False),
+            ("ui_title_key_steel_down", (36, 48, 72, 255), (72, 94, 128, 255),
+             (14, 18, 32, 255), True)):
+        # 34, not 26: the bevel bands and the rivets all have to fit inside the
+        # nine-patch corner, and `UiTheme.title_button_style` cuts that at 13.
+        w, h = 34, 34
         img = new_img(w, h)
-        _rounded_plate(img, 0, 0, w, h, face, light, dark, radius=3)
-        _rivets(img, w, h, dark, light)
+        _key_slab(img, w, h, face, light, dark, pressed=pressed)
         save(img, name, preview_scale=4)
 
 
@@ -676,22 +894,88 @@ def gen_title_anchor():
 # ----------------------------------------------------------------- the logo
 
 WORDMARK = "HarborClick"
+
+## A display face, drawn for this word and no other.
+##
+## The wordmark used to be the game's own 5x7 glyphs at 3x. That is a scaled
+## *caption*, not a logo: 5x7 has one-pixel stems, so blowing it up gives thin
+## strokes with wide monospace gaps between them, and no amount of extrusion or
+## ringing rescues a letterform that thin. These ten letters are drawn instead,
+## on a 12-row grid with two-cell stems and their own widths, so the word sets
+## tight and heavy the way a title should.
+##
+## Caps fill all twelve rows; x-height letters start at row 4; ascenders climb
+## back to row 0. Only the letters in `WORDMARK` exist here — anything else
+## falls through to the game font, which is the right answer for a stray glyph.
+TITLE_FACE = {
+    "H": ["##.....##", "##.....##", "##.....##", "##.....##", "##.....##",
+          "#########", "#########", "##.....##", "##.....##", "##.....##",
+          "##.....##", "##.....##"],
+    "C": ["..######..", ".###..###.", "##......##", "##........", "##........",
+          "##........", "##........", "##........", "##........", "##......##",
+          ".###..###.", "..######.."],
+    "a": ["..........", "..........", "..........", "..######..", ".##....##.",
+          ".......##.", "..#######.", ".##.....##", "##......##", "##.....##.",
+          "##....###.", ".#####..##"],
+    "r": ["......", "......", "......", "##.###", "######",
+          "###..#", "##....", "##....", "##....", "##....",
+          "##....", "##...."],
+    "b": ["##........", "##........", "##........", "##.#####..", "###...###.",
+          "##......##", "##......##", "##......##", "##......##", "##......##",
+          "###...###.", "##.#####.."],
+    "o": ["..........", "..........", "..........", "..######..", ".###..###.",
+          "##......##", "##......##", "##......##", "##......##", "##......##",
+          ".###..###.", "..######.."],
+    "l": ["####.", "####.", "..##.", "..##.", "..##.",
+          "..##.", "..##.", "..##.", "..##.", "..##.",
+          "#####", "#####"],
+    "i": [".##..", ".##..", ".....", "###..", "###..",
+          ".##..", ".##..", ".##..", ".##..", ".##..",
+          "#####", "#####"],
+    "c": ["..........", "..........", "..........", "..######..", ".###..###.",
+          "##......##", "##........", "##........", "##......##", "##......##",
+          ".###..###.", "..######.."],
+    "k": ["##......", "##......", "##......", "##...##.", "##..##..",
+          "##.##...", "#####...", "#####...", "##.##...", "##..##..",
+          "##...##.", "##....##"],
+}
+## Rows in the display face. Everything that sizes the logo reads this rather
+## than the font's 7.
+FACE_ROWS = 12
+## Air between letters, in face cells. One cell: the ink ring is two pixels and
+## needs somewhere to happen, but the old four *pixels* of extra tracking on top
+## of a monospace advance is what made the word read as l e t t e r s.
+TRACK = 1
+
 ## Where the gold takes over from the teal.
 SPLIT = 6
-## 3x, not 4. The plate is clamped to 340 logical pixels and the phone this is
-## designed for gives it 272 — a wordmark that does not fit the sign it is
-## bolted to is not a bigger logo, it is a broken one.
-SCALE = 3
-## Advance per glyph. The font sets 6, and at this scale a two-pixel ring welds
-## "rb" into one shape without the extra — the ring needs somewhere to happen.
-ADVANCE = 6 * SCALE + 4
+## 2x on a twelve-row face is taller than the old 3x on a seven-row one, and
+## narrower: the plate is clamped to 340 logical pixels and the phone this is
+## designed for gives it 272, so the word has to set tight to be big.
+SCALE = 2
 
 
 def _glyph_rows(char: str):
+    rows = TITLE_FACE.get(char)
+    if rows is not None:
+        return rows
     rows = gen_font.G.get(char)
     if rows is None:
         rows = gen_font.G.get(char.upper())
     return rows
+
+
+def _advance(char: str) -> int:
+    """How far the cursor moves after this letter. Proportional: an `i` takes
+    the room an `i` needs. The monospace advance the font sets is right for a
+    console readout and wrong for a word anybody is meant to read as a shape."""
+    rows = _glyph_rows(char)
+    width = len(rows[0]) if rows else 5
+    return (width + TRACK) * SCALE
+
+
+def _word_width() -> int:
+    return sum(_advance(char) for char in WORDMARK) - TRACK * SCALE
 
 
 def _word_mask(size, chars, x, y, scale=SCALE) -> Image.Image:
@@ -713,7 +997,7 @@ def _word_mask(size, chars, x, y, scale=SCALE) -> Image.Image:
                             cx, cy = cursor + rx * scale + sx, y + ry * scale + sy
                             if 0 <= cx < size[0] and 0 <= cy < size[1]:
                                 pixels[cx, cy] = 255
-        cursor += ADVANCE
+        cursor += _advance(char)
     return mask
 
 
@@ -766,7 +1050,7 @@ def _blit_word(img, x, y, color, scale=SCALE):
                 if cell == "#":
                     rect(img, cursor + rx * scale, y + ry * scale,
                          scale, scale, color)
-        cursor += ADVANCE
+        cursor += _advance(char)
     return cursor - x
 
 
@@ -782,14 +1066,18 @@ def gen_title_word():
     teal_rim = (176, 236, 224, 255)
     gold = (250, 196, 92, 255)
     gold_rim = (254, 232, 176, 255)
-    body = (18, 26, 42, 255)
+    body = (18, 44, 48, 255)
+    gold_body = (76, 44, 12, 255)
     ring = (10, 14, 24, 255)
 
     depth = SCALE + 1
-    ring_px = 2
+    # One pixel, not two. Two closed every counter in the word: a dilation grows
+    # into a bowl from all four sides at once, and an `o` whose hole has been
+    # filled in is not a bolder `o`, it is a blob.
+    ring_px = 1
     pad = ring_px + 1
-    size = (len(WORDMARK) * ADVANCE + pad * 2,
-            7 * SCALE + pad * 2 + depth)
+    size = (_word_width() + pad * 2,
+            FACE_ROWS * SCALE + pad * 2 + depth)
     img = new_img(*size)
 
     face = _word_mask(size, range(len(WORDMARK)), pad, pad)
@@ -797,9 +1085,16 @@ def gen_title_word():
     right = _word_mask(size, range(SPLIT, len(WORDMARK)), pad, pad)
     # The letter and everything under it: the solid the logo is cut from.
     solid = _union([_shift(face, 0, step) for step in range(depth + 1)])
+    left_solid = _union([_shift(left, 0, step) for step in range(depth + 1)])
+    right_solid = _union([_shift(right, 0, step) for step in range(depth + 1)])
 
     _fill(img, _dilate(solid, ring_px), ring)
-    _fill(img, solid, body)
+    # The body under each half is a darkened version of that half, not one shared
+    # near-black. A shadow is the colour of the thing casting it, and two letters
+    # of different colours sitting on the same slab of ink read as printed rather
+    # than as cut out of something.
+    _fill(img, left_solid, body)
+    _fill(img, right_solid, gold_body)
     _fill(img, left, teal)
     _fill(img, right, gold)
     # A rim along the top of every stroke — half a stroke deep, so the same

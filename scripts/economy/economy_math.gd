@@ -7,6 +7,32 @@ const MAX_BULK_LIMIT := 10_000
 const MAX_BULK_COUNT := MAX_BULK_LIMIT # compatibility for callers/tests
 const PRESTIGE_DIVISOR := 100_000_000.0
 const REBUILD_DISCOUNT := 0.4
+## How many of a machine a terminal has to run before that machine counts as a
+## kind it *operates* rather than one it happens to own. Read by the capital
+## tree's breadth node and by the sandbox that has to reproduce it — which is why
+## it lives here, in the pure shared arithmetic, and not on the `GameState`
+## autoload the sandbox is forbidden to touch.
+const BREADTH_MIN_COUNT := 10
+
+
+static func saturating_bonus(per_unit: float, ceiling: float, count: int) -> float:
+	## How much a fleet of `count` machines is worth to a node that pays per unit.
+	##
+	## Used by every synergy and every conductor, so the two can never drift apart.
+	## The shape is `ceiling · n / (n + k)` with `k` chosen so the first few units
+	## are worth about `per_unit` each: it starts as the flat rate the card quotes
+	## and bends over towards the ceiling without ever quite reaching it.
+	##
+	## A hard cap was the obvious version and the wrong one. It puts a cliff in the
+	## middle of a strategy: the hundredth docker is worth 1,5% and the hundred and
+	## first is worth nothing, so the build that committed to dockers stops being a
+	## build the moment it succeeds. Bending instead of stopping keeps the reason
+	## to stay wide alive at every size of port, which is the whole point of having
+	## the choice.
+	if per_unit <= 0.0 or ceiling <= 0.0 or count <= 0:
+		return 0.0
+	var half := ceiling / per_unit
+	return ceiling * float(count) / (float(count) + half)
 
 
 static func next_cost(base_cost: float, owned: int, growth: float = GROWTH) -> float:

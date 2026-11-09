@@ -31,13 +31,27 @@ signal arrived
 signal ran_around
 signal departed
 
-## The rake is drawn at 1:1 vertically and scaled to the ground pitch, so the
-## coupled wagons touch instead of overlapping or floating apart.
-const RAKE_SCALE := 0.62
-const WAGON_LEN := 34.0 * RAKE_SCALE
-const LOCO_LEN := 46.0 * RAKE_SCALE
-## Centre-to-centre from the head wagon to a loco coupled onto it.
+## The rake is drawn at the size it is shown (`tools/sprites/gen_train.py`):
+## a wagon is exactly one `RAIL_WAGON_PITCH` long, couplers included, so a rake
+## couples up buffer to buffer. It used to be 34px art scaled by 0.62 in-engine,
+## which put pixels of two sizes on one screen and carried every box on the
+## branch a third smaller than the identical box in the yard beside it.
+const WAGON_LEN := 21.0
+const LOCO_LEN := 29.0
+## Centre-to-centre from the head wagon to a loco coupled onto it. Both lengths
+## are odd, so this is a whole number and the couplers meet on a pixel boundary.
 const LOCO_GAP := (WAGON_LEN + LOCO_LEN) * 0.5
+## Each sprite's top-left relative to its centre on the running line — the
+## row of the art that sits on `PortLayout.rail_y()`. Mirrors the constants in
+## `gen_train.py`; the rail suite checks the textures are the size these assume.
+const WAGON_OFFSET := Vector2(-10, -8)
+const LOCO_OFFSET := Vector2(-14, -10)
+## A box's top-left on its wagon: its side wall stands on the deck's south edge.
+const BOX_OFFSET := Vector2(-8, -8)
+const BOX_W := 18
+const BOX_H := 11
+const LAMP_W := 22
+const LAMP_OFFSET_Y := -6.0
 
 const RUN_SPEED := 48.0
 const SHUNT_SPEED := 33.0
@@ -48,8 +62,8 @@ const BRAKING_DISTANCE := 44.0
 ## wagon, skeletal spine — and a rake is dealt from it by slot. Six identical
 ## vehicles read as a decal of a train; three kinds shuffled read as whatever
 ## the interior could couple up that morning.
-const WAGON_W := 26
-const WAGON_H := 34
+const WAGON_W := 21
+const WAGON_H := 18
 ## The order a rake is dealt in. A written-out deal rather than `slot % 3`,
 ## which lays a three-wagon stripe that a six-wagon rake then shows twice; this
 ## one puts no two alike next to each other and does not visibly repeat inside
@@ -95,7 +109,7 @@ var _shunt: Shunt = Shunt.DRAW_FORWARD
 var _loco_east := true
 var _wagons: Array[Sprite2D] = []
 var _boxes: Array[Sprite2D] = []
-var _sheet: Texture2D = preload("res://assets/sprites/container_sheet.png")
+var _sheet: Texture2D = preload("res://assets/sprites/rail_box_sheet.png")
 var _wagon_sheet: Texture2D = preload("res://assets/sprites/veh_wagon.png")
 
 ## How fast the locomotive is actually travelling, measured rather than
@@ -135,14 +149,14 @@ func setup(length: int, standing: bool) -> void:
 
 func _build() -> void:
 	_loco.texture = preload("res://assets/sprites/veh_loco.png")
-	_loco.centered = true
-	_loco.scale = Vector2(RAKE_SCALE, RAKE_SCALE)
-	# The art is drawn nose-up, so a quarter turn points it east down the branch.
-	_loco.rotation = PI / 2.0
+	# Drawn nose east, the way the branch runs in, and never rotated: the art
+	# shows its south side the way every stack in the yard does, and a quarter
+	# turn would stand that side up on end. Turning round is a mirror.
+	_loco.centered = false
+	_loco.offset = LOCO_OFFSET
 	add_child(_loco)
 	_lamp.texture = preload("res://assets/sprites/veh_loco_lamp.png")
-	_lamp.centered = true
-	_lamp.rotation = PI / 2.0
+	_lamp.centered = false
 	_lamp.visible = false
 	# Light adds to what it falls on. Alpha-blended, the cone would darken the
 	# rails under it, which is the one thing a headlight cannot do.
@@ -158,19 +172,22 @@ func _build() -> void:
 		# after a reload, and a rake never comes back as a different train.
 		deck.region = Rect2(_wagon_kind(slot) * WAGON_W, 0, WAGON_W, WAGON_H)
 		wagon.texture = deck
-		wagon.centered = true
-		wagon.scale = Vector2(RAKE_SCALE, RAKE_SCALE)
-		wagon.rotation = PI / 2.0
+		wagon.centered = false
+		wagon.offset = WAGON_OFFSET
 		add_child(wagon)
 		_wagons.append(wagon)
 		var box := Sprite2D.new()
 		var atlas := AtlasTexture.new()
 		atlas.atlas = _sheet
-		atlas.region = Rect2(0, 0, 24, 13)
+		atlas.region = Rect2(0, 0, BOX_W, BOX_H)
 		box.texture = atlas
-		box.centered = true
-		box.rotation = PI / 2.0
-		box.scale = Vector2(RAKE_SCALE, RAKE_SCALE)
+		# Lengthwise along the wagon, like the wagon itself, and drawn for the
+		# wagon: `rail_box_sheet` is the yard's eight liveries cut to the deck of
+		# a 21px wagon. The yard's own 24px box laid on it would overhang the
+		# couplers, and a quarter-turned one put a forty-footer crosswise on a
+		# wagon barely wider than a person — cargo that had fallen over.
+		box.centered = false
+		box.offset = BOX_OFFSET
 		box.visible = false
 		add_child(box)
 		_boxes.append(box)
@@ -216,7 +233,7 @@ func sync(rail: RailYard) -> void:
 			continue
 		var atlas := _boxes[slot].texture as AtlasTexture
 		if atlas != null:
-			atlas.region = Rect2(posmod(unit.color, 8) * 24, 0, 24, 13)
+			atlas.region = Rect2(posmod(unit.color, 8) * BOX_W, 0, BOX_W, BOX_H)
 
 
 func run_around() -> void:
@@ -343,18 +360,21 @@ func _tail_x() -> float:
 
 func _place() -> void:
 	var rail_y := PortLayout.rail_y()
+	# Whole pixels only. Art drawn 1:1 and placed at a fractional position is
+	# resampled by the nearest filter, and a moving train shimmers row by row.
+	var lead := roundf(_lead_x)
 	for slot in _wagons.size():
-		var x := _lead_x - PortLayout.RAIL_WAGON_PITCH * slot
-		_wagons[slot].position = Vector2(x, rail_y)
-		_boxes[slot].position = Vector2(x, rail_y - 2.0)
+		var x := lead - PortLayout.RAIL_WAGON_PITCH * slot
+		_wagons[slot].position = Vector2(x, rail_y).round()
+		_boxes[slot].position = Vector2(x, rail_y).round()
 	if mode != Mode.SHUNTING:
 		# Coupled: the loco stands at whichever end it is currently on.
 		_loco_pos = Vector2(
 			_lead_x + LOCO_GAP if _loco_east else _tail_x() - LOCO_GAP, rail_y)
-	_loco.position = _loco_pos
-	# A locomotive faces the way it is going. Flipping the sprite's own scale
-	# rather than the rake's is what keeps the wagons from mirroring with it.
-	_loco.scale.y = RAKE_SCALE * (1.0 if _loco_east else -1.0)
+	_loco.position = _loco_pos.round()
+	# A locomotive faces the way it is going. Its own sprite mirrors, not the
+	# rake, which is what keeps the wagons from turning round with it.
+	_loco.flip_h = not _loco_east
 
 
 # ----------------------------------------------------------------------- fx
@@ -369,10 +389,11 @@ func _drive_lamp() -> void:
 	if not lit:
 		return
 	var facing := 1.0 if _loco_east else -1.0
-	# At the nose, throwing along the track. The cone art is drawn nose-up, so
-	# the same quarter turn the loco gets points it down the branch.
-	_lamp.rotation = PI / 2.0 * facing
-	_lamp.position = _loco_pos + Vector2(facing * (LOCO_LEN * 0.5 + 7.0), 0.0)
+	# At the nose, throwing along the track. The cone is drawn pointing east and
+	# mirrors with the loco.
+	_lamp.flip_h = not _loco_east
+	_lamp.offset = Vector2(0.0 if _loco_east else -LAMP_W, LAMP_OFFSET_Y)
+	_lamp.position = (_loco_pos + Vector2(facing * (LOCO_LEN * 0.5 + 1.0), 0.0)).round()
 
 
 func _throw_brake_dust() -> void:
@@ -431,7 +452,9 @@ func _drive_smoke(delta: float) -> void:
 	# rather than on it: a puff born inside the locomotive's own silhouette
 	# spends the first third of its life invisible.
 	var facing := 1.0 if _loco_east else -1.0
-	_emit_smoke(_loco_pos + Vector2(facing * LOCO_LEN * 0.18, -9.0), -facing)
+	# The stack is on the long hood just behind the cab (`gen_train.py`), and the
+	# puff is a 12px sprite drawn centred, so it starts above the roof line.
+	_emit_smoke(_loco_pos + Vector2(facing * 1.0, -11.0), -facing)
 
 
 func _emit_smoke(at: Vector2, drift: float) -> void:

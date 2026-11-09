@@ -29,7 +29,7 @@ const EXPECTED := [
 	"plans", "orders", "order_never_deadlocks", "stock_floor", "fill_empty_yard",
 	"no_conjuring", "parked_only", "reload", "order_survives_reload", "headless",
 	"aspects", "completion_bonus", "report", "run_around", "run_around_loop",
-	"rake_is_not_six_copies", "smoke",
+	"rake_is_not_six_copies", "rake_art_is_shown_size", "smoke", "fitted_knobs", "loop_fits_longest_rake",
 ]
 
 var failures: Array[String] = []
@@ -96,7 +96,10 @@ func _run() -> void:
 	_test_the_loco_runs_round_its_own_train()
 	_test_the_run_around_uses_the_loop_that_is_painted()
 	_test_a_rake_is_not_six_copies_of_one_wagon()
+	_test_the_rake_is_drawn_at_the_size_it_is_shown()
 	_test_a_working_locomotive_makes_smoke()
+	_test_fitted_upgrades_move_the_branch()
+	_test_the_loop_fits_the_longest_rake_that_can_be_built()
 
 	for label in EXPECTED:
 		_expect(_finished.has(label), "the '%s' test ran to the end" % label)
@@ -452,7 +455,7 @@ func _test_the_loco_runs_round_its_own_train() -> void:
 	_expect(done, "the run-around finishes")
 	_expect(rake._loco.position.x < PortLayout.rail_wagon_x(3),
 		"and leaves the loco at the other end, past the last wagon")
-	_expect(rake._loco.scale.y < 0.0,
+	_expect(rake._loco.flip_h,
 		"facing the way it is about to go")
 
 	rake.run_out()
@@ -520,6 +523,38 @@ func _test_a_rake_is_not_six_copies_of_one_wagon() -> void:
 	_done("rake_is_not_six_copies")
 
 
+func _test_the_rake_is_drawn_at_the_size_it_is_shown() -> void:
+	## Pixel art survives integer scale and nothing else. The rake used to be 34px
+	## art shrunk to 62% in-engine: pixels of two sizes on one screen, and boxes on
+	## the branch a third smaller than the same boxes in the yard. Now the art is
+	## drawn to the pitch, and these are the numbers `gen_train.py` and `RailRake`
+	## both assume — if a generator change moves one, this says which.
+	var wagon_sheet: Texture2D = load("res://assets/sprites/veh_wagon.png")
+	var box_sheet: Texture2D = load("res://assets/sprites/rail_box_sheet.png")
+	var loco: Texture2D = load("res://assets/sprites/veh_loco.png")
+	_expect(wagon_sheet.get_size() == Vector2(RailRake.WAGON_W * 3, RailRake.WAGON_H),
+		"three wagon frames, each exactly one pitch long")
+	_expect(is_equal_approx(RailRake.WAGON_LEN, PortLayout.RAIL_WAGON_PITCH),
+		"and a wagon is one pitch, so couplers meet")
+	_expect(box_sheet.get_size() == Vector2(RailRake.BOX_W * 8, RailRake.BOX_H),
+		"eight rail-box liveries, one per yard colour")
+	_expect(int(loco.get_width()) == int(RailRake.LOCO_LEN),
+		"the loco is as long as the gap it is coupled across assumes")
+	_expect(is_equal_approx(RailRake.LOCO_GAP, roundf(RailRake.LOCO_GAP)),
+		"and that gap is a whole number of pixels")
+	var rake := RailRake.new()
+	rake.setup(RailCargoPolicy.FULL_RAKE, true)
+	add_child(rake)
+	for node in [rake._loco] + rake._wagons + rake._boxes:
+		var sprite := node as Sprite2D
+		_expect(sprite.scale == Vector2.ONE and is_zero_approx(sprite.rotation),
+			"%s is shown 1:1 and unrotated" % sprite.name)
+		_expect(sprite.position == sprite.position.round(),
+			"%s stands on a whole pixel" % sprite.name)
+	rake.queue_free()
+	_done("rake_art_is_shown_size")
+
+
 func _test_a_working_locomotive_makes_smoke() -> void:
 	## The plume is the only thing on the branch that says the engine is under
 	## load, and it is the hardest thing here to check by looking: the branch is
@@ -560,6 +595,82 @@ func _test_a_working_locomotive_makes_smoke() -> void:
 	_expect(not rake._lamp.visible, "and puts its headlight out")
 	rake.queue_free()
 	_done("smoke")
+
+
+func _test_fitted_upgrades_move_the_branch() -> void:
+	## The branch used to sell two anonymous `×2`s and change nothing a player
+	## could walk down and look at. Every node on the trunk now moves a knob this
+	## class actually reads, so each one is checked against the baseline it claims
+	## to change — and, more importantly, against the ground: no purchase may
+	## produce a rake longer than the loop that has to run round it.
+	var branch := _world.rail
+	var before_rate := branch.auto_rate()
+	var before_dwell := branch.dwell_seconds()
+	var before_bonus := branch.completion_seconds()
+	_expect(_close(before_dwell, RailYard.DWELL_SECONDS),
+		"an unfitted branch stands for the baseline dwell")
+
+	GameState.upgrades["patio_manobras"] = true
+	_expect(branch.dwell_seconds() > before_dwell,
+		"a run-around loop of its own buys the service more time on the ramp")
+
+	GameState.upgrades["portico_ferroviario"] = true
+	_expect(branch.auto_rate() > before_rate,
+		"a rail gantry works the rake faster")
+
+	GameState.upgrades["terminal_interior"] = true
+	_expect(branch.completion_seconds() > before_bonus,
+		"a dry port pays more for a composition worked clean")
+
+	# The exclusive pair trades stand time against how often a train comes, and
+	# both halves have to actually land on the timetable.
+	GameState.upgrades.erase("patio_manobras")
+	GameState.upgrades["trem_shuttle"] = true
+	var shuttle_gap := RailCargoPolicy.clamp_gap(
+		RailCargoPolicy.service_gap(true) * GameState.rail_stat(&"service_gap", 1.0))
+	GameState.upgrades.erase("trem_shuttle")
+	GameState.upgrades["trem_pesado"] = true
+	var heavy_gap := RailCargoPolicy.clamp_gap(
+		RailCargoPolicy.service_gap(true) * GameState.rail_stat(&"service_gap", 1.0))
+	_expect(shuttle_gap.y < heavy_gap.x,
+		"the shuttle's whole timetable is tighter than the heavy train's")
+	_expect(branch.dwell_seconds() > RailYard.DWELL_SECONDS,
+		"and the heavy train pays for that with a much longer stand")
+
+	GameState.upgrades.clear()
+	_expect(_close(branch.dwell_seconds(), RailYard.DWELL_SECONDS)
+		and _close(branch.auto_rate(), before_rate),
+		"stripping the branch puts every knob back on its baseline")
+	_done("fitted_knobs")
+
+
+func _test_the_loop_fits_the_longest_rake_that_can_be_built() -> void:
+	## `PortLayout.rail_west_turnout_x` used to be seven wagon pitches, written
+	## down. The first upgrade that lengthened a rake would have left the loco
+	## coupling up west of its own turnout — running over ballast, off the map, or
+	## both. The two figures are one figure now, and this is what says so.
+	var tail := PortLayout.rail_wagon_x(RailCargoPolicy.MAX_RAKE - 1)
+	_expect(PortLayout.rail_west_turnout_x() < tail,
+		"the west turnout is clear of the tail of the longest possible rake")
+	_expect(PortLayout.rail_west_turnout_x() > 0.0,
+		"and the whole run-around is still on the map")
+	# Every rail node in the catalogue, all fitted at once: the clamp has to hold
+	# even for a combination the tree makes impossible, because a clamp that only
+	# works for reachable states is a clamp nobody can rely on.
+	for item in UpgradeDB.ITEMS:
+		if String(item.get("kind", "")) == "rail_stat":
+			GameState.upgrades[String(item.id)] = true
+	var longest := RailCargoPolicy.clamp_rake(int(roundf(GameState.rail_stat(
+		&"rake_length", float(RailCargoPolicy.rake_length(true))))))
+	_expect(longest >= RailCargoPolicy.MIN_RAKE
+		and longest <= RailCargoPolicy.MAX_RAKE,
+		"no combination of nodes builds a rake the ground refuses (%d)" % longest)
+	GameState.upgrades.clear()
+	_done("loop_fits_longest_rake")
+
+
+func _close(a: float, b: float) -> bool:
+	return absf(a - b) < 0.001
 
 
 func _visible_puffs(rake: RailRake) -> int:

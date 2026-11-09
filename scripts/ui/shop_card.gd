@@ -16,13 +16,18 @@ signal pressed_card(id: String)
 const DRAG_CANCEL_DISTANCE := 10.0
 const EMULATED_INPUT_DEDUPE_MSEC := 120
 const ART_SIZE := Vector2(54, 38)
-const PRICE_WIDTH := 74.0
+## The price column is fixed so every stamp in a list lines up and the eye can
+## scan costs without reading a name. Sized to the widest thing `GameState.fmt`
+## can print (five characters plus a suffix) and no wider — the tree spends the
+## rest on names, which are now the part a player reads three rows ahead.
+const PRICE_WIDTH := 66.0
 
 var id: String = ""
 var kind: String = "structure"
 
 var _art: PortIcon
 var _art_well: PanelContainer
+var _indent: Control
 var _name_label: Label
 var _sub_label: Label
 var _count_stamp: PanelContainer
@@ -57,6 +62,13 @@ func setup(item_id: String, item_kind: String, art_key: String,
 	row.add_theme_constant_override(&"separation", 6)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(row)
+
+	# How far down a trunk this node hangs. Zero for everything that is not part
+	# of a tree, which is every card outside the upgrades tab.
+	_indent = Control.new()
+	_indent.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_indent.custom_minimum_size.x = 0.0
+	row.add_child(_indent)
 
 	_art_well = UiTheme.panel(UiTheme.well_style(1))
 	_art_well.custom_minimum_size = ART_SIZE
@@ -112,6 +124,25 @@ func setup(item_id: String, item_kind: String, art_key: String,
 
 
 
+const INDENT_STEP := 8.0
+## Indentation stops after this many levels. On a 320 px phone the name column is
+## about two hundred points wide, and a trunk eight nodes deep would spend a third
+## of it on whitespace and ellipsise every name past the fourth. The step is there
+## to show that a node hangs off something, which the first few levels already
+## say; what *specifically* blocks it is on the card in words.
+const INDENT_MAX_DEPTH := 3
+
+
+func set_indent(depth: int) -> void:
+	## Push the card right by how deep in the tree its node sits. Depth is the
+	## only thing on the upgrades tab that says "this one hangs off that one"
+	## without the player having to read two cards and compare their text.
+	if _indent == null:
+		return
+	_indent.custom_minimum_size.x = INDENT_STEP \
+		* float(clampi(depth, 0, INDENT_MAX_DEPTH))
+
+
 func set_effect(text: String) -> void:
 	## What this card actually does, in words. An upgrade whose card only carries
 	## a punchline and a price is a mystery box, and eighteen of them in a row is
@@ -121,6 +152,10 @@ func set_effect(text: String) -> void:
 
 func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false,
 		quantity: int = 1, cps_gain: float = 0.0) -> void:
+	# A card can go from gated back to buyable in the same session — a tree node
+	# whose prerequisite was just bought does exactly that — so the silhouette
+	# `show_gated` applied has to come back off here rather than only at build.
+	_art.modulate = Color.WHITE
 	if sold_out:
 		_price_label.text = "PRONTO"
 		_price_label.label_settings.font_color = UiTheme.TEAL_LIGHT
@@ -221,6 +256,26 @@ func show_locked(title: String, hint: String) -> void:
 	_art.modulate = Color(0.0, 0.0, 0.0, 0.55)
 	_apply_state(&"locked")
 	tooltip_text = hint
+
+
+func show_gated(reason: String, cost: float) -> void:
+	## A node the player can see, name, and price, but not yet buy — and the one
+	## sentence that says why.
+	##
+	## Different from `show_locked` on purpose. A teaser hides what it is, because
+	## the surprise is the point. A gated tree node hides nothing: the whole reason
+	## to draw the tree instead of a shelf is that a player can read three rows
+	## ahead and decide what to aim at, and a row that will not say what blocks it
+	## is worse than a row that is not drawn at all.
+	_sub_label.text = reason
+	_sub_label.label_settings.font_color = UiTheme.INK_SOFT
+	_name_label.label_settings.font_color = UiTheme.INK_SOFT
+	_count_stamp.visible = false
+	_price_label.text = GameState.fmt(cost)
+	_price_label.label_settings.font_color = UiTheme.SLATE_DIM
+	_art.modulate = Color(0.35, 0.35, 0.4, 0.8)
+	_apply_state(&"locked")
+	tooltip_text = "%s\n%s" % [reason, _blurb]
 
 
 func _apply_state(state: StringName) -> void:

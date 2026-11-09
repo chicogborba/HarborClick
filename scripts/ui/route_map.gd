@@ -150,6 +150,7 @@ func open() -> void:
 	_layout()
 	UiTheme.focus_first(_sheet)
 	open_changed.emit(true)
+	UiTheme.pop_open(_sheet, _backdrop)
 
 
 func close() -> void:

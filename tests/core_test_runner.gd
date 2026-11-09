@@ -28,6 +28,12 @@ func _run() -> void:
 	test_offline_lines_fit_the_board()
 	test_prestige_quote_reads_as_a_decision()
 	test_cps_breakdown_reproduces_the_rate()
+	test_a_transform_preview_tells_the_truth()
+	test_a_quote_prices_what_a_machine_does_to_the_whole_port()
+	test_an_exclusive_swap_costs_and_replaces()
+	test_a_blocked_node_is_refused_not_silently_bought()
+	test_fmt_reads_as_a_number_in_this_language()
+	test_the_cat_is_worth_finding_after_automation()
 	test_purchase_wait_reads_as_time()
 	test_late_sections_and_seed()
 	test_a_dead_provider_cannot_kill_the_save()
@@ -145,12 +151,23 @@ func test_offline_lines_fit_the_board() -> void:
 	var report := {"away_seconds": 36000.0, "credited_seconds": 28800.0,
 		"capped_seconds": 7200.0, "cap_seconds": 28800.0, "efficiency": 0.5,
 		"rate": 123.456e12, "earnings": 1.0, "lost_to_cap": 999.9e12}
+	# Every language, not only the one the suite happens to run in. The board has
+	# no autowrap, so a translation that runs long is a clipped sentence on a
+	# device nobody testing in Portuguese will ever open.
+	var restore := Loc.language
+	for entry in Loc.LANGUAGES:
+		var code := StringName(entry.code)
+		Loc.apply(code, false)
+		var localised: Array[String] = [OfflinePopup.greeting(report)]
+		localised.append_array(OfflinePopup.breakdown_lines(report))
+		_expect(localised.size() == 3,
+			"[%s] a capped absence explains itself in three lines" % code)
+		for line in localised:
+			_expect(line.length() <= OfflinePopup.MAX_LINE,
+				"[%s] \"%s\" fits the board (%d chars)" % [code, line, line.length()])
+	Loc.apply(restore, false)
 	var lines: Array[String] = [OfflinePopup.greeting(report)]
 	lines.append_array(OfflinePopup.breakdown_lines(report))
-	_expect(lines.size() == 3, "a capped absence explains itself in three lines")
-	for line in lines:
-		_expect(line.length() <= OfflinePopup.MAX_LINE,
-			"\"%s\" fits the board (%d chars)" % [line, line.length()])
 	_expect(OfflinePopup.breakdown_lines({}).is_empty(),
 		"no report means no breakdown")
 	var inside := report.duplicate()
@@ -211,6 +228,137 @@ func test_cps_breakdown_reproduces_the_rate() -> void:
 	for row in empty:
 		if String(row.kind) == "mult":
 			_expect(float(row.value) > 0.0, "no factor is zero on an empty port")
+
+
+func test_a_transform_preview_tells_the_truth() -> void:
+	## The conductor card is the only one on the board that can honestly show a
+	## loss, so the figure it shows has to be the figure that happens. It is
+	## derived rather than simulated — `recompute()` emits, so the shop cannot
+	## buy-measure-rollback twice a second — and a derivation is exactly the kind
+	## of thing that quietly stops matching the formula it was derived from.
+	# Both signs, because the clamped `cps_gain` on the card cannot show a loss and
+	# the loss is the half that makes it a decision.
+	for case in [
+		# A yard that is *only* dockers: converting them guts 99% of its own
+		# output to lift a port that is almost entirely those same dockers.
+		{"owned": {"estivador": 120, "empilhadeira": 10}, "gain": false},
+		# A yard where the dockers are long since a rounding error in production
+		# but still a hundred-odd bodies to pay a share on.
+		{"owned": {"estivador": 120, "empilhadeira": 100, "tt": 90,
+			"reach_stacker": 70, "rtg": 55, "sts": 40}, "gain": true},
+	]:
+		GameState.from_save({"owned": case.owned,
+			"upgrades": ["cafe_forte", "carrinho_mao", "sindicato"],
+			"teus": 1e18, "all_time_teus": 1e18})
+		GameState.recompute()
+		var before := GameState.base_cps
+		var predicted := float(GameState._transform_cps_delta(
+			UpgradeDB.get_item("turma_de_terra")))
+		_expect(GameState.buy_upgrade("turma_de_terra"), "the turma can be fitted")
+		var actual := GameState.base_cps - before
+		_expect(absf(predicted - actual) <= maxf(0.001, absf(actual) * 1e-6),
+			"the card promised what the port got (%f vs %f)" % [predicted, actual])
+		_expect((actual > 0.0) == bool(case.gain),
+			"the trade lands the way the port's shape says it should (%+f)" % actual)
+
+	# The same question about a *swap*. The conductors are one exclusive group, so
+	# taking a second drops the first: scored as a factor on top of the share
+	# already fitted, every swap would show a large fake gain.
+	GameState.from_save({"owned": {"estivador": 120, "empilhadeira": 100,
+		"tt": 90, "reach_stacker": 70, "rtg": 55, "sts": 40},
+		"upgrades": ["cafe_forte", "carrinho_mao", "sindicato", "turma_de_terra",
+			"operador_descansado"],
+		"teus": 1e18, "all_time_teus": 1e18})
+	GameState.recompute()
+	var swap_before := GameState.base_cps
+	var swap_predicted := GameState._transform_cps_delta(
+		UpgradeDB.get_item("cais_dedicado"))
+	_expect(GameState.buy_upgrade("cais_dedicado"), "the swap goes through")
+	_expect(not GameState.has_upgrade("turma_de_terra"),
+		"and the identity it replaced actually came off")
+	var swap_actual := GameState.base_cps - swap_before
+	_expect(absf(swap_predicted - swap_actual) <= maxf(0.001, absf(swap_actual) * 1e-6),
+		"a swap is priced as a replacement, not as a second identity (%f vs %f)"
+			% [swap_predicted, swap_actual])
+
+
+func test_a_quote_prices_what_a_machine_does_to_the_whole_port() -> void:
+	## Since a machine's count can move *other* machines' rates — a conductor's
+	## share, a synergy's ceiling, the capital tree's breadth — a quote that only
+	## added up the new units' own output would understate exactly the purchases
+	## the tree was built to make interesting. The card's "+N TEU/s" is the number
+	## the whole decision hangs on, so it has to be the real one.
+	var owned := {"estivador": 120, "empilhadeira": 100, "tt": 90,
+		"reach_stacker": 70, "rtg": 55, "sts": 40}
+	GameState.from_save({"owned": owned,
+		"upgrades": ["cafe_forte", "carrinho_mao", "sindicato", "turma_de_terra"],
+		"teus": 1e18, "all_time_teus": 1e18})
+	GameState.recompute()
+	var quoted := GameState.nominal_cps("estivador", 145) - GameState.nominal_cps()
+	# The honest answer: actually own 145 and look.
+	var truth := {}
+	for id: String in owned:
+		truth[id] = owned[id]
+	truth["estivador"] = 145
+	GameState.from_save({"owned": truth,
+		"upgrades": ["cafe_forte", "carrinho_mao", "sindicato", "turma_de_terra"],
+		"teus": 1e18, "all_time_teus": 1e18})
+	GameState.recompute()
+	var real_after := GameState.nominal_cps()
+	GameState.from_save({"owned": owned,
+		"upgrades": ["cafe_forte", "carrinho_mao", "sindicato", "turma_de_terra"],
+		"teus": 1e18, "all_time_teus": 1e18})
+	GameState.recompute()
+	var actual := real_after - GameState.nominal_cps()
+	_expect(actual > 0.0, "twenty-five more dockers are worth something")
+	_expect(absf(quoted - actual) <= maxf(0.001, absf(actual) * 1e-6),
+		"the quote is the truth, conductor share included (%f vs %f)"
+			% [quoted, actual])
+	# And the lift is the *majority* of it, or the override is being applied
+	# somewhere that does not matter.
+	var own_line := GameState.structure_total_cps("estivador", 145) \
+		- GameState.structure_total_cps("estivador", 120)
+	_expect(actual > own_line * 2.0,
+		"most of what a conductor machine is worth lands on the other machines")
+
+
+func test_an_exclusive_swap_costs_and_replaces() -> void:
+	## "Cara mas possível", checked against the wallet rather than against the
+	## catalogue: the second pick has to actually charge the surcharge, and the
+	## first has to actually come off.
+	GameState.from_save({"owned": {"rtg": 20, "empilhadeira": 30,
+		"reach_stacker": 20},
+		"upgrades": ["garfo_duplo", "buzina_musical", "contrapeso",
+			"telemetria_lanca", "gps_rtg", "operacao_remota_rtg",
+			"estoque_profundo"],
+		"teus": 1e18, "all_time_teus": 1e18})
+	GameState.recompute()
+	var list_price := float(UpgradeDB.get_item("giro_rapido").cost)
+	var before := GameState.teus
+	_expect(GameState.buy_upgrade("giro_rapido"), "the yard can change its mind")
+	_expect(not GameState.has_upgrade("estoque_profundo"),
+		"and the half it replaced came off in the same transaction")
+	var paid := before - GameState.teus
+	_expect(absf(paid - list_price * UpgradeDB.SWAP_SURCHARGE) <= 1.0,
+		"changing its mind cost the surcharge, not the list price (%f)" % paid)
+
+
+func test_a_blocked_node_is_refused_not_silently_bought() -> void:
+	## `requires` is a rule, not a hint the shop happens to draw. A port with the
+	## money and none of the prerequisites must not be able to skip the tree.
+	GameState.from_save({"owned": {"estivador": 60},
+		"teus": 1e18, "all_time_teus": 1e18})
+	GameState.recompute()
+	var sindicato := UpgradeDB.get_item("sindicato")
+	_expect(GameState.upgrade_unlocked(sindicato),
+		"the port is big enough for the node")
+	_expect(not GameState.upgrade_available(sindicato),
+		"but the node above it is unbought")
+	_expect(not GameState.buy_upgrade("sindicato"),
+		"and money alone does not open it")
+	_expect(GameState.buy_upgrade("cafe_forte") and GameState.buy_upgrade("carrinho_mao"),
+		"climbing the trunk is the way through")
+	_expect(GameState.buy_upgrade("sindicato"), "and then it opens")
 
 
 func test_purchase_wait_reads_as_time() -> void:
@@ -524,6 +672,56 @@ func test_wipe_removes_everything() -> void:
 	_expect(is_zero_approx(GameState.boost_time) and not TimeManager.fog_active \
 			and is_equal_approx(TimeManager.speed_mult, 1.0),
 		"wipe clears boost, weather and debug session speed")
+
+
+func test_fmt_reads_as_a_number_in_this_language() -> void:
+	## The counter is the string a player reads more than any other, so both ways
+	## it used to be wrong matter: an English decimal point in a Portuguese game,
+	## and a scale that ran out.
+	_expect(GameState.fmt(999.0) == "999", "small integers stay plain")
+	var thousand := GameState.fmt(1234.0)
+	_expect(thousand.contains("K"), "thousands carry a suffix (%s)" % thousand)
+	_expect(not thousand.contains("."),
+		"and no full stop survives the localised mark (%s)" % thousand)
+	# Past the end of the suffix table. The old loop simply stopped dividing, so a
+	# port at 10^36 printed "10000000Dc" — a number growing in the digits while
+	# claiming to be in the largest unit that exists.
+	var huge := GameState.fmt(1e36)
+	_expect(huge.contains("e") and not huge.contains("Dc"),
+		"past the table the scale goes to an exponent (%s)" % huge)
+	_expect(huge.length() <= Readout.WIDEST.length(),
+		"and still fits the glass cut for it (%s)" % huge)
+	# The mantissa has to be normalised against the digit that is *printed*: 9.99
+	# displays as "10.0", which would claim ten times its own exponent.
+	for value in [1e36, 1e40, 9.9999e59, 5e45]:
+		var text := GameState.fmt(value)
+		_expect(not text.begins_with("10"),
+			"%s prints a normalised mantissa (%s)" % [value, text])
+
+
+func test_the_cat_is_worth_finding_after_automation() -> void:
+	## The rarest thing in the game used to multiply `click_power` alone, so it
+	## expired the day the port stopped being tapped. It is a surge now.
+	GameState.from_save({"owned": {"estivador": 40, "empilhadeira": 20},
+		"teus": 1e6, "all_time_teus": 1e6})
+	GameState.recompute()
+	var before := GameState.cps
+	_expect(GameState.grant_cat_boost(), "a cat can be found")
+	_expect(GameState.cps > before,
+		"and it lifts what the port earns, not only what a tap earns")
+	_expect(not GameState.grant_cat_boost(),
+		"a second tap on the same cat does not extend it")
+	# A charter's surge outranks it: wandering past during a ten-times reward
+	# must not cut the reward to three.
+	GameState.from_save({"owned": {"estivador": 40}, "teus": 1e6})
+	GameState.recompute()
+	GameState.grant_surge(10.0, 30.0)
+	var during := GameState.cps
+	GameState.grant_cat_boost()
+	_expect(is_equal_approx(GameState.cps, during),
+		"the stronger surge wins instead of being downgraded")
+	GameState.from_save({})
+	GameState.recompute()
 
 
 func _expect(condition: bool, label: String) -> void:

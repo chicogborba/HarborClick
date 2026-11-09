@@ -16,6 +16,9 @@ const BOX_VISUAL_CENTRE := Vector2(12.0, 6.5)
 ## The longest hull, used before a class has been chosen and as the fallback for a
 ## variant naming a sprite that is not there.
 const HULL_FALLBACK := preload("res://assets/sprites/ship_top.png")
+## The livery layer: only the painted hull and the funnel band, on the same
+## 66x232 canvas as `ship_top.png`. The livery tints this and nothing else.
+const HULL_PAINT := preload("res://assets/sprites/ship_paint.png")
 const ROPE := preload("res://assets/sprites/prop_rope.png")
 const ROPE_KNOT := preload("res://assets/sprites/prop_rope_knot.png")
 ## One line forward, one aft. Four — with springs — read as spaghetti at this
@@ -44,6 +47,7 @@ var phase: Phase = Phase.AWAY
 ## the quay; the others run south down it.
 var berth_index := 0
 var _outline: Node2D
+var _paint: Sprite2D
 var _hull: Sprite2D
 var _shadow: Sprite2D
 var _cargo: Node2D
@@ -114,6 +118,13 @@ func _ready() -> void:
 	_hull.texture = HULL_FALLBACK
 	_hull.centered = false
 	add_child(_hull)
+	# A child of the hull, so it inherits every scale, offset and shudder the
+	# hull is given without being told about any of them.
+	_paint = Sprite2D.new()
+	_paint.name = "Paint"
+	_paint.texture = HULL_PAINT
+	_paint.centered = false
+	_hull.add_child(_paint)
 	_cargo = Node2D.new()
 	add_child(_cargo)
 	_build_navigation_lights()
@@ -488,7 +499,11 @@ func _apply_ship_variant() -> void:
 	_plan_moorings()
 	_wake.position = Vector2(PortLayout.SHIP_W * 0.5 - 38.0, hull_height() - 30.0)
 	_wake.scale = ship_variant.get("wake_scale", Vector2.ONE)
-	_hull.modulate = Color(str(ship_variant.get("hull_color", "#ffffff")))
+	# The livery is paint, so it goes on the paint. Tinting the whole hull
+	# sprite multiplied the deck, the white house and the lifeboats by brick red
+	# or bottle green, and every ship in the game came in one muddy colour.
+	_hull.modulate = Color.WHITE
+	_paint.self_modulate = Color(str(ship_variant.get("hull_color", "#ffffff")))
 	var wake_color := Color(str(ship_variant.get("wake_color", "#ffffff")))
 	wake_color.a = 0.65
 	_wake.modulate = wake_color

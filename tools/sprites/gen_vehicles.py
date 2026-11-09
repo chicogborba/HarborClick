@@ -1,4 +1,7 @@
-"""Top-down port vehicles. All face UP (north); the game rotates/flips them."""
+"""Top-down port vehicles. All face UP (north); the game rotates/flips them.
+
+The branch-line train is not here: it is drawn facing east, at its shown size,
+in `gen_train.py`."""
 import palette as P
 from common import new_img, rect, hline, vline, px, outline, save, speckle, sheet
 
@@ -209,178 +212,6 @@ def gen_tug():
     save(outline(img), "veh_tug")
 
 
-def gen_train():
-    """Locomotive 22x46 + flat wagon 26x34 (carries a container).
-
-    A shunter from above is three blocks and a walkway: the long hood with the
-    engine under it, the cab, the short hood, and a plated footway down each
-    side with handrails on it. The first version drew one flat teal rectangle
-    with a grey square in the middle, which at 1:1 read as a wheelie bin — and
-    this is the machine the rail branch exists to show off.
-    """
-    loco = new_img(22, 46)
-    # --- running plate and side walkways -------------------------------------
-    rect(loco, 1, 2, 20, 42, P.STEEL_D)
-    vline(loco, 1, 3, 40, P.STEEL)
-    vline(loco, 20, 3, 40, (58, 56, 66, 255))
-    # Handrails: two dots per stanchion, down both walkways.
-    for ry in range(6, 40, 4):
-        px(loco, 1, ry, P.STEEL_L)
-        px(loco, 20, ry, P.STEEL_L)
-
-    # --- body ----------------------------------------------------------------
-    rect(loco, 3, 3, 16, 40, P.TEAL)
-    hline(loco, 3, 3, 16, P.TEAL_L)         # lit edge, light from the north
-    vline(loco, 3, 3, 40, P.TEAL_L)
-    vline(loco, 18, 3, 40, P.TEAL_D)
-    hline(loco, 3, 42, 16, P.TEAL_D)
-
-    # --- short hood, bonnet forward ------------------------------------------
-    rect(loco, 4, 5, 14, 11, P.TEAL_D)
-    hline(loco, 4, 5, 14, P.TEAL)
-    for gy in range(7, 14, 2):              # radiator grille
-        hline(loco, 6, gy, 10, (30, 74, 74, 255))
-    rect(loco, 9, 9, 4, 4, P.STEEL_D)       # exhaust stack
-    hline(loco, 9, 9, 4, P.STEEL_L)
-    px(loco, 10, 10, (44, 40, 46, 255))
-    px(loco, 11, 10, (44, 40, 46, 255))
-
-    # --- cab, amidships ------------------------------------------------------
-    rect(loco, 4, 17, 14, 11, P.TEAL_L)     # roof, catching the most light
-    hline(loco, 4, 17, 14, (150, 214, 202, 255))
-    rect(loco, 6, 19, 10, 7, P.GLASS_D)     # roof skylight
-    rect(loco, 7, 20, 8, 5, P.GLASS)
-    px(loco, 13, 21, (206, 240, 246, 255))  # the reflection off the glass
-    px(loco, 5, 18, P.SAFETY)               # roof beacons, one per corner
-    px(loco, 16, 18, P.SAFETY)
-
-    # --- long hood, engine under it ------------------------------------------
-    rect(loco, 4, 29, 14, 12, P.TEAL_D)
-    hline(loco, 4, 29, 14, P.TEAL)
-    for fan_y in (31, 36):                  # two radiator fans in their wells
-        rect(loco, 6, fan_y, 10, 4, (30, 74, 74, 255))
-        hline(loco, 6, fan_y, 10, (24, 62, 62, 255))
-        for spoke in range(7, 15, 2):
-            px(loco, spoke, fan_y + 1, P.TEAL)
-            px(loco, spoke + 1, fan_y + 2, P.TEAL)
-
-    # --- headstocks: buffers, coupler and the chevrons every shunter wears ----
-    for hy, forward in ((1, True), (43, False)):
-        rect(loco, 3, hy, 16, 2, P.STEEL_D)
-        hline(loco, 3, hy, 16, P.STEEL_L if forward else P.STEEL)
-        rect(loco, 10, hy - 1 if forward else hy + 2, 2, 2, (44, 40, 46, 255))
-        for cx in range(4, 18, 4):          # amber warning chevrons
-            px(loco, cx, hy, P.SAFETY)
-            px(loco, cx + 1, hy + 1, P.SAFETY_D)
-
-    # --- bogies: three wheelsets a side, on the rail -------------------------
-    for wy in (7, 21, 35):
-        for side in (0, 19):
-            rect(loco, side, wy, 3, 5, P.TIRE)
-            hline(loco, side, wy, 3, (52, 48, 58, 255))
-            px(loco, side + 1, wy + 2, (86, 82, 92, 255))
-    save(outline(loco), "veh_loco")
-
-    # No outline on the lamp: `outline` darkens the transparent ring around any
-    # opaque region, and a light with a black edge is a decal of a light.
-    save(_loco_lamp(), "veh_loco_lamp")
-    save(sheet([outline(f) for f in _wagon_frames()]), "veh_wagon")
-
-
-def _wagon_deck(wagon):
-    """Solebars, headstocks and bogies — what every wagon has in common.
-
-    The bogies are the part worth the pixels. A wagon seen from above is mostly
-    deck, so the only thing that says *rail vehicle* rather than *steel pallet*
-    is a pair of two-axle trucks poking out either side with the wheels drawn
-    on them."""
-    rect(wagon, 2, 2, 22, 30, P.STEEL_D)        # solebars and floor
-    hline(wagon, 2, 2, 22, P.STEEL)             # lit edge, light from the north
-    vline(wagon, 2, 2, 30, P.STEEL)
-    vline(wagon, 23, 3, 28, (58, 56, 66, 255))  # shaded solebar, south side
-    for wy in (4, 23):                          # bogies, one at each end
-        for side in (0, 23):
-            rect(wagon, side, wy, 3, 7, (52, 48, 58, 255))
-            for axle in (wy + 1, wy + 4):       # two wheelsets per truck
-                hline(wagon, side, axle, 3, P.TIRE)
-                px(wagon, side + 1, axle, (96, 92, 102, 255))
-        # The bolster the truck pivots on, visible between the solebars.
-        rect(wagon, 4, wy + 2, 18, 2, (74, 70, 82, 255))
-    for hy in (2, 31):                          # headstocks with a drawhook
-        hline(wagon, 9, hy, 8, P.STEEL_L)
-    px(wagon, 12, 1, P.STEEL_D)
-    px(wagon, 13, 1, P.STEEL_D)
-    px(wagon, 12, 32, P.STEEL_D)
-    px(wagon, 13, 32, P.STEEL_D)
-
-
-def _wagon_frames():
-    """Three flat wagons, 26x34, every one of them able to take a container.
-
-    A block train is not six copies of one vehicle. It is whatever the interior
-    could couple up that morning, and at this size the thing that says so is the
-    *deck*: a plain container flat, a well wagon with its floor dropped between
-    the bogies, and a skeletal spine with daylight through the middle of it.
-
-    The constraint is that `RailYard` addresses every slot identically — a box
-    may land on any wagon in the rake — so all three are flats. A tank or a van
-    would read as a lie the first time a container appeared on top of it.
-    """
-    frames = []
-
-    # 1. Container flat: plain plated deck, the standard vehicle of the fleet.
-    flat = new_img(26, 34)
-    _wagon_deck(flat)
-    rect(flat, 4, 5, 18, 24, P.STEEL)
-    speckle(flat, 4, 5, 18, 24, [P.STEEL_D, P.STEEL_L], 0.10, seed=6)
-    for ty in (7, 16, 26):                      # twist-lock sockets down the deck
-        px(flat, 5, ty, P.STEEL_D)
-        px(flat, 20, ty, P.STEEL_D)
-    frames.append(flat)
-
-    # 2. Well wagon: the floor drops between the bogies, so the box rides lower
-    # and the frame stands proud around it.
-    well = new_img(26, 34)
-    _wagon_deck(well)
-    rect(well, 4, 4, 18, 26, P.STEEL)
-    rect(well, 5, 8, 16, 18, P.STEEL_D)         # the well itself, in shadow
-    speckle(well, 5, 8, 16, 18, [(78, 74, 88, 255), P.STEEL], 0.12, seed=11)
-    hline(well, 5, 8, 16, (70, 66, 80, 255))    # the lip the floor drops from
-    for ry in range(10, 26, 4):                 # cross-members under the well
-        hline(well, 5, ry, 16, (86, 82, 96, 255))
-    frames.append(well)
-
-    # 3. Skeletal spine: a centre girder and outriggers, daylight either side.
-    spine = new_img(26, 34)
-    _wagon_deck(spine)
-    rect(spine, 10, 4, 6, 26, P.STEEL)          # the spine
-    hline(spine, 10, 4, 6, P.STEEL_L)
-    speckle(spine, 10, 4, 6, 26, [P.STEEL_D], 0.14, seed=17)
-    for oy in (6, 12, 18, 25):                  # outriggers the box sits across
-        rect(spine, 4, oy, 18, 2, P.STEEL_D)
-        hline(spine, 4, oy, 18, P.STEEL)
-    frames.append(spine)
-    return frames
-
-
-def _loco_lamp():
-    """The headlight's throw, 16x14, drawn nose-up like the locomotive itself.
-
-    A separate sprite rather than a tint, for the same reason the signal has a
-    separate lit frame: the game turns a lamp on by showing something, never by
-    recolouring the thing that owns it. Widening as it goes so it reads as light
-    on ballast instead of as a bar welded to the front of the engine."""
-    img = new_img(16, 14)
-    for row in range(14):
-        # Bright and narrow at the lens, wide and nearly gone by the far end.
-        half = 1 + row * 4 // 9
-        alpha = int(150 * (1.0 - row / 15.0))
-        for x in range(8 - half, 8 + half):
-            px(img, x, 13 - row, (255, 236, 176, alpha))
-    rect(img, 7, 12, 2, 2, (255, 248, 214, 220))
-    return img
-
-
 def gen_drone():
     """Quadcopter seen from above, 2-frame rotor blur, 18x18."""
     frames = []
@@ -418,5 +249,4 @@ if __name__ == "__main__":
     gen_forklift()
     gen_reach_stacker()
     gen_tug()
-    gen_train()
     gen_drone()

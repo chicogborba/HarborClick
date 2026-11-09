@@ -163,6 +163,9 @@ func show_profile(profile: NpcProfile, dossier: Dictionary = {}) -> void:
 	open_changed.emit(true)
 	_close.grab_focus()
 	_fit_to_content()
+	# `_fit_to_content` re-places the card a frame later, so this open only
+	# fades the card in; sliding would land on the stale position.
+	UiTheme.pop_open(_card, _scrim, false)
 
 
 func _set_photo(profile: NpcProfile) -> void:

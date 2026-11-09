@@ -542,17 +542,7 @@ func open() -> void:
 	open_changed.emit(true)
 	_layout()
 	UiTheme.focus_first(_panel)
-	if not UserPreferences.can_animate():
-		_panel.modulate.a = 1.0
-		_panel.scale = Vector2.ONE
-		return
-	_panel.modulate.a = 0.0
-	_panel.pivot_offset = _panel.size / 2.0
-	_panel.scale = Vector2(0.94, 0.94)
-	var tween := create_tween().set_parallel()
-	tween.tween_property(_panel, "modulate:a", 1.0, 0.16)
-	tween.tween_property(_panel, "scale", Vector2.ONE, 0.24) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	UiTheme.pop_open(_panel, _dim)
 
 
 func close() -> void:

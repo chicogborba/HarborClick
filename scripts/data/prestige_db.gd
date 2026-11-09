@@ -2,31 +2,36 @@ class_name PrestigeDB
 ## Declarative prestige branches. A future economy owner applies these effects.
 
 const BRANCHES: Array[Dictionary] = [
+	# `throughput_structural` used to be `scope: "structures", cps_multiplier`,
+	# which `GameState` multiplied into the same product as `scope: "global"`. Two
+	# names, two prices, one number: the scope did not exist. It now pays per kind
+	# of machine the terminal runs a real fleet of, which is a shape the global
+	# node cannot reproduce — one rewards a wide port, the other a big one.
 	{"id": "throughput", "title": "Vazão", "nodes": [
-		{"id": "throughput_structural", "cost": 1, "effect": {"scope": "structures", "stat": "cps_multiplier", "operation": "add_pct", "value": 0.25}},
-		{"id": "throughput_global", "cost": 3, "requires": ["throughput_structural"], "effect": {"scope": "global", "stat": "cps_multiplier", "operation": "add_pct", "value": 0.20}},
+		{"id": "throughput_structural", "title": "Malha Diversa", "cost": 1, "effect": {"scope": "structures", "stat": "cps_per_kind", "operation": "add_pct", "value": 0.06}},
+		{"id": "throughput_global", "title": "Vazão Geral", "cost": 3, "requires": ["throughput_structural"], "effect": {"scope": "global", "stat": "cps_multiplier", "operation": "add_pct", "value": 0.20}},
 	]},
 	{"id": "click", "title": "Clique", "nodes": [
-		{"id": "click_manual", "cost": 1, "effect": {"scope": "manual", "stat": "click_multiplier", "operation": "add_pct", "value": 0.50}},
-		{"id": "click_cps_per_tap", "cost": 3, "requires": ["click_manual"], "effect": {"scope": "manual", "stat": "cps_per_tap", "operation": "add_pct", "value": 0.01}},
+		{"id": "click_manual", "title": "Braço Firme", "cost": 1, "effect": {"scope": "manual", "stat": "click_multiplier", "operation": "add_pct", "value": 0.50}},
+		{"id": "click_cps_per_tap", "title": "Mão na Massa", "cost": 3, "requires": ["click_manual"], "effect": {"scope": "manual", "stat": "cps_per_tap", "operation": "add_pct", "value": 0.01}},
 	]},
 	# Every node here must beat the port's baseline (50% efficiency, 8h cap in
 	# `GameState`). The first two versions of this branch sold `set 0.50` and
 	# `set 28800.0`, which are the defaults: the player paid three golden shares
 	# for nothing. `LEGACY_NODE_IDS` carries those purchases forward.
 	{"id": "offline", "title": "Offline", "nodes": [
-		{"id": "offline_eff_60", "cost": 1, "effect": {"scope": "offline", "stat": "offline_efficiency", "operation": "set", "value": 0.60}},
-		{"id": "offline_eff_75", "cost": 3, "requires": ["offline_eff_60"], "effect": {"scope": "offline", "stat": "offline_efficiency", "operation": "set", "value": 0.75}},
-		{"id": "offline_cap_12h", "cost": 2, "requires": ["offline_eff_60"], "effect": {"scope": "offline", "stat": "offline_cap_seconds", "operation": "set", "value": 43200.0}},
-		{"id": "offline_cap_16h", "cost": 5, "requires": ["offline_eff_75", "offline_cap_12h"], "effect": {"scope": "offline", "stat": "offline_cap_seconds", "operation": "set", "value": 57600.0}},
+		{"id": "offline_eff_60", "title": "Turno da Noite", "cost": 1, "effect": {"scope": "offline", "stat": "offline_efficiency", "operation": "set", "value": 0.60}},
+		{"id": "offline_eff_75", "title": "Turno Integral", "cost": 3, "requires": ["offline_eff_60"], "effect": {"scope": "offline", "stat": "offline_efficiency", "operation": "set", "value": 0.75}},
+		{"id": "offline_cap_12h", "title": "Plantão de 12h", "cost": 2, "requires": ["offline_eff_60"], "effect": {"scope": "offline", "stat": "offline_cap_seconds", "operation": "set", "value": 43200.0}},
+		{"id": "offline_cap_16h", "title": "Plantão de 16h", "cost": 5, "requires": ["offline_eff_75", "offline_cap_12h"], "effect": {"scope": "offline", "stat": "offline_cap_seconds", "operation": "set", "value": 57600.0}},
 	]},
 	{"id": "routes", "title": "Rotas", "requires_feature": "routes", "nodes": [
-		{"id": "routes_reward", "cost": 1, "requires_feature": "routes", "effect": {"scope": "routes", "stat": "route_reward_multiplier", "operation": "add_pct", "value": 0.10}},
-		{"id": "routes_slot", "cost": 3, "requires": ["routes_reward"], "requires_feature": "routes", "effect": {"scope": "routes", "stat": "route_slots", "operation": "add_flat", "value": 1.0}},
+		{"id": "routes_reward", "title": "Frete Melhor", "cost": 1, "requires_feature": "routes", "effect": {"scope": "routes", "stat": "route_reward_multiplier", "operation": "add_pct", "value": 0.10}},
+		{"id": "routes_slot", "title": "Segunda Rota", "cost": 3, "requires": ["routes_reward"], "requires_feature": "routes", "effect": {"scope": "routes", "stat": "route_slots", "operation": "add_flat", "value": 1.0}},
 	]},
 	{"id": "events", "title": "Eventos", "requires_feature": "events", "nodes": [
-		{"id": "events_reward", "cost": 1, "requires_feature": "events", "effect": {"scope": "events", "stat": "event_reward_multiplier", "operation": "add_pct", "value": 0.10}},
-		{"id": "events_window", "cost": 3, "requires": ["events_reward"], "requires_feature": "events", "effect": {"scope": "events", "stat": "event_duration_multiplier", "operation": "add_pct", "value": 0.10}},
+		{"id": "events_reward", "title": "Prêmio Maior", "cost": 1, "requires_feature": "events", "effect": {"scope": "events", "stat": "event_reward_multiplier", "operation": "add_pct", "value": 0.10}},
+		{"id": "events_window", "title": "Janela Longa", "cost": 3, "requires": ["events_reward"], "requires_feature": "events", "effect": {"scope": "events", "stat": "event_duration_multiplier", "operation": "add_pct", "value": 0.10}},
 	]},
 ]
 

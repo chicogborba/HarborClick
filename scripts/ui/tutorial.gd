@@ -7,27 +7,27 @@ signal finished
 
 const STEPS := [
 	{
-		"text": "Opa! Seu Waldemar, capataz aposentado. Cuido deste porto há 40 anos - agora é teu.",
+		"key": "tut.hello",
 		"advance": "tap_box",
 	},
 	{
-		"text": "Tá vendo aquele navio atracado? Toca nele. Cada toque tira um container do convés.",
+		"key": "tut.tap_ship",
 		"advance": "clicks", "count": 8,
 	},
 	{
-		"text": "Isso aí! Container movimentado é TEU no bolso. O contador lá em cima não mente.",
+		"key": "tut.teu",
 		"advance": "tap_box",
 	},
 	{
-		"text": "Agora abre a LOJA ali embaixo e contrata um Estivador. Ele descarrega sozinho.",
+		"key": "tut.shop",
 		"advance": "structure",
 	},
 	{
-		"text": "Pronto: TEU por segundo. Dorme, acorda, o porto continua rendendo.",
+		"key": "tut.passive",
 		"advance": "tap_box",
 	},
 	{
-		"text": "Arrasta a tela pra cima pra ver o pátio inteiro. Enche ele de container até não caber mais.",
+		"key": "tut.pan",
 		"advance": "tap_box",
 	},
 ]
@@ -122,14 +122,14 @@ func _build() -> void:
 
 func _show_step() -> void:
 	var step: Dictionary = STEPS[_step]
-	_label.text = step.text
+	_label.text = Loc.t(str(step.key))
 	match step.advance:
 		"tap_box":
-			_hint.text = "▸ toque aqui para continuar"
+			_hint.text = "▸ " + Loc.t("tut.hint.tap")
 		"clicks":
-			_hint.text = "▸ toque no navio (%d)" % step.count
+			_hint.text = "▸ " + Loc.t("tut.hint.ship", {"count": str(step.count)})
 		"structure":
-			_hint.text = "▸ compre um Estivador na loja"
+			_hint.text = "▸ " + Loc.t("tut.hint.buy")
 	if not UserPreferences.can_animate():
 		_panel.modulate.a = 1.0
 		_panel.scale = Vector2.ONE
@@ -190,7 +190,7 @@ func _on_click(_payload: Dictionary) -> void:
 		return
 	_clicks += 1
 	var left: int = maxi(0, int(step.count) - _clicks)
-	_hint.text = "▸ toque no navio (%d)" % left
+	_hint.text = "▸ " + Loc.t("tut.hint.ship", {"count": str(left)})
 	if left == 0:
 		_advance()
 
@@ -218,11 +218,11 @@ func _finish() -> void:
 	if not UserPreferences.can_animate():
 		visible = false
 		finished.emit()
-		EventBus.notification_requested.emit({"id": "tutorial_done", "kind": &"tutorial", "priority": 2, "text": "Bom trabalho. O porto é teu."})
+		EventBus.notification_requested.emit({"id": "tutorial_done", "kind": &"tutorial", "priority": 2, "text": Loc.t("tut.done")})
 		return
 	var tween := create_tween()
 	tween.tween_property(_panel, "modulate:a", 0.0, 0.3)
 	tween.tween_callback(func() -> void:
 		visible = false
 		finished.emit()
-		EventBus.notification_requested.emit({"id": "tutorial_done", "kind": &"tutorial", "priority": 2, "text": "Bom trabalho. O porto é teu."}))
+		EventBus.notification_requested.emit({"id": "tutorial_done", "kind": &"tutorial", "priority": 2, "text": Loc.t("tut.done")}))

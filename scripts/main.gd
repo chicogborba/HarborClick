@@ -20,9 +20,12 @@ var clock: PortClock
 var special_alert: SpecialCallAlert
 var minigame: CraneMinigame
 var maze: MazeMinigame
+var wheel_service: WheelService
+var wheel_panel: LuckyWheelPanel
+var wheel_button: WheelButton
 var _overlay_state := {"shop": false, "settings": false, "journal": false,
 	"prestige": false, "routes": false, "crew": false, "special": false,
-	"minigame": false, "notices": false}
+	"minigame": false, "notices": false, "wheel": false}
 ## Whoever's dossier is open, so the objective on it keeps up with the yard.
 var _inspected: Object
 ## The two reasons the camera stops answering a drag: a board is up over the
@@ -32,6 +35,12 @@ var _carrying := false
 
 
 func _ready() -> void:
+	# The lucky wheel registers its save section before anything here can
+	# save, so however the slot gets chosen the section is in place for it.
+	wheel_service = WheelService.new()
+	wheel_service.name = "WheelService"
+	add_child(wheel_service)
+
 	# Normally the title screen has already chosen a slot. Running this scene
 	# directly — F6, the capture harness, the dev probe — falls back to the
 	# first terminal so the game is never left with no save path at all.
@@ -58,6 +67,22 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.name = "Hud"
 	add_child(hud)
+
+	wheel_panel = LuckyWheelPanel.new()
+	wheel_panel.name = "LuckyWheelPanel"
+	wheel_panel.setup(wheel_service)
+	add_child(wheel_panel)
+	wheel_button = WheelButton.new()
+	wheel_button.name = "WheelButton"
+	wheel_button.setup(wheel_service)
+	add_child(wheel_button)
+	wheel_button.pressed.connect(wheel_panel.open)
+	wheel_panel.open_changed.connect(_on_overlay_changed.bind("wheel"))
+	wheel_service.token_earned.connect(func() -> void:
+		EventBus.notification_requested.emit({
+			"id": "wheel_token", "kind": &"milestone", "priority": 1,
+			"text": Loc.t("wheel.token_earned"),
+		}))
 
 	rail = CommandRail.new()
 	rail.name = "CommandRail"
@@ -123,6 +148,10 @@ func _ready() -> void:
 		"quote": Callable(self, "_prestige_quote"),
 		"commit": Callable(self, "_commit_prestige"),
 		"purchase_node": Callable(GameState, "buy_prestige_node"),
+		# Reads, not writes. The dialog draws what is owned and what is affordable
+		# and must not reach into the economy to find out.
+		"shares": Callable(self, "_prestige_shares"),
+		"owned_nodes": Callable(self, "_prestige_owned_nodes"),
 	})
 	add_child(prestige_dialog)
 	rail.prestige_requested.connect(prestige_dialog.open)
@@ -141,6 +170,7 @@ func _ready() -> void:
 	clock = PortClock.new()
 	clock.name = "PortClock"
 	add_child(clock)
+	hud.set_clock(clock)
 
 	npc_card = NpcCard.new()
 	npc_card.name = "NpcCard"
@@ -424,6 +454,10 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		npc_card.apply_view_metrics(metrics)
 	if special_alert != null:
 		special_alert.apply_view_metrics(metrics)
+	if wheel_panel != null:
+		wheel_panel.apply_view_metrics(metrics)
+	if wheel_button != null:
+		wheel_button.apply_view_metrics(metrics)
 	if minigame != null:
 		minigame.apply_view_metrics(metrics)
 	if maze != null:
@@ -445,7 +479,7 @@ func _on_overlay_changed(opened: bool, source: String) -> void:
 			or bool(_overlay_state.journal) or bool(_overlay_state.prestige)
 			or bool(_overlay_state.routes) or bool(_overlay_state.crew)
 			or bool(_overlay_state.special) or bool(_overlay_state.minigame)
-			or bool(_overlay_state.notices))
+			or bool(_overlay_state.notices) or bool(_overlay_state.wheel))
 
 
 func _on_world_input_blocked(blocked: bool) -> void:
@@ -464,6 +498,14 @@ func _on_npc_grabbed(held: bool) -> void:
 
 func _apply_camera_input() -> void:
 	cam.set_input_enabled(not _input_blocked and not _carrying)
+
+
+func _prestige_shares() -> int:
+	return GameState.shares
+
+
+func _prestige_owned_nodes() -> Dictionary:
+	return GameState.purchased_tree_nodes
 
 
 func _prestige_quote() -> Dictionary:

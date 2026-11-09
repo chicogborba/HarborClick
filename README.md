@@ -287,8 +287,30 @@ de deixar o jogador construir uma run que evapora no reload.
     de decidir se vale trazer uma fonte real para esses scripts (quebrando a
     regra de "tudo gerado por código") ou não.
 - **Economia** — TEUs como moeda, custo `base × 1.15^n`, 15 equipamentos,
-  ~18 melhorias, 8 parcelas de terreno, prestígio ("abrir capital" → ações
-  douradas com +2% permanente cada).
+  ~50 melhorias em árvore, 8 parcelas de terreno, prestígio ("abrir capital" →
+  ações douradas com +2% permanente cada).
+- **A árvore de melhorias** — as melhorias não são uma prateleira, são um grafo
+  em seis troncos (mão de obra, pátio, cais, ramal, portão, comando). Um nó diz
+  o que o abre (`requires`), alguns se excluem (`excludes`, ou `group` para uma
+  escolha de N vias), e três tipos fazem mais do que multiplicar: `synergy` paga
+  por unidade de uma máquina *diferente*, `transform` tira a máquina da produção
+  e a põe para reger o porto, e `rail_stat` mexe num botão do ramal. Os cinco
+  nós `group: "conductor"` são a mesma pergunta — *quem manda neste terminal* —
+  e só um pode estar montado por vez.
+- **E é desenhada como mapa de linhas** ([`upgrade_map.gd`](scripts/ui/upgrade_map.gd)).
+  A primeira versão da aba era uma coluna de cartas: todo nó estava lá e toda
+  tranca era explicada por escrito, e ainda assim era lista. Lista responde *o
+  que está no meu caminho*; só desenho responde *para onde isso vai*. Então a
+  aba é um diagrama de rede, do jeito que o próprio assunto do jogo desenha uma
+  rede: cada tronco é uma linha colorida correndo de oeste para leste, cada
+  melhoria é uma estação nela, profundidade é distância ao longo da linha — "três
+  paradas adiante" é literalmente três compras adiante. Linha comprada é trilho
+  sólido; linha não comprada é traçado tracejado com as estações apagadas. Nó que
+  exclui um irmão vira estação de baldeação (anel dentro do ponto). Arrasta para
+  andar, pinça para aproximar, toca numa estação e o bilhete embaixo responde
+  preço, efeito e o que falta. O mapa inteiro é um `_draw()` num Control só —
+  cinquenta estações feitas de Controls seriam cinquenta layouts, e a aba se
+  atualiza aberta.
 - **Terreno é o portão da escada** — cada parcela **abre uma máquina**: Pátio
   Norte abre o reach stacker, Pátio Sul o transtêiner, Retroporto o armazém,
   Área Ferroviária o trem, Aterro Leste o flutuante, Zona Franca a alfândega,
@@ -358,6 +380,36 @@ de deixar o jogador construir uma run que evapora no reload.
   painel de ordens da loja é o instrumento do ramal: mostra o que a linha está
   fazendo agora, porque escolher uma ordem sem poder ver o resultado não é
   decisão nenhuma.
+- **A estação** — o ramal não é dois trilhos num asfalto vazio. Ao sul da linha
+  corre a **plataforma de carga**: concreto lançado em panos, coping claro na
+  borda onde o vagão encosta, linha amarela de segurança, e quatro **rampas**
+  hachuradas onde uma carreta encosta na altura do estrado. Na cabeceira, junto
+  ao para-choque onde a cabeça de toda composição para, fica o **galpão de
+  trânsito**; sobre a linha, o **pórtico ferroviário**, montado nos dois trilhos
+  de aço que `GroundBaker` pinta para ele — `RailCargoPolicy.MAX_RAKE` define a
+  bitola do pórtico e o desvio de manobra, então nenhum dos dois pode discordar
+  do outro. A placa **RAMAL 1** fica *na plataforma*, no extremo oeste, que é o
+  lado de onde o trem chega; antes ela flutuava quarenta pixels ao norte da
+  linha, no meio do pátio, presa em nada.
+- **E a estação não anda.** `rail_y()` é constante. Ela já foi
+  `world_bottom() - 26` (o ramal inteiro na borda sul, onde ninguém panorâmica) e
+  depois `yard_bottom() + 44`, que resolveu a visibilidade e criou coisa pior: o
+  pátio cresce a cada parcela comprada, então a cabeceira escorregava uma fileira
+  de blocos para o sul a cada expansão e a estação que o jogador tinha aprendido
+  onde ficava simplesmente estava em outro lugar. Agora o corredor é uma
+  **fileira fixa** (`PortLayout.RAIL_ROW`) e o pátio cresce *do outro lado* dele
+  — que também é como um terminal de verdade se expande. Num porto novo a
+  geometria é idêntica à de antes; a diferença só aparece quando se compra chão.
+- **O ramal cresce** — o tronco *Ramal Ferroviário* da árvore de melhorias move
+  os botões que este subsistema já lia: intervalo entre serviços, comprimento da
+  composição, tempo de rampa, taxa e teto do automático, e o bônus de composição
+  completa. `RailCargoPolicy` e `RailYard` guardam a *linha de base* — porque
+  essas são as regras do ramal e precisam ser legíveis e testáveis sem um save —
+  e `GameState.rail_stat()` aplica por cima o que foi comprado: soma antes de
+  multiplicar, sempre, que é a ordem em que as cartas se leem. O comprimento é o
+  único botão limitado pelo chão: `RailCargoPolicy.clamp_rake` segura em
+  `MAX_RAKE`, e `PortLayout.rail_west_turnout_x` deriva daí, então o desvio de
+  manobra nunca fica curto demais para o trem que a loja permite montar.
 - **A composição** — locomotiva com farol que lidera a marcha, fumaça de escape
   medida pela velocidade real (a manobra e a marcha movem a locomotiva em eixos
   diferentes, e o penacho responde aos dois), fumaça de freio sob os truques na
@@ -615,42 +667,106 @@ janela do prestígio ou a razão de recuperação saírem da faixa.
 - [ ] **Estrelas/prestígio.** As ações douradas saíram da barra de cima. Falta
       decidir o que elas compram para o reset abrir algo de verdade.
 
+O ramal saiu desta lista duas vezes. Primeiro por dentro: ele tinha um
+subsistema inteiro — comprimento da
+composição, intervalo entre serviços, tempo de rampa, taxa do automático, bônus
+de composição completa — e a loja vendia dois `×2` anônimos para ele. Agora o
+tronco **Ramal Ferroviário** tem oito nós e cada um move um botão que
+`RailYard`/`RailCargoPolicy` leem de verdade: Sinalização CTC aperta o
+intervalo, Composição Dupla alonga a composição, Pátio de Manobras compra tempo
+na rampa, Pórtico Ferroviário sobe a taxa **e o teto** do automático, Ramal
+Alimentado é sinergia com o armazém, Trem Pesado × Shuttle de Cintura é o par
+exclusivo, e Terminal Interior transforma o ramal em porto seco.
+
+O comprimento tem um limite que não é de gosto: `RailCargoPolicy.MAX_RAKE` é 8
+porque o desvio de manobra precisa segurar a locomotiva livre da cauda da maior
+composição possível, e `PortLayout.rail_west_turnout_x` passou a ser *derivado*
+desse número em vez de sete pitches escritos à mão — do jeito antigo, o primeiro
+upgrade que alongasse o trem deixaria a locomotiva engatando a oeste do próprio
+desvio, em cima do lastro. Por isso o par exclusivo do ramal negocia no relógio
+(rampa × intervalo) e não no comprimento.
+
+Depois por fora, no playtest de 21/08/2026, que achou três coisas que nenhum
+teste pegaria porque nenhuma delas é sobre regra:
+
+- **A estação andava.** `rail_y()` derivava de `yard_bottom()`, que cresce a
+  cada parcela — a cabeceira escorregava para o sul a cada expansão. Agora é
+  fileira fixa e o pátio cresce do outro lado. Ver *Sistemas*.
+- **Os contêineres vinham atravessados.** O vagão é desenhado de nariz pra cima
+  e leva um quarto de volta para apontar para leste; a caixa é desenhada deitada
+  (24×13) e já apontava certo. Levava o quarto de volta junto, o que punha um
+  contêiner de quarenta pés atravessado num vagão mais estreito que uma pessoa.
+- **A placa estava perdida.** Ficava quarenta pixels ao norte da linha, no meio
+  do pátio, por cima dos vagões. Agora fica na plataforma, e existe plataforma
+  para ela ficar em cima.
+
 ---
 
 ### 4. Comprar não é uma decisão
 
-Quinze geradores com a mesma forma (`base × 1.15^n`, cps fixo, mesma tabela de
-marcos) e dezoito upgrades que são todos `×2` sem exceção
-([`upgrade_db.gd`](scripts/data/upgrade_db.gd)). Zero sinergia, zero
-transformacional, zero exclusão mútua. Existe sempre uma resposta certa
-calculável por payback, e o cartão da loja já entrega essa resposta pronta.
+A prateleira virou árvore. `upgrade_db.gd` deixou de ser dezoito cartas `×2` e
+passou a ser um grafo: cada nó diz o que o abre (`requires`), alguns se recusam
+a conviver com o vizinho (`excludes`), e três tipos novos existem — `synergy`
+(uma máquina rende em função de *outra*), `transform` (a máquina passa a fazer
+outra coisa) e `rail_stat` (mexe num botão de verdade do ramal, ver item 3).
 
-É o erro nº 1 da matriz do `principios.md` — crescimento sem decisão — e é
-estrutural, não de balanceamento.
+O que fechou:
 
-O mesmo vale na árvore de capital: `_global_cps_multiplier` aplica os escopos
-`structures` e `global` no mesmo produto
-([`game_state.gd`](scripts/autoload/game_state.gd)), então
-`throughput_structural` e `throughput_global` são o mesmo efeito com dois nomes.
-O escopo `structures` não existe de fato.
+- **Sinergia.** Bloco Alimentado, Atracação Limpa, Ramal Alimentado e Fila
+  Única pagam por unidade de uma máquina *diferente*. Um porto com quinze RTGs
+  e dois cavalos mecânicos agora tem motivo para ir comprar cavalos.
+- **Exclusão mútua.** Estoque Profundo × Giro Rápido no pátio, Escala Profunda ×
+  Cadência de Cais no berço, Trem Pesado × Shuttle de Cintura no ramal — cada
+  par é "profundidade × cadência" numa camada. A troca custa `SWAP_SURCHARGE`
+  (3×) e o perdedor sai na mesma transação: cara, como pedido, mas possível.
+- **Transformacional.** Cinco nós `group: "conductor"` — Turma de Terra, Bloco
+  Mestre, Cais Dedicado, Terminal Interior, Centro de Controle. A máquina para
+  de produzir e passa a pagar uma fração ao porto inteiro por unidade dela
+  mesma. Só um pode estar montado: é a resposta a "quem manda neste terminal".
+- **O escopo `structures` morreu e o nó virou outra coisa.**
+  `throughput_structural` era `add_pct` no mesmo produto que `global` — dois
+  nomes e dois preços para um número só. Agora paga por *tipo* de máquina que o
+  terminal opera de verdade (`EconomyMath.BREADTH_MIN_COUNT` unidades), que é
+  uma forma que o nó global não consegue imitar: premia porto largo, não porto
+  grande.
+- **A curva parou de ter penhasco.** Sinergia e condutor pagam por
+  `EconomyMath.saturating_bonus`, que começa na taxa que a carta promete e
+  dobra em direção ao teto sem nunca chegar. Um teto duro fazia a centésima
+  unidade valer 1,5% e a centésima-e-primeira valer zero — a build morria no
+  instante em que dava certo.
+- **A loja mostra a árvore inteira.** A aba de melhorias é construída uma vez e
+  nunca reconstruída (uma lista que se refaz num timer come o toque e joga fora
+  a rolagem de quem estava lendo três nós à frente). Todo nó do catálogo está
+  lá desde o primeiro minuto, indentado por profundidade, e um nó fechado diz
+  em uma linha o que o abre: *"Abre com: Café de Rancho"* ou *"Faltam 12 x
+  Estivador"*.
 
-- [ ] Upgrades sinérgicos: uma máquina ganha bônus em função de outra.
-- [ ] `structures` passa a multiplicar só a produção de estrutura, ou o escopo
-      morre e o nó vira outra coisa.
-- [ ] Pelo menos um par mutuamente exclusivo por camada (estoque × giro,
-      profundidade × cadência), com troca cara mas possível.
-- [ ] Um upgrade transformacional por camada: a máquina passa a fazer outra
-      coisa, não a fazer mais.
-- [ ] O simulador prova que duas builds diferentes chegam a resultados
-      diferentes por *composição*, não só por eficiência.
+O simulador acompanha: `EconomySimulator` reproduz os três tipos novos, respeita
+`requires`/`excludes`, e ganhou dois cenários — `build_wide` e `build_tall` —
+idênticos em tudo menos na metade da árvore a que se comprometem.
+
+- [ ] **O que o simulador ainda *não* prova: composição de frota.** Em 3 h,
+      `build_wide` termina com 169,9 M TEU/s e `build_tall` com 232,2 M — 1,37×,
+      bem dentro do que errar custa —, cada uma regida por uma identidade
+      diferente (condutor 2,55 contra 3,52) e com conjuntos de nós diferentes.
+      Mas a *forma* das frotas quase não muda: `composition_distance` dá 0,006,
+      ou seja, as duas montam praticamente a mesma pirâmide. Isso não é um nó
+      fraco: com uma única curva
+      `1.15^n` compartilhada, um multiplicador `×M` numa máquina desloca a
+      contagem de equilíbrio dela em apenas `ln(M)/ln(1.15)` unidades — sete
+      unidades para um `×3`, contra frotas de cem. Enquanto todas as máquinas
+      dividirem a mesma curva de custo, nenhum multiplicador realista muda a
+      pirâmide. Fechar isso pede mexer na *curva*, não no catálogo: taxas de
+      crescimento por máquina, ou vagas/limites de frota por tipo. É uma
+      rebalanceada do jogo inteiro e por isso está aqui e não foi feita junto.
 
 Hoje o cenário `wrong_buy` — o agente que sempre compra a pior opção — termina
-com 4.781 TEU/s contra 11.395 do guloso na mesma configuração. Ou seja: errar
-custa 2,4×, e não condena a run, que era o critério. O que ainda não existe é
-uma build *diferente* que seja boa por outro motivo.
+2,4× atrás do guloso na mesma configuração. Errar custa 2,4× e não condena a
+run, que era o critério; `build_wide` e `build_tall` ficam bem dentro disso, que
+é o teste que `test_builds_diverge_and_both_stay_viable` fixa.
 
-Aceite: dois jogadores com o mesmo tempo de jogo podem ter portos com
-composições diferentes e razões para defender cada uma.
+Aceite (parcial): dois jogadores com o mesmo tempo de jogo têm portos fortes por
+razões diferentes e defensáveis. Falta a frota *parecer* diferente.
 
 ---
 
@@ -683,28 +799,37 @@ pesquisa para em "horas" neste jogo.
 
 ---
 
-### 7. O bônus do gato morre com a automação
+### 7. Renumerado — o gato e o `fmt()` fecharam
 
-`CAT_BOOST_MULT` multiplica só o `click_power`
-([`game_state.gd:513`](scripts/autoload/game_state.gd:513)). Depois da
-automação o clique é irrelevante, logo o bônus raro também. O `surge_mult` das
-escalas especiais já faz certo: multiplica tudo que o porto ganha.
+Os dois itens que ocupavam este lugar saíram do plano, que é o que esta lista
+faz com item resolvido.
 
-- [ ] Gato passa a conceder surto global, ou um valor em segundos da renda
-      atual — nunca um multiplicador de clique isolado.
+**O gato** multiplicava só o `click_power`, então o achado mais raro do jogo
+virava pó no dia em que a automação chegava. Agora ele concede **surto global**
+via `grant_surge` — o mesmo caminho das escalas especiais, que multiplica tudo
+que o porto ganha, toque incluído. Caiu de ×7 para ×3 justamente porque deixou
+de valer só para o clique, e fica abaixo de qualquer recompensa de escala (×2 a
+×10), que são *ganhas* num minigame enquanto o gato é *encontrado*. `grant_surge`
+mantém o mais forte, então um gato que passeia durante um surto de ×10 estende o
+prazo em vez de rebaixar o prêmio.
 
----
+**O `fmt()`** tinha dois defeitos. O ponto decimal era anglófono: "1.2B" num
+jogo pt-BR é um número diferente do que o jogador lê, e o contador é a string
+mais lida do jogo. A marca decimal agora é dado localizado (`number.decimal`),
+em cache e reatada em `Loc.language_changed` — não é uma consulta de tabela por
+quadro. E a escala tinha fim: o laço parava de dividir ao acabar a tabela de
+sufixos, então um porto acima de 10³⁶ imprimia `10000000Dc`, um número que
+cresce no dígito alegando estar na maior unidade que existe. Passou a cair em
+expoente (`1,0e36`), que fica em três algarismos significativos para sempre e
+cabe no visor recortado para `8,88Qa`.
 
-### 8. `fmt()` é anglófono num jogo em português
-
-`["K","M","B","T",...]` com ponto decimal
-([`game_state.gd:592`](scripts/autoload/game_state.gd:592)). "1.2B" num jogo
-pt-BR é ambíguo por construção, e a pesquisa trata isso como decisão de design,
-não de gosto. O teto também é baixo: acima de `Dc` (10³³) o número volta a
-crescer no dígito e imprime `10000000Dc`.
-
-- [ ] Sufixos e separadores em português, ou notação científica opcional.
-- [ ] Escala além de `Dc` sem degradar a legibilidade.
+Duas armadilhas ficaram documentadas em teste, porque as duas passariam num
+review: o operador `%` do Godot **não tem `%e`** (pedir um levanta "unsupported
+format character" exatamente em 10³⁶, o caso que o ramo existe para tratar), e
+`log(1000)/log(10)` vale 2,9999999999999996 — o `floor` cai uma década e a
+mantissa sai como 10, imprimindo `10,0e35` para 10³⁶. A mantissa é arredondada
+para o dígito que vai ser *impresso* antes de normalizar, senão 9,99 vira "10.0"
+e a string mente dez vezes o próprio expoente.
 
 ---
 
@@ -716,7 +841,26 @@ ajustes. O conteúdo dos catálogos ainda não está, e num aparelho em qualquer
 dos outros oito idiomas ele aparece em português no meio de uma tela
 traduzida — que é pior do que uma tela inteira em português.
 
-- [ ] `structure_db` e `upgrade_db`: nome, piada e efeito de cada máquina.
+**A casca ficou inteira.** O tutorial do Seu Waldemar, o tour de destaques, o
+quadro offline e as dicas de passo saíram do código e viraram chave — a voz dele
+foi mantida nas nove traduções em vez de virar instrução, porque o tom é parte da
+integração. `core_test_runner` passou a medir o quadro offline em **todos** os
+idiomas contra `OfflinePopup.MAX_LINE`, e não só no que a suíte roda: o quadro
+não quebra linha, então tradução longa é frase cortada num aparelho que ninguém
+testando em português abriria. O teste de i18n pegou dois travessões russos que a
+fonte bitmap não tem — exatamente o defeito que ele existe para pegar.
+
+Falta o conteúdo dos catálogos:
+
+- [ ] `structure_db` e `upgrade_db`: nome, piada e efeito de cada máquina. A
+      árvore de melhorias (item 4) **aumentou esta dívida de propósito**: são
+      ~54 nós em vez de 18, cada um com nome, descrição e agora um rótulo curto
+      de mapa, tudo só em português. As frases de estado — *"Abre com: {name}"*,
+      *"Faltam {count} x {name}"*, *"Troca {name}"* — já estão nos nove idiomas;
+      o que elas interpolam, não. Numa tela em turco lê-se hoje
+      "Şununla açılır: Café de Rancho".
+- [ ] `port_journal`, `npc_card` e os dois minigames: as abas, os doze ramos do
+      quadro de honra e as linhas de tarefa da equipe continuam fixas no código.
 - [ ] `achievement_db`, `contract_db`, `task_board` e `npc_catalog`.
 - [ ] `land_db`, `cosmetic_db`, `prestige_db`, `special_call_db`,
       `ship_catalog`.

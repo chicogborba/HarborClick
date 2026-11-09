@@ -1032,9 +1032,10 @@ func _process(delta: float) -> void:
 			if _extra != null:
 				_extra.rotation = -0.9 + absf(sin(_t * 0.5)) * 0.9
 		"flutuante":
-			position.y = _lane_y + sin(_t * 0.7 + _phase) * 3.0
-			if _sprite != null:
-				_sprite.rotation = sin(_t * 0.5 + _phase) * 0.015
+			# Riding the swell on whole pixels and never tilting: pixel art turned
+			# by a degree is resampled, and the barge's lattice boom shimmered
+			# like a heat haze the whole time it was afloat.
+			position.y = roundf(_lane_y + sin(_t * 0.7 + _phase) * 3.0)
 	if id == "rebocador":
 		_update_boat_fx()
 

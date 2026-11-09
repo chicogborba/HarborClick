@@ -20,7 +20,7 @@ const ART := {
 	"sts": {"sprite": "sts_base"},
 	"armazem": {"sprite": "bld_warehouse"},
 	"rebocador": {"sprite": "veh_tug", "turn": true},
-	"trem": {"sprite": "veh_loco", "turn": true},
+	"trem": {"sprite": "veh_loco"},
 	"flutuante": {"sprite": "flutuante"},
 	"alfandega": {"sprite": "bld_customs"},
 	"torre": {"sprite": "bld_tower"},

@@ -26,6 +26,10 @@ const FLASH_TINT := Color(1.5, 1.32, 1.0)
 ## The widest string `GameState.fmt` can return: three significant digits, a
 ## decimal point and the longest suffix. The window is cut for this and never
 ## resized, so the digits have somewhere to grow into instead of pushing.
+## Six characters, and every shape `fmt` can produce fits in them: "8,88Qa" for
+## a number inside the suffix table and "8,8e37" for one past the end of it. The
+## comma and the point advance identically in this font, so localising the
+## decimal mark does not move the glass.
 const WIDEST := "8.88Qa"
 ## What an undriven cell shows. The font is monospace — every glyph advances one
 ## 6px cell — so the unlit run and the lit number tile against each other exactly
@@ -58,6 +62,15 @@ var _rate_label: Label
 var _boost_row: HBoxContainer
 var _boost_label: Label
 var _digit_ink := UiTheme.DIGIT
+## Gap between the glass and the rate tag in the instrument's row.
+const ROW_GAP := 4.0
+## Width the whole instrument may use, handed down by `Hud`. Zero until then.
+var _budget := 0.0
+var _boost_key := -1
+var _boost_short := false
+var _lift_live := false
+var _lift_squeezed := false
+var _lift_tween: Tween
 var _pending := "0"
 var _shown := ""
 var _tick := 0.0
@@ -157,19 +170,70 @@ func _on_rate_input(event: InputEvent) -> void:
 func set_width_budget(width: float) -> void:
 	## Everything the instrument is allowed to occupy. The glass keeps its fixed
 	## window — that is the whole point of it — and the rate tag beside it takes
-	## whatever is left, trimming its own text rather than growing under the clock.
+	## whatever is left, giving things up rather than growing under the clock.
+	_budget = width
+	_fit()
+
+
+func _fit() -> void:
+	## Re-run whenever the tag's *content* changes, not only when the window does.
+	##
+	## This used to be decided once, at layout, against a tag that was then only
+	## ever as wide as its rate. The cat boost and the lift badge both arrive
+	## later and both ride inside the tag, so the first boost of every session
+	## pushed "x3 12s" straight under the compass — the budget had been measured
+	## before the thing that broke it existed.
+	##
+	## What gives way, in order: the lift badge (it is gone in two seconds anyway),
+	## the seconds left on the boost (the multiplier is what matters), and only
+	## then the rate itself, which is trimmed with an ellipsis but never hidden.
 	if _rate_label == null or _glass == null:
 		return
-	var glass := _glass.get_combined_minimum_size().x
-	var room := maxf(28.0, width - glass - 4.0)
-	_rate_tag.custom_minimum_size.x = 0.0
-	if _rate_tag.get_combined_minimum_size().x > room:
+	if _budget <= 0.0:
+		# No ceiling handed down yet: show everything at full length.
+		_boost_short = false
+		_lift_squeezed = false
+		_paint_boost()
+		_paint_lift()
+		return
+	var room := maxf(28.0, _budget - _glass.get_combined_minimum_size().x - ROW_GAP)
+	_rate_label.clip_text = false
+	_rate_label.custom_minimum_size.x = 0.0
+	_boost_short = false
+	_lift_squeezed = false
+	_paint_boost()
+	_paint_lift()
+	var excess := _rate_tag.get_combined_minimum_size().x - room
+	if excess > 0.0 and _lift_live:
+		_lift_squeezed = true
+		_paint_lift()
+		excess = _rate_tag.get_combined_minimum_size().x - room
+	if excess > 0.0 and _boost_row.visible:
+		_boost_short = true
+		_paint_boost()
+		excess = _rate_tag.get_combined_minimum_size().x - room
+	if excess > 0.0:
+		var natural := _rate_label.get_combined_minimum_size().x
 		_rate_label.clip_text = true
 		_rate_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		_rate_label.custom_minimum_size.x = maxf(20.0, room - 10.0)
-	else:
-		_rate_label.clip_text = false
-		_rate_label.custom_minimum_size.x = 0.0
+		_rate_label.custom_minimum_size.x = maxf(20.0, natural - excess)
+	# A control outside a container grows to its minimum but never shrinks back
+	# on its own, so a tag that just gave something up would keep its old width.
+	_rate_tag.reset_size()
+
+
+func _paint_boost() -> void:
+	if GameState.boost_time <= 0.0:
+		_boost_row.visible = false
+		return
+	_boost_row.visible = true
+	var mult := int(GameState.CAT_BOOST_MULT)
+	_boost_label.text = "x%d" % mult if _boost_short \
+		else "x%d %ds" % [mult, ceili(GameState.boost_time)]
+
+
+func _paint_lift() -> void:
+	_lift_label.visible = _lift_live and not _lift_squeezed
 
 
 func tally_rect() -> Rect2:
@@ -187,12 +251,12 @@ func _process(delta: float) -> void:
 			_teus_label.text = _pending
 			_unlit_label.text = UNLIT.repeat(
 				maxi(0, WIDEST.length() - _pending.length()))
-	if GameState.boost_time > 0.0:
-		_boost_row.visible = true
-		_boost_label.text = "x%d %ds" % [int(GameState.CAT_BOOST_MULT),
-			ceili(GameState.boost_time)]
-	elif _boost_row.visible:
-		_boost_row.visible = false
+	# Refitted only when the boost's visible state changes — on, off, or its
+	# countdown ticking over a whole second — not every frame.
+	var boost_key := ceili(GameState.boost_time) if GameState.boost_time > 0.0 else -1
+	if boost_key != _boost_key:
+		_boost_key = boost_key
+		_fit()
 	_burn_flash(delta)
 
 
@@ -225,11 +289,16 @@ func _on_cps(cps: float) -> void:
 	_rate_label.text = GameState.fmt(cps) + Loc.t("readout.per_second")
 	if cps > _last_cps and lift >= LIFT_FLOOR and UserPreferences.can_animate():
 		_lift_label.text = "+%d%%" % roundi(lift * 100.0)
-		_lift_label.visible = true
-		var tween := create_tween()
-		tween.tween_property(_lift_label, "modulate:a", 1.0, 0.10) \
+		_lift_live = true
+		if _lift_tween != null and _lift_tween.is_valid():
+			_lift_tween.kill()
+		_lift_tween = create_tween()
+		_lift_tween.tween_property(_lift_label, "modulate:a", 1.0, 0.10) \
 			.from(0.0)
-		tween.tween_interval(LIFT_HOLD)
-		tween.tween_property(_lift_label, "modulate:a", 0.0, 0.35)
-		tween.tween_callback(func() -> void: _lift_label.visible = false)
+		_lift_tween.tween_interval(LIFT_HOLD)
+		_lift_tween.tween_property(_lift_label, "modulate:a", 0.0, 0.35)
+		_lift_tween.tween_callback(func() -> void:
+			_lift_live = false
+			_fit())
 	_last_cps = cps
+	_fit()

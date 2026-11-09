@@ -33,10 +33,45 @@ const OFFLINE_CAP_SECONDS := 8.0 * 3600.0
 ## level already banked. Below it the reset costs more time than it returns.
 const EFFICIENT_PRESTIGE_RATIO := 0.5
 
+## Two ways of playing the same catalogue, as a *player's* plan rather than a
+## rule of the economy.
+##
+## Item 4 of the plan asks for proof that two builds reach different results by
+## composition and not only by efficiency. Proving that needs two agents that
+## commit to opposite halves of the tree and are otherwise the identical greedy
+## line — so a plan may only ever *refuse* a node, never make a weak one score
+## well, and the structure bias is a preference between machines the agent could
+## already afford.
+##
+## - `wide` runs many kinds and many cheap units. Its terminal is run by the
+##   dockers, and it takes the spread half of every exclusive pair.
+## - `tall` runs a few very large machines. Its terminal is run by the quay or the
+##   yard, and it stacks deep rather than turning over fast.
+##
+## Neither plan bans the *other* conductors outright — the group already makes
+## them mutually exclusive, so naming one to avoid is enough to send each agent to
+## a different identity.
+const BUILD_PLANS := {
+	"wide": {
+		"avoid": ["estoque_profundo", "escala_profunda", "trem_pesado",
+			"bloco_mestre", "cais_dedicado", "centro_de_controle"],
+		"breadth_bias": 1.4,
+	},
+	"tall": {
+		# `bloco_mestre` is refused as well as `turma_de_terra`: a port that has
+		# just tripled its block with Estoque Profundo converting that same block
+		# into a conductor is not the tall build, it is the tall build undoing
+		# itself. Its identity is the quay.
+		"avoid": ["giro_rapido", "cadencia_de_cais", "trem_shuttle",
+			"turma_de_terra", "bloco_mestre"],
+		"breadth_bias": 0.0,
+	},
+}
+
 
 static func scenario_names() -> PackedStringArray:
 	return PackedStringArray(["active_90m", "hybrid_120m", "casual_24h",
-		"offline_night", "wrong_buy", "recovery"])
+		"offline_night", "wrong_buy", "recovery", "build_wide", "build_tall"])
 
 
 static func scenario_config(name: StringName) -> Dictionary:
@@ -61,6 +96,9 @@ static func scenario_config(name: StringName) -> Dictionary:
 		"starting_rebuild_targets": {}, "stop_at_production": 0.0,
 		"offline_efficiency": OFFLINE_EFFICIENCY,
 		"offline_cap_seconds": OFFLINE_CAP_SECONDS,
+		# Which half of the tree this agent committed to. Empty is the unopinionated
+		# greedy line every other scenario is measured with.
+		"build": "",
 	}
 	match name:
 		&"hybrid_120m":
@@ -88,6 +126,14 @@ static func scenario_config(name: StringName) -> Dictionary:
 			# Long enough to reach the first reset and rebuild past it, which is
 			# the only way `first_recovery_seconds` can report anything.
 			base.merge({"duration": 4.0 * 3600.0}, true)
+		&"build_wide", &"build_tall":
+			# The composition pair. Identical in every field but `build`, so the
+			# two results subtract and the difference is the tree and nothing else.
+			# Three hours: an exclusive pair does not open until the port is large,
+			# and a run that ends before the choice exists cannot measure it.
+			base.merge({"duration": 3.0 * 3600.0, "taps_per_second": 2.0,
+				"prestige_policy": "never",
+				"build": "wide" if name == &"build_wide" else "tall"}, true)
 	return base
 
 
@@ -224,24 +270,73 @@ static func active_income_per_second(state: Dictionary, config: Dictionary) -> f
 
 static func unit_cps(state: Dictionary, item: Dictionary) -> float:
 	## One unit's production with its fitted upgrades, mirroring
-	## `GameState.structure_cps`.
+	## `GameState.structure_cps` — flat multipliers, then what the rest of the port
+	## lends it through a synergy, then the transform that takes it off production.
+	##
+	## Two of those three read `state.owned`, which is why `_refresh_derived` has
+	## to run after a *structure* purchase now and not only after an upgrade.
+	var id := String(item.id)
 	var value := float(item.cps)
 	for up in UpgradeDB.ITEMS:
-		if up.get("kind") != "structure_mult" or String(up.get("target", "")) != String(item.id):
+		if not state.upgrades.has(String(up.id)):
 			continue
-		if state.upgrades.has(String(up.id)):
-			value *= float(up.value)
+		match String(up.get("kind", "")):
+			"structure_mult":
+				if UpgradeDB.targets_of(up).has(id):
+					value *= float(up.get("value", 1.0))
+			"synergy":
+				if String(up.get("target", "")) == id:
+					value *= 1.0 + _synergy_bonus(state, up)
+			"transform":
+				if String(up.get("target", "")) == id \
+						and String(up.get("mode", "")) == "conductor":
+					value *= float(up.get("self_mult", 1.0))
 	return value
 
 
+static func _synergy_bonus(state: Dictionary, up: Dictionary) -> float:
+	return EconomyMath.saturating_bonus(float(up.get("value", 0.0)),
+		float(up.get("cap", 1.0)), int(state.owned.get(String(up.get("per", "")), 0)))
+
+
+static func conductor_multiplier(state: Dictionary) -> float:
+	## Mirrors `GameState._conductor_multiplier`: a transformed machine pays the
+	## port a share per unit of itself instead of producing. This is the factor the
+	## wide build exists to move.
+	var value := 1.0
+	for up in UpgradeDB.ITEMS:
+		if String(up.get("kind", "")) != "transform" \
+				or String(up.get("mode", "")) != "conductor" \
+				or not state.upgrades.has(String(up.id)):
+			continue
+		value *= 1.0 + EconomyMath.saturating_bonus(float(up.get("value", 0.0)),
+			float(up.get("cap", 1.0)),
+			int(state.owned.get(String(up.get("target", "")), 0)))
+	return value
+
+
+static func breadth_multiplier(state: Dictionary) -> float:
+	## Mirrors `GameState._breadth_multiplier`. The capital tree's `structures`
+	## node pays per kind of machine the terminal runs a working fleet of, which is
+	## the one meta effect a tall port cannot buy its way into.
+	var per_kind := _tree_additive(state, &"structures", &"cps_per_kind")
+	if per_kind <= 0.0:
+		return 1.0
+	var kinds := 0
+	for item in EconomyCatalog.ITEMS:
+		if int(state.owned.get(String(item.id), 0)) >= EconomyMath.BREADTH_MIN_COUNT:
+			kinds += 1
+	return 1.0 + per_kind * float(kinds)
+
+
 static func global_multiplier(state: Dictionary) -> float:
-	## `GameState` applies the meta multiplier, both capital-tree cps scopes and
-	## every `global_mult` upgrade to the same product. The sandbox mirrors that
-	## exactly, including the fact that the `structures` scope is not actually
-	## scoped to structures.
+	## `GameState` applies the meta multiplier, the capital tree's two genuinely
+	## different scopes, the conductor share and every `global_mult` upgrade to the
+	## same product. The sandbox mirrors that exactly.
 	var value := EconomyMath.prestige_multiplier(int(state.prestige_level)) \
-		* _tree_multiplier(state, &"structures", &"cps_multiplier") \
-		* _tree_multiplier(state, &"global", &"cps_multiplier")
+		* breadth_multiplier(state) \
+		* _tree_multiplier(state, &"global", &"cps_multiplier") \
+		* conductor_multiplier(state)
 	for up in UpgradeDB.ITEMS:
 		if up.get("kind") == "global_mult" and state.upgrades.has(String(up.id)):
 			value *= float(up.value)
@@ -283,6 +378,11 @@ static func summary(state: Dictionary, config: Dictionary = {}) -> Dictionary:
 		"owned": state.owned.duplicate(),
 		"total_owned": _total_owned(state.owned),
 		"distinct_owned": _distinct_owned(state.owned),
+		# The two factors item 4 was written to create. Reported separately from
+		# the rate because "this port earns more" and "this port earns more *for a
+		# different reason*" are the two different claims being checked.
+		"conductor_multiplier": conductor_multiplier(state),
+		"breadth_multiplier": breadth_multiplier(state),
 		"land": state.land.keys(),
 		"upgrades": state.upgrades.keys(),
 		"tree_nodes": state.tree_nodes.keys(),
@@ -447,10 +547,21 @@ static func _make_decision(state: Dictionary, config: Dictionary) -> void:
 	if String(choice.kind) == "land":
 		state.land[String(choice.id)] = true
 	elif String(choice.kind) == "upgrade":
+		# An exclusive pick refits its sibling out, exactly as `buy_upgrade` does.
+		# The price paid was already the swap price; leaving the loser in the set
+		# would let a sandbox port run both halves of a choice a player cannot.
+		for other in UpgradeDB.conflicts_with(UpgradeDB.get_item(String(choice.id)),
+				state.upgrades):
+			state.upgrades.erase(other)
 		state.upgrades[String(choice.id)] = true
 		_refresh_derived(state)
 	else:
 		state.owned[choice.id] = int(state.owned.get(choice.id, 0)) + int(choice.amount)
+		# Synergies and conductors make one machine's rate depend on how many of
+		# *another* the port runs, so the cached factors go stale on a structure
+		# purchase now. Before those kinds existed this line was genuinely
+		# unnecessary; leaving it out now would quietly freeze the economy.
+		_refresh_derived(state)
 	state.purchases.append({"at": state.elapsed, "kind": choice.kind,
 		"id": choice.id, "amount": choice.amount, "cost": choice.cost})
 	if state.markers.first_choice < 0.0:
@@ -477,6 +588,55 @@ static func _best_choice(state: Dictionary, config: Dictionary) -> Dictionary:
 			best_score = score
 			selected = option
 	return selected
+
+
+static func _build_plan(config: Dictionary) -> Dictionary:
+	return BUILD_PLANS.get(String(config.get("build", "")), {})
+
+
+static func _spillover_gain(state: Dictionary, id: String, amount: int) -> float:
+	## What buying `amount` more of `id` does to production *elsewhere*.
+	##
+	## Two routes, and a port only ever has the ones it bought: the conductor share
+	## rises with units of the machine it is fitted to, and a synergy's bonus rises
+	## with units of the machine it counts. Both are computed as a before/after on
+	## the real formula rather than approximated, because the caps mean the tenth
+	## unit and the hundredth are worth very different amounts.
+	if not _touches_spillover(state, id):
+		return 0.0
+	var item := EconomyCatalog.get_item(StringName(id))
+	if item.is_empty():
+		return 0.0
+	var owned: Dictionary = state.owned
+	var probe: Dictionary = state.duplicate()
+	probe.owned = owned.duplicate()
+	probe.owned[id] = int(owned.get(id, 0)) + amount
+	_refresh_derived(probe)
+	# The machine's own extra output is already scored by the caller, at the rate
+	# and multiplier it has *today*; subtract exactly that and what is left is the
+	# part of the purchase that lands on every other line.
+	var direct := (EconomyMath.total_cps(unit_cps(state, item), int(probe.owned[id]))
+		- EconomyMath.total_cps(unit_cps(state, item), int(owned.get(id, 0)))) \
+		* global_multiplier(state)
+	return maxf(0.0, production_per_second(probe)
+		- production_per_second(state) - direct)
+
+
+static func _touches_spillover(state: Dictionary, id: String) -> bool:
+	## Cheap guard so the probe above only runs for the handful of machines some
+	## fitted node actually counts. Without it every option on every decision would
+	## rebuild the derived cache.
+	for up in UpgradeDB.ITEMS:
+		if not state.upgrades.has(String(up.id)):
+			continue
+		match String(up.get("kind", "")):
+			"transform":
+				if String(up.get("target", "")) == id:
+					return true
+			"synergy":
+				if String(up.get("per", "")) == id:
+					return true
+	return false
 
 
 static func _affordable_options(state: Dictionary, config: Dictionary) -> Array[Dictionary]:
@@ -520,13 +680,37 @@ static func _affordable_options(state: Dictionary, config: Dictionary) -> Array[
 			continue
 		var gain := EconomyMath.total_cps(unit_cps(state, item), owned + amount) \
 			- EconomyMath.total_cps(unit_cps(state, item), owned)
+		var value := gain * global_multiplier(state)
+		# What the machine is worth to the *port*, not to its own line.
+		#
+		# A unit of the machine a conductor is fitted to lifts everything the
+		# terminal earns, and a unit of a machine some synergy counts lifts whatever
+		# that synergy feeds. Scoring only the machine's own delta made both effects
+		# invisible to the agent, so it kept buying the same cost-curve pyramid
+		# whatever was fitted — and two builds that cannot see their own strategy
+		# produce two identical ports, which is exactly what the sandbox reported
+		# before this line existed.
+		value += _spillover_gain(state, String(item.id), amount)
+		var score := value / cost
+		# A wide player pays over the odds to get a machine's fleet up to a working
+		# size, because breadth is worth something to them that payback does not
+		# show: the capital tree's per-kind share.
+		if owned + amount < EconomyMath.BREADTH_MIN_COUNT:
+			score *= 1.0 + float(_build_plan(config).get("breadth_bias", 0.0))
 		options.append({"kind": "structure", "id": item.id, "amount": amount,
-			"cost": cost, "score": gain * global_multiplier(state) / cost})
+			"cost": cost, "score": score})
+	var plan := _build_plan(config)
 	for up in UpgradeDB.ITEMS:
 		var id := String(up.id)
-		if state.upgrades.has(id) or not _upgrade_unlocked(state, up):
+		if state.upgrades.has(id) or not _upgrade_available(state, up):
 			continue
-		var cost: float = float(up.cost)
+		# A build is a plan a player follows, not a rule of the economy. It only
+		# ever refuses nodes — it never makes a bad one look good — so a scenario
+		# with a build is still the honest greedy agent inside the half of the tree
+		# that build committed to.
+		if not plan.is_empty() and plan.get("avoid", []).has(id):
+			continue
+		var cost := UpgradeDB.price_for(up, state.upgrades)
 		if cost <= 0.0 or cost > state.currency:
 			continue
 		# Scored on total income, not production. A click upgrade moves no
@@ -543,6 +727,11 @@ static func _affordable_options(state: Dictionary, config: Dictionary) -> Array[
 static func _income_with_upgrade(state: Dictionary, config: Dictionary, id: String) -> float:
 	var probe: Dictionary = state.duplicate()
 	probe.upgrades = state.upgrades.duplicate()
+	# The probe has to price the *whole* trade. A transform gives up the machine's
+	# own output, and an exclusive swap gives up the sibling already fitted — score
+	# either without the loss and the agent buys a downgrade at full confidence.
+	for other in UpgradeDB.conflicts_with(UpgradeDB.get_item(id), probe.upgrades):
+		probe.upgrades.erase(other)
 	probe.upgrades[id] = true
 	_refresh_derived(probe)
 	return production_per_second(probe) + active_income_per_second(probe, config)
@@ -565,6 +754,46 @@ static func _upgrade_unlocked(state: Dictionary, item: Dictionary) -> bool:
 			if int(state.owned.get(sid, 0)) < int(unlock.owned[sid]):
 				return false
 	return true
+
+
+static func _upgrade_available(state: Dictionary, item: Dictionary) -> bool:
+	## Mirrors `GameState.upgrade_available`: the port has to be big enough *and*
+	## the node above has to be bought. Without the second half the sandbox would
+	## report a curve reachable only by a player who could skip the tree.
+	return _upgrade_unlocked(state, item) \
+		and UpgradeDB.blocked_by(item, state.upgrades).is_empty()
+
+
+static func composition_distance(a: Dictionary, b: Dictionary) -> float:
+	## How differently two ports are *made up*, ignoring how big they are.
+	##
+	## Each port becomes a share-of-fleet vector — what fraction of its machines
+	## are dockers, what fraction are cranes — and the answer is half the total
+	## absolute difference between the two. That lands on 0.0 for two ports built
+	## the same way at any scale and 1.0 for two with no machine in common, which
+	## is the shape "different by composition, not by efficiency" needs: a bigger
+	## port built identically must score zero, and it does.
+	var shares_a := _fleet_shares(a)
+	var shares_b := _fleet_shares(b)
+	var ids := {}
+	for id: String in shares_a:
+		ids[id] = true
+	for id: String in shares_b:
+		ids[id] = true
+	var total := 0.0
+	for id: String in ids:
+		total += absf(float(shares_a.get(id, 0.0)) - float(shares_b.get(id, 0.0)))
+	return total * 0.5
+
+
+static func _fleet_shares(owned: Dictionary) -> Dictionary:
+	var total := float(_total_owned(owned))
+	if total <= 0.0:
+		return {}
+	var shares := {}
+	for id: String in owned:
+		shares[id] = float(int(owned[id])) / total
+	return shares
 
 
 static func _total_owned(owned: Dictionary) -> int:

@@ -19,7 +19,8 @@
 | wake | motion-derived wake and shader coordinates |
 | npc | crew identity and persistence, one task per key, hull shudder, sound takes |
 | special | charter rarity, the special hull, bounded stakes, both minigames |
-| rail | branch plans and standing orders, the operational floor, parked-only work, the run-around, the completion bonus, the rake |
+| rail | branch plans and standing orders, the operational floor, parked-only work, the run-around, the completion bonus, the rake drawn 1:1 |
+| wheel | Roda da Sorte: segment weights, free spin before tokens, a token per third departure, prize priced in base cps, claim-once, reload, prestige survival |
 
 Run everything with `tools/qa/run_all.sh`. A regression belongs next to the
 contract it protects; avoid tests that assert an obsolete implementation detail

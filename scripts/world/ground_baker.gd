@@ -368,6 +368,85 @@ static func _paint_rail_corridor(img: Image) -> void:
 	for x in range(int(PortLayout.ROAD_X0) + 2, int(PortLayout.ROAD_X1) - 2, 5):
 		_pixel(img, x, loop_y - 10, Color8(232, 176, 62))
 		_pixel(img, x, rail_y + 10, Color8(232, 176, 62))
+	_paint_rail_platform(img)
+
+
+static func _paint_rail_platform(img: Image) -> void:
+	## The goods apron: the thing that makes the branch a station.
+	##
+	## Read from the rails outwards, which is the order it would be built and the
+	## order it has to be legible in: the coping the wagons are worked over, the
+	## safety line nobody stands beyond, the concrete deck, and the four ramps cut
+	## into it where a road vehicle can back up to wagon-deck height.
+	var deck := PortLayout.rail_platform_rect()
+	var x0 := int(deck.position.x)
+	var x1 := int(deck.end.x)
+	var y0 := int(deck.position.y)
+	var y1 := int(deck.end.y)
+
+	# Concrete, and it has to *read* as concrete against tarmac.
+	#
+	# The first version was poured in the same value range as the yard around it
+	# — technically a platform, visually a slightly cleaner patch of asphalt. The
+	# board standing on it therefore looked like a sign someone had left in the
+	# middle of a car park. A goods platform is pale precast, the same family the
+	# quay is made of, and it is the contrast that makes it a structure.
+	for y in range(y0, y1):
+		for x in range(x0, x1):
+			# Poured in bays with a construction joint every twelve pixels, so a
+			# hundred and eighty pixels of concrete does not read as one slab.
+			var joint: bool = (x - x0) % 12 == 0 or y == y0 + 1
+			var tone := Color8(178, 172, 158) if (x * 5 + y * 3) % 7 < 4 \
+				else Color8(166, 160, 147)
+			_pixel(img, x, y, Color8(140, 134, 124) if joint else tone)
+
+	# Coping: the hard edge the wagon door lines up with, in the pale precast the
+	# quay uses, so the two working faces of the terminal are made of the same
+	# thing. Two rows of it, with a hard shadow above, so the deck reads as
+	# standing proud of the ballast rather than painted onto it.
+	for x in range(x0, x1):
+		_pixel(img, x, y0, Color8(214, 206, 188))
+		_pixel(img, x, y0 + 1, Color8(196, 188, 172))
+		_pixel(img, x, y0 - 1, Color8(58, 54, 50))
+		_pixel(img, x, y0 - 2, Color8(78, 73, 68))
+	# Painted safety line, dashed, clear of the coping.
+	for x in range(x0 + 2, x1 - 2):
+		if (x / 3) % 2 == 0:
+			_pixel(img, x, y0 + 4, Color8(240, 188, 70))
+			_pixel(img, x, y0 + 5, Color8(196, 146, 44))
+	# Loading ramps: gaps in the platform face where a chassis backs on. Hatched
+	# in the same yellow as everything else on this terminal that means "a vehicle
+	# belongs here".
+	# Three, not four, and narrower. Four ramps at twenty-two pixels hatched
+	# almost the entire deck, and a platform that is all ramp is not a platform
+	# with ramps in it — it is a striped rectangle. The concrete between them is
+	# what makes them read as openings.
+	var ramp_w := 17
+	for ramp in 3:
+		var rx := x0 + 20 + ramp * ((x1 - x0 - 46) / 3)
+		for x in range(rx, mini(rx + ramp_w, x1 - 2)):
+			for y in range(y0 + 6, y1 - 2):
+				if (x + y) % 6 < 2:
+					_mix_pixel(img, x, y, Color8(212, 168, 74), 0.42)
+		for y in range(y0 + 6, y1 - 2):
+			_pixel(img, rx - 1, y, Color8(104, 100, 95))
+			_pixel(img, mini(rx + ramp_w, x1 - 2), y, Color8(104, 100, 95))
+	# Southern kerb and its shadow, so the apron ends rather than fading into the
+	# tarmac.
+	for x in range(x0, x1):
+		_pixel(img, x, y1 - 2, Color8(148, 142, 130))
+		_pixel(img, x, y1 - 1, Color8(74, 70, 66))
+	# Ends of the deck, so it terminates at both ends instead of being cropped.
+	for y in range(y0, y1):
+		_pixel(img, x0, y, Color8(120, 114, 105))
+		_pixel(img, x1 - 1, y, Color8(120, 114, 105))
+	# The gantry's own rails, one each side of the running line: a portal crane
+	# runs on steel, and painting them is what stops the machine above from
+	# reading as parked in mid-air.
+	for gy in [int(PortLayout.rail_y()) - 13, y0 + 8]:
+		for x in range(x0 + 4, x1 - 4):
+			_pixel(img, x, gy, Color8(88, 88, 94))
+			_pixel(img, x, gy - 1, Color8(172, 170, 162))
 
 
 static func _paint_track(img: Image, centre_y: int, x0: int, x1: int) -> void:

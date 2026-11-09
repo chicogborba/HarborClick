@@ -19,6 +19,20 @@
   player selected. The shop's orders board is where it is set, and
   `RailYard.report()` is the only readout the branch has — it runs along the
   bottom of the world where the camera never goes.
+  - **The baselines live here; what the player bought does not.** Rake length,
+    the service interval, the ramp dwell, the auto-worker rate and cap, and the
+    completion bonus are constants in these two files, because they are the rules
+    of the branch and have to be readable and testable without a save. The
+    `ramal` trunk of the upgrade tree moves them through
+    `GameState.rail_stat(stat, base)`, which adds flat before it multiplies.
+    Read a fitted figure through `RailYard.dwell_seconds()` /
+    `completion_seconds()` / `auto_rate()`, never off the constant.
+  - **Rake length is bounded by the ground, not by taste.**
+    `RailCargoPolicy.clamp_rake` holds it inside `MIN_RAKE..MAX_RAKE`, and
+    `PortLayout.rail_west_turnout_x` is *derived* from `MAX_RAKE` so the
+    run-around loop is always long enough to hold the loco clear of the tail of
+    the longest rake the shop can sell. Raising `MAX_RAKE` moves the painted
+    track with it; hardcoding either figure separately puts the loco on ballast.
 - `crane_allocation.gd` — pure standing-order policy: how one gang of bought
   equipment is divided between the berths being worked. Every berth used to be
   handed the whole port's move rate independently, so three hulls alongside
@@ -41,6 +55,8 @@
 - Truck plans have `drops >= lifts`.
 - Rail plans have `drops >= lifts` below `DRAIN_FILL`, and a rake is never
   worked while it is moving.
+- No fitted upgrade may produce a rake outside `MIN_RAKE..MAX_RAKE` or an
+  interval the dwell cannot clear — clamp at the call site, always.
 - No standing order suppresses the clearing service.
 - A completion bonus is settled from committed transfers, never from taps.
 - Every road *and rail* pickup uses the protected path in `PortWorld`.

@@ -19,6 +19,7 @@ var _tree: VBoxContainer
 var _focus_return: Control
 var _scroll: ScrollContainer
 var _viewport_clip: Control
+var _rows: Array[Dictionary] = []
 
 
 func setup(manager_or_callbacks: Variant, callbacks: Dictionary = {}) -> void:
@@ -95,10 +96,14 @@ func open() -> void:
 	_quoted = false
 	_summary.text = "Consulte a proposta antes de confirmar a reconstrução."
 	_confirm.text = "VER PROPOSTA"
+	# Shares are earned outside this dialog, so what is affordable changes while
+	# it is shut.
+	_refresh_tree()
 	_focus_return = get_viewport().gui_get_focus_owner()
 	_layout()
 	_confirm.grab_focus()
 	open_changed.emit(true)
+	UiTheme.pop_open(_panel, _backdrop)
 
 
 func close() -> void:
@@ -174,7 +179,16 @@ func _rebuild_line(quote: Dictionary) -> String:
 
 
 func _build_tree() -> void:
-	if _tree == null: return
+	## Built once, refreshed thereafter.
+	##
+	## It used to be built once and *never* refreshed, which meant a node you had
+	## just paid three golden shares for went on looking exactly like a node for
+	## sale — same button, same price, same everything — until the dialog was
+	## closed and the game restarted. The tree is the only thing a reset buys, and
+	## it was the one screen in the game that could not show you what you owned.
+	if _tree == null:
+		return
+	_rows.clear()
 	for branch: Dictionary in PrestigeDB.purchasable_branches():
 		var caption := UiTheme.label(str(branch.get("title", "Ramo")).to_upper(),
 			UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
@@ -184,39 +198,108 @@ func _build_tree() -> void:
 		# panel off screen because a PanelContainer can never be smaller than
 		# its content.
 		for node: Dictionary in branch.get("nodes", []):
+			var id := str(node.get("id", ""))
+			var card := UiTheme.panel(UiTheme.card_style(&"normal"))
+			card.mouse_filter = Control.MOUSE_FILTER_STOP
+			_tree.add_child(card)
 			var row := HBoxContainer.new()
-			row.add_theme_constant_override(&"separation", 4)
-			_tree.add_child(row)
-			var buy := UiTheme.button(_node_label(node), &"alt", UiTheme.SIZE_SMALL)
-			buy.clip_text = true
-			buy.tooltip_text = "%s - custa %d ação(ões) dourada(s)" \
-				% [_node_label(node), int(node.get("cost", 0))]
-			buy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			buy.custom_minimum_size = Vector2(40, 26)
-			buy.pressed.connect(_purchase.bind(StringName(node.get("id", ""))))
+			row.add_theme_constant_override(&"separation", 5)
+			row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			card.add_child(row)
+
+			var text_col := VBoxContainer.new()
+			text_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			text_col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			text_col.add_theme_constant_override(&"separation", 0)
+			text_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(text_col)
+			var title := UiTheme.label(str(node.get("title", id)),
+				UiTheme.SIZE_BODY, UiTheme.INK)
+			title.clip_text = true
+			text_col.add_child(title)
+			var effect := UiTheme.label(_node_label(node), UiTheme.SIZE_SMALL,
+				UiTheme.INK_SOFT)
+			effect.clip_text = true
+			text_col.add_child(effect)
+
+			var buy := UiTheme.button("", &"alt", UiTheme.SIZE_SMALL)
+			buy.custom_minimum_size = Vector2(58, 26)
+			buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			buy.pressed.connect(_purchase.bind(StringName(id)))
 			row.add_child(buy)
-			var price := UiTheme.stamp("%d" % int(node.get("cost", 0)),
-				UiTheme.AMBER, UiTheme.SIZE_SMALL)
-			price.custom_minimum_size.x = 30.0
-			row.add_child(price)
+			_rows.append({"id": id, "node": node, "card": card, "buy": buy,
+				"title": title, "effect": effect})
+	_refresh_tree()
+
+
+func _refresh_tree() -> void:
+	## Four states, told apart the way the shop tells them apart: owned, buyable,
+	## priced-but-unaffordable, and shut behind the node above it.
+	var shares := int(_call("shares", 0))
+	var owned: Dictionary = _call("owned_nodes", {})
+	for row: Dictionary in _rows:
+		var id := str(row.id)
+		var node: Dictionary = row.node
+		var cost := int(node.get("cost", 0))
+		var buy: Button = row.buy
+		var card: PanelContainer = row.card
+		var title: Label = row.title
+		var effect: Label = row.effect
+		if owned.has(StringName(id)):
+			buy.text = Loc.t("shop.map.owned")
+			buy.disabled = true
+			title.label_settings.font_color = UiTheme.TEAL_DEEP
+			effect.label_settings.font_color = UiTheme.TEAL_DEEP
+			UiTheme.apply_panel(card, UiTheme.card_style(&"done"))
+			continue
+		var missing := _missing_parent(node, owned)
+		if not missing.is_empty():
+			buy.text = "-"
+			buy.disabled = true
+			title.label_settings.font_color = UiTheme.INK_SOFT
+			effect.label_settings.font_color = UiTheme.INK_SOFT
+			effect.text = Loc.t("shop.upgrade.needs", {"name": missing})
+			UiTheme.apply_panel(card, UiTheme.card_style(&"locked"))
+			continue
+		effect.text = _node_label(node)
+		buy.text = "%d" % cost
+		buy.disabled = shares < cost
+		title.label_settings.font_color = \
+			UiTheme.INK if shares >= cost else UiTheme.INK_SOFT
+		effect.label_settings.font_color = UiTheme.INK_SOFT
+		UiTheme.apply_panel(card,
+			UiTheme.card_style(&"ready" if shares >= cost else &"normal"))
 
 
 func _node_label(node: Dictionary) -> String:
-	## Branch nodes are declarative effects with no authored title, so the label
-	## is derived from the effect itself and stays correct if the data changes.
+	## What the node does, in the units the player reads. Derived from the effect
+	## rather than authored beside it, so it cannot drift from the data — the
+	## *name* is authored, because "+20%" is not a name.
 	var effect: Dictionary = node.get("effect", {})
 	var value := float(effect.get("value", 0.0))
 	match StringName(effect.get("stat", "")):
-		&"cps_multiplier": return "+%d%%" % roundi(value * 100.0)
-		&"click_multiplier": return "+%d%% toque" % roundi(value * 100.0)
-		&"cps_per_tap": return "toque +%d%%/s" % roundi(value * 100.0)
-		&"offline_efficiency": return "offline %d%%" % roundi(value * 100.0)
-		&"offline_cap_seconds": return "limite %dh" % roundi(value / 3600.0)
-		&"route_reward_multiplier": return "rota +%d%%" % roundi(value * 100.0)
-		&"route_slots": return "+%d rota" % roundi(value)
-		&"event_reward_multiplier": return "evento +%d%%" % roundi(value * 100.0)
-		&"event_duration_multiplier": return "evento +%d%% dur." % roundi(value * 100.0)
+		&"cps_multiplier": return "+%d%% em tudo" % roundi(value * 100.0)
+		&"cps_per_kind": return "+%d%% por tipo de máquina" % roundi(value * 100.0)
+		&"click_multiplier": return "+%d%% por toque" % roundi(value * 100.0)
+		&"cps_per_tap": return "toque ganha %d%% da produção" % roundi(value * 100.0)
+		&"offline_efficiency": return "offline rende %d%%" % roundi(value * 100.0)
+		&"offline_cap_seconds": return "offline até %dh" % roundi(value / 3600.0)
+		&"route_reward_multiplier": return "rota paga +%d%%" % roundi(value * 100.0)
+		&"route_slots": return "+%d rota simultânea" % roundi(value)
+		&"event_reward_multiplier": return "evento paga +%d%%" % roundi(value * 100.0)
+		&"event_duration_multiplier": return "evento dura +%d%%" % roundi(value * 100.0)
 	return str(node.get("id", "no"))
+
+
+func _missing_parent(node: Dictionary, owned: Dictionary) -> String:
+	## The name of the first unbought prerequisite, or empty. Named rather than
+	## merely greyed: a locked row with no sentence is indistinguishable from a
+	## broken one, which is the lesson the shop already learned.
+	for required in node.get("requires", []):
+		if not owned.has(StringName(required)):
+			var parent := PrestigeDB.get_node(StringName(required))
+			return str(parent.get("title", required))
+	return ""
 
 
 func _purchase(id: StringName) -> void:
@@ -225,6 +308,10 @@ func _purchase(id: StringName) -> void:
 	if callback.is_valid():
 		callback.call(id)
 	node_purchase_requested.emit(id)
+	# The purchase has already been committed by whoever owns the economy, so the
+	# tree can simply re-read it. Without this the row you just bought went on
+	# advertising itself for sale until the game was restarted.
+	_refresh_tree()
 
 
 func _call(callback_name: String, fallback: Variant) -> Variant:

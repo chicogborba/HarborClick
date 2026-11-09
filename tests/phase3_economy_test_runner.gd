@@ -29,6 +29,10 @@ func _run() -> void:
 	test_absence_is_capped_and_discounted()
 	test_rebuild_estimate_answers_in_time()
 	test_wrong_build_is_worse_but_never_fatal()
+	test_upgrade_graph_is_sound()
+	test_exclusive_choices_are_swaps_not_traps()
+	test_saturating_bonus_bends_instead_of_stopping()
+	test_builds_diverge_and_both_stay_viable()
 	if failures.is_empty():
 		print("PHASE 3 ECONOMY TESTS PASSED")
 		get_tree().quit(0)
@@ -70,20 +74,35 @@ func test_runtime_catalog_integrity() -> void:
 			_expect(_close(float(structure.cost) / float(structure.cps), float(paybacks[structure_id])), "%s preserves its target payback" % structure_id)
 	_expect(structure_ids.size() == catalog_by_id.size(), "runtime structures cover every EconomyCatalog id")
 
+	# This block used to assert that every `structure_mult` was exactly ×2 and
+	# unlocked on exactly its own machine. That was a faithful test of the shelf
+	# the catalogue used to be — and the thing item 4 of the plan exists to end.
+	# What is checked now is that every node points somewhere real: the ×2 rule is
+	# gone deliberately, so asserting it would be asserting the defect.
 	var upgrade_ids: Dictionary = {}
 	for upgrade in UpgradeDB.ITEMS:
 		var upgrade_id := String(upgrade.id)
 		_expect(not upgrade_ids.has(upgrade_id), "%s upgrade id is unique" % upgrade_id)
 		upgrade_ids[upgrade_id] = true
-		if String(upgrade.kind) == "structure_mult":
-			var target := String(upgrade.get("target", ""))
-			_expect(structure_ids.has(target), "%s targets a valid structure" % upgrade_id)
-			_expect(_close(float(upgrade.value), 2.0), "%s doubles its structure CPS" % upgrade_id)
-			var unlock: Dictionary = upgrade.get("unlock", {})
-			var owned_unlock: Dictionary = unlock.get("owned", {})
-			_expect(owned_unlock.size() == 1 and owned_unlock.has(target), "%s unlock targets its structure" % upgrade_id)
-			if owned_unlock.has(target):
-				_expect(int(owned_unlock[target]) > 0, "%s owned unlock is positive" % upgrade_id)
+		for target in UpgradeDB.targets_of(upgrade):
+			_expect(structure_ids.has(target),
+				"%s targets a valid structure (%s)" % [upgrade_id, target])
+		if String(upgrade.get("kind", "")) == "synergy":
+			_expect(structure_ids.has(String(upgrade.get("per", ""))),
+				"%s counts a valid structure" % upgrade_id)
+			_expect(float(upgrade.get("value", 0.0)) > 0.0
+				and float(upgrade.get("cap", 0.0)) > 0.0,
+				"%s has a positive rate and ceiling" % upgrade_id)
+		if String(upgrade.get("kind", "")) == "transform":
+			_expect(UpgradeDB.targets_of(upgrade).size() == 1,
+				"%s transforms exactly one machine" % upgrade_id)
+			_expect(float(upgrade.get("self_mult", 1.0)) < 1.0,
+				"%s actually gives something up" % upgrade_id)
+		for sid: String in upgrade.get("unlock", {}).get("owned", {}):
+			_expect(structure_ids.has(sid),
+				"%s unlocks on a valid structure (%s)" % [upgrade_id, sid])
+			_expect(int(upgrade.unlock.owned[sid]) > 0,
+				"%s owned unlock is positive" % upgrade_id)
 
 
 func test_land_gates_the_ladder() -> void:
@@ -249,6 +268,111 @@ func test_wrong_build_is_worse_but_never_fatal() -> void:
 		"buying the worst option every time costs production")
 	_expect(wrong.purchases.size() > 1 and int(wrong.total_owned) > 0,
 		"the wrong build still progresses instead of stalling")
+
+
+func test_upgrade_graph_is_sound() -> void:
+	## The four ways this data can be wrong without any screen showing it: a
+	## dangling `requires`, a one-sided exclusion, a cycle, an unknown trunk. The
+	## cycle case is the dangerous one — `depth_of` recurses, so a loop is a hang
+	## on the first frame the shop is opened, not a wrong label.
+	_expect(UpgradeDB.is_valid(), "the upgrade graph validates")
+	for item in UpgradeDB.ITEMS:
+		var id := String(item.get("id", ""))
+		_expect(UpgradeDB.depth_of(id) >= 0, "%s has a finite depth" % id)
+		for parent in UpgradeDB.requires_of(item):
+			_expect(not UpgradeDB.get_item(parent).is_empty(),
+				"%s requires a node that exists (%s)" % [id, parent])
+			_expect(UpgradeDB.depth_of(parent) < UpgradeDB.depth_of(id),
+				"%s is drawn below its prerequisite" % id)
+		for other in UpgradeDB.excludes_of(item):
+			_expect(UpgradeDB.excludes_of(UpgradeDB.get_item(other)).has(id),
+				"%s and %s exclude each other both ways" % [id, other])
+
+
+func test_exclusive_choices_are_swaps_not_traps() -> void:
+	## "Cara mas possível" is the requirement, and it has two halves that a single
+	## boolean cannot express: the sibling has to actually come off, and the second
+	## pick has to cost more than the first did.
+	var pair: Array[String] = ["estoque_profundo", "giro_rapido"]
+	var first := UpgradeDB.get_item(pair[0])
+	var second := UpgradeDB.get_item(pair[1])
+	_expect(UpgradeDB.excludes_of(first).has(pair[1]),
+		"the yard's deep half excludes the fast half")
+	_expect(_close(UpgradeDB.price_for(second, {}), float(second.cost)),
+		"a first pick is the list price")
+	var owning_first := {pair[0]: true}
+	_expect(UpgradeDB.price_for(second, owning_first)
+		> float(second.cost) * 2.0,
+		"replacing the sibling costs a real surcharge")
+	_expect(UpgradeDB.conflicts_with(second, owning_first) == pair.slice(0, 1),
+		"the swap names exactly what comes off")
+	# The conductors are the same rule expressed as a group rather than a pair, so
+	# a terminal can only ever be run by one thing at a time.
+	var conductors: Array[String] = []
+	for item in UpgradeDB.ITEMS:
+		if String(item.get("group", "")) == "conductor":
+			conductors.append(String(item.id))
+	_expect(conductors.size() >= 3, "there is a real choice of identity")
+	for id in conductors:
+		var excludes := UpgradeDB.excludes_of(UpgradeDB.get_item(id))
+		for other in conductors:
+			_expect(other == id or excludes.has(other),
+				"%s excludes the other identities (%s)" % [id, other])
+
+
+func test_saturating_bonus_bends_instead_of_stopping() -> void:
+	## The curve every synergy and conductor is paid on. A hard cap put a cliff in
+	## the middle of a strategy; this has to start at the rate the card quotes,
+	## never stop rewarding another unit, and never reach the ceiling.
+	var rate := 0.02
+	var ceiling := 3.0
+	_expect(_close(EconomyMath.saturating_bonus(rate, ceiling, 0), 0.0),
+		"an empty fleet is worth nothing")
+	var previous := 0.0
+	for count in [1, 5, 25, 100, 400, 5000]:
+		var bonus := EconomyMath.saturating_bonus(rate, ceiling, count)
+		_expect(bonus > previous, "unit %d is still worth something" % count)
+		_expect(bonus < ceiling, "the bonus never reaches its ceiling")
+		previous = bonus
+	# At small counts it should read as roughly the flat rate the card promises,
+	# or the card is lying about the first purchase a player makes.
+	_expect(absf(EconomyMath.saturating_bonus(rate, ceiling, 5) - rate * 5.0)
+		< rate * 5.0 * 0.15, "the first few units pay about the quoted rate")
+
+
+func test_builds_diverge_and_both_stay_viable() -> void:
+	## Item 4's acceptance, stated as what the sandbox can actually prove.
+	##
+	## Two agents, identical in every field but which half of the tree they
+	## committed to, have to end up strong *for different reasons* and neither may
+	## be a trap. What is deliberately **not** asserted is a large difference in
+	## fleet headcount: with one shared `1.15^n` curve a ×M multiplier moves a
+	## machine's equilibrium count by only ln(M)/ln(1.15) units, so both ports
+	## converge on a similar pyramid however they are played. That gap is real and
+	## it is written down in the plan rather than papered over here.
+	var wide := EconomySimulator.run_scenario(&"build_wide")
+	var tall := EconomySimulator.run_scenario(&"build_tall")
+	var wide_rate := float(wide.production_per_second)
+	var tall_rate := float(tall.production_per_second)
+	_expect(wide_rate > 0.0 and tall_rate > 0.0, "both builds produce something")
+	var ratio := maxf(wide_rate, tall_rate) / maxf(1.0, minf(wide_rate, tall_rate))
+	# The `wrong_buy` benchmark says playing badly costs about 2.4×. A build that
+	# cost more than that would not be a strategy, it would be a mistake with a
+	# name, so this is the line neither side may cross.
+	_expect(ratio < 2.4, "neither build is worse than simply playing badly (%.2fx)"
+		% ratio)
+	_expect(float(wide.conductor_multiplier) > 1.0
+		and float(tall.conductor_multiplier) > 1.0,
+		"each build ends up run by an identity it chose")
+	var wide_set := {}
+	for id in wide.upgrades:
+		wide_set[String(id)] = true
+	var different := 0
+	for id in tall.upgrades:
+		if not wide_set.has(String(id)):
+			different += 1
+	_expect(different >= 2,
+		"the two builds ended on genuinely different nodes (%d)" % different)
 
 
 func _close(a: float, b: float, tolerance: float = 0.00001) -> bool:

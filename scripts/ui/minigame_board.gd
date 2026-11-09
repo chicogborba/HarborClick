@@ -134,6 +134,7 @@ func open(offer: Dictionary) -> void:
 	_begin(_offer)
 	open_changed.emit(true)
 	AudioManager.play_sfx("horn", 0.03, -3.0)
+	UiTheme.pop_open(_board, _scrim)
 
 
 func is_open() -> bool:

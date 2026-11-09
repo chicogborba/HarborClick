@@ -7,13 +7,13 @@ signal step_changed(index: int, step: Dictionary)
 signal finished(skipped: bool)
 
 const STEPS := [
-	{"id":"navio", "title":"NAVIO ATRACADO", "text":"Toque no navio para mover carga.", "target":"ship"},
-	{"id":"teu", "title":"CONTADOR TEU", "text":"Aqui chega a receita do cais.", "target":"teu"},
-	{"id":"meta", "title":"META DO TURNO", "text":"Acompanhe a próxima operação.", "target":"objective"},
-	{"id":"diario", "title":"DIÁRIO DO PORTO", "text":"Fixe uma meta para o próximo turno.", "target":"journal"},
-	{"id":"loja", "title":"PRANCHETA", "text":"Contrate equipe e equipamento.", "target":"shop"},
-	{"id":"capital", "title":"CAPITAL", "text":"Reconstrua o porto quando o botão de ações aparecer.", "target":"prestige"},
-	{"id":"rotas", "title":"ROTAS DE CARGA", "text":"Novas rotas aparecerão no Diário conforme o porto cresce.", "target":"routes"},
+	{"id":"navio", "title":"spot.ship.title", "text":"spot.ship.text", "target":"ship"},
+	{"id":"teu", "title":"spot.teu.title", "text":"spot.teu.text", "target":"teu"},
+	{"id":"meta", "title":"spot.goal.title", "text":"spot.goal.text", "target":"objective"},
+	{"id":"diario", "title":"spot.journal.title", "text":"spot.journal.text", "target":"journal"},
+	{"id":"loja", "title":"spot.shop.title", "text":"spot.shop.text", "target":"shop"},
+	{"id":"capital", "title":"spot.capital.title", "text":"spot.capital.text", "target":"prestige"},
+	{"id":"rotas", "title":"spot.routes.title", "text":"spot.routes.text", "target":"routes"},
 ]
 
 var _callbacks: Dictionary = {}
@@ -60,7 +60,7 @@ func _ready() -> void:
 	skip.custom_minimum_size = Vector2(60, 26)
 	skip.pressed.connect(func() -> void: _finish(true))
 	actions.add_child(skip)
-	var next_button := UiTheme.button("PRÓXIMO", &"amber", UiTheme.SIZE_SMALL)
+	var next_button := UiTheme.button(Loc.t("spot.next"), &"amber", UiTheme.SIZE_SMALL)
 	next_button.custom_minimum_size.y = 26.0
 	next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	next_button.pressed.connect(next)
@@ -103,8 +103,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _show_step() -> void:
 	var step: Dictionary = STEPS[_index]
-	_title.text = str(step.title)
-	_body.text = str(step.text)
+	# The table holds keys, not sentences: resolving here means a language change
+	# mid-tour reflows the card instead of leaving the tour in the language it
+	# started in.
+	_title.text = Loc.t(str(step.title))
+	_body.text = Loc.t(str(step.text))
 	_veil.cutout = _target_rect().grow(5.0)
 	_veil.reduced_motion = _reduced_motion()
 	_veil.queue_redraw()

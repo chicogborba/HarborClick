@@ -81,6 +81,7 @@ func open() -> void:
 	visible = true
 	_layout()
 	open_changed.emit(true)
+	UiTheme.pop_open(_panel, _dim)
 
 
 func close() -> void:
@@ -104,7 +105,13 @@ func _refresh() -> void:
 	for child in _rows.get_children():
 		child.queue_free()
 	for entry in GameState.cps_breakdown():
-		_rows.add_child(_row(String(entry.label), _value_text(entry)))
+		# A factor of exactly one changed nothing, and six rows of "x1.00" are six
+		# rows the eye has to read before it finds the one that moved. They stay on
+		# the panel — the formula has to be complete or it is a description of
+		# itself again — but they are printed in the paper's own shadow, so what is
+		# actually multiplying the port is what stands out.
+		_rows.add_child(_row(String(entry.label), _value_text(entry),
+			_is_inert(entry)))
 	_total.text = "= %s TEU/s" % GameState.fmt(GameState.cps)
 
 
@@ -117,13 +124,23 @@ static func _value_text(entry: Dictionary) -> String:
 	return "x%.2f" % value if value < 10.0 else "x%s" % GameState.fmt(value)
 
 
-func _row(name_text: String, value_text: String) -> HBoxContainer:
+static func _is_inert(entry: Dictionary) -> bool:
+	## A multiplier that is exactly one. The base row is never inert — a port that
+	## produces nothing is a fact worth printing loudly.
+	return String(entry.get("kind", "mult")) != "base" \
+		and is_equal_approx(float(entry.get("value", 1.0)), 1.0)
+
+
+func _row(name_text: String, value_text: String,
+		inert: bool = false) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 4)
-	var label := UiTheme.label(name_text, UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	var name_ink := UiTheme.PAPER_DEEP if inert else UiTheme.INK_SOFT
+	var value_ink := UiTheme.PAPER_DEEP if inert else UiTheme.INK
+	var label := UiTheme.label(name_text, UiTheme.SIZE_SMALL, name_ink)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(label)
-	var value := UiTheme.label(value_text, UiTheme.SIZE_SMALL, UiTheme.INK)
+	var value := UiTheme.label(value_text, UiTheme.SIZE_SMALL, value_ink)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(value)
 	return row
