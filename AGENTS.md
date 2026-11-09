@@ -98,6 +98,6 @@ Set `GODOT_BIN` when Godot is installed elsewhere.
 
 The Web preset writes `build/web/index.html`. `build/*`, `tools/*`, and
 `tests/*` are excluded from the game pack. Production requires COOP/COEP/CORP
-headers for Godot Web; see `deploy/nginx-harborclick.conf` and
+headers for Godot Web; see `deploy/docker-compose.yml` (Traefik labels) and
 [`docs/architecture/testing-release.md`](docs/architecture/testing-release.md).
 

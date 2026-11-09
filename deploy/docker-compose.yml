@@ -1,0 +1,31 @@
+# HarborClick: static Godot Web build behind the shared Traefik edge.
+# Releases land in /var/www/harborclick-deploy (see harborclick-deploy-release);
+# nginx serves whatever current points at, so deploys never touch this file.
+name: harborclick
+
+services:
+  web:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - /var/www/harborclick-deploy:/srv:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [edge]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=rialto_default
+      - traefik.http.routers.harborclick.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.harborclick.entrypoints=websecure
+      - traefik.http.routers.harborclick.tls.certresolver=le
+      - traefik.http.routers.harborclick.middlewares=harborclick-headers
+      - traefik.http.services.harborclick.loadbalancer.server.port=80
+      # Godot Web needs cross-origin isolation for SharedArrayBuffer.
+      - traefik.http.middlewares.harborclick-headers.headers.customResponseHeaders.Cross-Origin-Opener-Policy=same-origin
+      - traefik.http.middlewares.harborclick-headers.headers.customResponseHeaders.Cross-Origin-Embedder-Policy=require-corp
+      - traefik.http.middlewares.harborclick-headers.headers.customResponseHeaders.Cross-Origin-Resource-Policy=same-origin
+      - traefik.http.middlewares.harborclick-headers.headers.contentTypeNosniff=true
+
+networks:
+  edge:
+    name: rialto_default
+    external: true

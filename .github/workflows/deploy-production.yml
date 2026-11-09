@@ -16,7 +16,7 @@ concurrency:
 env:
   GODOT_VERSION: 4.7.1-stable
   GODOT_TEMPLATE_VERSION: 4.7.1.stable
-  DEPLOY_HOST: 142.93.242.85
+  DEPLOY_HOST: 169.58.108.100
   DEPLOY_USER: harborclick-deploy
 
 jobs:
