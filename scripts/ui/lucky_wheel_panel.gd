@@ -228,7 +228,16 @@ func open() -> void:
 	_detail.visible = false
 	_refresh_status()
 	_layout()
+	# The board fits its content one frame after its width is set (the labels
+	# wrap to that width), and pop_open captures board.position as the final
+	# resting point — let the layout settle first or the board animates to a
+	# stale, off-screen position.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not visible:
+		return
 	open_changed.emit(true)
+	UiTheme.pop_open(_board, _scrim)
 	if _spin_button.disabled:
 		_close_button.grab_focus()
 	else:
@@ -285,6 +294,9 @@ func apply_view_metrics(metrics: Dictionary) -> void:
 	_layout()
 
 
+var _layout_pending := false
+
+
 func _layout() -> void:
 	if _board == null or not is_instance_valid(_board):
 		return
@@ -292,6 +304,18 @@ func _layout() -> void:
 	if safe.size == Vector2.ZERO:
 		safe = Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
 	var width := minf(300.0, safe.size.x - 16.0)
+	# Width first, height one frame later. The labels wrap to the board's
+	# width, so a height measured before that width has propagated through the
+	# container is a fantasy — at width 0 an autowrapped label reports dozens of
+	# lines, and the board ended up taller than the screen, clipped at the top.
+	_board.size = Vector2(width, _board.size.y)
+	if _layout_pending:
+		return
+	_layout_pending = true
+	await get_tree().process_frame
+	_layout_pending = false
+	if _board == null or not is_instance_valid(_board):
+		return
 	# Fitted to the content, capped at the safe area. The board's own content
 	# margin is 11 on every side (board_style(11)).
 	var content_h := _column.get_combined_minimum_size().y + 22.0

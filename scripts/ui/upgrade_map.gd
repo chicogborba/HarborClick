@@ -156,7 +156,11 @@ func _recompute_bounds(height: float) -> void:
 	var max_x := MARGIN.x
 	for id: String in _nodes:
 		max_x = maxf(max_x, float(_nodes[id].pos.x))
-	_bounds = Rect2(Vector2.ZERO, Vector2(max_x + MARGIN.x, height))
+	# Labels are centred on their station and nearly a column wide, so the
+	# bounds need that much room past the last station or the easternmost names
+	# are clipped by clip_contents exactly when the player pans fully east.
+	_bounds = Rect2(Vector2.ZERO,
+		Vector2(max_x + MARGIN.x + COL_W * 0.5 + 8.0, height))
 
 
 func map_size() -> Vector2:
@@ -345,9 +349,18 @@ func _draw_station(id: String) -> void:
 	# of it.
 	var label := UpgradeDB.short_of(item)
 	var ink := UiTheme.INK if state != 0 else UiTheme.INK_SOFT
-	draw_string(UiTheme.FONT, at + Vector2(-COL_W * 0.5 * _zoom + 4.0,
-		radius + 11.0 * _zoom), label, HORIZONTAL_ALIGNMENT_CENTER,
+	var label_at := at + Vector2(-COL_W * 0.5 * _zoom + 4.0,
+		radius + 11.0 * _zoom)
+	draw_string(UiTheme.FONT, label_at, label, HORIZONTAL_ALIGNMENT_CENTER,
 		COL_W * _zoom - 8.0, UiTheme.SIZE_SMALL, ink)
+	# A station that can be bought right now shows its price under the name, so
+	# the map itself answers "what does this one cost" without a tap.
+	if state == 1:
+		var cost := "%s TEU" % GameState.fmt(float(item.get("cost", 0.0)))
+		draw_string(UiTheme.FONT,
+			label_at + Vector2(0.0, 11.0 * _zoom), cost,
+			HORIZONTAL_ALIGNMENT_CENTER, COL_W * _zoom - 8.0,
+			UiTheme.SIZE_SMALL, UiTheme.AMBER.darkened(0.2))
 
 
 func _line_colour(branch: String) -> Color:

@@ -98,6 +98,7 @@ func _run() -> void:
 	await _test_traffic_denial_and_actor_teardown_release_delivery()
 	await _test_reload_mid_discharge_and_loading()
 	await _test_one_hundred_accelerated_calls()
+	await _test_a_call_completes_with_every_upgrade_owned()
 	_test_the_berth_never_ends_up_with_nothing_to_do()
 	# Last, because it empties the yard to set up the comparison it needs.
 	_test_the_yard_has_a_direction()
@@ -595,6 +596,32 @@ func _test_one_hundred_accelerated_calls() -> void:
 			% [expected, all_seen.size()])
 	_expect(expected >= 100 * PortLayout.SHIP_BAY_COLS * 4,
 		"and the run really did move a hundred full calls (%d boxes)" % expected)
+
+
+func _test_a_call_completes_with_every_upgrade_owned() -> void:
+	## "Never wedged by an upgrade": own the entire catalogue at once — every
+	## transform, synergy and conductor gutting a machine — then run full calls.
+	## Discharge, export loading and departure must all still complete, because
+	## no upgrade may touch the manifest, the cranes' ability to move a box, or
+	## the starvation watchdog.
+	for item in UpgradeDB.ITEMS:
+		GameState.upgrades[str(item.id)] = true
+	GameState.teus = 1e18
+	GameState.lifetime_teus = 1e18
+	GameState.all_time_teus = 1e18
+	GameState.recompute()
+	for call_index in 5:
+		_reset_call(9000 + call_index)
+		var result := _complete_call("all-upgrades call %03d" % call_index)
+		_expect(result.imports.size() == _world.ship.bay_capacity()
+			and result.exports.size() == _world.ship.bay_capacity(),
+			"all-upgrades call %03d handles a full deck each way" % call_index)
+		_expect(_world.ship.phase == Ship.Phase.DEPARTING,
+			"all-upgrades call %03d departs with every upgrade owned" % call_index)
+		_drain_imports_via_gate()
+		await get_tree().process_frame
+	GameState.upgrades.clear()
+	GameState.recompute()
 
 
 func _reset_call(test_seed: int) -> void:

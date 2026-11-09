@@ -753,6 +753,13 @@ func _run(size: Vector2i) -> void:
 		await _shot("rate")
 		_main.rate_breakdown.close()
 		await get_tree().create_timer(0.2).timeout
+	if _wants("wheel"):
+		_main.wheel_panel.open()
+		await get_tree().create_timer(0.3).timeout
+		_check("wheel", _main.wheel_panel._board, size)
+		await _shot("wheel")
+		_main.wheel_panel.close()
+		await get_tree().create_timer(0.2).timeout
 	if _wants("offline"):
 		await _capture_offline(size)
 

@@ -89,9 +89,9 @@ Inventory: **201 authored code/config/scene files**.
 | `scripts/ui/command_rail.gd` | 405 | class `CommandRail`; 20 functions | The console under the thumb: what to do next, and every key that opens a board. |
 | `scripts/ui/crane_minigame.gd` | 410 | class `CraneMinigame`; 22 functions | The charter, played by hand: a trolley running the well and one tap to let go. |
 | `scripts/ui/hud.gd` | 167 | class `Hud`; 14 functions | The gantry across the top of the port: the tally, the clock and the berth. |
-| `scripts/ui/lucky_wheel_panel.gd` | 511 | class `LuckyWheelPanel`; 24 functions | The Roda da Sorte board: the carnival wheel bolted to a clipboard, opened |
+| `scripts/ui/lucky_wheel_panel.gd` | 535 | class `LuckyWheelPanel`; 24 functions | The Roda da Sorte board: the carnival wheel bolted to a clipboard, opened |
 | `scripts/ui/maze_minigame.gd` | 406 | class `MazeMinigame`; 17 functions | The second charter game: a yard you have to find your way out of. |
-| `scripts/ui/minigame_board.gd` | 217 | class `MinigameBoard`; 22 functions | The shell every charter minigame is played on: the scrim, the board, the three |
+| `scripts/ui/minigame_board.gd` | 243 | class `MinigameBoard`; 22 functions | The shell every charter minigame is played on: the scrim, the board, the three |
 | `scripts/ui/notice_bell.gd` | 296 | class `NoticeBell`; 18 functions | Notices, collected on a bell instead of thrown across the port. |
 | `scripts/ui/notification_coordinator.gd` | 148 | class `NotificationCoordinator`; 10 functions | One place decides whether something deserves the player's attention. |
 | `scripts/ui/npc_card.gd` | 291 | class `NpcCard`; 15 functions | Somebody's staff badge: their face, their name, their trade, and the one job |
@@ -113,7 +113,7 @@ Inventory: **201 authored code/config/scene files**.
 | `scripts/ui/tutorial.gd` | 228 | class `Tutorial`; 12 functions | Seu Waldemar walks new players through the first minute. |
 | `scripts/ui/tutorial_spotlight.gd` | 164 | class `TutorialSpotlight`; 13 functions | Seven data-driven harbour orientation steps. Target callbacks can return a |
 | `scripts/ui/ui_theme.gd` | 776 | class `UiTheme`; 57 functions | The one place the interface is described. |
-| `scripts/ui/upgrade_map.gd` | 470 | class `UpgradeMap`; 27 functions | The upgrade catalogue as the thing it actually is: a network diagram. |
+| `scripts/ui/upgrade_map.gd` | 483 | class `UpgradeMap`; 27 functions | The upgrade catalogue as the thing it actually is: a network diagram. |
 | `scripts/ui/wheel_button.gd` | 138 | class `WheelButton`; 8 functions | The Roda da Sorte's key: a small steel key under the gantry's left end, with |
 | `scripts/world/atmosphere.gd` | 254 | class `Atmosphere`; 14 functions | Day/night lighting for the top-down port: global tint, flood-light masts |
 | `scripts/world/cargo_relay.gd` | 349 | class `CargoRelay`; 19 functions | The visible chain of custody for one container. |
@@ -146,7 +146,7 @@ Inventory: **201 authored code/config/scene files**.
 | `tests/automation_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/backup_test_runner.gd` | 96 | 6 functions | Manual save export/import contract. |
 | `tests/backup_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/cargo_test_runner.gd` | 792 | 32 functions | Integration suite for cargo phases 1-2. |
+| `tests/cargo_test_runner.gd` | 819 | 33 functions | Integration suite for cargo phases 1-2. |
 | `tests/cargo_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/contrast_test_runner.gd` | 109 | 6 functions | WCAG contrast proof for the interface palette. |
 | `tests/contrast_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -200,7 +200,7 @@ Inventory: **201 authored code/config/scene files**.
 | `tools/audio/gen_sfx.py` | 319 | 21 functions | All HarborClick sound effects, generated from code. |
 | `tools/audio/synth.py` | 132 | 11 functions | Tiny chiptune synth: pure stdlib (wave/struct/math). 22050 Hz, 16-bit mono. |
 | `tools/balance/run_balance.gd` | 49 | 3 functions | Usage: Godot --headless --path . -s res://tools/balance/run_balance.gd -- [scenario] [--json] |
-| `tools/capture/capture.gd` | 915 | 12 functions | Headed screenshot harness. Boots the real game scene, drives the overlays and |
+| `tools/capture/capture.gd` | 922 | 12 functions | Headed screenshot harness. Boots the real game scene, drives the overlays and |
 | `tools/capture/capture.tscn` | 6 | 1 nodes | Godot scene |
 | `tools/capture/closeup.gd` | 113 | 4 functions | One close-up of the running game, for judging art at the pixel. |
 | `tools/capture/closeup.tscn` | 6 | 1 nodes | Godot scene |

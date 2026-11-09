@@ -131,6 +131,12 @@ func open(offer: Dictionary) -> void:
 	_title.text = str(_offer.get("title", "Escala especial"))
 	visible = true
 	_layout()
+	# pop_open captures board.position as the resting point; the layout above
+	# settles one frame after the width is set, so let it land first.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not visible:
+		return
 	_begin(_offer)
 	open_changed.emit(true)
 	AudioManager.play_sfx("horn", 0.03, -3.0)
@@ -197,19 +203,39 @@ func apply_view_metrics(metrics: Dictionary) -> void:
 	_layout()
 
 
+var _layout_pending := false
+
+
 func _layout() -> void:
 	if _board == null or not is_instance_valid(_board):
 		return
 	var safe := _safe()
-	_board.size = Vector2(minf(300.0, safe.size.x - 16.0),
+	var width := minf(300.0, safe.size.x - 16.0)
+	# Width first, height one frame later — the same trap as the wheel panel:
+	# measured before the width propagates, the autowrapped labels report a
+	# fantasy minimum height and the engine grows the board past the screen.
+	_board.size = Vector2(width, _board.size.y)
+	if _layout_pending:
+		return
+	_layout_pending = true
+	await get_tree().process_frame
+	_layout_pending = false
+	if _board == null or not is_instance_valid(_board):
+		return
+	_board.size = Vector2(width,
 		minf(maxf(300.0, safe.size.y * 0.82), safe.size.y - 16.0))
 	_board.position = _board_home()
 
 
 func _safe() -> Rect2:
-	if _safe_rect.size != Vector2.ZERO:
-		return _safe_rect
-	return Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
+	var view := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
+	if _safe_rect.size == Vector2.ZERO:
+		return view
+	# Metrics can lag a window resize by a frame. Never trust a safe rect larger
+	# than the live viewport: a board sized for a screen that no longer exists
+	# spills off the real one (the 320x568 matrix pass caught exactly that).
+	var clipped := _safe_rect.intersection(view)
+	return clipped if clipped.size.x > 0.0 and clipped.size.y > 0.0 else view
 
 
 func _board_home() -> Vector2:
