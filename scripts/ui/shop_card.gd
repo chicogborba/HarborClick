@@ -33,6 +33,9 @@ var _sub_label: Label
 var _count_stamp: PanelContainer
 var _count_label: Label
 var _price_stamp: PanelContainer
+## Pulses once when the card becomes affordable — the moment "I can buy this"
+# arrives should be visible, not just a colour change.
+var _was_affordable := false
 var _price_label: Label
 var _price_col: VBoxContainer
 var _blurb := ""
@@ -160,11 +163,19 @@ func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false,
 		_price_label.text = "PRONTO"
 		_price_label.label_settings.font_color = UiTheme.TEAL_LIGHT
 		_apply_state(&"done")
+		_was_affordable = true
 	else:
 		_price_label.text = GameState.fmt(cost)
 		_price_label.label_settings.font_color = \
 			UiTheme.AMBER if affordable else UiTheme.SLATE_DIM
 		_apply_state(&"ready" if affordable else &"normal")
+		var became_affordable := affordable and not _was_affordable
+		_was_affordable = affordable
+		if became_affordable and UserPreferences.can_animate():
+			var pulse := create_tween()
+			pulse.tween_property(_price_stamp, "modulate", Color(1.7, 1.55, 1.15), 0.09) \
+				.from(Color.WHITE)
+			pulse.tween_property(_price_stamp, "modulate", Color.WHITE, 0.24)
 	_count_stamp.visible = count > 0
 	_count_label.text = "x%d" % count
 

@@ -135,9 +135,17 @@ func _confirm_or_quote() -> void:
 		# "Nonexistent 'float' constructor" every time the button was pressed —
 		# which meant `_quoted` never flipped and the reset could never be
 		# confirmed from this dialog at all.
-		_summary.text = "Ganho: %s ações  -  Pico: %d máquinas  -  Reconstrução: %s\n%s" % [
+		# D9: the gain is promised, so show the last run next to this one —
+		# "run anterior × esta" makes the reset visible instead of promised.
+		var compare := ""
+		var last: Dictionary = GameState.last_run_summary
+		if not last.is_empty():
+			compare = "\nRun anterior: %s TEU  -  esta: %s TEU" % [
+				GameState.fmt(float(last.get("run_teus", 0.0))),
+				GameState.fmt(GameState.run_teus)]
+		_summary.text = "Ganho: %s ações  -  Pico: %d máquinas  -  Reconstrução: %s\n%s%s" % [
 			str(quote.get("gain", 0)), _peak_units(quote),
-			str(quote.get("rebuild_discount", "0%")), _rebuild_line(quote)]
+			str(quote.get("rebuild_discount", "0%")), _rebuild_line(quote), compare]
 		_confirm.text = "CONFIRMAR RECONSTRUÇÃO"
 		_quoted = true
 		return
