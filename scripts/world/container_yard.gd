@@ -435,10 +435,16 @@ func restore_reserved_taken(taken: Dictionary, token: String) -> bool:
 func restore_taken(taken: Dictionary) -> bool:
 	if taken.is_empty() or not taken.has("unit"):
 		return false
-	var slot := int(taken.slot)
-	var level := _settled(slot)
-	if slot < 0 or slot >= _levels.size() or level >= PortLayout.STACK_MAX:
-		return false
+	# A rolled-back transfer goes back to its exact former berth first; only
+	# if that spot was claimed meanwhile does it fall back to the shallowest
+	# stack in its sector.
+	var slot := int(taken.get("slot", -1))
+	var level := int(taken.get("level", -1))
+	if slot >= 0 and slot < _levels.size() and level >= 0 \
+			and level < PortLayout.STACK_MAX:
+		var token := _reserve_exact(slot, level, "restore")
+		if not token.is_empty() and place_unit(slot, level, taken.unit, token):
+			return true
 	var sector: StringName = taken.unit.sector
 	var landing := pick_landing_slot(sector)
 	if not landing.is_empty():

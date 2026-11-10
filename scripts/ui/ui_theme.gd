@@ -62,6 +62,9 @@ const HULL_EDGE := Color8(16, 22, 34)
 ## The dark glass a lit number sits behind, and the two inks that light up on it.
 const GLASS := Color8(25, 31, 46)
 const DIGIT := Color8(252, 202, 96)
+## An undriven totaliser cell: dark enough to read as "off", light enough to
+## read as a segment of the display rather than as a hole in the glass.
+const DIGIT_UNLIT := Color8(78, 96, 128)
 ## Text on steel. `STEEL_DIM` is the quiet one — deliberately lighter than
 ## `SLATE_DIM`, which is tuned for the near-black slate of a price stamp and
 ## drops under AA on the lighter navy.

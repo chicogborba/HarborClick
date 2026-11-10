@@ -15,6 +15,7 @@ var _backdrop: ColorRect
 var _panel: PanelContainer
 var _summary: Label
 var _confirm: Button
+var _branches_label: Label
 var _tree: VBoxContainer
 var _focus_return: Control
 var _scroll: ScrollContainer
@@ -63,9 +64,9 @@ func _ready() -> void:
 	_confirm.custom_minimum_size.y = 28.0
 	_confirm.pressed.connect(_confirm_or_quote)
 	col.add_child(_confirm)
-	var label := UiTheme.label("CAPITAL DO PORTO - %d RAMOS"
+	_branches_label = UiTheme.label("CAPITAL DO PORTO - %d RAMOS"
 		% PrestigeDB.purchasable_branches().size(), UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
-	col.add_child(label)
+	col.add_child(_branches_label)
 	var sheet := UiTheme.panel(UiTheme.paper_style(4))
 	sheet.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(sheet)
@@ -83,10 +84,17 @@ func _ready() -> void:
 	_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	UiTheme.style_scroll(_scroll)
 	_viewport_clip.add_child(_scroll)
+	# Gutter for the reserved scrollbar so the buy keys on the right edge of
+	# each row are not drawn under the grip.
+	var gutter := MarginContainer.new()
+	gutter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gutter.add_theme_constant_override(&"margin_right",
+		int(UiTheme.SCROLL_WIDTH) + 2)
+	_scroll.add_child(gutter)
 	_tree = VBoxContainer.new()
 	_tree.add_theme_constant_override(&"separation", 4)
 	_tree.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_scroll.add_child(_tree)
+	gutter.add_child(_tree)
 	_build_tree()
 	_layout()
 
@@ -97,8 +105,9 @@ func open() -> void:
 	_summary.text = "Consulte a proposta antes de confirmar a reconstrução."
 	_confirm.text = "VER PROPOSTA"
 	# Shares are earned outside this dialog, so what is affordable changes while
-	# it is shut.
-	_refresh_tree()
+	# it is shut. Branches also unlock with level (C6 opens Routes/Events at 8),
+	# so the tree and its header are rebuilt on every open, not just at boot.
+	_rebuild_tree()
 	_focus_return = get_viewport().gui_get_focus_owner()
 	_layout()
 	_confirm.grab_focus()
@@ -163,7 +172,7 @@ static func rebuild_line(seconds: float) -> String:
 		return "Este pico leva mais de 4h para voltar."
 	if seconds <= 0.0:
 		return "Não há produção a recuperar."
-	return "Você recupera este ritmo em ~%s jogando." \
+	return "Você recupera este ritmo em cerca de %s jogando." \
 		% OfflinePopup.format_duration(seconds)
 
 
@@ -184,6 +193,25 @@ func _peak_units(quote: Dictionary) -> int:
 
 func _rebuild_line(quote: Dictionary) -> String:
 	return rebuild_line(float(quote.get("rebuild_seconds", -1.0)))
+
+
+func _rebuild_tree() -> void:
+	## Tear the tree down and build it again. Needed on every open because the
+	## branch set itself depends on level (C6 unlocks Routes/Events at 8), and a
+	## tree built at boot went stale the first time a branch appeared.
+	if _tree == null:
+		return
+	for child in _tree.get_children():
+		# remove_child first: queue_free alone leaves the node counted as a
+		# child until the end of the frame, and anything reading the tree in
+		# that window (tests, layout) sees double.
+		_tree.remove_child(child)
+		child.queue_free()
+	_rows.clear()
+	_build_tree()
+	if _branches_label != null:
+		_branches_label.text = "CAPITAL DO PORTO - %d RAMOS" \
+			% PrestigeDB.purchasable_branches().size()
 
 
 func _build_tree() -> void:

@@ -176,9 +176,12 @@ func _layout() -> void:
 	var width := minf(_safe_rect.size.x - 16.0, 420.0)
 	_panel.custom_minimum_size = Vector2(width, 0)
 	_panel.size = Vector2(width, _panel.get_combined_minimum_size().y)
+	# Above the command rail, not under it: the rail owns the bottom strip
+	# (CommandRail.BAR_H), and a tutorial card parked at the very bottom edge
+	# drew over the SHOP key on a 320px phone.
 	_panel.position = Vector2(
 		_safe_rect.get_center().x - width * 0.5,
-		_safe_rect.end.y - _panel.size.y - 10.0)
+		_safe_rect.end.y - CommandRail.BAR_H - 6.0 - 8.0 - _panel.size.y)
 	_label.custom_minimum_size.x = maxf(150.0, width - 78.0)
 
 

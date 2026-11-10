@@ -726,6 +726,16 @@ const STRINGS := {
 	"ru": "Переместите всего {amount} TEU, чтобы открыть.",
 	"pl": "Przenieś łącznie {amount} TEU, aby odblokować.",
 	"tr": "Kilidi açmak için toplam {amount} TEU taşıyın."},
+"shop.land.done": {
+	"pt_BR": "Todo o terreno em volta do porto ja e seu.",
+	"en": "All the land around the port is already yours.",
+	"es": "Toda la tierra alrededor del puerto ya es tuya.",
+	"fr": "Toute la terre autour du port est déjà à vous.",
+	"de": "Alles Land um den Hafen herum gehört bereits Ihnen.",
+	"it": "Tutto il terreno intorno al porto è già tuo.",
+	"ru": "Вся земля вокруг порта уже ваша.",
+	"pl": "Cała ziemia wokół portu już należy do ciebie.",
+	"tr": "Limanın etrafındaki tüm arazi zaten senin."},
 "shop.requires": {
 	"pt_BR": "Requer: {name}", "en": "Needs: {name}", "es": "Requiere: {name}",
 	"fr": "Nécessite : {name}", "de": "Erfordert: {name}",

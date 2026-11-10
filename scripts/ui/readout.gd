@@ -96,7 +96,9 @@ func setup() -> void:
 	tally.add_theme_constant_override(&"separation", 4)
 	tally.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_glass.add_child(tally)
-	var icon := UiTheme.icon(UiTheme.Icon.TEU)
+	# The 16px sheet: at 12px the TEU mark collapsed into a red dash and read
+	# as a glitch next to 20px digits.
+	var icon := UiTheme.icon16(UiTheme.Icon16.TEU)
 	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	tally.add_child(icon)
 	_teus_label = UiTheme.label("0", UiTheme.SIZE_TITLE, _digit_ink)
@@ -111,7 +113,7 @@ func setup() -> void:
 	# it would be one more box for the layout to pack, and shortening it as the
 	# number grows would shove the number sideways — the one thing this whole
 	# control exists to prevent.
-	_unlit_label = UiTheme.label("", UiTheme.SIZE_TITLE, UiTheme.HULL)
+	_unlit_label = UiTheme.label("", UiTheme.SIZE_TITLE, UiTheme.DIGIT_UNLIT)
 	_unlit_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_teus_label.add_child(_unlit_label)
 

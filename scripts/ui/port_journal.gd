@@ -123,10 +123,12 @@ func _ready() -> void:
 	sheet.add_child(scroll)
 	# The scrollbar is reserved *inside* the scroll container, so anything
 	# right-aligned on this board ends up under the grip — the trophy tally read
-	# "6/33" with the 8 behind the bar. One gutter, once, for every tab.
+	# "6/33" with the 8 behind the bar, and the ARCADE stamp sat on the grip.
+	# One gutter, once, for every tab: the bar's own width plus a breath.
 	var gutter := MarginContainer.new()
 	gutter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	gutter.add_theme_constant_override(&"margin_right", 6)
+	gutter.add_theme_constant_override(&"margin_right",
+		int(UiTheme.SCROLL_WIDTH) + 2)
 	scroll.add_child(gutter)
 	_list = VBoxContainer.new()
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL

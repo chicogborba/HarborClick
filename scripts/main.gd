@@ -250,7 +250,12 @@ func _ready() -> void:
 	special_alert = SpecialCallAlert.new()
 	special_alert.name = "SpecialCallAlert"
 	add_child(special_alert)
-	special_alert.open_changed.connect(_on_overlay_changed.bind("special"))
+	special_alert.open_changed.connect(func(opened: bool) -> void:
+		_on_overlay_changed(opened, "special")
+		# The charter interrupts: it must not stack on top of an open board
+		# (the wheel's SPIN showed through under it). Close everything else.
+		if opened:
+			_close_other_overlays("special"))
 	special_alert.accepted.connect(func() -> void: world.specials.accept())
 	special_alert.declined.connect(func() -> void: world.specials.decline())
 
@@ -599,6 +604,28 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 	var offline := get_node_or_null(^"OfflinePopup")
 	if offline != null and offline.has_method("apply_view_metrics"):
 		offline.apply_view_metrics(metrics)
+
+
+func _close_other_overlays(except: String) -> void:
+	## An interrupting board (the special-call charter) closes whatever was open
+	## so two panels never render stacked — the wheel's SPIN button used to show
+	## through under the charter.
+	var closers := {
+		"shop": func() -> void: shop._close(),
+		"settings": func() -> void: settings.close(),
+		"journal": func() -> void: journal.close(),
+		"routes": func() -> void: routes.close(),
+		"wheel": func() -> void: wheel_panel.close(),
+		"daily": func() -> void: daily_panel.close(),
+		"prestige": func() -> void: prestige_dialog.close(),
+		"crew": func() -> void: npc_card.close(),
+		"notices": func() -> void: bell.close_log(),
+		"rate": func() -> void: rate_breakdown.close(),
+	}
+	for source: String in closers:
+		if source == except or not bool(_overlay_state.get(source, false)):
+			continue
+		(closers[source] as Callable).call()
 
 
 func _on_overlay_changed(opened: bool, source: String) -> void:

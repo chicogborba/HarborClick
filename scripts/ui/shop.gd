@@ -37,6 +37,7 @@ var _cards: Dictionary = {}
 var _tab_buttons: Dictionary = {}
 var _buy_buttons: Dictionary = {}
 var _teaser: ShopCard
+var _land_empty: Label
 var _open := false
 var _active := "structures"
 var _refresh_timer := 0.0
@@ -622,6 +623,14 @@ func _rebuild_land() -> void:
 		card.pressed_card.connect(_on_buy_land)
 		list.add_child(card)
 		_cards["land_" + item.id] = card
+	# Shown when every parcel is owned: without it the tab is a bare empty
+	# sheet that reads as "nothing here", not "everything bought".
+	_land_empty = UiTheme.label(Loc.t("shop.land.done"), UiTheme.SIZE_SMALL,
+		UiTheme.INK_SOFT)
+	_land_empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_land_empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_land_empty.visible = false
+	list.add_child(_land_empty)
 
 
 func _build_cosmetics() -> void:
@@ -1488,6 +1497,8 @@ func _refresh() -> void:
 		card.visible = owned or is_next
 		card.refresh(item.cost, 0,
 			is_next and GameState.can_afford(item.cost), owned)
+	if _land_empty != null:
+		_land_empty.visible = next.is_empty()
 
 
 func _refresh_teaser(item: Dictionary) -> void:

@@ -103,4 +103,10 @@ func _process(delta: float) -> void:
 		var node: AnimatedSprite2D = gull.node
 		var a: float = _t * gull.speed + gull.phase
 		node.position = gull.center + Vector2(cos(a) * gull.rx, sin(a * 1.3) * gull.ry)
-		node.rotation = a + PI / 2.0
+		# Face along the velocity (the derivative of the orbit), not the orbit
+		# angle — `a + PI/2` made the gull tumble continuously. Flip horizontally
+		# when heading left so the sprite never flies upside-down.
+		var vel := Vector2(-sin(a) * gull.rx, cos(a * 1.3) * gull.ry * 1.3)
+		var ang := vel.angle()
+		node.flip_h = cos(ang) < 0.0
+		node.rotation = ang + (PI if node.flip_h else 0.0)

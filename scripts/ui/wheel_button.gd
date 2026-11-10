@@ -34,16 +34,21 @@ func _ready() -> void:
 	_button.size = Vector2(SIZE, SIZE)
 	_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_button.expand_icon = false
-	_button.add_theme_constant_override(&"icon_max_width", int(BADGE))
 	_badge_atlas = AtlasTexture.new()
 	_badge_atlas.atlas = TEX_BADGE
 	_badge_atlas.region = Rect2(0, 0, BADGE, BADGE)
-	_button.icon = _badge_atlas
-	# The badge is a coloured sprite, not a glyph: keep the key's icon tint
-	# from flattening it into the steel text colour.
-	for state in [&"icon_normal_color", &"icon_hover_color", &"icon_pressed_color",
-			&"icon_focus_color", &"icon_disabled_color"]:
-		_button.add_theme_color_override(state, Color.WHITE)
+	# The badge rides as a child TextureRect, not as the Button's own icon:
+	# the built-in icon slot pins to the top of a 44px key, leaving the badge
+	# floating high with dead steel under it.
+	var badge := TextureRect.new()
+	badge.name = "Badge"
+	badge.texture = _badge_atlas
+	badge.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	badge.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	badge.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_button.add_child(badge)
 	UiTheme.describe(_button, Loc.t("wheel.title"))
 	_button.tooltip_text = Loc.t("wheel.title")
 	_button.pressed.connect(_on_pressed)

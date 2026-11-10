@@ -193,11 +193,13 @@ func _update_scale_bar() -> void:
 	if _scale_label == null:
 		_scale_label = Label.new()
 		_scale_label.label_settings = UiTheme.settings(UiTheme.SIZE_SMALL,
-			Color8(255, 236, 190), 2)
+			Color8(255, 236, 190), 3)
 		_scale_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(_scale_label)
 	_scale_label.visible = true
-	_scale_label.text = "%d/%d" % [int(done), int(total)]
+	# Claimed can overshoot the target for a beat when the last boxes land
+	# together; the bar clamps but the number must not read "29/24".
+	_scale_label.text = "%d/%d" % [mini(int(done), int(total)), int(total)]
 	_scale_label.position = Vector2(PortLayout.SHIP_W * 0.5, -26.0) \
 		- _scale_label.get_combined_minimum_size() * 0.5
 
@@ -211,6 +213,13 @@ func _draw() -> void:
 	var fill := Color8(232, 176, 62) if is_discharging() else Color8(104, 194, 176)
 	draw_rect(Rect2(top + Vector2(1, 1), Vector2((w - 2.0) * _scale_bar_frac, 4.0)),
 		fill)
+	# Placa atrás do contador: à noite casco e água escurecem juntos e o texto
+	# claro apagava sem fundo próprio.
+	if _scale_label != null and _scale_label.visible:
+		var lt: Vector2 = _scale_label.position
+		var ls: Vector2 = _scale_label.get_combined_minimum_size()
+		draw_rect(Rect2(lt - Vector2(3, 2), ls + Vector2(6, 4)),
+			Color(0.04, 0.05, 0.1, 0.72))
 
 
 func is_working() -> bool:

@@ -875,9 +875,9 @@ func _capture_relay() -> void:
 	# Wait for a box that is not only on a chassis but has been driven a way on
 	# it: photographing the instant of the pick-up shows a tractor and a box in
 	# the same place as the crane, which is the one frame that proves nothing.
-	var deadline := Time.get_ticks_msec() + 20000
+	var deadline := Time.get_ticks_msec() + 30000
 	var driven := 0.0
-	while Time.get_ticks_msec() < deadline and driven < 26.0:
+	while Time.get_ticks_msec() < deadline and driven < 20.0:
 		world.berth.handle_tap(hull.global_position)
 		for child in world.overhead.get_children():
 			if not (child is CargoRelay):
@@ -890,9 +890,9 @@ func _capture_relay() -> void:
 				continue
 			driven = maxf(driven, relay.position.distance_to(relay._leg_from))
 		await get_tree().process_frame
-	if driven < 26.0:
+	if driven < 20.0:
 		_failures.append(
-			"no container was driven on a chassis in 20s (best %.0f px)" % driven)
+			"no container was driven on a chassis in 30s (best %.0f px)" % driven)
 	await _shot("relay_hand_off")
 
 

@@ -72,6 +72,7 @@ var _continue_detail: Label
 var _actions: VBoxContainer
 var _continue_key: Button
 var _footer: VBoxContainer
+var _footer_scrim: TextureRect
 ## The logo, kept so the layout pass can size it to whatever plate it gets.
 var _word: TextureRect
 ## Enamel left showing around the word, each side, at the plate's own scale.
@@ -388,6 +389,14 @@ func _build_marquee() -> void:
 	settings_word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	settings_row.add_child(settings_word)
 
+	# Dusk under the footer, same trick as under the keys: the world art runs
+	# right up to the bottom edge, so the version line needs its own shade.
+	_footer_scrim = TextureRect.new()
+	_footer_scrim.name = "FooterScrim"
+	_footer_scrim.texture = _footer_scrim_tex()
+	_footer_scrim.stretch_mode = TextureRect.STRETCH_SCALE
+	_footer_scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_marquee.add_child(_footer_scrim)
 	_footer = VBoxContainer.new()
 	_footer.name = "Footer"
 	_footer.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -417,6 +426,19 @@ func _build_marquee() -> void:
 	var studio := UiTheme.label(STUDIO_LINE, UiTheme.SIZE_SMALL, UiTheme.STEEL_DIM)
 	studio.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_footer.add_child(studio)
+
+
+func _footer_scrim_tex() -> GradientTexture2D:
+	## Vertical fade: clear at the top, harbour-dark at the bottom edge.
+	var g := Gradient.new()
+	g.set_color(0, Color(0.02, 0.03, 0.06, 0.0))
+	g.set_color(1, Color(0.02, 0.03, 0.06, 0.62))
+	var t := GradientTexture2D.new()
+	t.gradient = g
+	t.fill = GradientTexture2D.FILL_LINEAR
+	t.fill_from = Vector2(0, 0)
+	t.fill_to = Vector2(0, 1)
+	return t
 
 
 func _key_scrim() -> GradientTexture2D:
@@ -1106,12 +1128,18 @@ func _layout_marquee(view: Vector2, width: float, left: float, tight: bool,
 		margin: float) -> void:
 	var plate_height := 52.0 if tight else 60.0
 	var plate_width := clampf(width * 0.92, 220.0, 340.0)
+	_crest.size = Vector2(_crest.texture.get_width(), _crest.texture.get_height())
+	_crest.custom_minimum_size = _crest.size
+	# The crest straddles the plate's top edge, so the plate must start low
+	# enough that the crest's upper half stays on screen — at the plain top
+	# margin the crest rendered at a negative y and was cut in half.
+	var crest_overhang := _crest.size.y * 0.74
 	_plate.custom_minimum_size = Vector2(plate_width, plate_height)
 	_plate.size = Vector2(plate_width, plate_height)
 	# The marquee owns the whole frame now — the corner keys moved to Sobre — so
-	# the plate can start at the top margin.
+	# the plate can start at the top margin plus the crest's overhang.
 	_plate.position = Vector2((view.x - plate_width) * 0.5,
-		margin + (6.0 if tight else 12.0))
+		margin + (6.0 if tight else 12.0) + crest_overhang)
 	_fit_wordmark(plate_width, plate_height)
 
 	# The ribbon hangs under the plate, narrower than it, so the two read as a
@@ -1127,10 +1155,7 @@ func _layout_marquee(view: Vector2, width: float, left: float, tight: bool,
 	# it. Centred on the plate rather than on the screen, so it stays with the
 	# board when the board is narrower than the frame. Native size, always — the
 	# drawing is 40x55 and every other number here would resample it.
-	var crest_size := Vector2(_crest.texture.get_width(),
-		_crest.texture.get_height())
-	_crest.size = crest_size
-	_crest.custom_minimum_size = crest_size
+	var crest_size: Vector2 = _crest.size
 	_crest.position = Vector2(
 		_plate.position.x + (plate_width - crest_size.x) * 0.5,
 		_plate.position.y - crest_size.y * 0.74)
@@ -1160,6 +1185,8 @@ func _layout_marquee(view: Vector2, width: float, left: float, tight: bool,
 	_footer.custom_minimum_size.x = width
 	_footer.size = Vector2(width, footer_size.y)
 	_footer.position = Vector2(left, view.y - margin - footer_size.y - 4.0)
+	_footer_scrim.size = Vector2(width + 48.0, footer_size.y + 30.0)
+	_footer_scrim.position = _footer.position - Vector2(24.0, 24.0)
 
 
 func _layout_board(view: Vector2, width: float, left: float,

@@ -1692,9 +1692,13 @@ func _tug_formation_target(ship: Ship) -> Vector2:
 	## the quay in this narrow top-down composition.
 	var side := -16.0 if index % 2 == 0 else 16.0
 	var stagger := 20.0 if index % 2 == 0 else 36.0
-	return ship.position + Vector2(
-		PortLayout.SHIP_W * 0.5 + side + sin(_t * 0.8 + _phase) * 1.5,
-		PortLayout.SHIP_H + stagger)
+	# Clamped to visible water: at the starboard quarter the raw offset can
+	# push the tug past WORLD_W, where it rendered half off-screen as a red
+	# stripe on the right edge.
+	var tx := clampf(
+		ship.position.x + PortLayout.SHIP_W * 0.5 + side + sin(_t * 0.8 + _phase) * 1.5,
+		PortLayout.WATER_X0 + 10.0, PortLayout.WORLD_W - 12.0)
+	return Vector2(tx, ship.position.y + PortLayout.SHIP_H + stagger)
 
 
 func _tug_holding_target() -> Vector2:

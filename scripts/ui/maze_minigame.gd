@@ -268,7 +268,10 @@ func _draw_screen() -> void:
 	var marquee_h := 15.0
 	_screen.draw_rect(Rect2(0.0, 0.0, w, marquee_h), Color(0.13, 0.11, 0.17))
 	_screen.draw_rect(Rect2(0.0, marquee_h - 1.0, w, 1.0), Color(0.30, 0.26, 0.38))
-	var name := str(_offer.get("title", "PÁTIO")).to_upper()
+	# The marquee carries the cabinet's own name, not the charter's: the board
+	# header already says "Carga Perdida no Pátio", so repeating it here read
+	# as a duplicated title.
+	var name := "★ ARCADE ★"
 	var name_w := UiTheme.FONT.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT,
 		-1, UiTheme.SIZE_SMALL).x
 	_screen.draw_string(UiTheme.FONT, Vector2((w - name_w) * 0.5, marquee_h - 4.0),
@@ -288,11 +291,13 @@ func _draw_screen() -> void:
 	var cell := glass / float(maxi(game.width, game.height))
 	var origin := glass_at + (Vector2.ONE * glass
 		- Vector2(cell * game.width, cell * game.height)) * 0.5
-	# Yard surface, and the painted grid on it.
+	# Yard surface, and the painted grid on it — the same asphalt-and-steel the
+	# port itself is drawn in, not arcade neon: this is the yard seen from a
+	# camera, not a different game.
 	_screen.draw_rect(Rect2(origin, Vector2(cell * game.width, cell * game.height)),
-		Color(0.10, 0.13, 0.12))
-	var wall := Color(0.36, 0.86, 0.62)
-	var paint := Color(0.20, 0.30, 0.26)
+		Color(0.09, 0.11, 0.11))
+	var wall := Color8(176, 190, 212)
+	var paint := Color(0.14, 0.17, 0.17)
 	for y in game.height:
 		for x in game.width:
 			var cell_pos := origin + Vector2(x, y) * cell
@@ -343,7 +348,7 @@ func _draw_screen() -> void:
 	# difference between a drawing of a maze and a maze on a screen.
 	for y in range(int(glass_at.y), int(glass_at.y + glass), 3):
 		_screen.draw_rect(Rect2(glass_at.x, y, glass, 1.0),
-			Color(0.0, 0.0, 0.0, 0.22))
+			Color(0.0, 0.0, 0.0, 0.15))
 	for step in 5:
 		var inset := float(step)
 		_screen.draw_rect(Rect2(glass_at.x + inset, glass_at.y + inset,
