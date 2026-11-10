@@ -56,6 +56,11 @@ const BUILD_PLANS := {
 		"avoid": ["estoque_profundo", "escala_profunda", "trem_pesado",
 			"bloco_mestre", "cais_dedicado", "centro_de_controle"],
 		"breadth_bias": 1.4,
+		# C8: the wide build actually prefers cheap machines, so the fleet
+		# *shape* diverges from the tall one and composition_distance can
+		# measure it — with one shared cost curve both agents built the same
+		# pyramid however they were played.
+		"cheap_bias": 1.30,
 	},
 	"tall": {
 		# `bloco_mestre` is refused as well as `turma_de_terra`: a port that has
@@ -65,6 +70,7 @@ const BUILD_PLANS := {
 		"avoid": ["giro_rapido", "cadencia_de_cais", "trem_shuttle",
 			"turma_de_terra", "bloco_mestre"],
 		"breadth_bias": 0.0,
+		"big_bias": 1.30,
 	},
 }
 
@@ -664,18 +670,20 @@ static func _affordable_options(state: Dictionary, config: Dictionary) -> Array[
 		options.append({"kind": "land", "id": parcel_id, "amount": 1,
 			"cost": cost_of_land, "score": worth / cost_of_land})
 		break
+	var plan := _build_plan(config)
 	for item in EconomyCatalog.all():
 		if not _structure_unlocked(state, String(item.id)):
 			continue
 		var owned := int(state.owned.get(item.id, 0))
 		var target := int(state.rebuild_targets.get(item.id, 0))
+		var growth := float(item.get("growth", EconomyMath.GROWTH))
 		var affordable := EconomyMath.max_affordable_discounted(float(item.base_cost),
-			owned, state.currency, target)
+			owned, state.currency, target, EconomyMath.REBUILD_DISCOUNT, growth)
 		if affordable <= 0:
 			continue
 		var amount: int = mini(affordable, max_bulk)
 		var cost := EconomyMath.discounted_bulk_cost(float(item.base_cost), owned,
-			amount, target)
+			amount, target, EconomyMath.REBUILD_DISCOUNT, growth)
 		if not is_finite(cost) or cost <= 0.0:
 			continue
 		var gain := EconomyMath.total_cps(unit_cps(state, item), owned + amount) \
@@ -696,10 +704,16 @@ static func _affordable_options(state: Dictionary, config: Dictionary) -> Array[
 		# size, because breadth is worth something to them that payback does not
 		# show: the capital tree's per-kind share.
 		if owned + amount < EconomyMath.BREADTH_MIN_COUNT:
-			score *= 1.0 + float(_build_plan(config).get("breadth_bias", 0.0))
+			score *= 1.0 + float(plan.get("breadth_bias", 0.0))
+		# C8: a build plan also tilts the *machine* choice — wide prefers cheap
+		# units, tall prefers the big ones — so the two fleets end up shaped
+		# differently and composition_distance has something to measure.
+		if float(plan.get("cheap_bias", 0.0)) > 0.0 and float(item.base_cost) <= 1.0e6:
+			score *= 1.0 + float(plan.get("cheap_bias", 0.0))
+		if float(plan.get("big_bias", 0.0)) > 0.0 and float(item.base_cost) > 1.0e6:
+			score *= 1.0 + float(plan.get("big_bias", 0.0))
 		options.append({"kind": "structure", "id": item.id, "amount": amount,
 			"cost": cost, "score": score})
-	var plan := _build_plan(config)
 	for up in UpgradeDB.ITEMS:
 		var id := String(up.id)
 		if state.upgrades.has(id) or not _upgrade_available(state, up):

@@ -31,29 +31,40 @@ iterating.
 ```
 
 The preset excludes source-only `tools`, `tests` and `build` directories. The
-runtime output is HTML, JS, PCK, WASM, worklets and icons.
+runtime output is HTML, JS, PCK, WASM, worklets, manifest and icons.
 
-The Web preset deliberately does not install a PWA service worker. Saves live
-in Godot's browser storage, while releases must stay network-fresh; an older
-cache-first worker could otherwise keep serving a previous `.pck` after a
-successful deploy. The temporary cleanup in `html/head_include` unregisters
-that legacy worker and deletes only `HarborClick-sw-cache-*` entries. Change
-its build marker whenever a release needs to force that one-time cleanup.
+The export runs **without threads** (`variant/thread_support=false`), so
+cross-origin isolation is not required — and the PWA service worker is now
+enabled (`progressive_web_app/enabled=true`, portrait, generated icons,
+offline page `index.html`). Saves live in Godot's browser storage
+(IndexedDB). The cleanup in `html/head_include` still unregisters the legacy
+pre-PWA worker and deletes only `HarborClick-sw-cache-*` caches; bump its
+build marker when a release must force that one-time cleanup.
 
 ## Hosting contract
 
-Godot Web requires these response headers:
-
-```text
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: require-corp
-Cross-Origin-Resource-Policy: same-origin
-```
-
-WASM must be served as `application/wasm`. Stage a new release directory,
+No COOP/COEP/CORP are sent any more: requiring them would break rewarded-ad
+SDKs that run in a cross-origin iframe (plano-release R4). `deploy/` and
+`tools/export/serve_web.py` reflect that. WASM must still be served as
+`application/wasm`. Stage a new release directory,
 verify local/remote checksums, atomically swap the web root, run `nginx -t`,
 reload, then verify HTTPS headers and the public PCK checksum. Keep the previous
 directory until the new build is confirmed.
+
+## Platform status (ondas 6–7)
+
+- **Web**: preset sem threads + PWA ligado; export local valida; headers de
+  isolamento removidos do deploy. Falta: testar a build servida num navegador
+  real (persistência de `user://`, SW, ads placeholder).
+- **Android**: preset `Android` em `export_presets.cfg` (retrato travado,
+  gl_compatibility, ícones adaptativos gerados, pacote
+  `dev.portstack.harborclick`). Ciclo de vida já tratado em código
+  (`SaveManager` grava em pausa/foco/voltar). **Pendente: aparelho real** —
+  60 FPS em intermediário, pause/resume, área segura. Exportar exige SDK +
+  keystore configurados no editor.
+- **Perf (R3)**: `tools/capture/perf.tscn -- 1920x1080` PASS no stress
+  (p95 6,94 ms contra o budget de 16,67 ms, M1). Falta medir em aparelho
+  Android intermediário.
 
 ## Automatic production deploy
 

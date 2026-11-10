@@ -24,7 +24,7 @@ Inventory: **1781 authored code/config/scene files**.
 
 | File | Lines | Symbols | Purpose |
 |---|---:|---|---|
-| `export_presets.cfg` | 46 | — | Authored project file |
+| `export_presets.cfg` | 89 | — | Authored project file |
 | `project.godot` | 84 | — | Authored project file |
 
 ## salarios
@@ -1575,7 +1575,7 @@ Inventory: **1781 authored code/config/scene files**.
 | `scripts/autoload/ad_service.gd` | 132 | 12 functions | AdService: the one door every rewarded ad goes through. Owns one `AdPolicy` |
 | `scripts/autoload/audio_manager.gd` | 435 | 28 functions | SFX pool + crossfading music. Tracks follow the day/night cycle and weather. |
 | `scripts/autoload/event_bus.gd` | 47 | 0 functions | Global signal hub. Everything talks through here to stay decoupled. |
-| `scripts/autoload/game_state.gd` | 1455 | 89 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
+| `scripts/autoload/game_state.gd` | 1457 | 89 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
 | `scripts/autoload/portrait_frame.gd` | 60 | 3 functions | Keeps the game in portrait at any window size. |
 | `scripts/autoload/save_manager.gd` | 533 | 33 functions | Versioned, recoverable persistence.  The public yard/pending_yard API is |
 | `scripts/autoload/time_manager.gd` | 112 | 9 functions | Day/night cycle + weather. Full lighting arrives in the day/night phase; |
@@ -1600,12 +1600,12 @@ Inventory: **1781 authored code/config/scene files**.
 | `scripts/data/route_db.gd` | 181 | class `RouteDB`; 10 functions | The trade lanes this terminal is on. |
 | `scripts/data/ship_catalog.gd` | 164 | class `ShipCatalog`; 8 functions | GitHub's single-source visual fleet. |
 | `scripts/data/special_call_db.gd` | 210 | class `SpecialCallDB`; 8 functions | Rare escalas: a charter nobody expected, on a hull nobody has seen, worked as |
-| `scripts/data/structure_db.gd` | 99 | class `StructureDB`; 2 functions | Static data for every buyable structure. |
+| `scripts/data/structure_db.gd` | 102 | class `StructureDB`; 2 functions | Static data for every buyable structure. |
 | `scripts/data/upgrade_db.gd` | 581 | class `UpgradeDB`; 16 functions | Static data for upgrades, as a graph rather than a shelf. |
 | `scripts/economy/build_queue.gd` | 58 | class `BuildQueue`; 2 functions | How long a purchase takes to stand: the rules, with no state of its own. |
 | `scripts/economy/economy_catalog.gd` | 36 | class `EconomyCatalog`; 2 functions | Phase 3 starting economy. Costs remain the authored game prices; CPS is |
 | `scripts/economy/economy_math.gd` | 226 | class `EconomyMath`; 16 functions | Deterministic, side-effect-free helpers for the incremental economy. |
-| `scripts/economy/economy_simulator.gd` | 811 | class `EconomySimulator`; 38 functions | A deterministic balance sandbox: no Nodes, clocks, autoloads, randomness, or I/O. |
+| `scripts/economy/economy_simulator.gd` | 825 | class `EconomySimulator`; 38 functions | A deterministic balance sandbox: no Nodes, clocks, autoloads, randomness, or I/O. |
 | `scripts/economy/foreman.gd` | 113 | class `Foreman`; 5 functions | The standing order for spending: what the port buys when nobody is looking. |
 | `scripts/economy/lucky_wheel.gd` | 195 | class `LuckyWheel`; 13 functions | The rules of the Roda da Sorte: eight segments, one free spin every four |
 | `scripts/economy/skill_book.gd` | 86 | class `SkillBook`; 9 functions | The Capataz's three skills: buttons the player presses, each on a recharge. |
@@ -1737,7 +1737,7 @@ Inventory: **1781 authored code/config/scene files**.
 | `tests/notification_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/npc_test_runner.gd` | 753 | 19 functions | The crew: identity, the task board, and the vessel's answer to a box landing. |
 | `tests/npc_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/phase3_economy_test_runner.gd` | 384 | 21 functions | Godot --headless --path . res://tests/phase3_economy_test_runner.tscn |
+| `tests/phase3_economy_test_runner.gd` | 413 | 22 functions | Godot --headless --path . res://tests/phase3_economy_test_runner.tscn |
 | `tests/phase3_economy_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/phase3_progression_test_runner.gd` | 150 | 10 functions | Run with: Godot --headless --path . --script res://tests/phase3_progression_test_runner.gd |
 | `tests/phase3_progression_ui_test_runner.gd` | 187 | 9 functions | Run with: Godot --headless --path . res://tests/phase3_progression_ui_test_runner.tscn |
@@ -1805,7 +1805,7 @@ Inventory: **1781 authored code/config/scene files**.
 | `tools/sprites/gen_font.py` | 371 | 2 functions | Generates the game's pixel font: a PNG atlas plus a BMFont .fnt descriptor |
 | `tools/sprites/gen_fx.py` | 123 | 6 functions | The port's VFX strips, drawn for the pooled emitter in `scripts/fx/fx.gd`. |
 | `tools/sprites/gen_ground.py` | 199 | 11 functions | Top-down ground tiles, Stardew-flavoured: textured asphalt, worn concrete, |
-| `tools/sprites/gen_icons.py` | 36 | 1 functions | PWA / home-screen icons, drawn from the title crest on the app's navy. |
+| `tools/sprites/gen_icons.py` | 49 | 1 functions | PWA / home-screen icons, drawn from the title crest on the app's navy. |
 | `tools/sprites/gen_icons16.py` | 336 | 2 functions | 16x16 interface icons, outlined, for the HUD the release plan builds (D2). |
 | `tools/sprites/gen_landing.py` | 1014 | 31 functions | Generates every pixel asset the public landing page ships. |
 | `tools/sprites/gen_people.py` | 357 | 21 functions | Top-down dock workers, Stardew-ish: hard hat and hi-vis vest seen from above. |

@@ -33,6 +33,7 @@ func _run() -> void:
 	test_exclusive_choices_are_swaps_not_traps()
 	test_saturating_bonus_bends_instead_of_stopping()
 	test_builds_diverge_and_both_stay_viable()
+	test_each_machine_prices_its_own_curve()
 	if failures.is_empty():
 		print("PHASE 3 ECONOMY TESTS PASSED")
 		get_tree().quit(0)
@@ -373,6 +374,34 @@ func test_builds_diverge_and_both_stay_viable() -> void:
 			different += 1
 	_expect(different >= 2,
 		"the two builds ended on genuinely different nodes (%d)" % different)
+	# C8 note: per-machine growth curves plus the build plans' cheap/big biases
+	# are the levers that make fleet shape a decision; the greedy sandbox still
+	# ends both builds owning every kind, so composition_distance stays small
+	# (~0.005) and is measured here, not asserted — asserting a large value
+	# would be papering over what the sandbox can actually prove. The mechanism
+	# itself (each machine pricing its own curve) is asserted below.
+	var distance := EconomySimulator.composition_distance(wide.owned, tall.owned)
+	print("[economy] composition_distance wide vs tall: %.3f" % distance)
+
+
+func test_each_machine_prices_its_own_curve() -> void:
+	## C8: `growth` is per machine, and the price the shop charges follows it.
+	var cheap := StructureDB.cost_for("estivador", 10)
+	var store := StructureDB.cost_for("armazem", 10)
+	var base_cheap: float = StructureDB.get_item("estivador").cost
+	var base_store: float = StructureDB.get_item("armazem").cost
+	_expect(is_equal_approx(cheap, base_cheap * pow(1.15, 10.0)),
+		"estivador prices on its own 1.15 curve")
+	_expect(is_equal_approx(store, base_store * pow(1.14, 10.0)),
+		"armazem prices on its own 1.14 curve")
+	_expect(cheap / base_cheap > store / base_store,
+		"the cheap labour saturates faster than the warehouse")
+	var grew := 0
+	for item in StructureDB.ITEMS:
+		if float(item.get("growth", 1.15)) != 1.15:
+			grew += 1
+	_expect(grew >= 10, "most machines moved off the shared 1.15 curve (%d of %d)"
+		% [grew, StructureDB.ITEMS.size()])
 
 
 func _close(a: float, b: float, tolerance: float = 0.00001) -> bool:

@@ -42,5 +42,5 @@ mkdir -p "$OUT"
 "$GODOT" --headless --path "$ROOT" --export-release "Web" "$OUT/index.html"
 
 echo "==> done: $OUT"
-echo "    Serve it with cross-origin isolation headers, e.g."
-echo "    python3 tools/export/serve_web.py"
+echo "    The export runs without threads, so no COOP/COEP are needed."
+echo "    Serve it locally with: python3 tools/export/serve_web.py"

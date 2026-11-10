@@ -15,6 +15,9 @@ OUT = os.path.normpath(os.path.join(HERE, "..", "..", "assets", "icons"))
 
 BG = (13, 11, 17, 255)  # matches the PWA background_color in export_presets.cfg
 SIZES = (144, 180, 512)
+# Android adaptive icons want a 432x432 foreground (art on transparent) and a
+# background (solid colour) — the launcher masks both into its own shape.
+ADAPTIVE = 432
 
 
 def main():
@@ -30,6 +33,16 @@ def main():
         path = os.path.join(OUT, "icon_%d.png" % size)
         icon.save(path)
         print("icon_%d.png %dx%d" % (size, size, size))
+    # adaptive pair: the safe zone is the inner 66%, so the crest at 60% of
+    # the tile survives every launcher mask.
+    fg = Image.new("RGBA", (ADAPTIVE, ADAPTIVE), (0, 0, 0, 0))
+    art = ADAPTIVE * 60 // 100
+    fg.alpha_composite(crest.resize((art, art), Image.NEAREST),
+                       ((ADAPTIVE - art) // 2, (ADAPTIVE - art) // 2))
+    fg.save(os.path.join(OUT, "icon_432_fg.png"))
+    Image.new("RGBA", (ADAPTIVE, ADAPTIVE), BG).save(
+        os.path.join(OUT, "icon_432_bg.png"))
+    print("adaptive 432 pair written")
 
 
 if __name__ == "__main__":

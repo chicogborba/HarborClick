@@ -666,10 +666,12 @@ func structure_purchase_quote(id: String, mode: StringName = &"x1") -> Dictionar
 	var item := StructureDB.get_item(id)
 	if item.is_empty():
 		return EconomyMath.purchase_quote(-1.0, 0.0, 0, mode, teus)
+	# C8: each machine's own growth curve prices it (see StructureDB "growth").
+	var growth := float(item.get("growth", EconomyMath.GROWTH))
 	if not structure_unlocked(id):
 		var locked := EconomyMath.purchase_quote(float(item.cost),
 			structure_cps(id), structure_count(id) + pending_count(id), mode, teus,
-			int(rebuild_targets.get(id, 0)))
+			int(rebuild_targets.get(id, 0)), EconomyMath.REBUILD_DISCOUNT, growth)
 		locked["ok"] = false
 		locked["reason"] = &"land_locked"
 		locked["id"] = id
@@ -681,7 +683,7 @@ func structure_purchase_quote(id: String, mode: StringName = &"x1") -> Dictionar
 	var count := structure_count(id) + pending_count(id)
 	var quote := EconomyMath.purchase_quote(
 		float(item.cost), structure_cps(id), count, mode, teus,
-		int(rebuild_targets.get(id, 0)))
+		int(rebuild_targets.get(id, 0)), EconomyMath.REBUILD_DISCOUNT, growth)
 	quote["id"] = id
 	quote["name"] = str(item.get("name", id))
 	quote["nominal_cps_before"] = nominal_cps()
