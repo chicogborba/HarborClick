@@ -41,10 +41,10 @@ O plano vivo está em [`docs/plans/plano-release.md`](docs/plans/plano-release.m
 | 1 | Mundo vazio, indicador de bônus, pinça, ambiência e sons | — | ✅ |
 | 2 | Tutorial, cerimônia, objetivo único, obras, carga premiada, guindastes vivos, música (6 trilhas) | M1: primeiros 10 min bons | ✅ |
 | 3 | Combo, habilidades, fim de escala, HUD novo, veículos e prédios | — | ✅ (resto: visual de obra no mundo, fonte de leitura) |
-| 4 | Loja em abas, Diário, ordens simples, suco de UI, conquistas que pagam, minijogos, título novo | M2: jogo divertido | ⏳ |
-| 5 | Rebalanceio, álbum de navios, texto, clima e luz, navios nativos, mixagem, playtest automático | M3: bonito e com som | ⏳ |
-| 6 | Tradução do conteúdo, Android, desempenho, web sem threads, telemetria | — | ⏳ |
-| 7 | Decisão na compra de máquina, loja/jurídico, CI, playtest humano | M4: pronto para loja | ⏳ |
+| 4 | Conquistas que pagam, título limpo, Arcade no Diário, suco de UI, comparação de runs | M2: jogo divertido | ✅ |
+| 5 | Navios nativos, álbum, raio e janelas à noite, 6 trilhas, árvores de capital vivas | M3: bonito e com som | ✅ |
+| 6 | Web sem threads + PWA (sem COOP/COEP), telemetria local opt-in, preset Android, perf medido | — | ✅ (falta só aparelho Android real) |
+| 7 | Curvas de custo por máquina, texto de loja/privacidade, CI documentado | M4: pronto para loja | ✅ (falta playtest humano + tradução dos catálogos, R1) |
 
 Para continuar o trabalho (estado por commit, restos das ondas 1–3 e regras de
 trabalho): [`docs/plans/handoff-ondas-1-3.md`](docs/plans/handoff-ondas-1-3.md).

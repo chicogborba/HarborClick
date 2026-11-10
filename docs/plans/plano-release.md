@@ -440,6 +440,32 @@ Toda tarefa: testes focados passam, `tools/qa/run_all.sh` verde, captura em
 
 ## Andamento
 
+- **Ondas 4–7 — feitas em 10/11/2026** (commits `14ca1fe` … `85b2fcb`):
+  - **Onda 4 (M2)**: conquistas pagam +1% permanente cada (linha "Conquistas" no
+    detalhamento da taxa) e os ramos Rotas/Eventos da árvore de capital estão
+    vivos (frete por rota, rotação de rotas, prêmio e janela de charter);
+    título limpo (só JOGAR/CONTINUAR/AJUSTES, links em Sobre); tecla ARCADE no
+    Diário (minijogo por anúncio, 3/dia, prêmio pequeno sem stake); pulso no
+    preço quando fica comprável; diálogo de prestígio compara run anterior ×
+    atual.
+  - **Onda 5 (M3)**: 3 cascos nativos a 1:1 (sem escala fracionária),
+    álbum de navios no Diário com prêmio por página, raio visual na chuva
+    (trovão já era sorteado), janelas quentes nos prédios à noite, 6 trilhas
+    de música por clima/hora.
+  - **Onda 6**: web sem threads + PWA (manifest, ícones gerados, orientación
+    retrato) e COOP/COEP removidos do deploy (desbloqueia SDKs de anúncio em
+    iframe); telemetria local opt-in (off por padrão, espelho em
+    `user://telemetry.jsonl`, provedor trocável); preset Android criado
+    (verificação em aparelho real pendente — onda 6 dependia disso);
+    perf.tscn PASS no stress 1920×1080 (p95 6,94 ms).
+  - **Onda 7**: curvas de custo por máquina (C8, 1.14–1.20; as duas primeiras
+    mantêm 1.15 para não mexer nos primeiros 10 min), viés de máquina nos
+    planos do simulador, texto de loja + privacidade + termos em
+    `docs/store-listing.md`; CI de deploy já existe e está documentado.
+  - **Restam**: R1 (traduzir o conteúdo dos catálogos para as 9 línguas — o
+    maior débito restante), F5 (visual de obra no mundo), D1 (fonte 7×10),
+    F6 (artes pixellab — precisa de chave), teste em aparelho Android real,
+    playtest humano, gráfico de destaque/vídeo para a loja.
 - **Ondas 1–3 — feitas em 10/11/2026** (commits `6014c35`, `65e5ef4`, `0c40eed`
   e o bloco seguinte de A2/C3/G2/barra de escala). Entregue: gates por nível com
   cerimônia de liberação (`LevelHud`), mundo que começa vazio (corredor ferroviário
