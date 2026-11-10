@@ -71,6 +71,11 @@ var _bulb_frame := 0
 var _flash_t := 0.0
 var _status_tick := 0.0
 var _last_amount := 0.0
+## The two places the wheel offers a rewarded ad: a spin when none is left, and
+## doubling a cash prize once it has landed. Never required — the wheel works
+## without either, and each goes away when its daily cap is spent.
+var _ad_spin_button: Button
+var _ad_double_button: Button
 var _shake_t := 0.0
 var _board_home := Vector2.ZERO
 var _coins: Array[Dictionary] = []
@@ -136,6 +141,20 @@ func _ready() -> void:
 	_spin_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_spin_button.pressed.connect(_on_spin_pressed)
 	_column.add_child(_spin_button)
+	_ad_spin_button = UiTheme.button(Loc.t("wheel.ad_spin"), &"steel", UiTheme.SIZE_SMALL)
+	_ad_spin_button.icon = UiTheme.icon16_texture(UiTheme.Icon16.AD)
+	_ad_spin_button.custom_minimum_size.y = UiTheme.TOUCH_MIN
+	_ad_spin_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_ad_spin_button.pressed.connect(_on_ad_spin)
+	_ad_spin_button.visible = false
+	_column.add_child(_ad_spin_button)
+	_ad_double_button = UiTheme.button(Loc.t("wheel.ad_double"), &"steel", UiTheme.SIZE_SMALL)
+	_ad_double_button.icon = UiTheme.icon16_texture(UiTheme.Icon16.AD)
+	_ad_double_button.custom_minimum_size.y = UiTheme.TOUCH_MIN
+	_ad_double_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_ad_double_button.pressed.connect(_on_ad_double)
+	_ad_double_button.visible = false
+	_column.add_child(_ad_double_button)
 
 	_connect_service()
 	_apply_angle()
@@ -335,6 +354,26 @@ func _layout() -> void:
 
 # ------------------------------------------------------------------ the spin
 
+func _on_ad_spin() -> void:
+	if _service == null or _spinning:
+		return
+	AdService.show_rewarded(&"wheel_spin", func() -> void:
+		_service.grant_token(1)
+		_refresh_status()
+		_on_spin_pressed())
+
+
+func _on_ad_double() -> void:
+	## The prize in cash lands twice. Only offered for cash, where "twice" is
+	## exact; a surge or a token has no honest doubling.
+	var amount := _last_amount
+	_ad_double_button.visible = false
+	AdService.show_rewarded(&"wheel_double", func() -> void:
+		GameState.grant_nonproductive_reward(amount)
+		_detail.text = "%s %s" % [GameState.fmt(amount * 2.0), Loc.t("common.teus")]
+		AudioManager.play_sfx("coins", 0.03))
+
+
 func _on_spin_pressed() -> void:
 	if _service == null or _service.wheel == null or _spinning:
 		return
@@ -348,6 +387,7 @@ func _on_spin_pressed() -> void:
 	var index := int(prize.get("index", 0))
 	_prize.visible = false
 	_detail.visible = false
+	_ad_double_button.visible = false
 	# Segment i is centred under the pointer at rotation 360 - i*45, plus a
 	# jitter so the peg does not always stop on the exact same pixel.
 	var target := fposmod(360.0 - float(index) * SEGMENT_DEG, 360.0) \
@@ -415,6 +455,8 @@ func _reveal(prize: Dictionary) -> void:
 			_detail.text = ""
 	_prize.visible = true
 	_detail.visible = true
+	_ad_double_button.visible = StringName(prize.get("kind", &"")) == &"cash" \
+		and _last_amount > 0.0 and AdService.available(&"wheel_double")
 	_layout()
 	AudioManager.play_sfx("wheel_win")
 	AudioManager.play_sfx("coins", 0.05, -3.0)
@@ -546,3 +588,6 @@ func _refresh_status() -> void:
 		_earn.text = Loc.t("wheel.earn", {"have": str(wheel.departures),
 			"need": str(LuckyWheel.DEPARTURES_PER_TOKEN)})
 	_spin_button.disabled = _spinning or not wheel.can_spin(now)
+	# Nothing to spin with, and an ad may stand in for a token.
+	_ad_spin_button.visible = not _spinning and wheel.pending.is_empty() \
+		and not wheel.can_spin(now) and AdService.available(&"wheel_spin")

@@ -20,6 +20,15 @@ var _tally: Label
 var _lives: Label
 var _shout: Label
 var _hint: Label
+## A lost charter offers one more try for a rewarded ad, for a few seconds
+## before the loss is booked. Never required: ignoring it books the loss as it
+## always did.
+const RETRY_WINDOW := 6.0
+var _retry_button: Button
+var _retry_wait := 0.0
+var _retried := false
+var _pending_won := false
+var _pending_summary: Dictionary = {}
 var _safe_rect := Rect2()
 var _offer: Dictionary = {}
 var _shake := 0.0
@@ -69,6 +78,13 @@ func _ready() -> void:
 	# line of instructions was enough to push the board off a 320px viewport.
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_column.add_child(_hint)
+
+	_retry_button = UiTheme.button(Loc.t("minigame.retry"), &"steel", UiTheme.SIZE_SMALL)
+	_retry_button.icon = UiTheme.icon16_texture(UiTheme.Icon16.AD)
+	_retry_button.custom_minimum_size.y = UiTheme.TOUCH_MIN
+	_retry_button.visible = false
+	_retry_button.pressed.connect(_on_retry)
+	_column.add_child(_retry_button)
 
 	_build_controls(_column)
 	_layout()
@@ -124,6 +140,10 @@ func _closing_hint() -> String:
 func open(offer: Dictionary) -> void:
 	_offer = offer.duplicate(true)
 	_closing = false
+	_retried = false
+	_retry_wait = 0.0
+	if _retry_button != null:
+		_retry_button.visible = false
 	_shake = 0.0
 	_shout_time = 0.0
 	_shout.text = ""
@@ -153,6 +173,12 @@ func offer() -> Dictionary:
 
 func _process(delta: float) -> void:
 	if not visible:
+		return
+	if _retry_wait > 0.0:
+		_retry_wait -= delta
+		if _retry_wait <= 0.0:
+			_retry_button.visible = false
+			_finalize()
 		return
 	if not _closing:
 		_tick(delta)
@@ -192,11 +218,36 @@ func _settle() -> void:
 		UiTheme.TEAL_LIGHT if won else UiTheme.DANGER)
 	_hint.text = _closing_hint()
 	AudioManager.play_sfx("prestige" if won else "deny", 0.03)
-	var summary := _summary()
+	_pending_won = won
+	_pending_summary = _summary()
+	if not won and not _retried and AdService.available(&"minigame_retry"):
+		_retried = true
+		_retry_button.visible = true
+		_retry_wait = RETRY_WINDOW
+		return
 	await get_tree().create_timer(1.35).timeout
+	_finalize()
+
+
+func _finalize() -> void:
+	## Book the result: the board closes and the charter director is told.
 	visible = false
 	open_changed.emit(false)
-	finished.emit(won, summary)
+	finished.emit(_pending_won, _pending_summary)
+
+
+func _on_retry() -> void:
+	if _retry_wait <= 0.0:
+		return
+	_retry_wait = 0.0001 + _retry_wait   # hold the window while the ad is up
+	_retry_button.disabled = true
+	AdService.show_rewarded(&"minigame_retry", func() -> void:
+		_retry_wait = 0.0
+		_retry_button.visible = false
+		_retry_button.disabled = false
+		_closing = false
+		_begin(_offer)
+		_say(Loc.t("minigame.again"), UiTheme.AMBER))
 
 
 func apply_view_metrics(metrics: Dictionary) -> void:

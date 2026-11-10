@@ -30,6 +30,7 @@ var boost_chips: BoostChips
 var skill_service: SkillService
 var skill_bar: SkillBar
 var build_hud: BuildHud
+var level_hud: LevelHud
 var level_service: TerminalLevelService
 var _overlay_state := {"shop": false, "settings": false, "journal": false,
 	"prestige": false, "routes": false, "crew": false, "special": false,
@@ -127,6 +128,10 @@ func _ready() -> void:
 	boost_chips = BoostChips.new()
 	boost_chips.name = "BoostChips"
 	add_child(boost_chips)
+	level_hud = LevelHud.new()
+	level_hud.name = "LevelHud"
+	level_hud.setup(level_service)
+	add_child(level_hud)
 	build_hud = BuildHud.new()
 	build_hud.name = "BuildHud"
 	add_child(build_hud)
@@ -549,6 +554,8 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		skill_bar.apply_view_metrics(metrics)
 	if build_hud != null:
 		build_hud.apply_view_metrics(metrics)
+	if level_hud != null:
+		level_hud.apply_view_metrics(metrics)
 	if daily_panel != null:
 		daily_panel.apply_view_metrics(metrics)
 	if daily_button != null:

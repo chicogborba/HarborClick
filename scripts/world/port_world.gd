@@ -1398,6 +1398,20 @@ func _fly(color: int, from: Vector2, to: Vector2, on_land: Callable) -> void:
 	fly.landed.connect(on_land)
 
 
+func show_call_bonus(amount: float, perfect: bool) -> void:
+	## A call finished and paid: confetti over the hull, the freight in big gold
+	## numbers, a buzz. A perfect call (every bay full) gets twice the confetti.
+	if ship == null:
+		return
+	var at := ship.global_position + Vector2(PortLayout.SHIP_W * 0.5, 90.0)
+	if fx != null:
+		fx.burst(&"confetti", at, 20 if perfect else 10, 30.0)
+		fx.burst(&"coin", at, 6, 14.0)
+	Fx.haptic(40)
+	if UserPreferences.floating_numbers:
+		_spawn_float_text(at + Vector2(0, -16), amount, true)
+
+
 func show_combo_feedback(pos: Vector2, steps: int, stepped: bool) -> void:
 	## The feel of a tap: a spark burst at the finger that grows with the combo,
 	## a short buzz, and a ping that climbs a semitone-ish per step.

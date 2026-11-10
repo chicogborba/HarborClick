@@ -90,6 +90,19 @@ func _build(amount: float, report: Dictionary) -> void:
 
 	_add_breakdown(col, report)
 
+	# The absence pays twice if a rewarded ad is watched: the same amount again,
+	# once per return. The plain button stays right under it, and is the default.
+	if amount > 0.0 and AdService.available(&"offline_double"):
+		var double := UiTheme.button(Loc.t("offline.double"), &"steel", UiTheme.SIZE_SMALL)
+		double.icon = UiTheme.icon16_texture(UiTheme.Icon16.AD)
+		double.custom_minimum_size.y = UiTheme.TOUCH_MIN
+		double.pressed.connect(func() -> void:
+			double.disabled = true
+			AdService.show_rewarded(&"offline_double", func() -> void:
+				GameState.grant_offline_earnings(amount)
+				AudioManager.play_sfx("coins")
+				queue_free()))
+		col.add_child(double)
 	var button := UiTheme.button(Loc.t("offline.ok"))
 	button.pressed.connect(func() -> void:
 		AudioManager.play_sfx("tap")

@@ -1683,6 +1683,94 @@ const STRINGS := {
 	"pt_BR": "PULAR", "en": "SKIP", "es": "SALTAR",
 	"fr": "PASSER", "de": "SKIP", "it": "SALTA",
 	"ru": "ПРОПУСК", "pl": "POMIŃ", "tr": "GEÇ"},
+"level.short": {
+	"pt_BR": "NV {n}", "en": "LV {n}", "es": "NV {n}",
+	"fr": "NIV {n}", "de": "STF {n}", "it": "LIV {n}",
+	"ru": "УР {n}", "pl": "POZ {n}", "tr": "SV {n}"},
+"level.up": {
+	"pt_BR": "NÍVEL {n}!", "en": "LEVEL {n}!", "es": "¡NIVEL {n}!",
+	"fr": "NIVEAU {n} !", "de": "STUFE {n}!", "it": "LIVELLO {n}!",
+	"ru": "УРОВЕНЬ {n}!", "pl": "POZIOM {n}!", "tr": "SEVİYE {n}!"},
+"level.feature.objective": {
+	"pt_BR": "Objetivo", "en": "Goal", "es": "Objetivo",
+	"fr": "Objectif", "de": "Ziel", "it": "Obiettivo",
+	"ru": "Цель", "pl": "Cel", "tr": "Hedef"},
+"level.feature.upgrades": {
+	"pt_BR": "Melhorias", "en": "Upgrades", "es": "Mejoras",
+	"fr": "Améliorations", "de": "Upgrades", "it": "Potenziamenti",
+	"ru": "Улучшения", "pl": "Ulepszenia", "tr": "Geliştirmeler"},
+"level.feature.skill_overtime": {
+	"pt_BR": "Turno Extra", "en": "Overtime", "es": "Turno extra",
+	"fr": "Heures sup", "de": "Überstunden", "it": "Straordinario",
+	"ru": "Сверхурочные", "pl": "Nadgodziny", "tr": "Fazla mesai"},
+"level.feature.daily": {
+	"pt_BR": "Missões do Dia", "en": "Daily Orders", "es": "Misiones",
+	"fr": "Missions", "de": "Tagesaufträge", "it": "Missioni",
+	"ru": "Задания", "pl": "Zadania", "tr": "Görevler"},
+"level.feature.land": {
+	"pt_BR": "Terreno", "en": "Land", "es": "Terreno",
+	"fr": "Terrain", "de": "Land", "it": "Terreno",
+	"ru": "Земля", "pl": "Teren", "tr": "Arazi"},
+"level.feature.skill_mutirao": {
+	"pt_BR": "Mutirão", "en": "All Hands", "es": "Faena",
+	"fr": "Branle-bas", "de": "Alle Mann", "it": "Tutti al lavoro",
+	"ru": "Аврал", "pl": "Wszyscy na pokład", "tr": "Seferberlik"},
+"level.feature.gull": {
+	"pt_BR": "Gaivota Dourada", "en": "Golden Gull", "es": "Gaviota dorada",
+	"fr": "Mouette dorée", "de": "Goldmöwe", "it": "Gabbiano d'oro",
+	"ru": "Золотая чайка", "pl": "Złota mewa", "tr": "Altın martı"},
+"level.feature.wheel": {
+	"pt_BR": "Roda da Sorte", "en": "Lucky Wheel", "es": "Ruleta",
+	"fr": "Roulette", "de": "Glücksrad", "it": "Ruota",
+	"ru": "Колесо", "pl": "Koło", "tr": "Çark"},
+"level.feature.journal": {
+	"pt_BR": "Diário", "en": "Logbook", "es": "Diario",
+	"fr": "Journal", "de": "Logbuch", "it": "Diario",
+	"ru": "Журнал", "pl": "Dziennik", "tr": "Seyir defteri"},
+"level.feature.routes": {
+	"pt_BR": "Rotas e Ramal", "en": "Routes and Rail", "es": "Rutas y ramal",
+	"fr": "Routes et rail", "de": "Routen und Bahn", "it": "Rotte e raccordo",
+	"ru": "Маршруты и ветка", "pl": "Trasy i bocznica", "tr": "Rotalar ve hat"},
+"level.feature.charters": {
+	"pt_BR": "Fretamentos", "en": "Charters", "es": "Fletamentos",
+	"fr": "Affrètements", "de": "Charter", "it": "Noleggi",
+	"ru": "Фрахт", "pl": "Czartery", "tr": "Çarterler"},
+"level.feature.skill_pilot": {
+	"pt_BR": "Prático a Bordo", "en": "Pilot Aboard", "es": "Práctico a bordo",
+	"fr": "Pilote à bord", "de": "Lotse an Bord", "it": "Pilota a bordo",
+	"ru": "Лоцман", "pl": "Pilot na pokładzie", "tr": "Kılavuz kaptan"},
+"level.feature.decor": {
+	"pt_BR": "Decoração", "en": "Decor", "es": "Decoración",
+	"fr": "Déco", "de": "Deko", "it": "Decori",
+	"ru": "Декор", "pl": "Dekoracje", "tr": "Dekor"},
+"level.feature.orders": {
+	"pt_BR": "Ordens", "en": "Orders", "es": "Órdenes",
+	"fr": "Ordres", "de": "Aufträge", "it": "Ordini",
+	"ru": "Приказы", "pl": "Rozkazy", "tr": "Emirler"},
+"level.feature.prestige": {
+	"pt_BR": "Reconstrução", "en": "Rebuild", "es": "Reconstrucción",
+	"fr": "Reconstruction", "de": "Wiederaufbau", "it": "Ricostruzione",
+	"ru": "Перестройка", "pl": "Przebudowa", "tr": "Yeniden inşa"},
+"wheel.ad_spin": {
+	"pt_BR": "Girar de novo (anúncio)", "en": "Spin again (ad)", "es": "Girar otra vez (anuncio)",
+	"fr": "Tourner encore (pub)", "de": "Nochmal drehen (Werbung)", "it": "Gira ancora (annuncio)",
+	"ru": "Ещё раз (реклама)", "pl": "Kręć jeszcze (reklama)", "tr": "Tekrar çevir (reklam)"},
+"wheel.ad_double": {
+	"pt_BR": "Dobrar prêmio (anúncio)", "en": "Double the prize (ad)", "es": "Duplicar premio (anuncio)",
+	"fr": "Doubler le gain (pub)", "de": "Preis verdoppeln (Werbung)", "it": "Raddoppia il premio (annuncio)",
+	"ru": "Удвоить приз (реклама)", "pl": "Podwój nagrodę (reklama)", "tr": "Ödülü ikiye katla (reklam)"},
+"offline.double": {
+	"pt_BR": "Dobrar ganho (anúncio)", "en": "Double it (ad)", "es": "Duplicar (anuncio)",
+	"fr": "Doubler (pub)", "de": "Verdoppeln (Werbung)", "it": "Raddoppia (annuncio)",
+	"ru": "Удвоить (реклама)", "pl": "Podwój (reklama)", "tr": "İkiye katla (reklam)"},
+"minigame.retry": {
+	"pt_BR": "Tentar de novo (anúncio)", "en": "Try again (ad)", "es": "Reintentar (anuncio)",
+	"fr": "Réessayer (pub)", "de": "Nochmal (Werbung)", "it": "Riprova (annuncio)",
+	"ru": "Ещё раз (реклама)", "pl": "Jeszcze raz (reklama)", "tr": "Tekrar dene (reklam)"},
+"minigame.again": {
+	"pt_BR": "OUTRA CHANCE!", "en": "ANOTHER GO!", "es": "¡OTRA VEZ!",
+	"fr": "ENCORE !", "de": "NOCHMAL!", "it": "ANCORA!",
+	"ru": "ЕЩЁ РАЗ!", "pl": "JESZCZE RAZ!", "tr": "BİR ŞANS DAHA!"},
 "ad.placeholder.title": {
 	"pt_BR": "ANÚNCIO (TESTE)", "en": "AD (TEST)", "es": "ANUNCIO (PRUEBA)",
 	"fr": "PUB (TEST)", "de": "WERBUNG (TEST)", "it": "ANNUNCIO (TEST)",

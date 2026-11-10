@@ -25,6 +25,7 @@
 | combo | the tap combo: steps build with a steady hand, a pause lets it fall, a skill can pin it, a payout in it is multiplied once |
 | skills | the Capataz skills: recharge clocks, save clamping, what each does, no early or double use, level gate, ad reset |
 | build | purchases stand after a delay: tier durations, the price counts what is still being built, two work at a time, a tap hurries one, an ad finishes one, time away counts, the queue saves, a rebuild clears it |
+| adflow | every rewarded-ad placement end to end with a fake provider: wheel spin, doubling a cash prize, the offline return, finishing a build; a refused ad pays nothing |
 | fx | pooled effects: fixed pool, lifetime, reduced-motion no-op, whole pixels, camera shake returns to rest |
 | ads | rewarded-ad policy and service: daily caps, cooldowns, day rollover, reward exactly once, a failed ad pays nothing, no-ads pass |
 | wheel | Roda da Sorte: segment weights, free spin before tokens, a token per third departure, prize priced in base cps, claim-once, reload, prestige survival |

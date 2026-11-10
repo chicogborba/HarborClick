@@ -440,6 +440,7 @@ func _on_ship_departed() -> void:
 			"text": "Escala concluída%s. +%s TEU de frete."
 				% [" sem falhas" if perfect else "", GameState.fmt(bonus)],
 		})
+		world.show_call_bonus(bonus, perfect)
 	call_completed.emit(summary)
 	EventBus.berth_call_completed.emit(summary)
 	_emit_status()
