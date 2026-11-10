@@ -32,7 +32,10 @@ func _build() -> void:
 	_dim = UiTheme.scrim(0.62)
 	_dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_dim.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and event.pressed:
+		# A finger as well as a mouse: on a phone the scrim got touch events
+		# only, and tapping outside the board did nothing.
+		if (event is InputEventMouseButton and event.pressed) \
+				or (event is InputEventScreenTouch and event.pressed):
 			close())
 	add_child(_dim)
 

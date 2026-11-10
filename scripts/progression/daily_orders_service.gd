@@ -11,6 +11,9 @@ extends Node
 ## wipe calls `seed_new` on sections.
 
 signal state_changed
+## A mission was claimed and its reward applied — the terminal level pays XP
+## for it, so Main connects `TerminalLevelService.note_mission` to this.
+signal mission_claimed
 
 const SECTION_ID := &"daily_orders"
 ## The day is re-checked once a minute, so a session that crosses midnight
@@ -71,6 +74,7 @@ func claim(index: int) -> Dictionary:
 	var reward := orders.claim(index, _current_day())
 	if not reward.is_empty():
 		_apply_reward(reward)
+		mission_claimed.emit()
 		state_changed.emit()
 	return reward
 

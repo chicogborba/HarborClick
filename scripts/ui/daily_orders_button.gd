@@ -7,10 +7,10 @@ extends CanvasLayer
 
 signal pressed
 
-const SIZE := 32.0
+const SIZE := 44.0
 const BADGE := 24.0
 ## Directly under the wheel's key: same column, one key and a gap lower.
-const OFFSET := Vector2(6.0, Hud.BAR_H + 30.0 + 38.0)
+const OFFSET := Vector2(6.0, Hud.BAR_H + 30.0 + 50.0)
 const TEX_BADGE := preload("res://assets/sprites/ui_daily_badge.png")
 
 var _service: DailyOrdersService

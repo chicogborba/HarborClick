@@ -811,7 +811,7 @@ func _open_corner(id: String) -> void:
 	match id:
 		"creditos":
 			_open_sheet(Loc.t("title.credits"), [
-				{"kind": "note", "label": "HarborClick — %s" % VERSION_LINE},
+				{"kind": "note", "label": "HarborClick - %s" % VERSION_LINE},
 				{"kind": "note", "label": "%s" % STUDIO_LINE},
 				{"kind": "note", "label": Loc.t("title.credits.made_with")},
 				{"kind": "note", "label": Loc.t("title.credits.jargon")},

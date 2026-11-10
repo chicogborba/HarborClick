@@ -81,6 +81,9 @@ func _furnish() -> void:
 		GameState.best_owned_by_structure[item.id] = maxi(
 			int(GameState.best_owned_by_structure.get(item.id, 0)), 3)
 	GameState.recompute()
+	# A furnished port is a grown one: every gated key is on the HUD.
+	_main.level_service.rules.add_xp(TerminalLevel.xp_for_level(12))
+	_main.level_service.xp_changed.emit()
 	_main.world.structures.rebuild()
 	EventBus.teus_changed.emit(GameState.teus)
 

@@ -26,6 +26,7 @@ var wheel_button: WheelButton
 var daily_service: DailyOrdersService
 var daily_panel: DailyOrdersPanel
 var daily_button: DailyOrdersButton
+var level_service: TerminalLevelService
 var _overlay_state := {"shop": false, "settings": false, "journal": false,
 	"prestige": false, "routes": false, "crew": false, "special": false,
 	"minigame": false, "notices": false, "wheel": false, "daily": false}
@@ -49,6 +50,12 @@ func _ready() -> void:
 	daily_service.setup(wheel_service)
 	add_child(daily_service)
 	wheel_service.spun.connect(daily_service.note_spin)
+	# The terminal level registers its save section here too, right after the
+	# daily service, and pays XP for a claimed mission.
+	level_service = TerminalLevelService.new()
+	level_service.name = "TerminalLevelService"
+	add_child(level_service)
+	daily_service.mission_claimed.connect(level_service.note_mission)
 
 	# Normally the title screen has already chosen a slot. Running this scene
 	# directly — F6, the capture harness, the dev probe — falls back to the
@@ -97,6 +104,13 @@ func _ready() -> void:
 	add_child(daily_button)
 	daily_button.pressed.connect(daily_panel.open)
 	daily_panel.open_changed.connect(_on_overlay_changed.bind("daily"))
+	# A1 gates the two HUD keys on the terminal level; refreshed at start and on
+	# every level-up. Nothing else is gated yet.
+	level_service.leveled_up.connect(func(_level: int, _features: Array) -> void:
+		_refresh_level_gates())
+	# A loaded save restores the level without "levelling up" to it.
+	level_service.xp_changed.connect(_refresh_level_gates)
+	_refresh_level_gates()
 	wheel_service.token_earned.connect(func() -> void:
 		EventBus.notification_requested.emit({
 			"id": "wheel_token", "kind": &"milestone", "priority": 1,
@@ -297,6 +311,15 @@ func _ready() -> void:
 
 func _on_any_berth_status(_status: Dictionary) -> void:
 	_refresh_berth_board()
+
+
+func _refresh_level_gates() -> void:
+	## The two HUD keys the unlock table gates today: the wheel (level 6) and
+	## the daily missions (level 4). Rules only — the buttons stay, hidden.
+	if level_service == null or wheel_button == null or daily_button == null:
+		return
+	wheel_button.visible = level_service.rules.unlocked(&"wheel")
+	daily_button.visible = level_service.rules.unlocked(&"daily")
 
 
 func _refresh_berth_board() -> void:

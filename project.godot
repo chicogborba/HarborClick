@@ -27,6 +27,9 @@ UserPreferences="*res://scripts/autoload/user_preferences.gd"
 ; anything that draws a string.
 Loc="*res://scripts/i18n/loc.gd"
 PortraitFrame="*res://scripts/autoload/portrait_frame.gd"
+; After SaveManager (it registers the "ads" save section) and Loc (the
+; placeholder provider reads its strings through it).
+AdService="*res://scripts/autoload/ad_service.gd"
 
 [display]
 

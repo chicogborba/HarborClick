@@ -14,6 +14,14 @@ var _zoom_floor := 1.0
 var _zoom_ceiling := 2.5
 var _has_shell_metrics := false
 var _input_enabled := true
+## Camera shake state: a decaying whole-pixel jitter applied on top of
+## `_base_offset` through Camera2D.offset, zero when no shake is running.
+## `_base_offset` is the anchor offset the shell metrics set, so the shake
+## never clobbers it.
+var _base_offset := Vector2.ZERO
+var _shake_strength := 0.0
+var _shake_elapsed := 0.0
+var _shake_seconds := 0.0
 ## Screen-space strips the HUD covers at the top and the bottom of the world.
 ## Without them the gantry sits on the gate and the console sits on the last row
 ## of buildings, and no amount of dragging can bring either out — the camera
@@ -42,6 +50,7 @@ func _process(delta: float) -> void:
 		position += keyboard.normalized() * 300.0 * delta / zoom
 	_clamp_position()
 	position = position.round()
+	_update_shake(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -77,6 +86,7 @@ func apply_view_metrics(metrics: Dictionary) -> void:
 	offset = Vector2(
 		maxf(0.0, (_viewport_size.x - _world_rect.size.x) / (2.0 * target_zoom)),
 		0.0)
+	_base_offset = offset
 	_zoom_floor = clampf(target_zoom, 0.25, 4.0)
 	_zoom_ceiling = maxf(_zoom_floor * 2.5, 1.0)
 	zoom = Vector2.ONE * _zoom_floor
@@ -89,6 +99,7 @@ func _on_viewport_resized() -> void:
 	_viewport_size = get_viewport().get_visible_rect().size
 	_world_rect = Rect2(Vector2.ZERO, _viewport_size)
 	offset = Vector2.ZERO
+	_base_offset = Vector2.ZERO
 	var target_zoom := _target_zoom_for(_world_rect)
 	_zoom_floor = clampf(target_zoom, 0.25, 4.0)
 	_zoom_ceiling = maxf(_zoom_floor * 2.5, 1.0)
@@ -158,6 +169,41 @@ func focus_on(y: float, duration: float = 0.6) -> void:
 	var tween := create_tween()
 	tween.tween_property(self, "position:y", target, duration) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+
+
+func shake(strength: float = 2.0, seconds: float = 0.18) -> void:
+	## A decaying random whole-pixel tremor, applied via Camera2D.offset in
+	## `_process` and back to the base offset when it finishes. Ignored under
+	## "movimento reduzido", like every other motion in the game.
+	if not UserPreferences.can_animate():
+		return
+	_shake_strength = maxf(0.0, strength)
+	_shake_seconds = maxf(0.01, seconds)
+	_shake_elapsed = 0.0
+
+
+func _update_shake(delta: float) -> void:
+	if _shake_elapsed >= _shake_seconds:
+		if _shake_strength > 0.0:
+			_shake_strength = 0.0
+			offset = _base_offset
+		return
+	if not UserPreferences.can_animate():
+		# Reduce motion flipped on mid-shake: stop dead on the base offset.
+		_shake_elapsed = _shake_seconds
+		_shake_strength = 0.0
+		offset = _base_offset
+		return
+	_shake_elapsed += delta
+	var decay := 1.0 - minf(1.0, _shake_elapsed / _shake_seconds)
+	if decay <= 0.0:
+		_shake_strength = 0.0
+		offset = _base_offset
+		return
+	var jitter := Vector2(
+		roundf(randf_range(-_shake_strength, _shake_strength) * decay),
+		roundf(randf_range(-_shake_strength, _shake_strength) * decay))
+	offset = _base_offset + jitter
 
 
 func _target_zoom_for(world_rect: Rect2) -> float:

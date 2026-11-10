@@ -21,6 +21,9 @@
 | special | charter rarity, the special hull, bounded stakes, both minigames |
 | rail | branch plans and standing orders, the operational floor, parked-only work, the run-around, the completion bonus, the rake drawn 1:1 |
 | clicks | real mouse events through the viewport on the main scene: every console key opens and Escape closes, the wheel button and GIRAR, a tap on the ship moves a box, a tap on a machine and an upgrade card buys |
+| level | Terminal level: XP curve and the minute table it is tuned to, the unlock table, legacy-save migration, prestige survival |
+| fx | pooled effects: fixed pool, lifetime, reduced-motion no-op, whole pixels, camera shake returns to rest |
+| ads | rewarded-ad policy and service: daily caps, cooldowns, day rollover, reward exactly once, a failed ad pays nothing, no-ads pass |
 | wheel | Roda da Sorte: segment weights, free spin before tokens, a token per third departure, prize priced in base cps, claim-once, reload, prestige survival |
 | gull | Gaivota dourada: session-only reward clock (first delay, blocked clock, re-arm gaps), prize weights and cash floor, flight escape exactly once, hit/catch, token grant capped at MAX_TOKENS |
 | daily | Missões do Dia: the same three missions for the same local day (and variety over 30 days), note() clamping to the goal and ignoring other events, claim-once, the streak with reset and the day-7 extra token, the all-three bonus, claimable count, save round trip and garbage restore, the service paying tokens to the wheel and the surge to GameState |

@@ -161,8 +161,10 @@ func _process(delta: float) -> void:
 			return
 	if _shake > 0.0:
 		_shake = maxf(0.0, _shake - delta * 3.4)
-		_board.position = _board_home() + Vector2(
-			randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake * 4.0
+		# No shake under reduced motion; the board still settles on its home.
+		var kick := Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) \
+			* _shake * 4.0 if UserPreferences.can_animate() else Vector2.ZERO
+		_board.position = _board_home() + kick
 	if _shout_time > 0.0:
 		_shout_time = maxf(0.0, _shout_time - delta)
 		_shout.modulate.a = clampf(_shout_time * 2.0, 0.0, 1.0)

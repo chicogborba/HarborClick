@@ -84,6 +84,13 @@ func _test_every_rail_key_opens_and_escape_closes() -> void:
 
 
 func _test_the_wheel_button_opens_and_spins() -> void:
+	# A new profile has neither key yet: the wheel arrives at terminal level 6
+	# and the missions at 4. Check that, then play as a port that has grown.
+	_expect(not _main.wheel_button.visible and not _main.daily_button.visible,
+		"a brand-new terminal shows neither the wheel nor the missions yet")
+	_main.level_service.rules.add_xp(TerminalLevel.xp_for_level(12))
+	_main.level_service.xp_changed.emit()
+	await get_tree().process_frame
 	var button: Button = _main.wheel_button._button
 	_expect(button.is_visible_in_tree(), "the wheel button is on screen")
 	await _click(button.get_global_rect().get_center())

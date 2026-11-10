@@ -229,7 +229,7 @@ static func wait_for(missing: float, rate: float) -> String:
 static func _payback(cost: float, cps_gain: float) -> String:
 	## How long this purchase takes to earn its own price back.
 	if cps_gain <= 0.0 or not is_finite(cost):
-		return "—"
+		return "-"
 	return duration(cost / cps_gain)
 
 

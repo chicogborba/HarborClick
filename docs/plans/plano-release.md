@@ -438,6 +438,21 @@ Toda tarefa: testes focados passam, `tools/qa/run_all.sh` verde, captura em
 
 ---
 
+## Andamento
+
+- **Onda 0 — feita em 10/11/2026**, exceto dois itens que seguem para a onda 1:
+  - **D1 (fonte de leitura)**: não desenhar ~200 glifos à mão. Gerar um segundo
+    BMFont a partir da Pixelify Sans (OFL, já usada na landing com latim
+    estendido e cirílico) em `gen_font.py`, com o mesmo teste de cobertura de
+    glifos da suíte `i18n`.
+  - **A6, parte "X de fechar em 44 px" e remoção de órfãos/`tutorial.gd`**:
+    aumentar o X muda a altura de todo cabeçalho; fazer junto do HUD novo (D3).
+- Entregue: `TerminalLevel` + portões (roda nível 6, missões nível 4),
+  `Fx` em pool + tremor de câmera + vibração, `AdService`/`AdPolicy` com
+  provedor placeholder, sintetizador com estéreo/reverb/delay/filtros e camas
+  de ambiência geradas (ainda não tocadas — G3), ícones 16×16
+  (`UiTheme.Icon16`), bugs da seção 1.3.
+
 ## Parte 5 — Ordem e paralelismo
 
 Agentes em paralelo não podem editar o mesmo arquivo. Donos por onda:

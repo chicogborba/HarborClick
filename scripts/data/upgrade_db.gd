@@ -238,7 +238,7 @@ const ITEMS: Array[Dictionary] = [
 	# the run-around loop can hold. A card promising a length the ground refuses
 	# would be a card that lies the moment it is bought.
 	{"id": "composicao_dupla", "name": "Composição Dupla", "short": "Dupla",
-		"desc": "Dois trens, uma pressa só. Mais dois vagões em cada serviço — o comprimento máximo que o desvio de manobra comporta.",
+		"desc": "Dois trens, uma pressa só. Mais dois vagões em cada serviço - o comprimento máximo que o desvio de manobra comporta.",
 		"branch": "ramal", "kind": "rail_stat",
 		"stats": [{"stat": "rake_length", "operation": "add_flat", "value": 2.0}],
 		"cost": 2.04e12, "requires": ["sinalizacao_ctc"],

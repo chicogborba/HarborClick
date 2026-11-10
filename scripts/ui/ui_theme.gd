@@ -106,6 +106,32 @@ enum Icon {
 
 const ICON_COUNT := 21
 
+## The 16x16 outlined sheet (`tools/sprites/gen_icons16.py`, same order): the
+## icons the new HUD reads alone, with no label beside them. The 12px sheet
+## above stays for the controls already built on it.
+enum Icon16 {
+	LEVEL, XP, AD, BOOST, COMBO, BUILD, SKILL_OVERTIME, SKILL_MUTIRAO,
+	SKILL_PILOT, ALBUM, MISSION, TOKEN, TAP, SHIP, TEU, GEAR,
+}
+const ICONS16 := preload("res://assets/sprites/ui_icons16.png")
+
+
+static func icon16_texture(kind: Icon16) -> AtlasTexture:
+	var at := AtlasTexture.new()
+	at.atlas = ICONS16
+	at.region = Rect2(int(kind) * 16, 0, 16, 16)
+	return at
+
+
+static func icon16(kind: Icon16, scale: int = 1) -> TextureRect:
+	var node := TextureRect.new()
+	node.texture = icon16_texture(kind)
+	node.custom_minimum_size = Vector2(16, 16) * scale
+	node.stretch_mode = TextureRect.STRETCH_SCALE
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return node
+
 
 # ---------------------------------------------------------------- typography
 

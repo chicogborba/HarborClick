@@ -1597,6 +1597,16 @@ const STRINGS := {
 # Small labels, so every translation stays short. The × is in the bitmap font
 # (see tools/sprites/gen_font.py, "x_mult").
 
+"ad.placeholder.title": {
+	"pt_BR": "ANÚNCIO (TESTE)", "en": "AD (TEST)", "es": "ANUNCIO (PRUEBA)",
+	"fr": "PUB (TEST)", "de": "WERBUNG (TEST)", "it": "ANNUNCIO (TEST)",
+	"ru": "РЕКЛАМА (ТЕСТ)", "pl": "REKLAMA (TEST)", "tr": "REKLAM (TEST)"},
+"ad.placeholder.close": {
+	"pt_BR": "Fechar sem recompensa", "en": "Close without reward",
+	"es": "Cerrar sin premio", "fr": "Fermer sans récompense",
+	"de": "Ohne Belohnung schließen", "it": "Chiudi senza premio",
+	"ru": "Закрыть без награды", "pl": "Zamknij bez nagrody",
+	"tr": "Ödülsüz kapat"},
 "wheel.earn": {
 	"pt_BR": "+1 ficha a cada 3 navios ({have}/{need})",
 	"en": "+1 token every 3 ships ({have}/{need})",
