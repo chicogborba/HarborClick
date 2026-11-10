@@ -1,5 +1,25 @@
 # World domain
 
+## The ground is baked per ownership state
+
+`GroundBaker.bake(world_h, rail_owned)` paints the whole plane in one texture.
+The rail corridor (ballast, sleepers, both steel lines, buffer stop, platform)
+is painted **only when `rail_owned` is true** — `PortWorld._rail_owned()` reads
+the same three terms `RailYard.is_open()` does (Área Ferroviária parcel bought,
+`trem` machine owned, or the `routes` feature unlocked). Without them the bake
+paints a bare lot with a drawn sale board instead, and `_rebake_ground()` runs
+again on every land purchase and prestige, so buying the parcel is what makes
+the track appear. Headless suites never bind `FeatureGate`, which reads as
+unlocked, so test worlds keep the painted corridor.
+
+## The call's progress rides on the hull
+
+`Ship._draw()` paints a small bar plus "n/24" above the deck while the call is
+being worked (amber for discharge, teal for loading), redrawn only when the
+fraction changes. It is drawn, not a Control, so it can never eat a tap on the
+hull. A manifest's premiada box gleams gold on deck (`Ship._make_box`) with a
+looping spark, so the ×5 is visible before it is earned.
+
 ## The branch corridor is a fixed row
 
 `PortLayout.RAIL_ROW` is the block row the railway is threaded before, and

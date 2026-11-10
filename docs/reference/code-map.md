@@ -39,17 +39,17 @@ Inventory: **246 authored code/config/scene files**.
 | File | Lines | Symbols | Purpose |
 |---|---:|---|---|
 | `scripts/autoload/ad_service.gd` | 131 | 12 functions | AdService: the one door every rewarded ad goes through. Owns one `AdPolicy` |
-| `scripts/autoload/audio_manager.gd` | 429 | 28 functions | SFX pool + crossfading music. Tracks follow the day/night cycle and weather. |
+| `scripts/autoload/audio_manager.gd` | 435 | 28 functions | SFX pool + crossfading music. Tracks follow the day/night cycle and weather. |
 | `scripts/autoload/event_bus.gd` | 47 | 0 functions | Global signal hub. Everything talks through here to stay decoupled. |
-| `scripts/autoload/game_state.gd` | 1411 | 84 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
+| `scripts/autoload/game_state.gd` | 1416 | 84 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
 | `scripts/autoload/portrait_frame.gd` | 60 | 3 functions | Keeps the game in portrait at any window size. |
 | `scripts/autoload/save_manager.gd` | 533 | 33 functions | Versioned, recoverable persistence.  The public yard/pending_yard API is |
 | `scripts/autoload/time_manager.gd` | 112 | 9 functions | Day/night cycle + weather. Full lighting arrives in the day/night phase; |
 | `scripts/autoload/user_preferences.gd` | 237 | 17 functions | Player-facing preferences kept separate from the progression save. |
-| `scripts/cargo/berth_call_controller.gd` | 584 | class `BerthCallController`; 34 functions | Authoritative, restart-safe berth workflow. Visual flights are transactions: |
+| `scripts/cargo/berth_call_controller.gd` | 610 | class `BerthCallController`; 34 functions | Authoritative, restart-safe berth workflow. Visual flights are transactions: |
 | `scripts/cargo/cargo_inventory.gd` | 82 | class `CargoInventory`; 11 functions | Small ownership ledger used by yards, ships and offline saves. |
 | `scripts/cargo/cargo_transfer.gd` | 41 | class `CargoTransfer`; 3 functions | One reversible movement.  Commit occurs only when the visual flight lands; |
-| `scripts/cargo/cargo_unit.gd` | 41 | class `CargoUnit`; 5 functions | A single traceable container.  Cargo is deliberately data first: the |
+| `scripts/cargo/cargo_unit.gd` | 47 | class `CargoUnit`; 5 functions | A single traceable container.  Cargo is deliberately data first: the |
 | `scripts/cargo/crane_allocation.gd` | 115 | class `CraneAllocation`; 5 functions | Standing orders: how the bought equipment is divided between the berths. |
 | `scripts/cargo/gate_dock.gd` | 469 | class `GateDock`; 24 functions | The road side of the terminal: trucks from the city, and the guarantee that |
 | `scripts/cargo/rail_cargo_policy.gd` | 170 | class `RailCargoPolicy`; 9 functions | Pure rail/yard policy: how long a rake is, and what one service does to the |
@@ -86,7 +86,7 @@ Inventory: **246 authored code/config/scene files**.
 | `scripts/fx/fx.gd` | 193 | class `Fx`; 9 functions | The port's one VFX library: pooled sprite particles living in the world's |
 | `scripts/i18n/loc.gd` | 224 | 16 functions | Which language the port speaks, and every string it says. |
 | `scripts/i18n/strings_content.gd` | 157 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
-| `scripts/i18n/strings_ui.gd` | 1877 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
+| `scripts/i18n/strings_ui.gd` | 1881 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
 | `scripts/main.gd` | 823 | 31 functions | Root: assembles world, camera and UI. |
 | `scripts/monetization/ad_policy.gd` | 182 | class `AdPolicy`; 11 functions | The rules of rewarded ads: which placements exist, how many may be watched |
 | `scripts/monetization/ad_provider.gd` | 18 | class `AdProvider`; 1 functions | The seam between the game and a real ad SDK. `AdService` asks the current |
@@ -143,15 +143,15 @@ Inventory: **246 authored code/config/scene files**.
 | `scripts/world/decor_layer.gd` | 179 | class `DecorLayer`; 8 functions | Everything the player bought purely because it looks good. |
 | `scripts/world/flying_container.gd` | 119 | class `FlyingContainer`; 8 functions | A box travelling from the ship's deck to a yard stack. Top-down, so the |
 | `scripts/world/golden_gull.gd` | 261 | class `GoldenGull`; 11 functions | The gaivota dourada: a golden gull carrying a parcel across the visible |
-| `scripts/world/ground_baker.gd` | 610 | class `GroundBaker`; 24 functions | Bakes the whole ground plane into one texture: grass verge, kerb, paved |
+| `scripts/world/ground_baker.gd` | 648 | class `GroundBaker`; 25 functions | Bakes the whole ground plane into one texture: grass verge, kerb, paved |
 | `scripts/world/harbour_signals.gd` | 104 | class `HarbourSignals`; 5 functions | The instruments a working port wears: windsocks on the quay and pennants over |
 | `scripts/world/port_camera.gd` | 240 | class `PortCamera`; 17 functions | Responsive terminal camera: touch/mouse drag, wheel zoom and keyboard pan. |
 | `scripts/world/port_layout.gd` | 748 | class `PortLayout`; 58 functions | Pure geometry for the top-down terminal. No nodes, no state — just the |
-| `scripts/world/port_world.gd` | 1771 | class `PortWorld`; 96 functions | Top-down terminal: yard on the left, quay and berth on the right. |
+| `scripts/world/port_world.gd` | 1791 | class `PortWorld`; 98 functions | Top-down terminal: yard on the left, quay and berth on the right. |
 | `scripts/world/rail_rake.gd` | 471 | class `RailRake`; 19 functions | The train on the branch, and the shunt that lets it leave. |
 | `scripts/world/rainfall.gd` | 132 | class `Rainfall`; 8 functions | Rain over the terminal: falling streaks, the splash where each one lands, and |
 | `scripts/world/road_truck.gd` | 624 | class `RoadTruck`; 33 functions | A city truck on the terminal's road: a tractor unit and the chassis it pulls. |
-| `scripts/world/ship.gd` | 957 | class `Ship`; 64 functions | View of the berth manifest.  BerthCallController owns the workflow; this |
+| `scripts/world/ship.gd` | 1025 | class `Ship`; 66 functions | View of the berth manifest.  BerthCallController owns the workflow; this |
 | `scripts/world/skyscape.gd` | 168 | class `Skyscape`; 9 functions | Weather and sky, expressed the way a top-down camera can actually see them. |
 | `scripts/world/structure_actor.gd` | 2026 | class `StructureActor`; 105 functions | One visible instance of a bought structure. |
 | `scripts/world/structure_layer.gd` | 282 | class `StructureLayer`; 16 functions | Places the visible copies of bought structures around the terminal. |
@@ -174,7 +174,7 @@ Inventory: **246 authored code/config/scene files**.
 | `tests/backup_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/build_test_runner.gd` | 176 | 13 functions | Builds: a paid purchase stands after a delay, the price already counts it, two |
 | `tests/build_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/cargo_test_runner.gd` | 819 | 33 functions | Integration suite for cargo phases 1-2. |
+| `tests/cargo_test_runner.gd` | 866 | 34 functions | Integration suite for cargo phases 1-2. |
 | `tests/cargo_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/clicks_test_runner.gd` | 239 | 12 functions | Real clicks, end to end. |
 | `tests/clicks_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -211,7 +211,7 @@ Inventory: **246 authored code/config/scene files**.
 | `tests/phase4_water_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/profile_test_runner.gd` | 97 | 7 functions | Profile slot contract. |
 | `tests/profile_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/rail_test_runner.gd` | 738 | 30 functions | The branch line: block trains from the interior, and the shunt that lets one |
+| `tests/rail_test_runner.gd` | 771 | 31 functions | The branch line: block trains from the interior, and the shunt that lets one |
 | `tests/rail_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/relay_test_runner.gd` | 446 | 15 functions | Container relay regression suite. |
 | `tests/relay_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -239,11 +239,11 @@ Inventory: **246 authored code/config/scene files**.
 | File | Lines | Symbols | Purpose |
 |---|---:|---|---|
 | `tools/audio/gen_ambience.py` | 155 | 7 functions | Harbour ambience: four seamless 12 s stereo beds plus a thunder one-shot. |
-| `tools/audio/gen_music.py` | 155 | 6 functions | Three ambient loops: day, night and fog. |
+| `tools/audio/gen_music.py` | 257 | 9 functions | Six ambient loops: dawn, day, dusk, night, fog and rain. |
 | `tools/audio/gen_sfx.py` | 501 | 37 functions | All HarborClick sound effects, generated from code. |
 | `tools/audio/synth.py` | 334 | 19 functions | Tiny chiptune synth: pure stdlib (wave/struct/math). 22050 Hz, 16-bit mono. |
 | `tools/balance/run_balance.gd` | 49 | 3 functions | Usage: Godot --headless --path . -s res://tools/balance/run_balance.gd -- [scenario] [--json] |
-| `tools/capture/capture.gd` | 951 | 12 functions | Headed screenshot harness. Boots the real game scene, drives the overlays and |
+| `tools/capture/capture.gd` | 960 | 12 functions | Headed screenshot harness. Boots the real game scene, drives the overlays and |
 | `tools/capture/capture.tscn` | 6 | 1 nodes | Godot scene |
 | `tools/capture/closeup.gd` | 144 | 4 functions | One close-up of the running game, for judging art at the pixel. |
 | `tools/capture/closeup.tscn` | 6 | 1 nodes | Godot scene |

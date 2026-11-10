@@ -100,6 +100,7 @@ func _run() -> void:
 	await _test_one_hundred_accelerated_calls()
 	await _test_a_call_completes_with_every_upgrade_owned()
 	_test_the_berth_never_ends_up_with_nothing_to_do()
+	_test_premiada_marks_the_manifest_and_pays_five_times_exactly_once()
 	# Last, because it empties the yard to set up the comparison it needs.
 	_test_the_yard_has_a_direction()
 
@@ -120,6 +121,52 @@ func _run() -> void:
 			push_error(failure)
 		print("CARGO TESTS FAILED: %d assertion(s)" % failures.size())
 		get_tree().quit(1)
+
+
+func _test_premiada_marks_the_manifest_and_pays_five_times_exactly_once() -> void:
+	## Carga premiada: one box in ~12 of the manifest is premiada (a property of
+	# the manifest, so it survives save/reload with the UID), and discharging it
+	# pays PREMIUM_MULT in total — the base quote plus the landing bonus, each
+	# under its own idempotent transaction.
+	_reset_call(31337)
+	var marked := 0
+	for u in _world.berth._imports:
+		if u.premiada:
+			marked += 1
+	_expect(marked == _world.berth._imports.size() / BerthCallController.PREMIUM_EVERY,
+		"one in %d manifest boxes is premiada (got %d of %d)"
+		% [BerthCallController.PREMIUM_EVERY, marked, _world.berth._imports.size()])
+	var unit0: CargoUnit = _world.berth._imports[0]
+	_expect(not CargoUnit.from_snapshot(unit0.snapshot()).premiada
+		or not unit0.premiada, "premiada round-trips through the snapshot")
+	var payloads: Array = []
+	var on_commit := func(p: Dictionary) -> void: payloads.append(p)
+	_world.berth.transfer_committed.connect(on_commit)
+	# The premiada boxes sit at manifest indices 11 and 23; the take order runs
+	# column 1 first, so the sixth discharge moves the index-11 box.
+	var premiada_payload: Dictionary = {}
+	for tap in 6:
+		_expect(_world.berth.handle_tap(_world.ship.global_position),
+			"premiada setup tap %d is accepted" % (tap + 1))
+		_finish_all_flights("premiada tap %d" % (tap + 1))
+	for p in payloads:
+		if bool(p.get("premiada", false)):
+			premiada_payload = p
+	_world.berth.transfer_committed.disconnect(on_commit)
+	_expect(not premiada_payload.is_empty(), "discharging a premiada box pays the premiada bonus")
+	if not premiada_payload.is_empty():
+		_expect(bool(premiada_payload.get("unit", {}).get("premiada", false)),
+			"the committed payload carries the premiada flag and unit snapshot")
+		var base := float(GameState.make_manual_reward_quote(
+			str(premiada_payload.get("tx_id", ""))).get("value", 0.0))
+		_expect(base > 0.0 and is_equal_approx(float(premiada_payload.get("reward_teu", 0.0)),
+			base * BerthCallController.PREMIUM_MULT),
+			"premiada pays exactly x%.0f the base quote" % BerthCallController.PREMIUM_MULT)
+		var before := GameState.teus
+		GameState.commit_manual_reward("%s:premiada" % str(premiada_payload.get("id", "")),
+			{"value": base * (BerthCallController.PREMIUM_MULT - 1.0), "crit": true})
+		_expect(is_equal_approx(GameState.teus, before),
+			"the premiada landing bonus is idempotent and never pays twice")
 
 
 func _test_the_yard_has_a_direction() -> void:

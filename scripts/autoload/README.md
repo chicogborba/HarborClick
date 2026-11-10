@@ -11,6 +11,15 @@ Configured in `project.godot`:
   `VARIANTS` is played from several generated takes and a pitch ladder, drawn
   from shuffle bags so neither repeats back to back. Add takes in
   `tools/audio/gen_sfx.py` and the count here; call sites do not change.
+  Music is six generated loops — `music_dawn/day/dusk/night/fog/rain`
+  (`tools/audio/gen_music.py`) — chosen by `update_music()` from the weather
+  first (rain, fog) then the day phase, crossfaded. Ambience beds (sea, port hum
+  scaled by production, rain, wind, thunder) run on their own bus under the
+  music. 16 voices, mute on focus loss, unlock on first gesture (web).
+- `AdService` — the one seam to ad SDKs. `show_rewarded(placement, on_reward)`
+  with daily caps and cooldowns enforced by the pure `AdPolicy`
+  (`scripts/monetization/`); the placeholder provider plays a 3-2-1 test panel.
+  Swap in a real provider by replacing one class; screens never change.
 - `UserPreferences` — player-facing local options.
 
 Use an autoload only when state or service lifetime genuinely spans scenes.

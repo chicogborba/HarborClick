@@ -15,7 +15,7 @@ static func _img(name: String) -> Image:
 	return _cache[name]
 
 
-static func bake(world_h: int) -> ImageTexture:
+static func bake(world_h: int, rail_owned: bool = true) -> ImageTexture:
 	var w := int(PortLayout.WORLD_W)
 	var img := Image.create(w, world_h, false, Image.FORMAT_RGBA8)
 	# Transparent, not sea blue. The ground plane sits at z -8 and the animated
@@ -162,8 +162,14 @@ static func bake(world_h: int) -> ImageTexture:
 	# --- intermodal rail corridor ---
 	# The train actor has always crossed this coordinate. Giving it ballast,
 	# sleepers and two steel rails makes it a real transport connection rather
-	# than a locomotive sliding over an empty dirt strip.
-	_paint_rail_corridor(img)
+	# than a locomotive sliding over an empty dirt strip — but only once the
+	# terminal owns the ground it runs on. A fresh port shows a bare lot with a
+	# sale sign where the branch will go, and buying the Área Ferroviária is
+	# what paints the track (see `PortWorld._rebake_ground`).
+	if rail_owned:
+		_paint_rail_corridor(img)
+	else:
+		_paint_rail_lot_for_sale(img)
 
 	# --- quay coping where the concrete meets the water ---
 	var edge := _img("gr_quay_edge")
@@ -320,6 +326,38 @@ static func _paint_quay_safety(img: Image, world_h: int) -> void:
 		_draw_stencil(img, "Q" + str(station), int(PortLayout.QUAY_X0) + 12,
 			y, Color8(180, 174, 162))
 		station += 1
+
+
+static func _paint_rail_lot_for_sale(img: Image) -> void:
+	## The rail corridor before the Área Ferroviária is bought: no ballast, no
+	# steel, just packed dirt and a sale board where the branch would start.
+	# The stencil font has no V/N/D/S, so the board is drawn, not written.
+	var rail_y := int(PortLayout.rail_y())
+	var loop_y := int(PortLayout.rail_loop_y())
+	var x1 := int(PortLayout.WATER_X0) - 11
+	# Packed dirt over the whole band, slightly darker than the yard so the
+	# empty lot reads as ground nobody maintains.
+	for y in range(loop_y - 9, rail_y + 12):
+		for x in range(0, x1):
+			if (x * 7 + y * 3) % 5 < 3:
+				_mix_pixel(img, x, y, Color8(122, 100, 74), 0.35)
+	# Sale boards: pale board, amber rim, two dark posts, one near the west
+	# end and one mid-corridor so the lot reads at any zoom.
+	for sx in [int(PortLayout.rail_west_turnout_x()) + 26, int(x1 * 0.45)]:
+		var sy := loop_y - 16
+		for y in range(sy, sy + 9):
+			for x in range(sx, sx + 14):
+				var rim: bool = x == sx or x == sx + 13 or y == sy or y == sy + 8
+				_pixel(img, x, y, Color8(232, 176, 62) if rim else Color8(226, 220, 204))
+		# A dark "tag" in the middle of the board, the way a real for-sale sign
+		# carries a phone strip.
+		for x in range(sx + 3, sx + 11):
+			_pixel(img, x, sy + 4, Color8(74, 66, 58))
+		_pixel(img, sx + 3, sy + 5, Color8(74, 66, 58))
+		_pixel(img, sx + 10, sy + 5, Color8(74, 66, 58))
+		for px in [sx + 2, sx + 11]:
+			for y in range(sy + 9, min(sy + 14, rail_y + 12)):
+				_pixel(img, px, y, Color8(58, 52, 48))
 
 
 static func _paint_rail_corridor(img: Image) -> void:

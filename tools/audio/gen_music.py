@@ -1,4 +1,4 @@
-"""Three ambient loops: day, night and fog.
+"""Six ambient loops: dawn, day, dusk, night, fog and rain.
 
 These play for hours, so they are written to stay out of the way: slow tempo,
 long phrases that do not repeat inside a loop, soft triangle leads, and no
@@ -148,8 +148,110 @@ def gen_fog():
     save_wav(buf, "music_fog", normalize=0.42)
 
 
+def gen_dusk():
+    """Warm and settling: major turning to minor, sun going down. 16 bars."""
+    bpm = 66
+    b = beat(bpm)
+    length = 16 * 4 * b
+    buf = render(length + 3.0)
+
+    lead = [
+        ("G4", 3), ("E4", 1), ("D4", 4),
+        ("C4", 3), ("D4", 1), ("E4", 4),
+        ("F4", 3), ("E4", 1), ("D4", 4),
+        ("C4", 2), ("B3", 2), ("A3", 4),
+        # B — lower, duskier
+        ("A3", 4), ("C4", 2), ("D4", 2),
+        ("E4", 4), ("D4", 4),
+        ("C4", 3), ("A3", 1), ("G3", 4),
+        ("A3", 8),
+    ]
+    play(buf, lead, bpm, "triangle", 0.14, env=(0.1, 0.3, 0.5, 0.8))
+
+    chords(buf, [
+        ["G3", "B3", "D4"], ["C3", "E3", "G3"],
+        ["A2", "C3", "E3"], ["D3", "F3", "A3"],
+        ["G3", "B3", "D4"], ["E3", "G3", "B3"],
+        ["A2", "C3", "E3"], ["D3", "F3", "A3"],
+    ], bpm, gain=0.05)
+
+    bass = []
+    for root in ["G2", "C2", "A2", "D2", "G2", "E2", "A2", "D2"]:
+        bass += [(root, 4), (None, 1), (root, 3)]
+    play(buf, bass, bpm, "triangle", 0.12, env=(0.05, 0.3, 0.6, 0.5))
+    save_wav(buf, "music_dusk", normalize=0.5)
+
+
+def gen_dawn():
+    """Cool rising, minor to major — the port waking up. 16 bars."""
+    bpm = 72
+    b = beat(bpm)
+    length = 16 * 4 * b
+    buf = render(length + 3.0)
+
+    lead = [
+        ("E4", 4), ("G4", 2), ("A4", 2),
+        ("B4", 4), ("A4", 4),
+        ("G4", 3), ("E4", 1), ("D4", 4),
+        ("E4", 8),
+        # B — opens out
+        ("C4", 4), ("E4", 2), ("G4", 2),
+        ("A4", 4), ("G4", 4),
+        ("F4", 3), ("E4", 1), ("D4", 4),
+        ("C4", 8),
+    ]
+    play(buf, lead, bpm, "triangle", 0.13, env=(0.12, 0.3, 0.5, 0.9))
+
+    chords(buf, [
+        ["A2", "C3", "E3"], ["F2", "A2", "C3"],
+        ["C3", "E3", "G3"], ["G2", "B2", "D3"],
+        ["A2", "C3", "E3"], ["D3", "F3", "A3"],
+        ["C3", "E3", "G3"], ["C3", "E3", "G3"],
+    ], bpm, gain=0.045)
+
+    bass = []
+    for root in ["A1", "F1", "C2", "G1", "A1", "D2", "C2", "C2"]:
+        bass += [(root, 8)]
+    play(buf, bass, bpm, "triangle", 0.11, env=(0.2, 0.4, 0.6, 0.9))
+    save_wav(buf, "music_dawn", normalize=0.48)
+
+
+def gen_rain():
+    """Rain cousin of the fog loop: sparse notes over a noise wash."""
+    bpm = 52
+    b = beat(bpm)
+    length = 16 * 4 * b
+    buf = render(length + 4.0)
+
+    lead = [
+        (None, 4), ("E4", 4),
+        (None, 2), ("D4", 6),
+        (None, 8),
+        ("C4", 5), (None, 3),
+        (None, 4), ("G3", 4),
+        ("A3", 6), (None, 2),
+        (None, 8),
+        ("E4", 8),
+    ]
+    play(buf, lead, bpm, "triangle", 0.11, env=(0.4, 0.6, 0.5, 1.6))
+
+    chords(buf, [
+        ["A2", "C3", "E3"], ["G2", "B2", "D3"],
+        ["F2", "A2", "C3"], ["E2", "G2", "B2"],
+        ["A2", "C3", "E3"], ["F2", "A2", "C3"],
+        ["C3", "E3", "G3"], ["A2", "C3", "E3"],
+    ], bpm, gain=0.045, bars_each=2)
+
+    # rain bed: coloured noise, steady
+    add_noise(buf, 0.0, length, 0.030, env=(2.0, 2.5, 0.8, 2.5), lowpass=0.06)
+    save_wav(buf, "music_rain", normalize=0.4)
+
+
 if __name__ == "__main__":
     print("music:")
     gen_day()
     gen_night()
     gen_fog()
+    gen_dusk()
+    gen_dawn()
+    gen_rain()

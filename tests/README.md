@@ -3,7 +3,7 @@
 | Suite | Contract |
 |---|---|
 | core | economy basics, save envelope, wipe |
-| cargo | UID ownership, ship calls, reload, 100-call stress |
+| cargo | UID ownership, ship calls, reload, 100-call stress, carga premiada: manifest marks 1-in-12, the ×5 is paid once across base + landing tx, UIDs and the flag survive reload |
 | gate | non-deficit trucks, 24-box reserve, truck travel |
 | automation | berth automation uses the manual transaction path |
 | traffic | road-plated machines: lanes, separation and long-run movement |
@@ -19,7 +19,7 @@
 | wake | motion-derived wake and shader coordinates |
 | npc | crew identity and persistence, one task per key, hull shudder, sound takes |
 | special | charter rarity, the special hull, bounded stakes, both minigames |
-| rail | branch plans and standing orders, the operational floor, parked-only work, the run-around, the completion bonus, the rake drawn 1:1 |
+| rail | branch plans and standing orders, the operational floor, parked-only work, the run-around, the completion bonus, the rake drawn 1:1, ground gate: the corridor is painted only when the land/machine/feature is owned, else a sale board |
 | clicks | real mouse events through the viewport on the main scene: every console key opens and Escape closes, the wheel button and GIRAR, a tap on the ship moves a box, a tap on a machine and an upgrade card buys |
 | level | Terminal level: XP curve and the minute table it is tuned to, the unlock table, legacy-save migration, prestige survival |
 | combo | the tap combo: steps build with a steady hand, a pause lets it fall, a skill can pin it, a payout in it is multiplied once |

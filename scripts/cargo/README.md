@@ -1,5 +1,18 @@
 # Cargo domain
 
+## Carga premiada (reefer)
+
+One box in every ~12 of an inbound manifest (`BerthCallController.PREMIUM_EVERY`)
+is `CargoUnit.premiada` — a property of the manifest, assigned at seed time, so
+it is deterministic per call and persists through `snapshot()` (old saves read
+as not premiada). It gleams on the deck and pays `PREMIUM_MULT` (×5) when
+discharged: the base quote is paid as always (at the finger for a tap, at
+landing for an automated move), and the remaining 4× is committed at landing
+under the derived transaction id `"<transfer_id>:premiada"`, so a reload between
+the two can neither double-pay nor lose the bonus. This replaced the invisible
+3% crit: `GameState.CRIT_CHANCE` is 0, and the `crit` flag survives in quotes
+only for save compatibility and premiada display.
+
 ## Owners
 
 - `cargo_unit.gd` — one traceable container identity.

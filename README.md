@@ -7,11 +7,47 @@ atracado e as três fotos de berço — saem de um modelo de pixel art, e as
 respostas dele ficam versionadas junto da receita
 (`tools/sprites/pixellab/`). O build nunca chama a API.
 
-O pátio já nasce com um manifesto de exportação entregue pelo comboio rodoviário
-inaugural antes do primeiro turno. Você descarrega toda a importação do navio,
-embarca esse lote diferente até completar o convés, contrata equipamento,
-compra terreno — e o terminal vai enchendo até virar um caos lindo de
-contêiner empilhado.
+Você descarrega a importação de cada navio tocando no casco, embarca a carga de
+exportação até completar o convés, e o terminal vai enchendo — máquina por
+máquina, terreno por terreno — até virar um caos lindo de contêiner empilhado.
+
+## O jogo hoje
+
+- **O toque tem encanto** — combo de toques até ×3 com faíscas e som que sobe de
+  tom, carga premiada que brilha no convés e paga ×5, barra de progresso da
+  escala sobre o casco, fim de escala com buzina, confete e número dourado,
+  partículas em pool, tremor de câmera e vibração no celular.
+- **O porto começa vazio e cresce por nível** — nada aparece antes do nível
+  que o libera; cada liberação cai com um cartão de cerimônia ("NOVO: …").
+  Pinça dá zoom, o tutorial espera a ação do jogador em 4 passos.
+- **Comprar máquina inicia uma obra** — tapume e progresso com tempo por tier;
+  tocar na obra acelera, anúncio recompensado conclui na hora.
+- **Habilidades do Capataz** — Turno Extra, Mutirão e Prático a Bordo, com
+  recarga radial e botão de anúncio para zerar a recarga.
+- **Monetização placeholder** — só anúncios recompensados e opcionais, via
+  `AdService` + `AdPolicy` (teto diário + intervalo por placement). Ligar ads
+  de verdade é trocar uma classe em `scripts/monetization/`; nenhuma tela muda.
+- **9 idiomas**, save versionado por perfil, progresso offline com quadro de
+  retorno (que também oferece dobrar o ganho por anúncio).
+
+## Roadmap por ondas
+
+O plano vivo está em [`docs/plans/plano-release.md`](docs/plans/plano-release.md)
+(diagnóstico, tarefas por frente com aceite, ordem entre agentes). Resumo:
+
+| Onda | Foco | Marco | Estado |
+|---|---|---|---|
+| 0 | Fundação: nível, gates, efeitos, anúncios placeholder, ícones 16px | — | ✅ |
+| 1 | Mundo vazio, indicador de bônus, pinça, ambiência e sons | — | ✅ |
+| 2 | Tutorial, cerimônia, objetivo único, obras, carga premiada, guindastes vivos, música (6 trilhas) | M1: primeiros 10 min bons | ✅ |
+| 3 | Combo, habilidades, fim de escala, HUD novo, veículos e prédios | — | ✅ (resto: visual de obra no mundo, fonte de leitura) |
+| 4 | Loja em abas, Diário, ordens simples, suco de UI, conquistas que pagam, minijogos, título novo | M2: jogo divertido | ⏳ |
+| 5 | Rebalanceio, álbum de navios, texto, clima e luz, navios nativos, mixagem, playtest automático | M3: bonito e com som | ⏳ |
+| 6 | Tradução do conteúdo, Android, desempenho, web sem threads, telemetria | — | ⏳ |
+| 7 | Decisão na compra de máquina, loja/jurídico, CI, playtest humano | M4: pronto para loja | ⏳ |
+
+Para continuar o trabalho (estado por commit, restos das ondas 1–3 e regras de
+trabalho): [`docs/plans/handoff-ondas-1-3.md`](docs/plans/handoff-ondas-1-3.md).
 
 ## Rodar
 
@@ -54,7 +90,9 @@ Para apenas validar o carregamento do projeto, sem abrir uma janela:
 godot --headless --path . --editor --quit
 ```
 
-As suítes determinísticas também podem ser executadas sem janela:
+As suítes determinísticas também podem ser executadas sem janela — rode todas
+de uma vez com `tools/qa/run_all.sh` (inclui import + checagem do mapa de
+código), ou uma a uma:
 
 ```bash
 godot --headless --path . res://tests/core_test_runner.tscn
@@ -75,6 +113,8 @@ godot --headless --path . res://tests/profile_test_runner.tscn
 godot --headless --path . res://tests/automation_test_runner.tscn
 godot --headless --path . res://tests/gate_test_runner.tscn
 godot --headless --path . res://tests/wake_test_runner.tscn
+# ondas 0–3: level fx ads combo skills build adflow daily wheel gull clicks
+godot --headless --path . res://tests/adflow_test_runner.tscn
 
 # cenários de balanceamento: ativo, híbrido, casual, noite fora, build errada
 # e recuperação pós-prestígio
@@ -339,8 +379,12 @@ de deixar o jogador construir uma run que evapora no reload.
   linha quebrada de espuma onde a água encontra o cais.
 - **Céu** — `Skyscape`. De cima não se olha pra cima: nuvem é só a sombra que
   ela joga no pátio, lua e estrelas só o reflexo na água, por baixo do casco.
-- **Áudio** — 17 SFX e 3 trilhas longas e calmas (dia/noite/neblina) com
-  crossfade. Liga/desliga em Ajustes, persistido em `user://audio.cfg`.
+- **Áudio** — SFX sintetizados com variações e espaçamento mínimo por som,
+  6 trilhas longas (amanhecer/dia/entardecer/noite/neblina/chuva) com crossfade
+  escolhidas pelo ciclo dia/noite e pelo clima, camas de ambiência em loop (mar,
+  zumbido do porto proporcional à produção, chuva, vento, trovão), 16 vozes,
+  mute ao perder foco, desbloqueio no 1º toque (web). Liga/desliga e volumes
+  em Ajustes, persistido em `user://audio.cfg`.
 - **Ramal ferroviário** — a terceira porta do terminal, e a única que não pode
   dar meia-volta. O corredor é um **fundo de saco**: `GroundBaker` põe lastro,
   dormentes, dois trilhos e um para-choque do limite oeste até `WATER_X0 - 11`,
@@ -576,13 +620,14 @@ acima — vale rodar depois de mexer no fluxo de carga.
 
 ---
 
-## Plano de evolução — refeito em 04/08/2026
+## Plano de evolução — refeito em 04/08/2026, **substituído** em 10/11/2026
 
-Este é o documento vivo de produção do HarborClick, e ele foi **zerado**. O plano
-antigo descrevia dezoito fases já entregues e não dizia mais o que falta; a
-lista abaixo saiu de uma auditoria contra a pesquisa de gênero resumida em
-[`docs/design/principios.md`](docs/design/principios.md), com o simulador de
-balanceamento executado e a economia lida linha a linha.
+O plano vivo agora é [`docs/plans/plano-release.md`](docs/plans/plano-release.md)
+(ondas 0–7 com marcos M1–M4; tabela de estado no topo deste README e handoff em
+[`docs/plans/handoff-ondas-1-3.md`](docs/plans/handoff-ondas-1-3.md)). A lista
+abaixo fica como histórico: seus itens pendentes foram absorvidos pelas tarefas
+do plano novo (Rotas/Eventos = tarefa C6, prestígio = C6/D9, tradução = R1,
+plataforma = R2–R4, eventos raros = onda 7).
 
 **A convenção mudou.** Nada de `[x]`: um item resolvido é **apagado deste
 arquivo** no mesmo commit da implementação. O que sobra aqui é, sempre, o que

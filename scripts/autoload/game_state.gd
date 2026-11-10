@@ -87,7 +87,12 @@ const MILESTONES := [
 ## zero taps a port with no structures and no wallet never earns a first TEU, so
 ## the honest answer would be "never" for every reset.
 const REBUILD_ESTIMATE_TAPS := 2.0
-const CRIT_CHANCE := 0.03
+## The old invisible 3% crit is gone: `CRIT_CHANCE` is 0 and the big payout is
+# now the manifest's carga premiada (see `BerthCallController.PREMIUM_MULT`),
+# visible on deck before it is earned. `CRIT_MULT` stays as the display size
+# of a premiada/crit-style float, and the `crit` flag stays in quotes and saves
+# so old payloads still read.
+const CRIT_CHANCE := 0.0
 const CRIT_MULT := 7.0
 ## The cat's surge. Below every charter reward — those are earned by playing a
 ## minigame, this is found by looking at the right pixel — but on the whole port

@@ -271,11 +271,17 @@ func _draw(bag_key: String, count: int) -> int:
 
 
 func update_music() -> void:
+	## Six loops, one per sky: rain and fog outrank the clock, then the phase.
 	var track := "music_day"
-	if TimeManager.fog_active:
+	if TimeManager.rain_active:
+		track = "music_rain"
+	elif TimeManager.fog_active:
 		track = "music_fog"
-	elif TimeManager.phase() in [&"night", &"dusk"]:
-		track = "music_night"
+	else:
+		match TimeManager.phase():
+			&"dawn": track = "music_dawn"
+			&"dusk": track = "music_dusk"
+			&"night": track = "music_night"
 	play_music(track)
 
 

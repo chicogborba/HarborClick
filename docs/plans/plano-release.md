@@ -440,6 +440,20 @@ Toda tarefa: testes focados passam, `tools/qa/run_all.sh` verde, captura em
 
 ## Andamento
 
+- **Ondas 1–3 — feitas em 10/11/2026** (commits `6014c35`, `65e5ef4`, `0c40eed`
+  e o bloco seguinte de A2/C3/G2/barra de escala). Entregue: gates por nível com
+  cerimônia de liberação (`LevelHud`), mundo que começa vazio (corredor ferroviário
+  só depois da Área Ferroviária, com placa de venda no lote), pinça, combo de
+  toque, 3 habilidades com recarga e ad-reset, fila de obras com tempo e ad de
+  aceleração, carga premiada (1 em 12 no manifesto, ×5, persistida; o crítico de
+  3% foi removido), fim de escala com buzina/confete/número dourado, barra de
+  progresso da escala sobre o casco, 6 trilhas de música + camas de ambiência
+  ligadas ao clima, e todos os placements de anúncio recompensado ligados de
+  ponta a ponta (`wheel_spin/double`, `minigame_retry`, `offline_double`,
+  `build_speed`, `skill_reset`) com a suíte `adflow`. Estado detalhado por
+  commit e restos em [`handoff-ondas-1-3.md`](handoff-ondas-1-3.md).
+  Restam dentro das ondas 1–3: F5 (visual de obra no mundo), D1 (fonte de leitura
+  7×10), A6 resto (X 44 px, órfãos), F6 (peças pixellab — precisa de chave).
 - **Onda 0 — feita em 10/11/2026**, exceto dois itens que seguem para a onda 1:
   - **D1 (fonte de leitura)**: não desenhar ~200 glifos à mão. Gerar um segundo
     BMFont a partir da Pixelify Sans (OFL, já usada na landing com latim

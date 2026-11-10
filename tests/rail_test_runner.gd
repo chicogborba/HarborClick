@@ -30,6 +30,7 @@ const EXPECTED := [
 	"no_conjuring", "parked_only", "reload", "order_survives_reload", "headless",
 	"aspects", "completion_bonus", "report", "run_around", "run_around_loop",
 	"rake_is_not_six_copies", "rake_art_is_shown_size", "smoke", "fitted_knobs", "loop_fits_longest_rake",
+	"ground_gate",
 ]
 
 var failures: Array[String] = []
@@ -100,6 +101,7 @@ func _run() -> void:
 	_test_a_working_locomotive_makes_smoke()
 	_test_fitted_upgrades_move_the_branch()
 	_test_the_loop_fits_the_longest_rake_that_can_be_built()
+	_test_the_ground_hides_the_rail_until_the_land_is_bought()
 
 	for label in EXPECTED:
 		_expect(_finished.has(label), "the '%s' test ran to the end" % label)
@@ -642,6 +644,37 @@ func _test_fitted_upgrades_move_the_branch() -> void:
 		and _close(branch.auto_rate(), before_rate),
 		"stripping the branch puts every knob back on its baseline")
 	_done("fitted_knobs")
+
+
+func _test_the_ground_hides_the_rail_until_the_land_is_bought() -> void:
+	## A2: the corridor is ground paint, and it is painted only when the
+	# terminal owns the land. Bare lot = no ballast, a sale board; bought =
+	# ballast and steel on the running line.
+	var h := int(PortLayout.world_bottom() + 90.0)
+	var bare := GroundBaker.bake(h, false).get_image()
+	var built := GroundBaker.bake(h, true).get_image()
+	var rail_y := int(PortLayout.rail_y())
+	var loop_y := int(PortLayout.rail_loop_y())
+	var x1 := int(PortLayout.WATER_X0) - 11
+	var ballast_bare := 0
+	var ballast_built := 0
+	for y in range(loop_y - 9, rail_y + 12):
+		for x in range(0, x1, 2):
+			if bare.get_pixel(x, y) == Color8(112, 105, 96) \
+					or bare.get_pixel(x, y) == Color8(143, 132, 116):
+				ballast_bare += 1
+			if built.get_pixel(x, y) == Color8(112, 105, 96) \
+					or built.get_pixel(x, y) == Color8(143, 132, 116):
+				ballast_built += 1
+	_expect(ballast_bare == 0, "an unbought corridor has no ballast painted")
+	_expect(ballast_built > 500, "a bought corridor paints ballast and steel")
+	var sign := false
+	for y in range(loop_y - 18, loop_y - 6):
+		for x in range(0, x1):
+			if bare.get_pixel(x, y) == Color8(226, 220, 204):
+				sign = true
+	_expect(sign, "the unbought lot carries a sale board")
+	_done("ground_gate")
 
 
 func _test_the_loop_fits_the_longest_rake_that_can_be_built() -> void:

@@ -78,6 +78,10 @@ var _wake_strength := 0.0
 ## warped sideways on and off the wall. Only the first makes a wake.
 var _under_way := false
 var ship_variant: Dictionary = {}
+## The call's progress drawn over the hull: a bar plus "18/24", redrawn only
+# when the fraction changes. Drawn, not a Control, so it can never eat a tap.
+var _scale_bar_frac := -1.0
+var _scale_label: Label
 var variant_history: Array[String] = []
 @onready var _containers: Texture2D = preload("res://assets/sprites/container_sheet.png")
 
@@ -162,8 +166,51 @@ func _process(delta: float) -> void:
 		_lights_root.position = _hull.position
 		_shadow.position = _hull.position + HULL_SHADOW_OFFSET
 		_wake.position.y = hull_height() - 30.0 + _hull.position.y
-	_update_moorings()
-	_update_navigation_lights()
+		_update_moorings()
+		_update_navigation_lights()
+	_update_scale_bar()
+
+
+func _update_scale_bar() -> void:
+	## DESCARGA 18/24 as a bar over the deck — the number the whole loop is
+	# about, visible where the work happens instead of in a corner of the HUD.
+	if not is_working():
+		if _scale_bar_frac >= 0.0:
+			_scale_bar_frac = -1.0
+			queue_redraw()
+			if _scale_label != null:
+				_scale_label.visible = false
+		return
+	var capacity := bay_capacity()
+	var done := float(capacity - cargo_left()) if is_discharging() \
+		else float(export_progress().x)
+	var total := float(capacity) if is_discharging() else float(export_progress().y)
+	var frac := clampf(done / maxf(total, 1.0), 0.0, 1.0) if total > 0.0 else -1.0
+	if is_equal_approx(frac, _scale_bar_frac):
+		return
+	_scale_bar_frac = frac
+	queue_redraw()
+	if _scale_label == null:
+		_scale_label = Label.new()
+		_scale_label.label_settings = UiTheme.settings(UiTheme.SIZE_SMALL,
+			Color8(255, 236, 190), 2)
+		_scale_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_scale_label)
+	_scale_label.visible = true
+	_scale_label.text = "%d/%d" % [int(done), int(total)]
+	_scale_label.position = Vector2(PortLayout.SHIP_W * 0.5, -26.0) \
+		- _scale_label.get_combined_minimum_size() * 0.5
+
+
+func _draw() -> void:
+	if _scale_bar_frac < 0.0 or not is_working():
+		return
+	var w := 56.0
+	var top := Vector2(PortLayout.SHIP_W * 0.5 - w * 0.5, -14.0)
+	draw_rect(Rect2(top, Vector2(w, 6.0)), Color(0.04, 0.05, 0.1, 0.78))
+	var fill := Color8(232, 176, 62) if is_discharging() else Color8(104, 194, 176)
+	draw_rect(Rect2(top + Vector2(1, 1), Vector2((w - 2.0) * _scale_bar_frac, 4.0)),
+		fill)
 
 
 func is_working() -> bool:
@@ -711,6 +758,27 @@ func _make_box(col: int, row: int, unit: CargoUnit) -> void:
 	# box is thirteen tall, so an offset copy lands on the box *below* it and the
 	# whole hold turns into dark bands. Boxes on the ground in the yard cast;
 	# boxes packed in a hold do not have anywhere to cast onto.
+	if unit.premiada:
+		# The manifest's premiada box gleams gold on deck, with a spark that
+		# runs while it waits — the x5 is visible before it is earned.
+		sprite.modulate = Color(1.35, 1.12, 0.55)
+		var glint := AnimatedSprite2D.new()
+		var glint_frames := SpriteFrames.new()
+		var spark_tex: Texture2D = load("res://assets/sprites/fx_spark.png")
+		for f in 4:
+			var at := AtlasTexture.new()
+			at.atlas = spark_tex
+			at.region = Rect2(f * 7, 0, 7, 7)
+			glint_frames.add_frame(&"default", at)
+		glint_frames.set_animation_speed(&"default", 6.0)
+		glint.sprite_frames = glint_frames
+		glint.centered = true
+		glint.position = Vector2(12, 6)
+		sprite.add_child(glint)
+		if UserPreferences.can_animate():
+			glint.play()
+		else:
+			glint.visible = false
 	_cargo.add_child(sprite)
 	_slots[col][row] = {"sprite": sprite, "unit": unit}
 

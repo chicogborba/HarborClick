@@ -1751,6 +1751,10 @@ const STRINGS := {
 	"pt_BR": "Reconstrução", "en": "Rebuild", "es": "Reconstrucción",
 	"fr": "Reconstruction", "de": "Wiederaufbau", "it": "Ricostruzione",
 	"ru": "Перестройка", "pl": "Przebudowa", "tr": "Yeniden inşa"},
+"cargo.premiada": {
+	"pt_BR": "PREMIADA x5", "en": "PREMIUM x5", "es": "PREMIUM x5",
+	"fr": "PRIME x5", "de": "PREMIUM x5", "it": "PREMIUM x5",
+	"ru": "ПРЕМИЯ x5", "pl": "PREMIUM x5", "tr": "ÖDÜL x5"},
 "wheel.ad_spin": {
 	"pt_BR": "Girar de novo (anúncio)", "en": "Spin again (ad)", "es": "Girar otra vez (anuncio)",
 	"fr": "Tourner encore (pub)", "de": "Nochmal drehen (Werbung)", "it": "Gira ancora (annuncio)",

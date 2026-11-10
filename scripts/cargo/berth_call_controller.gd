@@ -67,6 +67,12 @@ const AUTO_RATE_CAP := 6.0
 ## never outgrow the economy it sits in.
 const DEPARTURE_SECONDS := 12.0
 const PERFECT_CALL_BONUS := 0.35
+## Carga premiada: one box in every ~PREMIUM_EVERY of an inbound manifest is
+# premiada (a property of the manifest, never a roll at the finger), gleams on
+# the deck, and pays PREMIUM_MULT when it is discharged. It replaced the old
+# invisible 3% crit (`GameState.CRIT_CHANCE` is 0 since).
+const PREMIUM_EVERY := 12
+const PREMIUM_MULT := 5.0
 
 
 func setup(p_world: PortWorld, p_ship: Ship, p_yard: ContainerYard) -> void:
@@ -117,8 +123,10 @@ func seed_new(p_seed: int = 0, forced_variant: Dictionary = {}) -> void:
 	_in_flight = 0
 	var capacity := ship.bay_capacity()
 	for i in capacity:
-		_imports.append(CargoUnit.new("%s_i_%02d" % [call_id, i], CargoUnit.IMPORT,
-			randi() % 8, "", call_id))
+		var unit := CargoUnit.new("%s_i_%02d" % [call_id, i], CargoUnit.IMPORT,
+			randi() % 8, "", call_id)
+		unit.premiada = i % PREMIUM_EVERY == PREMIUM_EVERY - 1
+		_imports.append(unit)
 	# Nothing is seeded into the yard here. Exports must already have arrived
 	# on a road vehicle or on an earlier ship; the new call only owns the boxes
 	# visibly travelling on its inbound deck.
@@ -336,6 +344,24 @@ func _begin_flight(color: int, from: Vector2, to: Vector2, transfer: CargoTransf
 				"crit": bool(reward.get("crit", false)),
 				"tx_id": str(reward.get("tx_id", "")),
 			}
+			# A premiada box pays PREMIUM_MULT in total. The base was already
+			# paid (at the finger for a tap, in this very quote for an automated
+			# move), so the landing pays only the remaining share — under its own
+			# transaction id, so a reload between the two can never pay twice or
+			# lose the bonus.
+			if direction == CargoUnit.IMPORT and transfer.unit.premiada:
+				var extra := float(reward.get("value", 0.0)) * (PREMIUM_MULT - 1.0)
+				if extra > 0.0 and GameState.has_method("commit_manual_reward"):
+					var ptx := "%s:premiada" % transfer.id
+					var paid: bool = GameState.call("commit_manual_reward", ptx,
+						{"value": extra, "crit": true}, reward_pos)
+					if paid:
+						payload["premiada"] = true
+						payload["reward_teu"] = float(payload["reward_teu"]) + extra
+						world.show_cargo_reward(reward_pos + Vector2(0.0, -16.0), extra, true)
+						world.show_premiada(reward_pos)
+						if world.fx != null:
+							world.fx.burst(&"spark", reward_pos, 10, 22.0)
 			transfer_committed.emit(payload)
 			EventBus.cargo_transfer_committed.emit(payload)
 			# Only a box *arriving* on the deck shakes the hull, and it shakes the

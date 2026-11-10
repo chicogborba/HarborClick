@@ -255,7 +255,18 @@ func _build_ground() -> void:
 
 
 func _rebake_ground() -> void:
-	_ground.texture = GroundBaker.bake(int(PortLayout.world_bottom() + 90.0))
+	_ground.texture = GroundBaker.bake(int(PortLayout.world_bottom() + 90.0),
+		_rail_owned())
+
+
+func _rail_owned() -> bool:
+	## The branch's track is painted only once the terminal has the ground it
+	# runs on: the bought parcel, the bought branch machine, or the routes
+	# feature itself (the same terms `RailYard.is_open` reads). With none of them
+	# the corridor stays a bare lot with a sale sign.
+	return GameState.land.has("area_ferroviaria") \
+		or GameState.structure_count("trem") > 0 \
+		or FeatureGate.unlocked(&"routes")
 
 
 func _build_water() -> void:
@@ -1432,6 +1443,15 @@ func show_cargo_reward(pos: Vector2, value: float, crit: bool) -> void:
 	if not UserPreferences.floating_numbers:
 		return
 	_spawn_float_text(pos + Vector2(4, -8), value, crit)
+
+
+func show_premiada(pos: Vector2) -> void:
+	## The "this box paid x5" label, gold, above the box that just landed.
+	if not UserPreferences.floating_numbers:
+		return
+	var ft := FloatText.new()
+	ft.setup(Loc.t("cargo.premiada"), pos + Vector2(0.0, -30.0), true)
+	overhead.add_child(ft)
 
 
 func spawn_dust(pos: Vector2) -> void:
