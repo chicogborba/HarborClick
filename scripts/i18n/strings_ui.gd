@@ -1755,6 +1755,20 @@ const STRINGS := {
 	"pt_BR": "Reconstrução", "en": "Rebuild", "es": "Reconstrucción",
 	"fr": "Reconstruction", "de": "Wiederaufbau", "it": "Ricostruzione",
 	"ru": "Перестройка", "pl": "Przebudowa", "tr": "Yeniden inşa"},
+"journal.arcade": {
+	"pt_BR": "ARCADE", "en": "ARCADE", "es": "ARCADE",
+	"fr": "ARCADE", "de": "ARCADE", "it": "ARCADE",
+	"ru": "АРКАДА", "pl": "ARCADE", "tr": "ATARI"},
+"journal.arcade.hint": {
+	"pt_BR": "Um minijogo agora, por anúncio recompensado.", "en": "One minigame now, for a rewarded ad.",
+	"es": "Un minijuego ahora, por anuncio recompensado.", "fr": "Un mini-jeu maintenant, contre une pub récompensée.",
+	"de": "Ein Minispiel jetzt, für ein belohntes Werbevideo.", "it": "Un minigioco ora, con un annuncio premiato.",
+	"ru": "Одна мини-игра сейчас, за рекламу с наградой.", "pl": "Jedna minigra teraz, za nagradzaną reklamę.",
+	"tr": "Reklam karşılığında şimdi bir mini oyun."},
+"arcade.title": {
+	"pt_BR": "Fichinha do arcade", "en": "Arcade token", "es": "Ficha de arcade",
+	"fr": "Jeton d'arcade", "de": "Arcade-Münze", "it": "Gettone arcade",
+	"ru": "Жетон аркады", "pl": "Żeton arcade", "tr": "Atari jetonu"},
 "cargo.premiada": {
 	"pt_BR": "PREMIADA x5", "en": "PREMIUM x5", "es": "PREMIUM x5",
 	"fr": "PRIME x5", "de": "PREMIUM x5", "it": "PREMIUM x5",

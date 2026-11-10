@@ -1142,7 +1142,7 @@ func _layout_marquee(view: Vector2, width: float, left: float, tight: bool,
 	_actions.position = Vector2((view.x - action_width) * 0.5,
 		clampf(view.y * 0.62 - action_height * 0.5,
 			_ribbon.position.y + _ribbon.size.y + 14.0,
-			view.y - action_height - corner_size.y - margin * 3.0))
+			view.y - action_height - margin * 3.0))
 
 	# The pool of dusk under the keys, wider and taller than they are so its
 	# fade has somewhere to happen. It follows the keys rather than the screen:
@@ -1153,31 +1153,13 @@ func _layout_marquee(view: Vector2, width: float, left: float, tight: bool,
 	_scrim.position = Vector2((view.x - scrim_size.x) * 0.5,
 		_actions.position.y - 42.0)
 
-	# Never across the two bottom corner keys.
-	#
-	# The footer used to be laid out on the board's own width and pinned to the
-	# bottom of the frame — which is exactly where COMUNIDADE and CRÉDITOS also
-	# live, so the version line ran straight through both captions and all three
-	# strings were unreadable at once.
-	#
-	# It takes the gap between the keys when the gap is genuinely wide enough for
-	# it, and otherwise steps up above them. Which of the two happens depends on
-	# the language: PORTSTACK STUDIOS is seventeen characters and a 320-wide phone
-	# leaves a hundred between two 78-wide keys, so this is not a hypothetical
-	# branch — it is the common one on the narrowest screen the game supports.
-	var gutter := corner_size.x + margin * 2.0
+	# The footer sits at the bottom of the frame on the board's own width. The
+	# corner keys are gone from the marquee (they live in Sobre now), so nothing
+	# shares that strip any more.
 	var footer_size := _footer.get_combined_minimum_size()
-	var between := view.x - gutter * 2.0
-	if footer_size.x + 8.0 <= between:
-		_footer.custom_minimum_size.x = between
-		_footer.size = Vector2(between, footer_size.y)
-		_footer.position = Vector2((view.x - between) * 0.5,
-			view.y - margin - corner_size.y * 0.5 - footer_size.y * 0.5)
-	else:
-		_footer.custom_minimum_size.x = width
-		_footer.size = Vector2(width, footer_size.y)
-		_footer.position = Vector2(left,
-			view.y - margin - corner_size.y - footer_size.y - 4.0)
+	_footer.custom_minimum_size.x = width
+	_footer.size = Vector2(width, footer_size.y)
+	_footer.position = Vector2(left, view.y - margin - footer_size.y - 4.0)
 
 
 func _layout_board(view: Vector2, width: float, left: float,

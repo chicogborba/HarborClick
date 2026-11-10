@@ -5,7 +5,8 @@ extends Node
 ## or failed ad pays nothing.
 ## Run with: Godot --headless --path . res://tests/adflow_test_runner.tscn
 
-const EXPECTED := ["wheel_spin", "wheel_double", "offline", "build", "refused"]
+const EXPECTED := ["wheel_spin", "wheel_double", "offline", "build", "refused",
+	"minigame_play"]
 
 class FakeProvider extends AdProvider:
 	var auto_reward := true
@@ -37,6 +38,7 @@ func _run() -> void:
 	_test_an_ad_doubles_the_offline_return()
 	_test_an_ad_finishes_a_build()
 	await _test_a_refused_ad_pays_nothing()
+	_test_minigame_play_caps_at_three_a_day()
 	for name in EXPECTED:
 		_expect(_done_tests.has(name), "test '%s' ran to its last line" % name)
 	GameState.from_save({})
@@ -151,6 +153,33 @@ func _test_a_refused_ad_pays_nothing() -> void:
 	panel.queue_free()
 	await get_tree().process_frame
 	_done_tests.append("refused")
+
+
+func _test_minigame_play_caps_at_three_a_day() -> void:
+	## The Arcade key on the Diário buys one minigame per rewarded ad, and the
+	# policy caps it at 3 a day: the fourth press is refused and pays nothing.
+	AdService.policy.restore(AdPolicy.seed_new(AdService._current_day()))
+	AdService.set_provider(_fake)
+	_fake.auto_reward = true
+	var plays := 0
+	var offered := 0
+	for i in 4:
+		if AdService.show_rewarded(&"minigame_play", func() -> void: plays += 1):
+			offered += 1
+	_expect(offered == 3 and plays == 3,
+		"minigame_play is offered exactly 3 times a day (offered %d, paid %d)"
+		% [offered, plays])
+	_expect(not AdService.available(&"minigame_play"),
+		"the fourth arcade play is refused by the daily cap")
+	_expect(AdService.remaining_today(&"minigame_play") == 0,
+		"the remaining counter reads zero at the cap")
+	_fake.auto_reward = false
+	AdService.policy.restore(AdPolicy.seed_new(AdService._current_day()))
+	var refused := 0
+	if AdService.show_rewarded(&"minigame_play", func() -> void: refused += 1):
+		pass
+	_expect(refused == 0, "a refused minigame_play ad pays nothing")
+	_done_tests.append("minigame_play")
 
 
 func _find_button(root: Node, text: String) -> Button:

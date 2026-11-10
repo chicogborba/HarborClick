@@ -16,6 +16,10 @@ extends CanvasLayer
 
 signal open_changed(opened: bool)
 signal objective_pinned(id: StringName)
+## The Arcade key on the "next" page: one minigame on demand, paid for by a
+## rewarded ad (`minigame_play`, 3/day). Never required — the charters still
+## come on their own.
+signal arcade_requested
 
 const TABS := [["next", "PRÓXIMAS"], ["all", "TODAS"], ["troph", "TROFÉUS"],
 	["crew", "EQUIPE"]]
@@ -418,6 +422,8 @@ func _refresh() -> void:
 	elif _active_tab == "troph":
 		_build_trophy_page()
 	else:
+		if _active_tab == "next" and FeatureGate.unlocked(&"charters"):
+			_list.add_child(_arcade_row())
 		for objective: Dictionary in _objectives():
 			# PRÓXIMAS hides what is finished; TODAS hides nothing. What used to
 			# be CONCLUÍDAS is the trophy board now.
@@ -430,6 +436,26 @@ func _refresh() -> void:
 			UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_list.add_child(empty)
+
+
+func _arcade_row() -> Control:
+	## One wide key at the top of PRÓXIMAS: a minigame on demand for a rewarded
+	# ad. The label carries the remaining plays today, and the key hides when the
+	# daily cap is spent — an ad is never a wall.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 6)
+	var left := AdService.remaining_today(&"minigame_play")
+	var key := UiTheme.button(Loc.t("journal.arcade"), &"steel", UiTheme.SIZE_SMALL)
+	key.icon = UiTheme.icon16_texture(UiTheme.Icon16.AD)
+	key.custom_minimum_size.y = UiTheme.TOUCH_MIN
+	key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	key.disabled = left <= 0 or not AdService.available(&"minigame_play")
+	UiTheme.describe(key, Loc.t("journal.arcade"), Loc.t("journal.arcade.hint"))
+	key.pressed.connect(func() -> void: arcade_requested.emit())
+	row.add_child(key)
+	var count := UiTheme.stamp("%d" % maxi(0, left), UiTheme.AMBER, UiTheme.SIZE_SMALL)
+	row.add_child(count)
+	return row
 
 
 func _objectives() -> Array:

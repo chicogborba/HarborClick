@@ -220,6 +220,7 @@ func _ready() -> void:
 	shop.open_changed.connect(_on_overlay_changed.bind("shop"))
 	settings.open_changed.connect(_on_overlay_changed.bind("settings"))
 	journal.open_changed.connect(_on_overlay_changed.bind("journal"))
+	journal.arcade_requested.connect(_on_arcade_requested)
 	prestige_dialog.open_changed.connect(_on_overlay_changed.bind("prestige"))
 
 	rate_breakdown = RateBreakdown.new()
@@ -261,6 +262,17 @@ func _ready() -> void:
 	for board: MinigameBoard in [minigame, maze]:
 		board.open_changed.connect(_on_overlay_changed.bind("minigame"))
 		board.finished.connect(func(won: bool, _summary: Dictionary) -> void:
+			var offer: Dictionary = board.offer()
+			if bool(offer.get("arcade", false)):
+				# An Arcade-key game has no charter behind it: a win pays the
+				# small lump straight away, a loss just closes the board.
+				if won:
+					var outcome := SpecialCallDB.apply_reward(offer)
+					EventBus.notification_requested.emit({
+						"id": "arcade_win", "kind": &"unlock", "priority": 2,
+						"text": str(outcome.get("text", "")),
+					})
+				return
 			world.specials.resolve(won))
 	world.specials.offer_ready.connect(func(offer: Dictionary) -> void:
 		special_alert.open(offer, SpecialCallDirector.OFFER_TIMEOUT))
@@ -454,6 +466,24 @@ func _open_minigame(offer: Dictionary) -> void:
 	if StringName(offer.get("game", &"")) == SpecialCallDB.GAME_MAZE:
 		board = maze
 	board.open(offer)
+
+
+func _on_arcade_requested() -> void:
+	## The Arcade key on the Diário: one minigame on demand, paid for by a
+	# rewarded ad (`minigame_play`, 3/day). The game itself is a coin-op with a
+	# small lump prize and no stake — losing costs nothing but the board.
+	if not AdService.available(&"minigame_play"):
+		AudioManager.play_sfx("deny")
+		return
+	AdService.show_rewarded(&"minigame_play", func() -> void:
+		var offer := {
+			"title": Loc.t("arcade.title"),
+			"game": SpecialCallDB.GAME_MAZE if randi() % 2 == 0 else SpecialCallDB.GAME_STACK,
+			"arcade": true,
+			"seconds": 42.0, "goal": 6,
+			"reward": {"kind": SpecialCallDB.REWARD_LUMP, "seconds": 180.0},
+		}
+		_open_minigame(offer))
 
 
 func _on_npc_inspected(profile: NpcProfile, dossier: Dictionary) -> void:
