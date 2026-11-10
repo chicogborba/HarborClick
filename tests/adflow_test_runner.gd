@@ -161,24 +161,24 @@ func _test_minigame_play_caps_at_three_a_day() -> void:
 	AdService.policy.restore(AdPolicy.seed_new(AdService._current_day()))
 	AdService.set_provider(_fake)
 	_fake.auto_reward = true
-	var plays := 0
+	var paid := [0]
 	var offered := 0
 	for i in 4:
-		if AdService.show_rewarded(&"minigame_play", func() -> void: plays += 1):
+		if AdService.show_rewarded(&"minigame_play", func() -> void: paid[0] += 1):
 			offered += 1
-	_expect(offered == 3 and plays == 3,
+	_expect(offered == 3 and paid[0] == 3,
 		"minigame_play is offered exactly 3 times a day (offered %d, paid %d)"
-		% [offered, plays])
+		% [offered, paid[0]])
 	_expect(not AdService.available(&"minigame_play"),
 		"the fourth arcade play is refused by the daily cap")
 	_expect(AdService.remaining_today(&"minigame_play") == 0,
 		"the remaining counter reads zero at the cap")
 	_fake.auto_reward = false
 	AdService.policy.restore(AdPolicy.seed_new(AdService._current_day()))
-	var refused := 0
-	if AdService.show_rewarded(&"minigame_play", func() -> void: refused += 1):
+	var refused := [0]
+	if AdService.show_rewarded(&"minigame_play", func() -> void: refused[0] += 1):
 		pass
-	_expect(refused == 0, "a refused minigame_play ad pays nothing")
+	_expect(refused[0] == 0, "a refused minigame_play ad pays nothing")
 	_done_tests.append("minigame_play")
 
 
