@@ -1742,7 +1742,7 @@ Inventory: **1781 authored code/config/scene files**.
 | `tests/phase3_progression_test_runner.gd` | 150 | 10 functions | Run with: Godot --headless --path . --script res://tests/phase3_progression_test_runner.gd |
 | `tests/phase3_progression_ui_test_runner.gd` | 187 | 9 functions | Run with: Godot --headless --path . res://tests/phase3_progression_ui_test_runner.tscn |
 | `tests/phase3_progression_ui_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/phase4_ship_test_runner.gd` | 363 | 14 functions | Run with: Godot --headless --path . res://tests/phase4_ship_test_runner.tscn |
+| `tests/phase4_ship_test_runner.gd` | 369 | 14 functions | Run with: Godot --headless --path . res://tests/phase4_ship_test_runner.tscn |
 | `tests/phase4_ship_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/phase4_water_test_runner.gd` | 66 | 6 functions | Run with: Godot --headless --path . res://tests/phase4_water_test_runner.tscn |
 | `tests/phase4_water_test_runner.tscn` | 6 | 1 nodes | Godot scene |

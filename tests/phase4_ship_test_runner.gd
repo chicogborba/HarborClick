@@ -18,7 +18,7 @@ func _run() -> void:
 	test_the_channel_runs_the_way_the_bow_points()
 	test_moorings_follow_berth_state()
 	test_tug_escort_follows_maneuver()
-	await test_fleet_uses_the_single_github_hull()
+	await test_fleet_uses_three_native_hulls_at_1x1()
 	if failures.is_empty():
 		print("PHASE 4 SHIP TESTS PASSED")
 		get_tree().quit(0)
@@ -28,9 +28,11 @@ func _run() -> void:
 		get_tree().quit(1)
 
 
-func test_fleet_uses_the_single_github_hull() -> void:
-	## GitHub's restrained fleet is one 66x232 source sprite. Catalogue entries
-	## may scale and recolour it, but never replace the texture or its 24 bays.
+func test_fleet_uses_three_native_hulls_at_1x1() -> void:
+	## F8: each silhouette is its own natively drawn 66x232 sprite — no fractional
+	## scale sanding the pixels off the containers — and every hull keeps the
+	## same fixed 24-bay deck.
+	var seen_sprites: Dictionary = {}
 	for silhouette: Dictionary in ShipCatalog.SILHOUETTES:
 		var hull := Ship.new()
 		add_child(hull)
@@ -38,10 +40,13 @@ func test_fleet_uses_the_single_github_hull() -> void:
 		hull.apply_variant(ShipCatalog.compose(silhouette,
 			ShipCatalog.PALETTES[0]))
 		var texture := (hull._hull as Sprite2D).texture
-		_expect(texture != null and texture.resource_path.ends_with("ship_top.png"),
-			"%s uses the single GitHub hull source" % silhouette.id)
+		var sprite := str(silhouette.get("sprite", ""))
+		_expect(texture != null and texture.resource_path.ends_with("%s.png" % sprite),
+			"%s loads its own native hull sprite %s" % [silhouette.id, sprite])
 		_expect(texture.get_width() == 66 and texture.get_height() == 232,
-			"%s source hull remains 66x232" % silhouette.id)
+			"%s native hull is 66x232" % silhouette.id)
+		_expect((hull._hull as Sprite2D).scale == Vector2.ONE,
+			"%s is drawn at 1:1, no fractional scale" % silhouette.id)
 		_expect(hull.bay_rows() == PortLayout.SHIP_BAY_ROWS
 				and hull.bay_capacity() == 24,
 			"%s keeps the fixed twelve-row, 24-box deck" % silhouette.id)
@@ -50,12 +55,13 @@ func test_fleet_uses_the_single_github_hull() -> void:
 		_expect(hull._paint.self_modulate.is_equal_approx(
 				Color(str(ShipCatalog.PALETTES[0].hull))),
 			"%s puts the livery on the paint layer only" % silhouette.id)
-		var scale: Vector2 = silhouette.hull_scale
-		_expect((hull._hull as Sprite2D).scale.is_equal_approx(scale),
-			"%s applies the catalogue scale to the shared hull" % silhouette.id)
-		_expect(is_equal_approx(hull.hull_height(), 232.0 * scale.y),
-			"%s reports the scaled shared-hull height" % silhouette.id)
+		_expect(is_equal_approx(hull.hull_height(), 232.0),
+			"%s reports the native 232px hull height" % silhouette.id)
+		seen_sprites[sprite] = true
 		hull.free()
+	_expect(seen_sprites.size() == ShipCatalog.SILHOUETTES.size(),
+		"every silhouette has its own sprite (%d of %d)"
+		% [seen_sprites.size(), ShipCatalog.SILHOUETTES.size()])
 
 
 func test_catalogue_and_deterministic_rotation() -> void:

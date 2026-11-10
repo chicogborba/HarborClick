@@ -18,6 +18,9 @@ document, then open only the entry-point files it names.
 - [Handoff ondas 0–3](plans/handoff-ondas-1-3.md) — estado por commit, o que
   resta dentro das ondas 1–3 e as regras de trabalho; para continuar de onde
   outro agente parou.
+- [Handoff ondas 4–7](plans/handoff-ondas-4-7.md) — o que entrou em cada onda
+  e a lista honesta do que ainda falta (tradução dos catálogos, obra no mundo,
+  aparelho Android real, playtest humano, ads reais).
 
 ## Architecture
 
