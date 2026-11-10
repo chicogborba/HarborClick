@@ -15,6 +15,9 @@ document, then open only the entry-point files it names.
 - [Plano de release](plans/plano-release.md) — diagnóstico, direção, cortes e
   as tarefas (por frente, com dependências e ondas) até o jogo estar pronto
   para loja. Leia antes de pegar qualquer tarefa grande.
+- [Handoff ondas 0–3](plans/handoff-ondas-1-3.md) — estado por commit, o que
+  resta dentro das ondas 1–3 e as regras de trabalho; para continuar de onde
+  outro agente parou.
 
 ## Architecture
 
