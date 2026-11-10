@@ -27,21 +27,23 @@ const BERTH_ART := [
 	preload("res://assets/sprites/ui_berth_b.png"),
 	preload("res://assets/sprites/ui_berth_c.png"),
 ]
-## The four corner keys, and what each of them opens. `label` is a translation
-## key, not a word — the corners are the first text on the first screen.
-const CORNERS := [
-	{"id": "feedback", "label": "title.feedback", "icon": UiTheme.Icon.CHAT,
-		"corner": "tl"},
-	{"id": "site", "label": "title.site", "icon": UiTheme.Icon.GLOBE,
-		"corner": "tr"},
-	{"id": "comunidade", "label": "title.community", "icon": UiTheme.Icon.CREW,
-		"corner": "bl"},
-	{"id": "creditos", "label": "title.credits", "icon": UiTheme.Icon.TROPHY,
-		"corner": "br"},
-]
 const REPO_URL := "https://github.com/chicogborba/HarborClick"
 const VERSION_LINE := "v1.0.0"
 const STUDIO_LINE := "PORTSTACK STUDIOS"
+## The "Sobre" links, moved off the marquee (a title has one job: get the player
+## into the terminal) into the options sheet. `label` is a translation key, not
+## a word.
+const LINKS := [
+	{"id": "feedback", "label": "title.feedback", "icon": UiTheme.Icon.CHAT,
+		"url": REPO_URL + "/issues"},
+	{"id": "site", "label": "title.site", "icon": UiTheme.Icon.GLOBE,
+		"url": REPO_URL},
+	{"id": "comunidade", "label": "title.community", "icon": UiTheme.Icon.CREW,
+		"url": REPO_URL + "/discussions"},
+	{"id": "creditos", "label": "title.credits", "icon": UiTheme.Icon.TROPHY,
+		"url": ""},
+]
+
 
 ## How far the backdrop is allowed to creep, and how long one pass takes. The
 ## port is a photograph of a place that is working; a still one says it stopped.
@@ -69,7 +71,6 @@ var _play_key: Button
 var _continue_detail: Label
 var _actions: VBoxContainer
 var _continue_key: Button
-var _corner_keys: Dictionary = {}     # id -> Control
 var _footer: VBoxContainer
 ## The logo, kept so the layout pass can size it to whatever plate it gets.
 var _word: TextureRect
@@ -387,11 +388,6 @@ func _build_marquee() -> void:
 	settings_word.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	settings_row.add_child(settings_word)
 
-	for spec: Dictionary in CORNERS:
-		var key := _corner_key(spec)
-		_marquee.add_child(key)
-		_corner_keys[str(spec.id)] = key
-
 	_footer = VBoxContainer.new()
 	_footer.name = "Footer"
 	_footer.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -527,8 +523,6 @@ func _arrive() -> void:
 	## Fades only: the capture harness measures these rectangles a frame later
 	## and an entrance that moved them would be measuring the animation.
 	var order: Array[Control] = [_plate, _ribbon, _crest, _actions, _footer]
-	for id: String in _corner_keys:
-		order.append(_corner_keys[id] as Control)
 	for step in order.size():
 		var node: Control = order[step]
 		node.modulate.a = 0.0
@@ -608,47 +602,6 @@ func _dress_key(key: Button, kind: StringName) -> void:
 	key.add_theme_stylebox_override(&"pressed",
 		UiTheme.title_button_style(kind, true))
 	key.add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
-
-
-func _corner_key(spec: Dictionary) -> PanelContainer:
-	# Same navy enamel as the plate: four keys in a different material would read
-	# as belonging to a different screen.
-	var key := UiTheme.panel(UiTheme.title_key_style(), false)
-	key.custom_minimum_size = Vector2(78, 50)
-	key.focus_mode = Control.FOCUS_ALL
-	key.add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
-	key.set_meta("corner", str(spec.corner))
-	UiTheme.describe(key, Loc.t(str(spec.label)))
-	var column := VBoxContainer.new()
-	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.add_theme_constant_override(&"separation", 1)
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	key.add_child(column)
-	# 2x, like the console's keys: a 12px glyph over a word is a bullet point.
-	var glyph := UiTheme.icon(spec.icon as UiTheme.Icon, 2)
-	glyph.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	column.add_child(glyph)
-	var caption := UiTheme.label(Loc.t(str(spec.label)), UiTheme.SIZE_SMALL,
-		UiTheme.STEEL_TEXT)
-	caption.clip_text = true
-	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(caption)
-	key.gui_input.connect(_corner_input.bind(str(spec.id)))
-	return key
-
-
-func _corner_input(event: InputEvent, id: String) -> void:
-	var pressed := false
-	if event.is_action_pressed(&"ui_accept"):
-		pressed = true
-	elif event is InputEventMouseButton:
-		var click := event as InputEventMouseButton
-		pressed = click.pressed and click.button_index == MOUSE_BUTTON_LEFT
-	elif event is InputEventScreenTouch:
-		pressed = (event as InputEventScreenTouch).pressed
-	if pressed:
-		accept_event()
-		_open_corner(id)
 
 
 func _build_board() -> void:
@@ -774,7 +727,7 @@ func _open_options() -> void:
 	for entry in Loc.LANGUAGES:
 		languages.append({"value": StringName(entry.code), "text": str(entry.tag),
 			"name": str(entry.native)})
-	_open_sheet(Loc.t("settings.title"), [
+	var rows: Array = [
 		{"kind": "choice", "label": Loc.t("settings.section.language"),
 			"options": languages,
 			"get": func() -> Variant: return Loc.preference,
@@ -803,36 +756,16 @@ func _open_options() -> void:
 			"get": func() -> bool: return UserPreferences.fullscreen,
 			"set": func(on: bool) -> void: UserPreferences.set_fullscreen(on)},
 		{"kind": "note", "label": Loc.t("title.options_note")},
-	])
-
-
-func _open_corner(id: String) -> void:
-	AudioManager.play_sfx("tap")
-	match id:
-		"creditos":
-			_open_sheet(Loc.t("title.credits"), [
-				{"kind": "note", "label": "HarborClick - %s" % VERSION_LINE},
-				{"kind": "note", "label": "%s" % STUDIO_LINE},
-				{"kind": "note", "label": Loc.t("title.credits.made_with")},
-				{"kind": "note", "label": Loc.t("title.credits.jargon")},
-			])
-		"site":
-			_open_sheet(Loc.t("title.site"), [
-				{"kind": "note", "label": Loc.t("title.site.blurb")},
-				{"kind": "link", "label": Loc.t("title.site.link"), "url": REPO_URL},
-			])
-		"feedback":
-			_open_sheet(Loc.t("title.feedback"), [
-				{"kind": "note", "label": Loc.t("title.feedback.blurb")},
-				{"kind": "link", "label": Loc.t("title.feedback.link"),
-					"url": REPO_URL + "/issues"},
-			])
-		_:
-			_open_sheet(Loc.t("title.community"), [
-				{"kind": "note", "label": Loc.t("title.community.blurb")},
-				{"kind": "link", "label": Loc.t("title.community.link"),
-					"url": REPO_URL + "/discussions"},
-			])
+	]
+	# Sobre: the links that used to be four corner keys on the marquee.
+	rows.append({"kind": "note", "label": Loc.t("title.about")})
+	for spec: Dictionary in LINKS:
+		if str(spec.url).is_empty():
+			continue
+		rows.append({"kind": "link", "label": Loc.t(str(spec.label)), "url": str(spec.url)})
+	rows.append({"kind": "note",
+		"label": "HarborClick - %s - %s" % [VERSION_LINE, STUDIO_LINE]})
+	_open_sheet(Loc.t("settings.title"), rows)
 
 
 func _open_sheet(title: String, rows: Array) -> void:
@@ -1171,26 +1104,14 @@ func _layout() -> void:
 
 func _layout_marquee(view: Vector2, width: float, left: float, tight: bool,
 		margin: float) -> void:
-	# Wide enough for the longest caption: COMUNIDADE is ten characters, and a key
-	# sized for FEEDBACK clips it to OMUNIDAD, which is worse than no word at all.
-	var corner_size := Vector2(78, 50) if not tight else Vector2(70, 44)
-	for id: String in _corner_keys:
-		var key: Control = _corner_keys[id]
-		key.custom_minimum_size = corner_size
-		key.size = corner_size
-		var corner := str(key.get_meta("corner", "tl"))
-		key.position = Vector2(
-			margin if corner.ends_with("l") else view.x - corner_size.x - margin,
-			margin if corner.begins_with("t") else view.y - corner_size.y - margin)
-
 	var plate_height := 52.0 if tight else 60.0
 	var plate_width := clampf(width * 0.92, 220.0, 340.0)
 	_plate.custom_minimum_size = Vector2(plate_width, plate_height)
 	_plate.size = Vector2(plate_width, plate_height)
-	# Below the top corner keys, never under them: at 320x568 the keys and the
-	# plate both want the top of the frame and the plate is the one that can move.
+	# The marquee owns the whole frame now — the corner keys moved to Sobre — so
+	# the plate can start at the top margin.
 	_plate.position = Vector2((view.x - plate_width) * 0.5,
-		margin + corner_size.y + (6.0 if tight else 12.0))
+		margin + (6.0 if tight else 12.0))
 	_fit_wordmark(plate_width, plate_height)
 
 	# The ribbon hangs under the plate, narrower than it, so the two read as a

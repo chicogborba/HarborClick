@@ -1332,6 +1332,10 @@ const STRINGS := {
 	"es": "REDUCIR MOVIMIENTO", "fr": "RÉDUIRE LE MOUVEMENT",
 	"de": "BEWEGUNG REDUZIEREN", "it": "RIDUCI MOVIMENTO",
 	"ru": "СНИЗИТЬ ДВИЖЕНИЕ", "pl": "OGRANICZ RUCH", "tr": "HAREKETİ AZALT"},
+"title.about": {
+	"pt_BR": "SOBRE", "en": "ABOUT", "es": "ACERCA DE",
+	"fr": "À PROPOS", "de": "ÜBER", "it": "INFO",
+	"ru": "О ИГРЕ", "pl": "O GRZE", "tr": "HAKKINDA"},
 "title.options_note": {
 	"pt_BR": "O resto dos ajustes - save, backup e tutorial - fica dentro do terminal, porque pertence a uma operação e não ao aparelho.",
 	"en": "The rest of the settings - save, backup and tutorial - live inside the terminal, because they belong to an operation rather than to the device.",
