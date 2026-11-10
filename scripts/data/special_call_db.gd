@@ -112,6 +112,10 @@ static func materialize(career_seed: int, index: int) -> Dictionary:
 		state = posmod(state * 48271, 2147483647)
 	var offer: Dictionary = OFFERS[posmod(state, OFFERS.size())].duplicate(true)
 	offer["index"] = index
+	# The Eventos branch of the capital tree widens the answer window.
+	if offer.has("seconds"):
+		offer["seconds"] = float(offer["seconds"]) \
+			* (1.0 + GameState.event_duration_bonus())
 	return offer
 
 
@@ -142,15 +146,17 @@ static func penalty_text(offer: Dictionary) -> String:
 
 static func apply_reward(offer: Dictionary) -> Dictionary:
 	var reward: Dictionary = offer.get("reward", {})
+	# The Eventos branch of the capital tree raises the prize itself.
+	var prize_mult := 1.0 + GameState.event_reward_bonus()
 	match StringName(reward.get("kind", &"")):
 		REWARD_SURGE:
-			var mult := maxf(1.0, float(reward.get("mult", 1.0)))
+			var mult := maxf(1.0, float(reward.get("mult", 1.0))) * prize_mult
 			var seconds := maxf(1.0, float(reward.get("seconds", 0.0)))
 			GameState.grant_surge(mult, seconds)
 			return {"kind": REWARD_SURGE, "mult": mult, "seconds": seconds,
 				"text": "%dx a produção por %ds!" % [int(mult), int(seconds)]}
 		REWARD_LUMP:
-			var amount := _income(float(reward.get("seconds", 0.0)))
+			var amount := _income(float(reward.get("seconds", 0.0))) * prize_mult
 			# Career money: it spends, but it must not shortcut the prestige curve
 			# the simulator was balanced against.
 			GameState.grant_nonproductive_reward(amount)

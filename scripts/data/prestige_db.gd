@@ -52,18 +52,23 @@ static func canonical_id(id: StringName) -> StringName:
 
 
 static func purchasable_branches() -> Array[Dictionary]:
-	## Feature-gated branches describe systems nothing reads yet, and
-	## `GameState.buy_prestige_node` refuses them. Showing them anyway put four
-	## priced buttons on the dialog that swallowed the press without a word.
-	## `ProgressionManager` hides feature-gated achievements for the same reason.
+	## Branches whose feature is not unlocked yet stay hidden: the Rotas and
+	## Eventos branches read their stats for real (route freight, charter
+	## prizes and windows), so the gate is the terminal level, not a dead
+	## button. `ProgressionManager` hides feature-gated achievements for the
+	## same reason.
 	var result: Array[Dictionary] = []
 	for branch in BRANCHES:
-		if not String(branch.get("requires_feature", "")).is_empty():
+		var branch_feature := String(branch.get("requires_feature", ""))
+		if not branch_feature.is_empty() \
+				and not FeatureGate.unlocked(StringName(branch_feature)):
 			continue
 		var branch_copy := branch.duplicate(true)
 		var nodes: Array[Dictionary] = []
 		for node: Dictionary in branch_copy.get("nodes", []):
-			if String(node.get("requires_feature", "")).is_empty():
+			var node_feature := String(node.get("requires_feature", ""))
+			if node_feature.is_empty() \
+					or FeatureGate.unlocked(StringName(node_feature)):
 				nodes.append(node)
 		if nodes.is_empty():
 			continue

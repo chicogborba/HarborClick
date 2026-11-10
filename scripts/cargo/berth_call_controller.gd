@@ -102,7 +102,7 @@ func seed_new(p_seed: int = 0, forced_variant: Dictionary = {}) -> void:
 	# hull. Booking against the whole owned set was why a new lane could only
 	# ever help: the port traded on all of them at once and was paid the best.
 	lane = RoutePolicy.pick(RouteDB.owned(GameState.routes),
-		GameState.route_policy, _variant_call_index)
+		GameState.route_policy, _variant_call_index, 1 + GameState.route_slot_bonus())
 	if ship != null:
 		if forced_variant.is_empty():
 			# Two gates on which hull turns up: the lane this call was booked on,
@@ -441,7 +441,10 @@ func departure_bonus(perfect: bool) -> float:
 
 
 func lane_reward() -> float:
-	return maxf(1.0, float(lane.get("reward", 1.0)))
+	## The lane's freight times the Rotas branch of the capital tree, so a bought
+	# `route_reward_multiplier` node moves a number the player sees.
+	return maxf(1.0, float(lane.get("reward", 1.0))) \
+		* (1.0 + GameState.route_reward_bonus())
 
 
 func lane_interval() -> float:

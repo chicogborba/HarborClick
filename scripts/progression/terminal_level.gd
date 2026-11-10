@@ -56,6 +56,7 @@ const UNLOCKS: Dictionary = {
 	&"journal": 6,
 	&"routes": 8,
 	&"charters": 8,
+	&"events": 8,
 	&"skill_pilot": 8,
 	&"decor": 10,
 	&"orders": 10,

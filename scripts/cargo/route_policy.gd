@@ -46,26 +46,31 @@ static func coerce(policy: Variant) -> StringName:
 	return wanted if POLICIES.has(wanted) else MIX
 
 
-static func pick(lanes: Array, policy: StringName, call_index: int) -> Dictionary:
+static func pick(lanes: Array, policy: StringName, call_index: int,
+		slots: int = 1) -> Dictionary:
 	## Which lane serves the next call. Deterministic in `call_index`, so a save
 	## restored mid-turnaround books the same lane it was going to book.
 	if lanes.is_empty():
 		return {}
 	match coerce(policy):
 		RICHEST:
-			return _extreme(lanes, "reward", true)
+			return _rotating_extreme(lanes, "reward", true, call_index, slots)
 		FASTEST:
 			# Shortest interval, because the interval *is* the wait.
-			return _extreme(lanes, "interval", false)
+			return _rotating_extreme(lanes, "interval", false, call_index, slots)
 		_:
 			return lanes[posmod(call_index, lanes.size())]
 
 
-static func _extreme(lanes: Array, key: String, highest: bool) -> Dictionary:
-	var best: Dictionary = lanes[0]
-	for lane: Dictionary in lanes:
-		var value := float(lane.get(key, 0.0))
-		var incumbent := float(best.get(key, 0.0))
-		if value > incumbent if highest else value < incumbent:
-			best = lane
-	return best
+static func _rotating_extreme(lanes: Array, key: String, highest: bool,
+		call_index: int, slots: int) -> Dictionary:
+	## The top `slots` lanes by `key`, rotated by the call index. With the extra
+	# route slots the capital tree buys, the port works the good lanes in turn
+	# instead of camping on the single best one for the rest of the run.
+	var sorted := lanes.duplicate()
+	sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var va := float(a.get(key, 0.0))
+		var vb := float(b.get(key, 0.0))
+		return va > vb if highest else va < vb)
+	var n := clampi(slots, 1, sorted.size())
+	return sorted[posmod(call_index, n)]

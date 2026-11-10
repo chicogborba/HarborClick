@@ -94,6 +94,10 @@ const REBUILD_ESTIMATE_TAPS := 2.0
 # so old payloads still read.
 const CRIT_CHANCE := 0.0
 const CRIT_MULT := 7.0
+## Every unlocked achievement pays +1% permanent production ("leite"): the
+# collection is part of the rate now, and `cps_breakdown` shows it as its own
+# row so the bonus is visible where the number is explained.
+const ACHIEVEMENT_BONUS_PER := 0.01
 ## The cat's surge. Below every charter reward — those are earned by playing a
 ## minigame, this is found by looking at the right pixel — but on the whole port
 ## rather than on a tap, which is what makes it worth finding at all.
@@ -1073,8 +1077,12 @@ func recompute() -> void:
 				click_cps_pct += up.value
 	# Weather and surges are transient; the port's own rate is the part that
 	# survives them, and it is what the rebuild estimate has to compare against.
+	# The achievement bonus is permanent but rides with the transient chain, not
+	# with `base_cps`: card previews and the transform delta are quoted in
+	# base_cps, and a permanent factor inside it would make every card lie.
 	base_cps = total * global_mult
-	cps = base_cps * TimeManager.weather_cps_mult() * surge_mult * skill_mult
+	cps = base_cps * TimeManager.weather_cps_mult() * surge_mult * skill_mult \
+		* achievement_multiplier()
 	var manual_meta := _tree_scope_multiplier(&"manual", &"click_multiplier")
 	var tree_cps_per_tap := _tree_scope_additive(&"manual", &"cps_per_tap")
 	click_power = (1.0 * click_mult * manual_meta) \
@@ -1120,6 +1128,7 @@ func cps_breakdown() -> Array[Dictionary]:
 		# anywhere the player can see.
 		{"label": "Turmas", "kind": "mult", "value": _conductor_multiplier()},
 		{"label": "Melhorias globais", "kind": "mult", "value": global_mult},
+		{"label": "Conquistas", "kind": "mult", "value": achievement_multiplier()},
 	]
 	var weather := TimeManager.weather_cps_mult()
 	if not is_equal_approx(weather, 1.0):
@@ -1214,23 +1223,53 @@ func _tree_scope_multiplier(scope: StringName, stat: StringName) -> float:
 	return multiplier
 
 
-func _tree_scope_additive(scope: StringName, stat: StringName) -> float:
+func _tree_scope_additive(scope: StringName, stat: StringName,
+		operation: String = "add_pct") -> float:
 	var value := 0.0
 	for node_id: String in purchased_tree_nodes:
 		var node := PrestigeDB.get_node(node_id)
 		var effect: Dictionary = node.get("effect", {})
 		if StringName(effect.get("scope", "")) == scope \
 				and StringName(effect.get("stat", "")) == stat \
-				and effect.get("operation", "") == "add_pct":
+				and effect.get("operation", "") == operation:
 			value += float(effect.get("value", 0.0))
 	return value
+
+
+func achievement_multiplier() -> float:
+	## +1% permanent production per unlocked achievement (see ACHIEVEMENT_BONUS_PER).
+	return 1.0 + ACHIEVEMENT_BONUS_PER * float(Progression.unlocked.size())
+
+
+func route_reward_bonus() -> float:
+	## The Rotas branch's `route_reward_multiplier`: +% on every lane's freight.
+	return _tree_scope_additive(&"routes", &"route_reward_multiplier")
+
+
+func route_slot_bonus() -> int:
+	## The Rotas branch's `route_slots`: extra lanes the port books in rotation.
+	return int(_tree_scope_additive(&"routes", &"route_slots", "add_flat"))
+
+
+func event_reward_bonus() -> float:
+	## The Eventos branch's `event_reward_multiplier`: +% on charter prizes.
+	return _tree_scope_additive(&"events", &"event_reward_multiplier")
+
+
+func event_duration_bonus() -> float:
+	## The Eventos branch's `event_duration_multiplier`: +% on charter windows.
+	return _tree_scope_additive(&"events", &"event_duration_multiplier")
 
 
 func buy_prestige_node(id: StringName) -> bool:
 	var node := PrestigeDB.get_node(id)
 	if node.is_empty() or purchased_tree_nodes.has(id):
 		return false
-	if not String(node.get("requires_feature", "")).is_empty():
+	# A feature-gated node is buyable once its feature is unlocked — the Rotas
+	# and Eventos branches read their stats for real, so the gate is a level
+	# gate, not a dead button.
+	var feature := String(node.get("requires_feature", ""))
+	if not feature.is_empty() and not FeatureGate.unlocked(StringName(feature)):
 		return false
 	for required in node.get("requires", []):
 		if not purchased_tree_nodes.has(StringName(required)):

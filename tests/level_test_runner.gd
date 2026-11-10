@@ -129,7 +129,7 @@ func _test_minute_table() -> void:
 
 
 func _test_unlock_table() -> void:
-	_expect(TerminalLevel.UNLOCKS.size() == 16, "the table has 16 features")
+	_expect(TerminalLevel.UNLOCKS.size() == 17, "the table has 17 features (events joined routes at level 8)")
 	var spot := {
 		&"shop": 1, &"objective": 2, &"upgrades": 3, &"skill_overtime": 3,
 		&"daily": 4, &"land": 5, &"skill_mutirao": 5, &"gull": 5, &"wheel": 6,
@@ -161,7 +161,7 @@ func _test_unlock_table() -> void:
 	var total := 0
 	for n in range(1, TerminalLevel.MAX_LEVEL + 1):
 		total += TerminalLevel.new().unlocks_at(n).size()
-	_expect(total == 16, "every feature is unlocked by exactly one level")
+	_expect(total == 17, "every feature is unlocked by exactly one level")
 	_done("unlock_table")
 
 

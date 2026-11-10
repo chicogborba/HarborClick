@@ -28,3 +28,6 @@ exports/
 *.ipa
 *.pck
 *.zip
+
+# dados locais de outro projeto, não embarcar
+salarios/

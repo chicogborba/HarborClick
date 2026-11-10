@@ -37,6 +37,7 @@ func _run() -> void:
 	test_a_skill_multiplies_with_a_luck_surge_instead_of_replacing_it()
 	test_purchase_wait_reads_as_time()
 	test_late_sections_and_seed()
+	test_achievements_pay_and_gated_branches_read_their_stats()
 	test_a_dead_provider_cannot_kill_the_save()
 	test_decorations_are_bought_once_and_kept()
 	test_v1_migration()
@@ -214,8 +215,8 @@ func test_cps_breakdown_reproduces_the_rate() -> void:
 	var product := 1.0
 	for row in rows:
 		product *= float(row.value)
-	_expect(absf(product - GameState.base_cps) <= maxf(0.001, GameState.base_cps * 1e-9),
-		"the factors multiply back to the port's own rate")
+	_expect(absf(product - GameState.cps) <= maxf(0.001, GameState.cps * 1e-9),
+		"the factors multiply back to the rate the counter is showing")
 	var milestone := float(rows[1].value)
 	var upgrades := float(rows[2].value)
 	_expect(milestone > 1.0, "25 machines have crossed a milestone")
@@ -426,6 +427,68 @@ func test_decorations_are_bought_once_and_kept() -> void:
 	_expect(GameState.cosmetic_on(duck), "and left the duck")
 
 
+func test_achievements_pay_and_gated_branches_read_their_stats() -> void:
+	## C6: every unlocked achievement is +1% permanent production, shown in the
+	## breakdown; and the Rotas/Eventos branches of the capital tree are real —
+	## a gated node is refused while its feature is locked and bought once it
+	## is not, and its stats move the lane freight and the charter window.
+	GameState.from_save({})
+	GameState.owned["estivador"] = 2
+	GameState.recompute()
+	var mult_before := GameState.achievement_multiplier()
+	var cps_before := GameState.cps
+	for i in 10:
+		Progression.unlocked[StringName("core_ach_%d" % i)] = {"id": "core_ach_%d" % i}
+	GameState.recompute()
+	_expect(is_equal_approx(GameState.achievement_multiplier(), mult_before + 0.10),
+		"10 more achievements pay +10% on top of whatever was unlocked")
+	_expect(is_equal_approx(GameState.cps, cps_before * (mult_before + 0.10) / mult_before),
+		"the achievement multiplier is inside cps")
+	var saw := false
+	for row in GameState.cps_breakdown():
+		if row.get("label", "") == "Conquistas":
+			saw = is_equal_approx(float(row.get("value", 1.0)),
+				mult_before + 0.10)
+	_expect(saw, "the breakdown shows the Conquistas row")
+	var rules := TerminalLevel.new()
+	rules.level = 1
+	FeatureGate.bind(rules)
+	GameState.shares = 10
+	_expect(not GameState.buy_prestige_node(&"routes_reward"),
+		"routes node is refused while the routes feature is locked")
+	_expect(not GameState.buy_prestige_node(&"events_reward"),
+		"events node is refused while the events feature is locked")
+	rules.level = 8
+	FeatureGate.bind(rules)
+	_expect(PrestigeDB.purchasable_branches().size() == PrestigeDB.BRANCHES.size(),
+		"at level 8 every branch is on the tree")
+	_expect(GameState.buy_prestige_node(&"routes_reward"),
+		"routes node buys once routes is unlocked")
+	_expect(is_equal_approx(GameState.route_reward_bonus(), 0.10),
+		"route_reward_bonus reads the bought node")
+	_expect(GameState.buy_prestige_node(&"routes_slot"),
+		"route slot node buys after its requirement")
+	_expect(GameState.route_slot_bonus() == 1, "route_slot_bonus reads the flat node")
+	_expect(GameState.buy_prestige_node(&"events_reward"), "events node buys at level 8")
+	_expect(is_equal_approx(GameState.event_reward_bonus(), 0.10),
+		"event_reward_bonus reads the bought node")
+	_expect(GameState.buy_prestige_node(&"events_window"), "events window node buys")
+	_expect(is_equal_approx(GameState.event_duration_bonus(), 0.10),
+		"event_duration_bonus reads the bought node")
+	var offer := SpecialCallDB.materialize(12345, 0)
+	var raw_seconds := 0.0
+	for o in SpecialCallDB.OFFERS:
+		if o.get("title", "") == offer.get("title", ""):
+			raw_seconds = float(o.get("seconds", 0.0))
+	_expect(raw_seconds > 0.0 and is_equal_approx(float(offer.get("seconds", 0.0)),
+		raw_seconds * 1.10), "a materialized charter window is 10% longer with the node bought")
+	FeatureGate.unbind(rules)
+	for i in 10:
+		Progression.unlocked.erase(StringName("core_ach_%d" % i))
+	GameState.from_save({})
+	GameState.recompute()
+
+
 func test_a_dead_provider_cannot_kill_the_save() -> void:
 	## Leaving the terminal for the title screen frees everything `PortWorld`
 	## registered, and a `Callable` holds an object id rather than a reference.
@@ -584,9 +647,13 @@ func test_preferences_backup_recovers() -> void:
 
 func _tree_probe() -> Array[float]:
 	## Every observable a prestige node is allowed to move. A node that changes
-	## none of these is charging golden shares for nothing.
+	## none of these is charging golden shares for nothing. The Rotas/Eventos
+	## stats are here because those branches read them for real (lane freight,
+	## route rotation, charter window and prize).
 	return [GameState.cps, GameState.click_power,
-		GameState.offline_efficiency(), GameState.offline_cap_seconds()]
+		GameState.offline_efficiency(), GameState.offline_cap_seconds(),
+		GameState.route_reward_bonus(), float(GameState.route_slot_bonus()),
+		GameState.event_reward_bonus(), GameState.event_duration_bonus()]
 
 
 func _seed_state_for_tree() -> void:
@@ -611,12 +678,13 @@ func test_prestige_nodes_all_change_something() -> void:
 	_expect(PrestigeDB.is_valid(), "prestige tree data is valid")
 	var branches := PrestigeDB.purchasable_branches()
 	_expect(not branches.is_empty(), "at least one branch is purchasable")
+	# Feature-gated branches are allowed now — they read their stats for real —
+	# but only once their feature is unlocked (covered by the gate test below).
 	for branch: Dictionary in branches:
-		_expect(String(branch.get("requires_feature", "")).is_empty(),
-			"%s is not feature gated" % branch.get("id", "?"))
-		for gated: Dictionary in branch.get("nodes", []):
-			_expect(String(gated.get("requires_feature", "")).is_empty(),
-				"%s is not feature gated" % gated.get("id", "?"))
+		var bf := String(branch.get("requires_feature", ""))
+		if not bf.is_empty():
+			_expect(FeatureGate.unlocked(StringName(bf)),
+				"%s shows only because its feature is unlocked" % branch.get("id", "?"))
 	for branch: Dictionary in branches:
 		for node: Dictionary in branch.get("nodes", []):
 			var id := StringName(node.get("id", ""))
