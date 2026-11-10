@@ -68,6 +68,18 @@ func _run() -> void:
 # ---------------------------------------------------------------- the tests
 
 func _test_every_rail_key_opens_and_escape_closes() -> void:
+	# A new terminal has the shop and settings only; the logbook (6) and routes
+	# (8) arrive with the level. Check that, then play as a grown port.
+	for entry: Dictionary in _main.rail._key_labels:
+		var grown: bool = str(entry.stem) in ["rail.routes", "rail.journal"]
+		_expect((entry.button as Button).visible != grown,
+			"%s %s on a new terminal" % [entry.stem, "is hidden" if grown else "is shown"])
+	_expect(not _main.shop._tab_buttons["upgrades"].visible
+		and not _main.shop._tab_buttons["land"].visible,
+		"and the shop opens with machines only")
+	_main.level_service.rules.add_xp(TerminalLevel.xp_for_level(12))
+	_main.level_service.xp_changed.emit()
+	await get_tree().process_frame
 	for entry: Dictionary in _main.rail._key_labels:
 		var stem := str(entry.stem)
 		var key: Button = entry.button
@@ -86,11 +98,8 @@ func _test_every_rail_key_opens_and_escape_closes() -> void:
 func _test_the_wheel_button_opens_and_spins() -> void:
 	# A new profile has neither key yet: the wheel arrives at terminal level 6
 	# and the missions at 4. Check that, then play as a port that has grown.
-	_expect(not _main.wheel_button.visible and not _main.daily_button.visible,
-		"a brand-new terminal shows neither the wheel nor the missions yet")
-	_main.level_service.rules.add_xp(TerminalLevel.xp_for_level(12))
-	_main.level_service.xp_changed.emit()
-	await get_tree().process_frame
+	_expect(_main.wheel_button.visible and _main.daily_button.visible,
+		"a grown terminal shows the wheel and the missions")
 	var button: Button = _main.wheel_button._button
 	_expect(button.is_visible_in_tree(), "the wheel button is on screen")
 	await _click(button.get_global_rect().get_center())
@@ -151,6 +160,9 @@ func _test_tapping_the_ship_moves_a_box() -> void:
 
 
 func _test_tapping_a_machine_card_buys_it() -> void:
+	# This test is about the tap reaching the purchase; the build time that now
+	# stands between a purchase and the machine has its own suite (`build`).
+	GameState.build_times_enabled = false
 	# A machine card is only revealed once the port has earned a quarter of its
 	# price, so the wallet alone is not enough: lifetime has to be there too, or
 	# the tap lands on the "???" teaser that stands in its place.

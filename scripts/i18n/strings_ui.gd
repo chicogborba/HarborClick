@@ -1597,6 +1597,92 @@ const STRINGS := {
 # Small labels, so every translation stays short. The × is in the bitmap font
 # (see tools/sprites/gen_font.py, "x_mult").
 
+"skill.skill_overtime": {
+	"pt_BR": "Turno Extra", "en": "Overtime", "es": "Turno extra", "fr": "Heures sup",
+	"de": "Überstunden", "it": "Straordinario", "ru": "Сверхурочные",
+	"pl": "Nadgodziny", "tr": "Fazla mesai"},
+"skill.skill_overtime.desc": {
+	"pt_BR": "Produção x2 por 30 s.", "en": "Production x2 for 30 s.",
+	"es": "Producción x2 por 30 s.", "fr": "Production x2 pendant 30 s.",
+	"de": "Produktion x2 für 30 s.", "it": "Produzione x2 per 30 s.",
+	"ru": "Производство x2 на 30 с.", "pl": "Produkcja x2 przez 30 s.",
+	"tr": "30 sn boyunca üretim x2."},
+"skill.skill_mutirao": {
+	"pt_BR": "Mutirão", "en": "All Hands", "es": "Faena", "fr": "Branle-bas",
+	"de": "Alle Mann", "it": "Tutti al lavoro", "ru": "Аврал",
+	"pl": "Wszyscy na pokład", "tr": "Seferberlik"},
+"skill.skill_mutirao.desc": {
+	"pt_BR": "10 s: combo no máximo e a equipe toca por você.",
+	"en": "10 s: combo maxed and the crew taps for you.",
+	"es": "10 s: combo al máximo y la cuadrilla toca por ti.",
+	"fr": "10 s: combo au max et l'équipe tape pour vous.",
+	"de": "10 s: Combo am Limit, die Crew tippt für dich.",
+	"it": "10 s: combo al massimo, la squadra tocca per te.",
+	"ru": "10 с: комбо на максимуме, команда жмёт за вас.",
+	"pl": "10 s: combo na maksimum, ekipa stuka za ciebie.",
+	"tr": "10 sn: kombo en üstte, ekip senin yerine dokunur."},
+"skill.skill_pilot": {
+	"pt_BR": "Prático a Bordo", "en": "Pilot Aboard", "es": "Práctico a bordo",
+	"fr": "Pilote à bord", "de": "Lotse an Bord", "it": "Pilota a bordo",
+	"ru": "Лоцман на борту", "pl": "Pilot na pokładzie", "tr": "Kılavuz kaptan"},
+"skill.skill_pilot.desc": {
+	"pt_BR": "O bônus da próxima escala paga x3.",
+	"en": "The next call's departure bonus pays x3.",
+	"es": "El bono de la próxima escala paga x3.",
+	"fr": "La prime de la prochaine escale paie x3.",
+	"de": "Der Abfahrtsbonus des nächsten Anlaufs zahlt x3.",
+	"it": "Il bonus del prossimo scalo paga x3.",
+	"ru": "Бонус следующего захода x3.",
+	"pl": "Premia za następne zawinięcie x3.",
+	"tr": "Sonraki seferin bonusu x3 öder."},
+"build.speed_up": {
+	"pt_BR": "Acelerar a obra", "en": "Speed up the build", "es": "Acelerar la obra",
+	"fr": "Accélérer le chantier", "de": "Bau beschleunigen", "it": "Accelera i lavori",
+	"ru": "Ускорить стройку", "pl": "Przyspiesz budowę", "tr": "İnşaatı hızlandır"},
+"spot.ship.text2": {
+	"pt_BR": "Toque no navio. Cada toque tira uma caixa e paga TEU.", "en": "Tap the ship. Each tap lifts a box and pays TEU.", "es": "Toca el barco. Cada toque saca una caja y paga TEU.",
+	"fr": "Touchez le navire. Chaque tap sort une caisse et rapporte des EVP.", "de": "Tippe das Schiff an. Jeder Tipp hebt eine Kiste und bringt TEU.", "it": "Tocca la nave. Ogni tocco solleva un box e rende TEU.",
+	"ru": "Нажимайте на судно. Каждое нажатие снимает контейнер и платит TEU.", "pl": "Dotykaj statku. Każde dotknięcie zdejmuje kontener i płaci TEU.", "tr": "Gemiye dokun. Her dokunuş bir konteyner indirir ve TEU kazandırır."},
+"spot.teu.text2": {
+	"pt_BR": "Esse é o seu TEU. Com 15 dá para contratar o primeiro Estivador.", "en": "This is your TEU. With 15 you can hire your first Docker.", "es": "Este es tu TEU. Con 15 puedes contratar al primer Estibador.",
+	"fr": "Voici vos EVP. Avec 15, engagez votre premier docker.", "de": "Das sind deine TEU. Mit 15 stellst du den ersten Hafenarbeiter ein.", "it": "Questi sono i tuoi TEU. Con 15 assumi il primo scaricatore.",
+	"ru": "Это ваши TEU. За 15 можно нанять первого грузчика.", "pl": "To twoje TEU. Za 15 zatrudnisz pierwszego dokera.", "tr": "Bu senin TEU'n. 15 ile ilk liman işçisini tutabilirsin."},
+"spot.shop.title2": {
+	"pt_BR": "LOJA", "en": "SHOP", "es": "TIENDA",
+	"fr": "BOUTIQUE", "de": "SHOP", "it": "NEGOZIO",
+	"ru": "МАГАЗИН", "pl": "SKLEP", "tr": "MAĞAZA"},
+"spot.shop.text2": {
+	"pt_BR": "Abra a loja e contrate um Estivador. Ele trabalha sozinho.", "en": "Open the shop and hire a Docker. He works on his own.", "es": "Abre la tienda y contrata un Estibador. Trabaja solo.",
+	"fr": "Ouvrez la boutique et engagez un docker. Il travaille seul.", "de": "Öffne den Shop und stelle einen Hafenarbeiter ein. Er arbeitet allein.", "it": "Apri il negozio e assumi uno scaricatore. Lavora da solo.",
+	"ru": "Откройте магазин и наймите грузчика. Он работает сам.", "pl": "Otwórz sklep i zatrudnij doker. Pracuje sam.", "tr": "Mağazayı aç ve bir işçi tut. Kendi başına çalışır."},
+"spot.done.title": {
+	"pt_BR": "PRONTO!", "en": "DONE!", "es": "¡LISTO!",
+	"fr": "PRÊT !", "de": "FERTIG!", "it": "FATTO!",
+	"ru": "ГОТОВО!", "pl": "GOTOWE!", "tr": "TAMAM!"},
+"spot.done.text": {
+	"pt_BR": "Continue tocando e comprando. O porto cresce com você.", "en": "Keep tapping and buying. The port grows with you.", "es": "Sigue tocando y comprando. El puerto crece contigo.",
+	"fr": "Continuez à taper et acheter. Le port grandit avec vous.", "de": "Tippe und kaufe weiter. Der Hafen wächst mit dir.", "it": "Continua a toccare e comprare. Il porto cresce con te.",
+	"ru": "Продолжайте нажимать и покупать. Порт растёт вместе с вами.", "pl": "Dotykaj i kupuj dalej. Port rośnie razem z tobą.", "tr": "Dokunmaya ve almaya devam et. Liman seninle büyür."},
+"spot.wait.text": {
+	"pt_BR": "O navio já vem entrando no cais...", "en": "The ship is coming alongside...", "es": "El barco ya entra al muelle...",
+	"fr": "Le navire arrive à quai...", "de": "Das Schiff läuft gerade ein...", "it": "La nave sta entrando in banchina...",
+	"ru": "Судно заходит к причалу...", "pl": "Statek wchodzi do nabrzeża...", "tr": "Gemi rıhtıma yaklaşıyor..."},
+"spot.hint.tap": {
+	"pt_BR": "toque no navio ({n}/{goal})", "en": "tap the ship ({n}/{goal})", "es": "toca el barco ({n}/{goal})",
+	"fr": "touchez le navire ({n}/{goal})", "de": "tippe das Schiff an ({n}/{goal})", "it": "tocca la nave ({n}/{goal})",
+	"ru": "нажмите на судно ({n}/{goal})", "pl": "dotknij statku ({n}/{goal})", "tr": "gemiye dokun ({n}/{goal})"},
+"spot.hint.buy": {
+	"pt_BR": "compre um Estivador", "en": "buy a Docker", "es": "compra un Estibador",
+	"fr": "achetez un docker", "de": "kaufe einen Hafenarbeiter", "it": "compra uno scaricatore",
+	"ru": "купите грузчика", "pl": "kup dokera", "tr": "bir işçi al"},
+"spot.hint.ok": {
+	"pt_BR": "toque para continuar", "en": "tap to continue", "es": "toca para seguir",
+	"fr": "touchez pour continuer", "de": "tippen zum Weitermachen", "it": "tocca per continuare",
+	"ru": "нажмите, чтобы продолжить", "pl": "dotknij, by kontynuować", "tr": "devam için dokun"},
+"spot.skip": {
+	"pt_BR": "PULAR", "en": "SKIP", "es": "SALTAR",
+	"fr": "PASSER", "de": "SKIP", "it": "SALTA",
+	"ru": "ПРОПУСК", "pl": "POMIŃ", "tr": "GEÇ"},
 "ad.placeholder.title": {
 	"pt_BR": "ANÚNCIO (TESTE)", "en": "AD (TEST)", "es": "ANUNCIO (PRUEBA)",
 	"fr": "PUB (TEST)", "de": "WERBUNG (TEST)", "it": "ANNUNCIO (TEST)",

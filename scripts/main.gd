@@ -26,6 +26,10 @@ var wheel_button: WheelButton
 var daily_service: DailyOrdersService
 var daily_panel: DailyOrdersPanel
 var daily_button: DailyOrdersButton
+var boost_chips: BoostChips
+var skill_service: SkillService
+var skill_bar: SkillBar
+var build_hud: BuildHud
 var level_service: TerminalLevelService
 var _overlay_state := {"shop": false, "settings": false, "journal": false,
 	"prestige": false, "routes": false, "crew": false, "special": false,
@@ -56,6 +60,9 @@ func _ready() -> void:
 	level_service.name = "TerminalLevelService"
 	add_child(level_service)
 	daily_service.mission_claimed.connect(level_service.note_mission)
+	skill_service = SkillService.new()
+	skill_service.name = "SkillService"
+	add_child(skill_service)
 
 	# Normally the title screen has already chosen a slot. Running this scene
 	# directly — F6, the capture harness, the dev probe — falls back to the
@@ -117,6 +124,21 @@ func _ready() -> void:
 			"text": Loc.t("wheel.token_earned"),
 		}))
 
+	boost_chips = BoostChips.new()
+	boost_chips.name = "BoostChips"
+	add_child(boost_chips)
+	build_hud = BuildHud.new()
+	build_hud.name = "BuildHud"
+	add_child(build_hud)
+	# The real game builds things over time; headless suites buy them at once.
+	GameState.build_times_enabled = true
+	skill_bar = SkillBar.new()
+	skill_bar.name = "SkillBar"
+	skill_bar.setup(skill_service)
+	add_child(skill_bar)
+	skill_service.tap_ship = Callable(self, "_tap_ship_for_skill")
+	level_service.xp_changed.connect(skill_bar.refresh)
+
 	rail = CommandRail.new()
 	rail.name = "CommandRail"
 	add_child(rail)
@@ -124,6 +146,7 @@ func _ready() -> void:
 	shop = Shop.new()
 	shop.name = "Shop"
 	add_child(shop)
+	_refresh_level_gates()
 
 	notifications = NotificationCoordinator.new()
 	notifications.name = "Notifications"
@@ -288,6 +311,7 @@ func _ready() -> void:
 	tutorial.setup({
 		"get_target_rect": Callable(self, "_tutorial_target_rect"),
 		"reduced_motion": Callable(self, "_tutorial_reduced_motion"),
+		"ship_ready": Callable(self, "_ship_is_working"),
 	})
 	add_child(tutorial)
 	tutorial.finished.connect(_on_tutorial_finished)
@@ -313,11 +337,29 @@ func _on_any_berth_status(_status: Dictionary) -> void:
 	_refresh_berth_board()
 
 
+func _exit_tree() -> void:
+	# Do not leak build times into whatever runs next in the same process.
+	GameState.build_times_enabled = false
+
+
+func _tap_ship_for_skill() -> void:
+	## Mutirão: the crew works the ship through the same path a finger does, so
+	## it pays, flies a box and counts for the missions like any other tap.
+	if world == null or world.berth == null or world.ship == null:
+		return
+	world.berth.handle_tap(world.ship.global_position
+		+ Vector2(PortLayout.SHIP_W * 0.5, 110.0))
+
+
 func _refresh_level_gates() -> void:
 	## The two HUD keys the unlock table gates today: the wheel (level 6) and
 	## the daily missions (level 4). Rules only — the buttons stay, hidden.
 	if level_service == null or wheel_button == null or daily_button == null:
 		return
+	if rail != null:
+		rail.apply_level_gates()
+	if shop != null:
+		shop._apply_level_gates()
 	wheel_button.visible = level_service.rules.unlocked(&"wheel")
 	daily_button.visible = level_service.rules.unlocked(&"daily")
 
@@ -501,6 +543,12 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		wheel_panel.apply_view_metrics(metrics)
 	if wheel_button != null:
 		wheel_button.apply_view_metrics(metrics)
+	if boost_chips != null:
+		boost_chips.apply_view_metrics(metrics)
+	if skill_bar != null:
+		skill_bar.apply_view_metrics(metrics)
+	if build_hud != null:
+		build_hud.apply_view_metrics(metrics)
 	if daily_panel != null:
 		daily_panel.apply_view_metrics(metrics)
 	if daily_button != null:
@@ -616,6 +664,10 @@ func _replay_tutorial() -> void:
 	settings.close()
 	if tutorial != null:
 		tutorial.replay()
+
+
+func _ship_is_working() -> bool:
+	return world != null and world.ship != null and world.ship.is_working()
 
 
 func _tutorial_reduced_motion() -> bool:

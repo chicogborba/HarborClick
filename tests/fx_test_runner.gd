@@ -15,7 +15,7 @@ extends Node
 
 const EXPECTED := [
 	"pool_fixed", "particles_hide", "reduce_motion_noop", "whole_pixels",
-	"camera_shake_returns_to_zero",
+	"camera_shake_returns_to_zero", "camera_pinch",
 ]
 
 var failures: Array[String] = []
@@ -35,6 +35,7 @@ func _run() -> void:
 	_test_burst_is_a_noop_under_reduce_motion()
 	_test_positions_are_whole_pixels()
 	_test_camera_shake_returns_offset_to_zero()
+	_test_two_fingers_zoom_and_never_pan()
 
 	for label in EXPECTED:
 		_expect(_finished.has(label), "the '%s' test ran to the end" % label)
@@ -44,7 +45,7 @@ func _run() -> void:
 		print("FX TESTS PASSED (%d tests: pool fixed at 96, particles hide "
 			% EXPECTED.size()
 			+ "after their life, reduce-motion no-op, whole-pixel positions, "
-			+ "camera shake returns to zero)")
+			+ "camera shake returns to zero, camera pinch)")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -174,3 +175,53 @@ func _test_camera_shake_returns_offset_to_zero() -> void:
 	UserPreferences.reduce_motion = false
 	cam.queue_free()
 	_done("camera_shake_returns_to_zero")
+
+
+func _touch(cam: PortCamera, index: int, at: Vector2, pressed: bool) -> void:
+	var e := InputEventScreenTouch.new()
+	e.index = index
+	e.position = at
+	e.pressed = pressed
+	cam._unhandled_input(e)
+
+
+func _drag(cam: PortCamera, index: int, at: Vector2) -> void:
+	var e := InputEventScreenDrag.new()
+	e.index = index
+	e.position = at
+	e.relative = Vector2(1, 0)
+	cam._unhandled_input(e)
+
+
+func _test_two_fingers_zoom_and_never_pan() -> void:
+	## A pinch is the way a phone zooms; the camera used to know only the mouse
+	## wheel, so on a phone the terminal could not be zoomed at all.
+	var cam := PortCamera.new()
+	add_child(cam)
+	cam.set_input_enabled(true)
+	cam._zoom_floor = 1.0
+	cam._zoom_ceiling = 3.0
+	cam.zoom = Vector2.ONE
+	cam.position = Vector2(160, 300)
+	_touch(cam, 0, Vector2(100, 400), true)
+	_touch(cam, 1, Vector2(200, 400), true)
+	_drag(cam, 1, Vector2(300, 400))   # fingers 100 -> 200 apart
+	_expect(cam.zoom.x > 1.5, "spreading two fingers zooms in (%.2f)" % cam.zoom.x)
+	_expect(cam.position == Vector2(160, 300) or not cam._dragging,
+		"and the terminal is not dragged while they do it")
+	_drag(cam, 1, Vector2(120, 400))
+	_expect(cam.zoom.x >= 1.0, "pinching back never goes under the zoom floor")
+	_touch(cam, 1, Vector2(120, 400), false)
+	_touch(cam, 0, Vector2(100, 400), false)
+	_expect(cam._touches.is_empty(), "lifting the fingers forgets them")
+	var before := cam.zoom.x
+	cam._unhandled_input(_magnify(1.2))
+	_expect(cam.zoom.x > before, "a trackpad magnify gesture zooms too")
+	cam.queue_free()
+	_done("camera_pinch")
+
+
+func _magnify(factor: float) -> InputEventMagnifyGesture:
+	var e := InputEventMagnifyGesture.new()
+	e.factor = factor
+	return e

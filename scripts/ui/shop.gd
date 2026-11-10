@@ -1064,6 +1064,20 @@ func _on_pick_policy(policy: StringName) -> void:
 	SaveManager.request_save(&"orders")
 
 
+func _apply_level_gates() -> void:
+	## Tabs appear as the terminal grows (docs/plans/plano-release.md, 2.3). A tab
+	## the player has not earned is not there to be puzzled over — and if the
+	## sheet is open on one that just went away, it falls back to machines.
+	var gates := {"upgrades": &"upgrades", "land": &"land", "cosmetics": &"decor"}
+	for tab: String in gates:
+		var button: Button = _tab_buttons.get(tab)
+		if button != null:
+			button.visible = FeatureGate.unlocked(gates[tab])
+	var open_button: Button = _tab_buttons.get(_active)
+	if _open and open_button != null and not open_button.visible:
+		_on_tab("structures")
+
+
 func _update_orders_tab() -> void:
 	## Rule 10: depth reveals itself. A port with one berth has no allocation to
 	## decide, so the tab that decides it is not there to be puzzled over yet.
@@ -1077,8 +1091,9 @@ func _update_orders_tab() -> void:
 		return
 	# A second lane is reason enough on its own now: from the moment the port
 	# trades on two, which one it books next is a decision.
-	tab.visible = PortLayout.berth_count() > 1 or GameState.prestige_count > 0 \
-		or RouteDB.owned(GameState.routes).size() > 1
+	tab.visible = (PortLayout.berth_count() > 1 or GameState.prestige_count > 0
+		or RouteDB.owned(GameState.routes).size() > 1) \
+		and FeatureGate.unlocked(&"orders")
 	if not tab.visible and _active == "orders":
 		_on_tab("structures")
 
@@ -1195,6 +1210,8 @@ func _update_tab_badges() -> void:
 # --------------------------------------------------------------------- state
 
 func _on_tab(tab_name: String) -> void:
+	if tab_name != _active:
+		AudioManager.play_sfx("ui_tab", 0.02, -3.0)
 	if _open and _active == tab_name:
 		_close()
 		return
@@ -1426,6 +1443,7 @@ func _on_buy_land(id: String) -> void:
 func _refresh() -> void:
 	if _balance != null:
 		_balance.text = GameState.fmt(GameState.teus)
+	_apply_level_gates()
 	_update_orders_tab()
 	_refresh_cosmetics()
 	if _active == "orders":

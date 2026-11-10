@@ -2,7 +2,7 @@ extends Node
 ## SFX pool + crossfading music. Tracks follow the day/night cycle and weather.
 
 const SFX_DIR := "res://assets/audio/"
-const SFX_POOL_SIZE := 10
+const SFX_POOL_SIZE := 16
 const MUSIC_DB := -20.0        # the music sits well under the effects
 const FADE_TIME := 3.0
 const SETTINGS_PATH := "user://audio.cfg"
@@ -47,6 +47,24 @@ var _bags: Dictionary = {}     # bag key -> remaining draws, already shuffled
 var _last_draw: Dictionary = {} # bag key -> the value handed out last
 var _settings_path := SETTINGS_PATH
 
+## Sounds that may not restart sooner than this, in seconds. An automated yard
+## fires `thunk` many times a second, and a full pool then hard-cuts whichever
+## voice is oldest; spacing the frequent ones keeps the pool for the rest.
+const MIN_INTERVAL := {"thunk": 0.045, "click": 0.03, "tap": 0.02, "combo": 0.03,
+	"coins": 0.1, "wheel_tick": 0.02}
+var _last_play: Dictionary = {}    # name -> ticks_msec of the last start
+
+## Ambience: looping beds under the music. Each is a player whose level eases
+## toward a target worked out from what the port is doing — the sea is always
+## there, the hum swells with production, rain and wind follow the weather.
+const AMBIENCE := {&"amb_sea": -24.0, &"amb_port": -30.0, &"amb_rain": -22.0,
+	&"amb_wind": -28.0}
+const AMBIENCE_EASE := 1.2
+var _beds: Dictionary = {}          # name -> AudioStreamPlayer
+var _bed_target: Dictionary = {}    # name -> 0..1
+var _thunder_in := 30.0
+var _muted_by_focus := false
+
 
 func set_settings_path_for_tests(path: String) -> void:
 	## A suite that exercises the mixer must not leave the player muted. This is
@@ -70,10 +88,91 @@ func _ready() -> void:
 	_load_settings()
 	EventBus.day_phase_changed.connect(func(_p: StringName) -> void: update_music())
 	EventBus.fog_changed.connect(func(_a: bool) -> void: update_music())
+	# Moments the game used to let pass in silence, heard from here so no screen
+	# has to remember to ask: a trophy, a finished call, a new day.
+	EventBus.achievement_completed.connect(func(_p: Dictionary) -> void:
+		play_sfx("achievement", 0.02, -2.0))
+	EventBus.berth_call_completed.connect(func(_p: Dictionary) -> void:
+		play_sfx("berth_done", 0.02, -3.0))
+	EventBus.new_day.connect(func(_d: int) -> void: play_sfx("new_day", 0.0, -4.0))
+	EventBus.rain_changed.connect(func(_on: bool) -> void: _refresh_bed_targets())
+	if DisplayServer.get_name() != "headless":
+		_build_beds.call_deferred()
 	# Headless runners have no audible output, and keeping a looping WAV alive
 	# until SceneTree.quit() makes Godot report two false-positive ObjectDB leaks.
 	if DisplayServer.get_name() != "headless":
 		update_music.call_deferred()
+
+
+func _build_beds() -> void:
+	for bed: StringName in AMBIENCE:
+		var stream := _load(String(bed), true)
+		if stream == null:
+			continue
+		var p := AudioStreamPlayer.new()
+		p.stream = stream
+		p.volume_db = SILENT_DB
+		add_child(p)
+		p.play()
+		_beds[bed] = p
+		_bed_target[bed] = 0.0
+	_refresh_bed_targets()
+
+
+func _refresh_bed_targets() -> void:
+	## What each bed should be doing right now, 0..1.
+	var busy := clampf(log(maxf(GameState.cps, 1.0)) / log(1.0e6), 0.0, 1.0)
+	var raining := TimeManager.rain_active
+	_bed_target[&"amb_sea"] = 1.0
+	_bed_target[&"amb_port"] = 0.25 + 0.75 * busy
+	_bed_target[&"amb_rain"] = 1.0 if raining else 0.0
+	_bed_target[&"amb_wind"] = clampf(TimeManager.wind, 0.0, 1.0) * (1.0 if raining else 0.45)
+
+
+func _process(delta: float) -> void:
+	if _beds.is_empty():
+		return
+	_bed_refresh_in -= delta
+	if _bed_refresh_in <= 0.0:
+		_bed_refresh_in = 2.0
+		_refresh_bed_targets()
+	var step := clampf(delta / AMBIENCE_EASE, 0.0, 1.0)
+	for bed: StringName in _beds:
+		var p: AudioStreamPlayer = _beds[bed]
+		var want := SILENT_DB
+		if sfx_audible() and float(_bed_target.get(bed, 0.0)) > 0.01:
+			want = float(AMBIENCE[bed]) + linear_to_db(float(_bed_target[bed])) \
+				+ linear_to_db(sfx_volume)
+		p.volume_db = lerpf(p.volume_db, want, step)
+	# Thunder rolls in now and then while it rains — distant, never on a beat.
+	if TimeManager.rain_active and sfx_audible():
+		_thunder_in -= delta
+		if _thunder_in <= 0.0:
+			_thunder_in = randf_range(28.0, 75.0)
+			play_sfx("amb_thunder", 0.04, -9.0)
+	else:
+		_thunder_in = maxf(_thunder_in, 20.0)
+
+
+var _bed_refresh_in := 0.0
+
+
+func _notification(what: int) -> void:
+	## An idle game is backgrounded constantly, and a port that keeps humming from
+	## a pocket is a reason to uninstall it. Mute the master bus while the game is
+	## not the thing in front of the player.
+	match what:
+		NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED:
+			_set_focus_mute(true)
+		NOTIFICATION_APPLICATION_FOCUS_IN, NOTIFICATION_APPLICATION_RESUMED:
+			_set_focus_mute(false)
+
+
+func _set_focus_mute(value: bool) -> void:
+	if value == _muted_by_focus or DisplayServer.get_name() == "headless":
+		return
+	_muted_by_focus = value
+	AudioServer.set_bus_mute(0, value)
 
 
 func _exit_tree() -> void:
@@ -93,6 +192,12 @@ func play_sfx(sfx_name: String, pitch_jitter: float = 0.06, volume_db: float = 0
 	if not sfx_audible() or DisplayServer.get_name() == "headless" \
 			or _pool.is_empty():
 		return
+	if MIN_INTERVAL.has(sfx_name):
+		var now := Time.get_ticks_msec()
+		if float(now - int(_last_play.get(sfx_name, -100000))) \
+				< float(MIN_INTERVAL[sfx_name]) * 1000.0:
+			return
+		_last_play[sfx_name] = now
 	var take := pick_variant(sfx_name)
 	var stream := _load(take)
 	if stream == null and take != sfx_name:
@@ -316,7 +421,8 @@ func _load(stream_name: String, looping: bool = false) -> AudioStream:
 		var wav := (stream as AudioStreamWAV).duplicate() as AudioStreamWAV
 		wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
 		wav.loop_begin = 0
-		@warning_ignore("integer_division") var frames := wav.data.size() / 2   # 16-bit mono
+		# 16-bit samples: two bytes a frame for mono, four for stereo.
+		@warning_ignore("integer_division") var frames := wav.data.size() / (4 if wav.stereo else 2)
 		wav.loop_end = frames
 		stream = wav
 	_cache[key] = stream

@@ -80,6 +80,13 @@ func setup(p_world: PortWorld, p_yard: ContainerYard) -> void:
 
 # ------------------------------------------------------------------- traffic
 
+func is_open() -> bool:
+	## The branch is part of the world from the start, but the railway only runs
+	## once the terminal has grown to it (or its machine is bought): a new
+	## player's first minutes are a ship, a quay and a yard, not a timetable.
+	return has_branch() or FeatureGate.unlocked(&"routes")
+
+
 func has_branch() -> bool:
 	## The bought structure is the branch itself. Without it the terminal is
 	## still on the network — every real port is — but it gets an occasional trip
@@ -178,6 +185,10 @@ func report() -> Dictionary:
 
 func tick(delta: float) -> void:
 	if service.is_empty():
+		if not is_open():
+			# Held, not skipped: the first train comes a minute after it opens.
+			_next_service = maxf(_next_service, 60.0)
+			return
 		_next_service -= delta
 		if _next_service <= 0.0:
 			_call_a_service()

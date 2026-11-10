@@ -191,6 +191,8 @@ func notify_docked(bay: int) -> void:
 		return
 	truck["stage"] = int(Stage.DOCKED)
 	truck["dwell"] = DWELL_SECONDS
+	# Air brakes: the lorry is in the bay. Quiet and low — trucks are constant.
+	AudioManager.play_sfx("truck_arrive", 0.06, -10.0)
 	changed.emit()
 
 

@@ -22,6 +22,9 @@
 | rail | branch plans and standing orders, the operational floor, parked-only work, the run-around, the completion bonus, the rake drawn 1:1 |
 | clicks | real mouse events through the viewport on the main scene: every console key opens and Escape closes, the wheel button and GIRAR, a tap on the ship moves a box, a tap on a machine and an upgrade card buys |
 | level | Terminal level: XP curve and the minute table it is tuned to, the unlock table, legacy-save migration, prestige survival |
+| combo | the tap combo: steps build with a steady hand, a pause lets it fall, a skill can pin it, a payout in it is multiplied once |
+| skills | the Capataz skills: recharge clocks, save clamping, what each does, no early or double use, level gate, ad reset |
+| build | purchases stand after a delay: tier durations, the price counts what is still being built, two work at a time, a tap hurries one, an ad finishes one, time away counts, the queue saves, a rebuild clears it |
 | fx | pooled effects: fixed pool, lifetime, reduced-motion no-op, whole pixels, camera shake returns to rest |
 | ads | rewarded-ad policy and service: daily caps, cooldowns, day rollover, reward exactly once, a failed ad pays nothing, no-ads pass |
 | wheel | Roda da Sorte: segment weights, free spin before tokens, a token per third departure, prize priced in base cps, claim-once, reload, prestige survival |

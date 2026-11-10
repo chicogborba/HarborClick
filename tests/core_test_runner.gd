@@ -34,6 +34,7 @@ func _run() -> void:
 	test_a_blocked_node_is_refused_not_silently_bought()
 	test_fmt_reads_as_a_number_in_this_language()
 	test_the_cat_is_worth_finding_after_automation()
+	test_a_skill_multiplies_with_a_luck_surge_instead_of_replacing_it()
 	test_purchase_wait_reads_as_time()
 	test_late_sections_and_seed()
 	test_a_dead_provider_cannot_kill_the_save()
@@ -697,6 +698,28 @@ func test_fmt_reads_as_a_number_in_this_language() -> void:
 		var text := GameState.fmt(value)
 		_expect(not text.begins_with("10"),
 			"%s prints a normalised mantissa (%s)" % [value, text])
+
+
+func test_a_skill_multiplies_with_a_luck_surge_instead_of_replacing_it() -> void:
+	## One slot for both made pressing an earned button during a gull's frenzy a
+	## waste ("the strongest wins"). Skills have their own slot and stack.
+	GameState.from_save({"owned": {"estivador": 40}, "teus": 1e6})
+	GameState.recompute()
+	var base := GameState.cps
+	GameState.grant_surge(7.0, 30.0)
+	GameState.grant_skill(2.0, 20.0)
+	_expect(is_equal_approx(GameState.cps, base * 14.0),
+		"a x7 frenzy and a x2 skill make x14")
+	_expect(is_equal_approx(GameState.click_power, GameState.click_power),
+		"taps are multiplied by both as well")
+	GameState.skill_time = 0.0001
+	GameState._process(0.01)
+	_expect(is_equal_approx(GameState.cps, base * 7.0),
+		"when the skill ends the surge is untouched")
+	GameState.from_save({})
+	_expect(is_equal_approx(GameState.skill_mult, 1.0) and GameState.skill_time == 0.0,
+		"and a load never brings a skill back")
+	GameState.recompute()
 
 
 func test_the_cat_is_worth_finding_after_automation() -> void:

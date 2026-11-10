@@ -71,6 +71,8 @@ var _gate_trucks: Dictionary = {}     # bay index -> RoadTruck
 var _gate_arm: Sprite2D
 var _rail_view: Node2D
 var _rake: RailRake
+var fx: Fx
+var _rail_furniture: Node2D
 var _rail_signal_lit: Sprite2D
 var _rail_crossing_lit: Array[Sprite2D] = []
 var _rail_flash := 0.0
@@ -186,6 +188,9 @@ func _ready() -> void:
 	overhead.z_index = 30
 	overhead.z_as_relative = false
 	add_child(overhead)
+	fx = Fx.new()
+	fx.name = "Fx"
+	overhead.add_child(fx)
 
 	yard = ContainerYard.new()
 	yard.name = "Yard"
@@ -874,6 +879,7 @@ func _build_rail() -> void:
 	var furniture := Node2D.new()
 	furniture.name = "Rail"
 	entities.add_child(furniture)
+	_rail_furniture = furniture
 
 	# The transit shed at the head of the platform, then the board on the platform
 	# at the other end. Both stand on the goods apron `GroundBaker` paints, which
@@ -940,6 +946,10 @@ func _drive_rail_furniture(delta: float) -> void:
 	## service state, so neither can claim something the branch is not doing.
 	if rail == null:
 		return
+	# Shed, gantry, board, signal and crossings only stand once the railway runs;
+	# before that the branch is bare ballast, an unused siding.
+	if _rail_furniture != null:
+		_rail_furniture.visible = rail.is_open()
 	if _rail_signal_lit != null:
 		var atlas := _rail_signal_lit.texture as AtlasTexture
 		if atlas != null:
@@ -1388,6 +1398,20 @@ func _fly(color: int, from: Vector2, to: Vector2, on_land: Callable) -> void:
 	fly.landed.connect(on_land)
 
 
+func show_combo_feedback(pos: Vector2, steps: int, stepped: bool) -> void:
+	## The feel of a tap: a spark burst at the finger that grows with the combo,
+	## a short buzz, and a ping that climbs a semitone-ish per step.
+	if fx != null:
+		fx.burst(&"spark", pos, 2 + steps, 10.0)
+		if stepped:
+			fx.burst(&"coin", pos, 3, 6.0)
+	if stepped:
+		Fx.haptic(14)
+		AudioManager.play_sfx_pitched("combo", 1.0 + 0.07 * float(steps), -4.0)
+	elif steps > 0:
+		AudioManager.play_sfx_pitched("combo", 0.9 + 0.05 * float(steps), -12.0)
+
+
 func show_cargo_reward(pos: Vector2, value: float, crit: bool) -> void:
 	## Reward accounting happens in BerthCallController before this presentation
 	## hook. Hiding feedback must therefore never suppress an earned reward.
@@ -1507,6 +1531,7 @@ func _on_gull_escaped() -> void:
 	## It flew off uncaught. Missing costs nothing — that is the whole point of
 	## the bonus — but the miss is counted.
 	_gull_policy.missed += 1
+	AudioManager.play_sfx("gull_escape", 0.04, -6.0)
 	_gull = null
 
 

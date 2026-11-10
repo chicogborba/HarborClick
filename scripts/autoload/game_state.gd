@@ -32,6 +32,21 @@ var boost_time: float = 0.0      # remaining seconds of the cat boost
 ## a burst, and a burst that survives a reload could be banked.
 var surge_mult: float = 1.0
 var surge_time: float = 0.0
+## The Capataz's skills get a slot of their own, beside the luck surge above.
+## One slot for both meant that using a skill while a gull's frenzy was running
+## threw the skill away ("the strongest wins"); two slots multiply, so pressing a
+## button you earned is never wasted. Session-scoped like every burst.
+var skill_mult: float = 1.0
+var skill_time: float = 0.0
+## The tap rhythm (see `TapCombo`): session-scoped, multiplies only the tap.
+var combo := TapCombo.new()
+## What the pilot skill has promised the next call's departure bonus (1 = nothing).
+var pilot_pending: float = 1.0
+## Purchases still being built: {id, qty, left, total}. Paid for, not yet owned —
+## see `BuildQueue`. Off by default so a headless suite buying a machine has it
+## at once; `Main` turns it on for the real game.
+var builds: Array[Dictionary] = []
+var build_times_enabled := false
 var flags: Dictionary = {}       # tutorial_done, seen milestones, ...
 ## Decorations. Two dictionaries rather than one, because owning a thing and
 ## having it switched on are different facts and the player changes the second
@@ -123,8 +138,14 @@ func _process(delta: float) -> void:
 		if surge_time == 0.0:
 			surge_mult = 1.0
 			recompute()
+	if skill_time > 0.0:
+		skill_time = maxf(0.0, skill_time - delta)
+		if skill_time == 0.0:
+			skill_mult = 1.0
+			recompute()
 	if cps > 0.0:
 		_earn(cps * delta)
+	_tick_builds(delta)
 	_tick_foreman(delta)
 
 
@@ -246,6 +267,20 @@ func grant_surge(multiplier: float, seconds: float) -> void:
 	EventBus.teus_changed.emit(teus)
 
 
+func grant_skill(multiplier: float, seconds: float) -> void:
+	## A skill burst on everything the port earns. Unlike `grant_surge` the
+	## strongest does not win: it only replaces another skill burst, and always
+	## multiplies with the luck surge.
+	skill_mult = maxf(1.0, multiplier)
+	skill_time = maxf(0.0, seconds)
+	recompute()
+	EventBus.teus_changed.emit(teus)
+
+
+func skill_remaining() -> float:
+	return skill_time
+
+
 func surge_remaining() -> float:
 	return surge_time
 
@@ -308,6 +343,9 @@ func do_prestige() -> bool:
 	teus = 0.0
 	run_teus = 0.0
 	owned.clear()
+	# A rebuild takes the works with it: what was still going up is part of the
+	# run being reset.
+	builds.clear()
 	upgrades.clear()
 	boost_time = 0.0
 	recompute()
@@ -367,6 +405,26 @@ func do_click(world_pos: Vector2) -> void:
 		EventBus.container_unloaded.emit(world_pos, float(quote.value), bool(quote.crit))
 
 
+func take_pilot() -> float:
+	## Spent by the call that pays: the promise is for one departure only.
+	var mult := pilot_pending
+	pilot_pending = 1.0
+	return mult
+
+
+func combo_now() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+
+func combo_tap() -> bool:
+	## One tap on the work. True when it raised the combo a step.
+	return combo.note_tap(combo_now())
+
+
+func combo_multiplier() -> float:
+	return combo.multiplier(combo_now())
+
+
 func make_manual_reward_quote(tx_id: String) -> Dictionary:
 	## Returns a deterministic, persisted quote. Calling it never changes money.
 	if tx_id.is_empty():
@@ -376,7 +434,8 @@ func make_manual_reward_quote(tx_id: String) -> Dictionary:
 	# A transaction id, rather than a second random roll on retry, decides crit.
 	var roll := float(abs(tx_id.hash()) % 1000000) / 1000000.0
 	var crit := roll < CRIT_CHANCE
-	var quote := {"value": click_power * (CRIT_MULT if crit else 1.0), "crit": crit}
+	var quote := {"value": click_power * combo_multiplier() * (CRIT_MULT if crit else 1.0),
+		"crit": crit}
 	_manual_quotes[tx_id] = quote
 	_trim_manual_ledger()
 	return quote.duplicate()
@@ -501,6 +560,76 @@ func structure_count(id: String) -> int:
 	return owned.get(id, 0)
 
 
+func pending_count(id: String) -> int:
+	## Units of `id` paid for and still on the build queue.
+	var n := 0
+	for b in builds:
+		if str(b.id) == id:
+			n += int(b.qty)
+	return n
+
+
+func build_active_count() -> int:
+	return mini(builds.size(), BuildQueue.MAX_ACTIVE)
+
+
+func tap_build(index: int, seconds: float = 1.0) -> void:
+	## Tapping a site on the works hurries it along, a second a tap.
+	if index < 0 or index >= mini(builds.size(), BuildQueue.MAX_ACTIVE):
+		return
+	builds[index].left = maxf(0.0, float(builds[index].left) - seconds)
+
+
+func finish_build(index: int) -> void:
+	## The rewarded ad: done at once.
+	if index >= 0 and index < builds.size():
+		builds[index].left = 0.0
+
+
+func advance_builds(seconds: float) -> void:
+	## Time spent away. Everything in the queue works in turn, as it would have.
+	var left_over := maxf(0.0, seconds)
+	while left_over > 0.0 and not builds.is_empty():
+		var active := mini(builds.size(), BuildQueue.MAX_ACTIVE)
+		var step := left_over
+		for i in active:
+			step = minf(step, float(builds[i].left))
+		step = maxf(step, 0.001)
+		for i in active:
+			builds[i].left = float(builds[i].left) - step
+		left_over -= step
+		_complete_finished_builds()
+
+
+func _tick_builds(delta: float) -> void:
+	if builds.is_empty():
+		return
+	for i in mini(builds.size(), BuildQueue.MAX_ACTIVE):
+		builds[i].left = float(builds[i].left) - delta
+	_complete_finished_builds()
+
+
+func _complete_finished_builds() -> void:
+	var i := 0
+	var changed := false
+	while i < mini(builds.size(), BuildQueue.MAX_ACTIVE):
+		if float(builds[i].left) > 0.0:
+			i += 1
+			continue
+		var done: Dictionary = builds[i]
+		builds.remove_at(i)
+		var id := str(done.id)
+		owned[id] = structure_count(id) + int(done.qty)
+		best_owned_by_structure[id] = maxi(
+			int(best_owned_by_structure.get(id, 0)), structure_count(id))
+		changed = true
+		recompute()
+		EventBus.structure_bought.emit(id, structure_count(id))
+		EventBus.build_completed.emit(id, int(done.qty))
+	if changed:
+		EventBus.teus_changed.emit(teus)
+
+
 func structure_cost(id: String) -> float:
 	var quote := structure_purchase_quote(id, &"x1")
 	return float(quote.get("total_cost", INF))
@@ -530,7 +659,7 @@ func structure_purchase_quote(id: String, mode: StringName = &"x1") -> Dictionar
 		return EconomyMath.purchase_quote(-1.0, 0.0, 0, mode, teus)
 	if not structure_unlocked(id):
 		var locked := EconomyMath.purchase_quote(float(item.cost),
-			structure_cps(id), structure_count(id), mode, teus,
+			structure_cps(id), structure_count(id) + pending_count(id), mode, teus,
 			int(rebuild_targets.get(id, 0)))
 		locked["ok"] = false
 		locked["reason"] = &"land_locked"
@@ -538,7 +667,9 @@ func structure_purchase_quote(id: String, mode: StringName = &"x1") -> Dictionar
 		locked["name"] = str(item.get("name", id))
 		locked["gate"] = structure_gate(id)
 		return locked
-	var count := structure_count(id)
+	# Units still on the works count toward the price: otherwise ten could be
+	# bought at the price of one while the first was being built.
+	var count := structure_count(id) + pending_count(id)
 	var quote := EconomyMath.purchase_quote(
 		float(item.cost), structure_cps(id), count, mode, teus,
 		int(rebuild_targets.get(id, 0)))
@@ -561,7 +692,17 @@ func buy_structure_bulk(id: String, mode: StringName = &"x1") -> Dictionary:
 		quote["ok"] = false
 		quote["reason"] = &"insufficient_funds"
 		return quote
-	owned[id] = int(quote.get("to_count", structure_count(id)))
+	var before_total := structure_count(id) + pending_count(id)
+	var qty := int(quote.get("to_count", before_total)) - before_total
+	var seconds := BuildQueue.duration(id, before_total, qty) if build_times_enabled else 0.0
+	if seconds > 0.0:
+		# Paid now, stands later. The machine appears (and starts earning) when
+		# its build finishes; the price already counts it.
+		builds.append({"id": id, "qty": qty, "left": seconds, "total": seconds})
+		EventBus.build_queued.emit(id, qty)
+		EventBus.structure_purchase_committed.emit(quote.duplicate(true))
+		return quote
+	owned[id] = structure_count(id) + qty
 	best_owned_by_structure[id] = maxi(
 		int(best_owned_by_structure.get(id, 0)), structure_count(id))
 	recompute()
@@ -928,14 +1069,14 @@ func recompute() -> void:
 	# Weather and surges are transient; the port's own rate is the part that
 	# survives them, and it is what the rebuild estimate has to compare against.
 	base_cps = total * global_mult
-	cps = base_cps * TimeManager.weather_cps_mult() * surge_mult
+	cps = base_cps * TimeManager.weather_cps_mult() * surge_mult * skill_mult
 	var manual_meta := _tree_scope_multiplier(&"manual", &"click_multiplier")
 	var tree_cps_per_tap := _tree_scope_additive(&"manual", &"cps_per_tap")
 	click_power = (1.0 * click_mult * manual_meta) \
 		+ cps * (click_cps_pct + tree_cps_per_tap)
 	# A surge is on everything the port earns, taps included — and the cat is a
 	# surge now, so it needs no second multiplication here.
-	click_power *= surge_mult
+	click_power *= surge_mult * skill_mult
 	EventBus.cps_changed.emit(cps)
 
 
@@ -980,6 +1121,8 @@ func cps_breakdown() -> Array[Dictionary]:
 		rows.append({"label": "Neblina", "kind": "mult", "value": weather})
 	if not is_equal_approx(surge_mult, 1.0):
 		rows.append({"label": "Surto", "kind": "mult", "value": surge_mult})
+	if not is_equal_approx(skill_mult, 1.0):
+		rows.append({"label": "Habilidade", "kind": "mult", "value": skill_mult})
 	return rows
 
 
@@ -1198,6 +1341,7 @@ func to_save() -> Dictionary:
 		"foreman_mode": String(foreman_mode), "foreman_reserve": foreman_reserve,
 		"manual_quotes": _manual_quotes,
 		"manual_commits": _manual_commits.keys(),
+		"builds": builds,
 	}
 
 
@@ -1207,6 +1351,11 @@ func from_save(data: Dictionary) -> void:
 	boost_time = 0.0
 	surge_mult = 1.0
 	surge_time = 0.0
+	skill_mult = 1.0
+	skill_time = 0.0
+	combo.reset()
+	pilot_pending = 1.0
+	builds = BuildQueue.normalise(data.get("builds", []))
 	# v1's lifetime was the only earned-total field, so it seeds both totals.
 	var legacy_lifetime := float(data.get("lifetime", data.get("lifetime_teus", 0.0)))
 	run_teus = float(data.get("run_teus", legacy_lifetime))

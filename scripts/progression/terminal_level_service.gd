@@ -25,6 +25,7 @@ var rules: TerminalLevel
 
 func _ready() -> void:
 	rules = TerminalLevel.new()
+	FeatureGate.bind(rules)
 	SaveManager.register_section(SECTION_ID, rules.snapshot, _restore, _seed_new)
 	EventBus.cargo_transfer_committed.connect(_on_cargo_transfer_committed)
 	EventBus.ship_departed.connect(_on_ship_departed)
@@ -33,6 +34,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	FeatureGate.unbind(rules)
 	EventBus.cargo_transfer_committed.disconnect(_on_cargo_transfer_committed)
 	EventBus.ship_departed.disconnect(_on_ship_departed)
 	EventBus.structure_purchase_committed.disconnect(_on_structure_purchase)

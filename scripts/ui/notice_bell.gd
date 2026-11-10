@@ -104,6 +104,7 @@ func setup(coordinator: NotificationCoordinator) -> void:
 
 
 func _receive(notice: Dictionary) -> void:
+	AudioManager.play_sfx("bell", 0.03, -8.0)
 	## The coordinator hands one notice at a time and waits to be told the slot is
 	## free. Nothing is being shown, so the slot is free immediately — otherwise
 	## the first notice of the run would wedge the queue behind a banner that no

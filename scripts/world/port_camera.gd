@@ -53,11 +53,25 @@ func _process(delta: float) -> void:
 	_update_shake(delta)
 
 
+## Fingers currently down, index -> position. Two of them are a pinch.
+var _touches: Dictionary = {}
+var _pinch_span := 0.0
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not _input_enabled:
 		return
+	if event is InputEventMagnifyGesture:
+		# A trackpad pinch, or a browser forwarding one.
+		_set_zoom(zoom.x * event.factor)
+		return
 	if event is InputEventScreenTouch:
-		_dragging = event.pressed
+		if event.pressed:
+			_touches[event.index] = event.position
+		else:
+			_touches.erase(event.index)
+		_pinch_span = _touch_span()
+		_dragging = event.pressed and _touches.size() < 2
 		if event.pressed:
 			_velocity = Vector2.ZERO
 	elif event is InputEventMouseButton:
@@ -69,6 +83,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			_set_zoom(zoom.x * 0.88)
 		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			_set_zoom(zoom.x * 1.14)
+	elif event is InputEventScreenDrag and _touches.size() >= 2:
+		# Two fingers zoom, and never pan: the terminal stays under them.
+		_touches[event.index] = event.position
+		var span := _touch_span()
+		if _pinch_span > 8.0 and span > 8.0:
+			_set_zoom(zoom.x * span / _pinch_span)
+		_pinch_span = span
 	elif event is InputEventScreenDrag and _dragging:
 		_drag_camera(event.relative, event.velocity)
 	elif event is InputEventMouseMotion and _dragging:
@@ -111,6 +132,13 @@ func _drag_camera(relative: Vector2, drag_velocity: Vector2) -> void:
 	position -= relative / zoom
 	_velocity = -drag_velocity / zoom * 0.3
 	_clamp_position()
+
+
+func _touch_span() -> float:
+	if _touches.size() < 2:
+		return 0.0
+	var points: Array = _touches.values()
+	return (points[0] as Vector2).distance_to(points[1] as Vector2)
 
 
 func _set_zoom(value: float) -> void:

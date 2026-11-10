@@ -520,6 +520,7 @@ static func pop_open(board: Control, scrim: CanvasItem = null,
 	## of dragging the board back to the one it remembered. It used to do the
 	## latter: a shop laid out for a tall viewport that shrank mid-open ended
 	## 137px low with its bottom off the screen, until the next resize.
+	AudioManager.play_sfx("ui_open", 0.03, -4.0)
 	if not UserPreferences.can_animate():
 		board.modulate.a = 1.0
 		return

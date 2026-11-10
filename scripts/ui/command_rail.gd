@@ -182,6 +182,15 @@ func _flat_button(control_name: String, target: Signal) -> Button:
 	return button
 
 
+func apply_level_gates() -> void:
+	## The console grows with the terminal: routes at level 8, the logbook at 6.
+	var gates := {"rail.routes": &"routes", "rail.journal": &"journal"}
+	for entry: Dictionary in _key_labels:
+		var stem := str(entry.stem)
+		if gates.has(stem):
+			(entry.button as Button).visible = FeatureGate.unlocked(gates[stem])
+
+
 func _make_key(text: String, icon: UiTheme.Icon, kind: StringName,
 		control_name: String, target: Signal) -> Button:
 	## Button draws its icon hard against the left edge and only centres the

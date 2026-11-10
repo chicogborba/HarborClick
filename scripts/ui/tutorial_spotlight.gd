@@ -1,19 +1,30 @@
 class_name TutorialSpotlight
 extends CanvasLayer
-## Seven data-driven harbour orientation steps. Target callbacks can return a
-## Rect2, allowing the real control to remain interactive beneath the overlay.
+## The first minute, as four things to *do* rather than seven things to read.
+##
+## The tour used to be seven cards you tapped through, pointing at keys a new
+## terminal does not have yet and — on the very first card — at an empty patch of
+## water, because the ship was still coming in. Now every step but the two
+## explanations waits for the player to do what it says: tap the ship fifteen
+## times (the first card does not appear until a ship is actually alongside),
+## open the shop and buy a docker. Target callbacks can return a Rect2, allowing
+## the real control to remain interactive beneath the overlay.
 
 signal step_changed(index: int, step: Dictionary)
 signal finished(skipped: bool)
 
+## `until`: "taps" waits for `goal` paid taps, "buy" for a machine purchase, "ok"
+## for a tap on the card. `wait` names a callback that must answer true before
+## the step is shown at all.
 const STEPS := [
-	{"id":"navio", "title":"spot.ship.title", "text":"spot.ship.text", "target":"ship"},
-	{"id":"teu", "title":"spot.teu.title", "text":"spot.teu.text", "target":"teu"},
-	{"id":"meta", "title":"spot.goal.title", "text":"spot.goal.text", "target":"objective"},
-	{"id":"diario", "title":"spot.journal.title", "text":"spot.journal.text", "target":"journal"},
-	{"id":"loja", "title":"spot.shop.title", "text":"spot.shop.text", "target":"shop"},
-	{"id":"capital", "title":"spot.capital.title", "text":"spot.capital.text", "target":"prestige"},
-	{"id":"rotas", "title":"spot.routes.title", "text":"spot.routes.text", "target":"routes"},
+	{"id": "navio", "title": "spot.ship.title", "text": "spot.ship.text2",
+		"target": "ship", "until": "taps", "goal": 15, "wait": "ship_ready"},
+	{"id": "teu", "title": "spot.teu.title", "text": "spot.teu.text2",
+		"target": "teu", "until": "ok"},
+	{"id": "loja", "title": "spot.shop.title2", "text": "spot.shop.text2",
+		"target": "shop", "until": "buy"},
+	{"id": "fim", "title": "spot.done.title", "text": "spot.done.text",
+		"target": "", "until": "ok"},
 ]
 
 var _callbacks: Dictionary = {}
@@ -24,6 +35,10 @@ var _veil: Control
 var _panel: PanelContainer
 var _title: Label
 var _body: Label
+var _hint: Label
+var _skip: Button
+var _taps := 0
+var _waiting := false
 
 
 func setup(manager_or_callbacks: Variant, callbacks: Dictionary = {}) -> void:
@@ -53,13 +68,18 @@ func _ready() -> void:
 	_body.custom_minimum_size = Vector2(280.0, 26.0)
 	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col.add_child(_body)
+	_hint = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+	_hint.clip_text = true
+	col.add_child(_hint)
+	EventBus.manual_reward_committed.connect(_on_tap_paid)
+	EventBus.structure_purchase_committed.connect(_on_purchase)
 	var actions := HBoxContainer.new()
 	actions.add_theme_constant_override(&"separation", 4)
 	col.add_child(actions)
-	var skip := UiTheme.button("PULAR", &"ghost", UiTheme.SIZE_SMALL)
-	skip.custom_minimum_size = Vector2(60, 26)
-	skip.pressed.connect(func() -> void: _finish(true))
-	actions.add_child(skip)
+	_skip = UiTheme.button(Loc.t("spot.skip"), &"ghost", UiTheme.SIZE_SMALL)
+	_skip.custom_minimum_size = Vector2(60, 26)
+	_skip.pressed.connect(func() -> void: _finish(true))
+	actions.add_child(_skip)
 	var next_button := UiTheme.button(Loc.t("spot.next"), &"amber", UiTheme.SIZE_SMALL)
 	next_button.custom_minimum_size.y = 26.0
 	next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -71,6 +91,7 @@ func _ready() -> void:
 func start() -> void:
 	_active = true
 	_index = 0
+	_taps = 0
 	visible = true
 	_show_step()
 
@@ -89,15 +110,48 @@ func apply_view_metrics(metrics: Dictionary) -> void:
 func next() -> void:
 	if not _active: return
 	_index += 1
+	_taps = 0
 	if _index >= STEPS.size(): _finish(false)
 	else: _show_step()
+
+
+func _until() -> String:
+	return str(STEPS[_index].get("until", "ok"))
+
+
+func _on_tap_paid(_payload: Dictionary) -> void:
+	if not _active or _waiting or _until() != "taps":
+		return
+	_taps += 1
+	var goal := int(STEPS[_index].get("goal", 1))
+	if _taps >= goal:
+		next()
+	else:
+		_hint.text = Loc.t("spot.hint.tap", {"n": str(_taps), "goal": str(goal)})
+
+
+func _on_purchase(_quote: Dictionary) -> void:
+	if _active and _until() == "buy":
+		next()
+
+
+func _process(_delta: float) -> void:
+	## The first step does not exist until there is a ship to tap.
+	if not _active or not _waiting:
+		return
+	var ready: Callable = _callbacks.get(str(STEPS[_index].get("wait", "")), Callable())
+	if not ready.is_valid() or bool(ready.call()):
+		_waiting = false
+		_show_step()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not _active: return
 	if event is InputEventKey and event.pressed and (event.keycode == KEY_ESCAPE or event.keycode == KEY_BACK):
 		_finish(true)
-	elif ((event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed)) and not _target_rect().has_point(event.position):
+	elif _until() == "ok" and not _waiting \
+			and ((event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed)) \
+			and not _target_rect().has_point(event.position):
 		next()
 
 
@@ -106,9 +160,21 @@ func _show_step() -> void:
 	# The table holds keys, not sentences: resolving here means a language change
 	# mid-tour reflows the card instead of leaving the tour in the language it
 	# started in.
+	var wait_cb: Callable = _callbacks.get(str(step.get("wait", "")), Callable())
+	_waiting = wait_cb.is_valid() and not bool(wait_cb.call())
 	_title.text = Loc.t(str(step.title))
-	_body.text = Loc.t(str(step.text))
-	_veil.cutout = _target_rect().grow(5.0)
+	_body.text = Loc.t("spot.wait.text") if _waiting else Loc.t(str(step.text))
+	match str(step.get("until", "ok")):
+		"taps":
+			_hint.text = "" if _waiting else Loc.t("spot.hint.tap",
+				{"n": str(_taps), "goal": str(int(step.goal))})
+		"buy":
+			_hint.text = Loc.t("spot.hint.buy")
+		_:
+			_hint.text = Loc.t("spot.hint.ok")
+	# Nobody skips the first thing the game asks of them.
+	_skip.visible = _index > 0
+	_veil.cutout = _target_rect().grow(5.0) if not _waiting else Rect2()
 	_veil.reduced_motion = _reduced_motion()
 	_veil.queue_redraw()
 	_layout()

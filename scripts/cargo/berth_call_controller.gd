@@ -381,6 +381,10 @@ func _channel_out_is_clear() -> bool:
 
 
 func _commit_reward(pos: Vector2) -> Dictionary:
+	# The combo is counted before the quote, so the tap that earns a step is paid
+	# at it: the number on screen and the ping agree.
+	var stepped := GameState.combo_tap()
+	world.show_combo_feedback(pos, GameState.combo.steps(GameState.combo_now()), stepped)
 	var tx_id := CargoUnit.new_uid("reward")
 	if GameState.has_method("make_manual_reward_quote") and GameState.has_method("commit_manual_reward"):
 		var quote: Variant = GameState.call("make_manual_reward_quote", tx_id)
@@ -405,6 +409,8 @@ func departure_bonus(perfect: bool) -> float:
 	var bonus := rate * DEPARTURE_SECONDS * lane_reward()
 	if perfect:
 		bonus *= 1.0 + PERFECT_CALL_BONUS
+	# "O prático a bordo": a promise made by a skill, spent on the next call.
+	bonus *= GameState.take_pilot()
 	return bonus
 
 

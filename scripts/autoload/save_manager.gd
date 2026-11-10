@@ -234,6 +234,10 @@ func _apply_loaded(envelope: Dictionary) -> void:
 func _apply_offline_progress(saved_at: float) -> void:
 	offline_earnings = 0.0
 	offline_report = {}
+	if saved_at > 0.0 and not GameState.builds.is_empty():
+		# The works go on while the game is shut — a build is not lost by closing
+		# the app, nor made instant by it beyond the time that really passed.
+		GameState.advance_builds(maxf(0.0, Time.get_unix_time_from_system() - saved_at))
 	if saved_at <= 0.0 or GameState.cps <= 0.0:
 		return
 	var cap_seconds := GameState.offline_cap_seconds() if GameState.has_method("offline_cap_seconds") \

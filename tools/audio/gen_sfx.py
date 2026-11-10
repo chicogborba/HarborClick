@@ -1,5 +1,5 @@
 """All HarborClick sound effects, generated from code."""
-from synth import render, add_tone, add_noise, save_wav, note_freq
+from synth import render, add_tone, add_noise, save_wav, note_freq, reverb, delay
 
 
 ## The UI blip fires more than anything else in the game, so it gets takes too.
@@ -330,6 +330,139 @@ def sfx_coins():
     save_wav(buf, "coins")
 
 
+# ------------------------------------------------------------- interface sounds
+# Everything the audit found silent. Short, soft, and in the same square/triangle
+# voice as the rest, with a touch of the new reverb where the sound is a *place*
+# (a gate, a bell) rather than a button.
+
+def sfx_ui_open():
+    """A board put down on the desk: a low tap and a rising two-note lift."""
+    buf = render(0.18)
+    add_tone(buf, 0.0, 0.05, 220, "triangle", 0.20, env=(0.001, 0.02, 0.2, 0.03))
+    add_tone(buf, 0.02, 0.09, 660, "square", 0.08, duty=0.25, sweep=1.25,
+             env=(0.002, 0.03, 0.3, 0.05))
+    save_wav(buf, "ui_open")
+
+
+def sfx_ui_close():
+    """The same board lifted: the lift reversed, quieter."""
+    buf = render(0.15)
+    add_tone(buf, 0.0, 0.08, 660, "square", 0.07, duty=0.25, sweep=0.78,
+             env=(0.002, 0.03, 0.3, 0.04))
+    add_tone(buf, 0.03, 0.05, 196, "triangle", 0.14, env=(0.001, 0.02, 0.2, 0.03))
+    save_wav(buf, "ui_close")
+
+
+def sfx_ui_tab():
+    """A tab turned: one short high tick."""
+    buf = render(0.07)
+    add_tone(buf, 0.0, 0.04, 1175, "square", 0.10, duty=0.125,
+             env=(0.001, 0.015, 0.2, 0.02))
+    save_wav(buf, "ui_tab")
+
+
+def sfx_achievement():
+    """A trophy: a bright arpeggio over a bell, with room around it."""
+    buf = render(1.4)
+    for i, name in enumerate(["E5", "G5", "B5", "E6"]):
+        add_tone(buf, i * 0.09, 0.30, note_freq(name), "triangle", 0.16,
+                 env=(0.005, 0.08, 0.5, 0.2))
+    for freq, g in ((1319, 0.10), (1976, 0.07), (2637, 0.05)):
+        add_tone(buf, 0.36, 0.9, freq, "sine", g, env=(0.002, 0.2, 0.3, 0.5))
+    save_wav(reverb(buf, mix=0.28, decay=0.55), "achievement")
+
+
+def sfx_new_day():
+    """Dawn: three soft rising notes, long and airy."""
+    buf = render(1.8)
+    for i, name in enumerate(["C5", "G5", "C6"]):
+        add_tone(buf, i * 0.28, 0.9, note_freq(name), "triangle", 0.13,
+                 detune=6.0, env=(0.05, 0.2, 0.5, 0.5), lowpass=0.5)
+    save_wav(reverb(buf, mix=0.35, decay=0.65), "new_day")
+
+
+def sfx_truck_arrive():
+    """A lorry pulling up: an engine note dropping and a pneumatic hiss."""
+    buf = render(1.0)
+    add_tone(buf, 0.0, 0.55, 110, "saw", 0.16, sweep=0.55, lowpass=0.18,
+             env=(0.02, 0.1, 0.7, 0.3))
+    add_tone(buf, 0.0, 0.5, 55, "triangle", 0.18, sweep=0.6,
+             env=(0.02, 0.1, 0.7, 0.3))
+    add_noise(buf, 0.52, 0.35, 0.16, env=(0.005, 0.1, 0.3, 0.2), lowpass=0.7,
+              highpass=0.25)
+    save_wav(buf, "truck_arrive")
+
+
+def sfx_gate_arm():
+    """The barrier arm: a short servo whine up, a clack at the top."""
+    buf = render(0.55)
+    add_tone(buf, 0.0, 0.35, 180, "saw", 0.07, sweep=2.2, lowpass=0.3,
+             env=(0.02, 0.08, 0.6, 0.1))
+    add_noise(buf, 0.36, 0.05, 0.22, env=(0.001, 0.02, 0.2, 0.02), lowpass=0.5)
+    add_tone(buf, 0.36, 0.08, 140, "triangle", 0.22, env=(0.001, 0.03, 0.2, 0.04))
+    save_wav(buf, "gate_arm")
+
+
+def sfx_berth_done():
+    """A call finished and paid: a till, then a ship's two-note blast."""
+    buf = render(1.3)
+    add_tone(buf, 0.0, 0.18, note_freq("E6"), "square", 0.14, duty=0.25,
+             env=(0.002, 0.04, 0.4, 0.1))
+    add_tone(buf, 0.09, 0.30, note_freq("B6"), "triangle", 0.14,
+             env=(0.002, 0.05, 0.5, 0.2))
+    add_tone(buf, 0.35, 0.8, 117, "triangle", 0.20, vibrato=0.01,
+             env=(0.08, 0.2, 0.7, 0.4))
+    add_tone(buf, 0.35, 0.8, 175, "square", 0.07, duty=0.5, lowpass=0.2,
+             env=(0.08, 0.2, 0.7, 0.4))
+    save_wav(reverb(buf, mix=0.2, decay=0.5), "berth_done")
+
+
+def sfx_gull_escape():
+    """The golden gull gets away: a thin chirp falling off into the distance."""
+    buf = render(0.6)
+    add_tone(buf, 0.0, 0.35, 1900, "square", 0.08, duty=0.25, sweep=0.5,
+             env=(0.005, 0.1, 0.3, 0.2))
+    save_wav(delay(buf, 0.12, feedback=0.4, mix=0.35), "gull_escape")
+
+
+def sfx_skill():
+    """A skill pressed: a power-up sweep with a chord stab on top."""
+    buf = render(0.8)
+    add_tone(buf, 0.0, 0.4, 220, "saw", 0.10, sweep=3.0, lowpass=0.4,
+             env=(0.01, 0.1, 0.6, 0.2))
+    for name in ("C5", "E5", "G5"):
+        add_tone(buf, 0.22, 0.45, note_freq(name), "square", 0.08, duty=0.25,
+                 env=(0.003, 0.08, 0.5, 0.25))
+    save_wav(buf, "skill")
+
+
+def sfx_combo():
+    """One step of the tap combo: a short blip; the game raises its pitch."""
+    buf = render(0.08)
+    add_tone(buf, 0.0, 0.05, 784, "triangle", 0.18, env=(0.001, 0.02, 0.3, 0.025))
+    save_wav(buf, "combo")
+
+
+def sfx_build_start():
+    """A works order: three hammer knocks and a crane's ratchet."""
+    buf = render(0.7)
+    for i in range(3):
+        add_noise(buf, i * 0.16, 0.05, 0.25, env=(0.001, 0.02, 0.2, 0.02),
+                  lowpass=0.35)
+        add_tone(buf, i * 0.16, 0.06, 150, "triangle", 0.2,
+                 env=(0.001, 0.02, 0.2, 0.03))
+    save_wav(buf, "build_start")
+
+
+def sfx_bell():
+    """The notice bell: a small clear ring with a long tail."""
+    buf = render(1.2)
+    for freq, g in ((1568, 0.14), (2349, 0.08), (3136, 0.05)):
+        add_tone(buf, 0.0, 0.9, freq, "sine", g, env=(0.001, 0.15, 0.25, 0.5))
+    add_noise(buf, 0.0, 0.02, 0.12, env=(0.0005, 0.01, 0.2, 0.01), lowpass=0.6)
+    save_wav(reverb(buf, mix=0.2, decay=0.5), "bell")
+
+
 if __name__ == "__main__":
     print("sfx:")
     sfx_tap()
@@ -353,3 +486,16 @@ if __name__ == "__main__":
     sfx_wheel_tick()
     sfx_wheel_win()
     sfx_coins()
+    sfx_ui_open()
+    sfx_ui_close()
+    sfx_ui_tab()
+    sfx_achievement()
+    sfx_new_day()
+    sfx_truck_arrive()
+    sfx_gate_arm()
+    sfx_berth_done()
+    sfx_gull_escape()
+    sfx_skill()
+    sfx_combo()
+    sfx_build_start()
+    sfx_bell()

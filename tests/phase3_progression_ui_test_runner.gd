@@ -12,7 +12,7 @@ func _run() -> void:
 	await _test_safe_area_and_journal_close()
 	await _test_pin_and_objective_contract()
 	await _test_prestige_requires_explicit_confirmation()
-	await _test_spotlight_seven_steps_and_safe_target()
+	await _test_spotlight_steps_and_safe_target()
 	if failures.is_empty():
 		print("PHASE 3 PROGRESSION UI TESTS PASSED")
 		get_tree().quit(0)
@@ -136,17 +136,17 @@ func _test_prestige_requires_explicit_confirmation() -> void:
 	await get_tree().process_frame
 
 
-func _test_spotlight_seven_steps_and_safe_target() -> void:
+func _test_spotlight_steps_and_safe_target() -> void:
 	var viewport := _viewport(Vector2i(360, 800))
 	var target := [Rect2(Vector2(24, 80), Vector2(90, 40))]
 	var spotlight := TutorialSpotlight.new()
-	spotlight.setup({"get_target_rect": func(_key: String) -> Rect2: return target[0], "reduced_motion": func() -> bool: return true})
+	spotlight.setup({"get_target_rect": func(_key: String) -> Rect2: return target[0], "reduced_motion": func() -> bool: return true, "ship_ready": func() -> bool: return true})
 	viewport.add_child(spotlight)
 	await get_tree().process_frame
 	var safe := Rect2(Vector2(10, 24), Vector2(340, 740))
 	spotlight.apply_view_metrics({"safe_rect": safe})
 	spotlight.start()
-	_expect(spotlight.STEPS.size() == 7, "spotlight has seven data-driven orientation steps")
+	_expect(spotlight.STEPS.size() == 4, "the tour is four data-driven steps")
 	_expect(spotlight._veil.mouse_filter == Control.MOUSE_FILTER_IGNORE, "spotlight veil does not block the highlighted target")
 	_expect(_inside(safe, spotlight._panel.get_global_rect()), "spotlight instruction panel stays inside safe area")
 	_expect(spotlight._panel.size.y <= 120.0,
@@ -155,8 +155,18 @@ func _test_spotlight_seven_steps_and_safe_target() -> void:
 	spotlight._show_step()
 	_expect(not spotlight._panel.get_global_rect().intersects(target[0].grow(8.0)),
 		"spotlight instruction panel moves away from a bottom-screen target")
-	for _step in 7: spotlight.next()
-	_expect(not spotlight.is_active(), "spotlight completes after its seventh step")
+	# The first step asks for fifteen paid taps, and a tap on the card is not one.
+	_expect(spotlight._until() == "taps" and spotlight.is_active(), "step one waits for taps")
+	for i in 14: spotlight._on_tap_paid({})
+	_expect(spotlight._index == 0, "fourteen taps are not enough")
+	spotlight._on_tap_paid({})
+	_expect(spotlight._index == 1, "the fifteenth moves on")
+	spotlight.next()
+	_expect(spotlight._until() == "buy", "then the tour waits for a purchase")
+	spotlight._on_purchase({})
+	_expect(spotlight._index == 3, "and a purchase moves it on")
+	spotlight.next()
+	_expect(not spotlight.is_active(), "the tour completes after its fourth step")
 	viewport.queue_free()
 	await get_tree().process_frame
 
