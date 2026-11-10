@@ -46,18 +46,32 @@ BOOT = P.ramp((150, 58, 50), 5, hue_shift=12.0)    # anti-fouling red below the 
 SHADOW = (20, 22, 36, 90)
 
 
+# The silhouette profile: (bow exponent, stern taper). Three native hulls share
+# the same 66x232 canvas and the same 24-bay deck grid — they differ in how the
+# bow fills out and how the stern pulls in, never in a fractional scale that
+# would sand the pixels off the containers. Feeder = fine bow, pinched stern;
+# panamax = the reference; new panamax = blunt bow, nearly square stern.
+PROFILE = (0.55, 12.0)
+PROFILES = {
+    "feeder": (0.75, 22.0),
+    "panamax": (0.55, 12.0),
+    "new_panamax": (0.28, 3.0),
+}
+
+
 def _half_beam(y):
     """Half the hull's width at row y — the one silhouette everything follows."""
     cx = W / 2
+    bow_exp, stern_taper = PROFILE
     if y < BOW_TIP:
         return 0
     if y < 40:
         k = (y - BOW_TIP) / 37.0
-        return 2 + int((k ** 0.55) * (cx - DECK_X0 - 2))
+        return 2 + int((k ** bow_exp) * (cx - DECK_X0 - 2))
     if y < H - 7:
         return int(cx - DECK_X0)
     k = (y - (H - 7)) / 6.0
-    return int(cx - DECK_X0 - (k * k) * 12)
+    return int(cx - DECK_X0 - (k * k) * stern_taper)
 
 
 def _hull_mask():
@@ -230,33 +244,38 @@ def details(img):
 
 
 def gen_ship():
-    img = new_img(W, H)
-    hull(img, PAINT)
-    # the neutral hull is darker than the livery layer will be, so the
-    # untinted fallback still reads as paint rather than as primer
-    deck(img)
-    superstructure(img)
-    details(img)
-    save(outline(img), "ship_top")
+    global PROFILE
+    for name, profile in PROFILES.items():
+        PROFILE = profile
+        suffix = "" if name == "panamax" else "_" + name
+        img = new_img(W, H)
+        hull(img, PAINT)
+        # the neutral hull is darker than the livery layer will be, so the
+        # untinted fallback still reads as paint rather than as primer
+        deck(img)
+        superstructure(img)
+        details(img)
+        save(outline(img), "ship_top" + suffix)
 
-    # livery layer: hull paint and funnel band only, same canvas
-    paint = new_img(W, H)
-    hull(paint, PAINT)
-    deck_cut = new_img(W, H)
-    deck(deck_cut)
-    superstructure(deck_cut, paint_layer=paint)
-    # anything the deck or the house covers is not hull paint
-    pp, dp = paint.load(), deck_cut.load()
-    for y in range(H):
-        for x in range(W):
-            if dp[x, y][3] == 255 and not (HOUSE_TOP + 20 <= y <= HOUSE_TOP + 22 and 26 <= x < 40):
-                pp[x, y] = (0, 0, 0, 0)
-    # keep the boot-topping red: it is antifouling, not livery
-    for y in range(H - 4, H - 1):
-        for x in range(W):
-            if pp[x, y][3] and pp[x, y][0] != pp[x, y][1]:
-                pp[x, y] = (0, 0, 0, 0)
-    save(paint, "ship_paint")
+        # livery layer: hull paint and funnel band only, same canvas
+        paint = new_img(W, H)
+        hull(paint, PAINT)
+        deck_cut = new_img(W, H)
+        deck(deck_cut)
+        superstructure(deck_cut, paint_layer=paint)
+        # anything the deck or the house covers is not hull paint
+        pp, dp = paint.load(), deck_cut.load()
+        for y in range(H):
+            for x in range(W):
+                if dp[x, y][3] == 255 and not (HOUSE_TOP + 20 <= y <= HOUSE_TOP + 22 and 26 <= x < 40):
+                    pp[x, y] = (0, 0, 0, 0)
+        # keep the boot-topping red: it is antifouling, not livery
+        for y in range(H - 4, H - 1):
+            for x in range(W):
+                if pp[x, y][3] and pp[x, y][0] != pp[x, y][1]:
+                    pp[x, y] = (0, 0, 0, 0)
+        save(paint, "ship_paint" + suffix)
+    PROFILE = PROFILES["panamax"]
 
 
 def gen_ship_wake():

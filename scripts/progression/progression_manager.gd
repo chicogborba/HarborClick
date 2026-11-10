@@ -12,6 +12,8 @@ signal contract_updated(contract: Dictionary)
 signal contract_finished(contract: Dictionary, completed: bool)
 signal journal_entry_added(entry: Dictionary)
 signal state_restored(snapshot: Dictionary)
+## The ship album changed (a new hull×livery seen, or a page became claimable).
+signal album_changed
 
 const SNAPSHOT_VERSION := 2
 const RETROACTIVE_EVALUATED_VERSION := 1
@@ -26,6 +28,56 @@ var active_contract: Dictionary = {}
 var tutorial: Dictionary = {"completed": false, "skipped": false}
 var ui: Dictionary = {"buy_mode": "one"}
 var _seen_values: Dictionary = {} # stat -> {stable value -> true}
+## C7 — the ship album: "silhouette:palette" -> true for every hull×livery that
+# has actually arrived, plus "claimed" silhouette ids whose page prize was paid.
+var album: Dictionary = {}
+var album_claimed: Array[String] = []
+
+
+func record_ship_variant(variant: Dictionary) -> void:
+	## Called when a call is seeded: the album records what *arrived*, and a
+	# page (one silhouette in every livery) pays a lump once, when complete.
+	var key := "%s:%s" % [str(variant.get("silhouette_id", "")),
+		str(variant.get("palette_id", ""))]
+	if key.contains(":") and not key.begins_with(":") and not key.ends_with(":") \
+			and not album.has(key):
+		album[key] = true
+		album_changed.emit()
+		_request_save(&"album")
+
+
+func album_seen(silhouette_id: String, palette_id: String) -> bool:
+	return album.has("%s:%s" % [silhouette_id, palette_id])
+
+
+func album_page(silhouette_id: String, palettes_total: int) -> Dictionary:
+	## Seen/total for one silhouette, and whether the page prize is unclaimed.
+	# The palette list lives in `ShipCatalog`, which this class must not import:
+	# pulling it in would drag `PortLayout` -> `GameState` into the headless
+	# `--script` suites that load this file standalone. The caller passes the
+	# count; the seen keys are all this side needs.
+	var seen := 0
+	for key in album.keys():
+		if str(key).begins_with(silhouette_id + ":"):
+			seen += 1
+	var complete := seen >= palettes_total
+	return {"seen": seen, "total": palettes_total,
+		"complete": complete, "claimed": album_claimed.has(silhouette_id)}
+
+
+func claim_album_page(silhouette_id: String, palettes_total: int) -> bool:
+	## Marks the page prize claimed, once. The payment itself is the caller's:
+	# this class stays free of `GameState` for the same reason as above.
+	var page := album_page(silhouette_id, palettes_total)
+	if not bool(page.complete) or album_claimed.has(silhouette_id):
+		return false
+	album_claimed.append(silhouette_id)
+	album_changed.emit()
+	_request_save(&"album")
+	return true
+
+
+const ALBUM_PAGE_SECONDS := 300.0
 var _session_active := true
 var _retroactive_evaluated_version := 0
 
@@ -170,6 +222,11 @@ func _on_contract_finished(contract: Dictionary, completed: bool) -> void:
 
 
 func _autoload(autoload_name: StringName) -> Node:
+	# Headless `--script` suites load this class outside any scene tree; there
+	# are no autoloads to find there, and an absolute get_node_or_null from
+	# outside the tree is a runtime error that aborts the caller.
+	if not is_inside_tree():
+		return null
 	return get_node_or_null(NodePath("/root/%s" % autoload_name))
 
 
@@ -413,6 +470,8 @@ func snapshot() -> Dictionary:
 		"retroactive_evaluated_version": _retroactive_evaluated_version,
 		"journal": journal.duplicate(true),
 		"seen_values": _seen_values.duplicate(true),
+		"album": album.duplicate(true),
+		"album_claimed": album_claimed.duplicate(),
 		"session_active": _session_active,
 	}
 
@@ -439,6 +498,16 @@ func restore(data: Dictionary) -> void:
 		pinned_objective = &""
 	journal = _journal_only(data.get("journal", []))
 	_seen_values = _seen_only(data.get("seen_values", {}))
+	# The album is a flat "silhouette:palette" -> true map, not a nested
+	# stat map, so it is not restored through `_seen_only`.
+	album = {}
+	var raw_album: Variant = data.get("album", {})
+	if raw_album is Dictionary:
+		for key in raw_album:
+			album[str(key)] = true
+	album_claimed = []
+	for entry in data.get("album_claimed", []):
+		album_claimed.append(str(entry))
 	_session_active = bool(data.get("session_active", true))
 	tutorial = _tutorial_only(data.get("tutorial", {}))
 	ui = _ui_only(data.get("ui", {}))

@@ -1544,7 +1544,7 @@ Inventory: **1775 authored code/config/scene files**.
 | `salarios/collector/__init__.py` | 2 | 0 functions | Salary Intelligence — coletores, normalização, estatísticas e agente. |
 | `salarios/collector/classify.py` | 243 | 5 functions | Classificação de vagas e descrições (regras + LLM opcional). |
 | `salarios/collector/config.py` | 76 | 1 functions | Configuração central por variáveis de ambiente (veja .env.example). |
-| `salarios/collector/db.py` | 187 | 5 functions | Conexão com PostgreSQL, aplicação do schema e seed de referências. |
+| `salarios/collector/db.py` | 195 | 6 functions | Conexão com PostgreSQL, aplicação do schema e seed de referências. |
 | `salarios/collector/normalize.py` | 90 | 4 functions | Normalização de valores salariais. |
 | `salarios/collector/pipeline.py` | 35 | 2 functions | Pipeline completo: coletar -> classificar -> normalizar -> recalcular. |
 | `salarios/collector/qa_agent.py` | 173 | 2 functions | Agente de Q&A: responde perguntas em português com consultas REAIS ao banco. |
@@ -1554,7 +1554,7 @@ Inventory: **1775 authored code/config/scene files**.
 | `salarios/collector/sources/caged.py` | 235 | 8 functions | Coletor do Novo CAGED (MTE) — microdados públicos via FTP. |
 | `salarios/collector/sources/importer.py` | 106 | 1 functions | Importação de arquivos autorizados (Glassdoor licenciado, CIEE/Nube, genérico). |
 | `salarios/collector/sources/rais.py` | 229 | 7 functions | Coletor RAIS (MTE) — vínculos ativos (estoque) por ano. |
-| `salarios/collector/stats.py` | 104 | 3 functions | Estatísticas descritivas sobre salary_observations. |
+| `salarios/collector/stats.py` | 110 | 3 functions | Estatísticas descritivas sobre salary_observations. |
 | `salarios/scripts/db_start.sh` | 14 | — | Sobe o PostgreSQL local (Homebrew) usado por este projeto, na porta 5433. |
 | `salarios/scripts/run_api.sh` | 6 | — | Authored project file |
 | `salarios/scripts/run_dashboard.sh` | 4 | — | Authored project file |
@@ -1580,7 +1580,7 @@ Inventory: **1775 authored code/config/scene files**.
 | `scripts/autoload/save_manager.gd` | 533 | 33 functions | Versioned, recoverable persistence.  The public yard/pending_yard API is |
 | `scripts/autoload/time_manager.gd` | 112 | 9 functions | Day/night cycle + weather. Full lighting arrives in the day/night phase; |
 | `scripts/autoload/user_preferences.gd` | 237 | 17 functions | Player-facing preferences kept separate from the progression save. |
-| `scripts/cargo/berth_call_controller.gd` | 613 | class `BerthCallController`; 34 functions | Authoritative, restart-safe berth workflow. Visual flights are transactions: |
+| `scripts/cargo/berth_call_controller.gd` | 617 | class `BerthCallController`; 34 functions | Authoritative, restart-safe berth workflow. Visual flights are transactions: |
 | `scripts/cargo/cargo_inventory.gd` | 82 | class `CargoInventory`; 11 functions | Small ownership ledger used by yards, ships and offline saves. |
 | `scripts/cargo/cargo_transfer.gd` | 41 | class `CargoTransfer`; 3 functions | One reversible movement.  Commit occurs only when the visual flight lands; |
 | `scripts/cargo/cargo_unit.gd` | 47 | class `CargoUnit`; 5 functions | A single traceable container.  Cargo is deliberately data first: the |
@@ -1598,7 +1598,7 @@ Inventory: **1775 authored code/config/scene files**.
 | `scripts/data/land_db.gd` | 129 | class `LandDB`; 6 functions | Land parcels: what the terminal is allowed to become next. |
 | `scripts/data/prestige_db.gd` | 123 | class `PrestigeDB`; 5 functions | Declarative prestige branches. A future economy owner applies these effects. |
 | `scripts/data/route_db.gd` | 181 | class `RouteDB`; 10 functions | The trade lanes this terminal is on. |
-| `scripts/data/ship_catalog.gd` | 155 | class `ShipCatalog`; 8 functions | GitHub's single-source visual fleet. |
+| `scripts/data/ship_catalog.gd` | 164 | class `ShipCatalog`; 8 functions | GitHub's single-source visual fleet. |
 | `scripts/data/special_call_db.gd` | 210 | class `SpecialCallDB`; 8 functions | Rare escalas: a charter nobody expected, on a hull nobody has seen, worked as |
 | `scripts/data/structure_db.gd` | 99 | class `StructureDB`; 2 functions | Static data for every buyable structure. |
 | `scripts/data/upgrade_db.gd` | 581 | class `UpgradeDB`; 16 functions | Static data for upgrades, as a graph rather than a shelf. |
@@ -1621,7 +1621,7 @@ Inventory: **1775 authored code/config/scene files**.
 | `scripts/i18n/loc.gd` | 224 | 16 functions | Which language the port speaks, and every string it says. |
 | `scripts/i18n/strings_content.gd` | 157 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
 | `scripts/i18n/strings_ui.gd` | 1899 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
-| `scripts/main.gd` | 853 | 32 functions | Root: assembles world, camera and UI. |
+| `scripts/main.gd` | 854 | 32 functions | Root: assembles world, camera and UI. |
 | `scripts/monetization/ad_policy.gd` | 182 | class `AdPolicy`; 11 functions | The rules of rewarded ads: which placements exist, how many may be watched |
 | `scripts/monetization/ad_provider.gd` | 18 | class `AdProvider`; 1 functions | The seam between the game and a real ad SDK. `AdService` asks the current |
 | `scripts/monetization/placeholder_ad_provider.gd` | 104 | class `PlaceholderAdProvider`; 6 functions | The test stand-in for a real ad SDK: a scrim with a paper board that says |
@@ -1632,7 +1632,7 @@ Inventory: **1775 authored code/config/scene files**.
 | `scripts/progression/daily_orders.gd` | 228 | class `DailyOrders`; 13 functions | The rules of Missões do Dia: three missions a day, picked deterministically |
 | `scripts/progression/daily_orders_service.gd` | 165 | class `DailyOrdersService`; 19 functions | Missões do Dia as a live node. Owns one `DailyOrders`, persists it as the |
 | `scripts/progression/feature_gate.gd` | 23 | class `FeatureGate`; 3 functions | One question, asked from anywhere: has the terminal grown enough for this? |
-| `scripts/progression/progression_manager.gd` | 604 | class `ProgressionManager`; 48 functions | Pure progression state owner for Phase 3. It intentionally does not touch autoloads. |
+| `scripts/progression/progression_manager.gd` | 673 | class `ProgressionManager`; 52 functions | Pure progression state owner for Phase 3. It intentionally does not touch autoloads. |
 | `scripts/progression/terminal_level.gd` | 160 | class `TerminalLevel`; 10 functions | The rules of Nível do Terminal: the XP curve, the level, and the table of |
 | `scripts/progression/terminal_level_service.gd` | 116 | class `TerminalLevelService`; 12 functions | Nível do Terminal as a live node. Owns one `TerminalLevel`, persists it as |
 | `scripts/ui/boost_chips.gd` | 114 | class `BoostChips`; 8 functions | What is multiplying the port right now, and for how long. |
@@ -1653,7 +1653,7 @@ Inventory: **1775 authored code/config/scene files**.
 | `scripts/ui/pixel_slider.gd` | 199 | class `PixelSlider`; 12 functions | A level you can actually set: drag it, tap it, or arrow it. |
 | `scripts/ui/port_clock.gd` | 197 | class `PortClock`; 8 functions | What day it is, what time it is, what the sky is doing and how hard it blows. |
 | `scripts/ui/port_icon.gd` | 98 | class `PortIcon`; 4 functions | The picture on a shop card is the machine itself, taken straight from the |
-| `scripts/ui/port_journal.gd` | 582 | class `PortJournal`; 26 functions | The career board. The optional callbacks are deliberately tiny adapters: |
+| `scripts/ui/port_journal.gd` | 636 | class `PortJournal`; 27 functions | The career board. The optional callbacks are deliberately tiny adapters: |
 | `scripts/ui/prestige_dialog.gd` | 344 | class `PrestigeDialog`; 19 functions | All state-changing work remains in the supplied callbacks. This surface only |
 | `scripts/ui/rate_breakdown.gd` | 169 | class `RateBreakdown`; 12 functions | Why the rate is what it is: the factors, in the order the economy applies them. |
 | `scripts/ui/readout.gd` | 304 | class `Readout`; 11 functions | The TEU tally: a lit counter behind glass, with the rate on a tag beside it. |
@@ -1685,7 +1685,7 @@ Inventory: **1775 authored code/config/scene files**.
 | `scripts/world/rail_rake.gd` | 471 | class `RailRake`; 19 functions | The train on the branch, and the shunt that lets it leave. |
 | `scripts/world/rainfall.gd` | 132 | class `Rainfall`; 8 functions | Rain over the terminal: falling streaks, the splash where each one lands, and |
 | `scripts/world/road_truck.gd` | 624 | class `RoadTruck`; 33 functions | A city truck on the terminal's road: a tractor unit and the chassis it pulls. |
-| `scripts/world/ship.gd` | 1025 | class `Ship`; 66 functions | View of the berth manifest.  BerthCallController owns the workflow; this |
+| `scripts/world/ship.gd` | 1028 | class `Ship`; 66 functions | View of the berth manifest.  BerthCallController owns the workflow; this |
 | `scripts/world/skyscape.gd` | 168 | class `Skyscape`; 9 functions | Weather and sky, expressed the way a top-down camera can actually see them. |
 | `scripts/world/structure_actor.gd` | 2048 | class `StructureActor`; 105 functions | One visible instance of a bought structure. |
 | `scripts/world/structure_layer.gd` | 282 | class `StructureLayer`; 16 functions | Places the visible copies of bought structures around the terminal. |
@@ -1736,7 +1736,7 @@ Inventory: **1775 authored code/config/scene files**.
 | `tests/npc_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/phase3_economy_test_runner.gd` | 384 | 21 functions | Godot --headless --path . res://tests/phase3_economy_test_runner.tscn |
 | `tests/phase3_economy_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/phase3_progression_test_runner.gd` | 123 | 9 functions | Run with: Godot --headless --path . --script res://tests/phase3_progression_test_runner.gd |
+| `tests/phase3_progression_test_runner.gd` | 150 | 10 functions | Run with: Godot --headless --path . --script res://tests/phase3_progression_test_runner.gd |
 | `tests/phase3_progression_ui_test_runner.gd` | 187 | 9 functions | Run with: Godot --headless --path . res://tests/phase3_progression_ui_test_runner.tscn |
 | `tests/phase3_progression_ui_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/phase4_ship_test_runner.gd` | 363 | 14 functions | Run with: Godot --headless --path . res://tests/phase4_ship_test_runner.tscn |
@@ -1806,7 +1806,7 @@ Inventory: **1775 authored code/config/scene files**.
 | `tools/sprites/gen_pixellab.py` | 108 | 6 functions | Turns the cached PixelLab generations into game-ready PNGs. |
 | `tools/sprites/gen_props.py` | 741 | 27 functions | Top-down scenery props: lamps, bollards, greenery, wildlife, FX. |
 | `tools/sprites/gen_rail.py` | 205 | 6 functions | Furniture for the branch line: the signal, the level crossing, the boards. |
-| `tools/sprites/gen_ship.py` | 281 | 8 functions | Top-down container ship, bow pointing UP, moored along a vertical quay. |
+| `tools/sprites/gen_ship.py` | 300 | 8 functions | Top-down container ship, bow pointing UP, moored along a vertical quay. |
 | `tools/sprites/gen_title.py` | 1115 | 46 functions | Generates the title screen's harbour backdrop and its furniture. |
 | `tools/sprites/gen_train.py` | 320 | 14 functions | The branch-line train: locomotive, three kinds of wagon, and the boxes they carry. |
 | `tools/sprites/gen_ui.py` | 1238 | 33 functions | UI chrome, in the two materials the terminal is actually made of. |

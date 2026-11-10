@@ -117,6 +117,10 @@ func seed_new(p_seed: int = 0, forced_variant: Dictionary = {}) -> void:
 		else:
 			ship.apply_variant(forced_variant)
 	_variant_call_index += 1
+	# The album records what actually arrived — silhouette and livery — so the
+	# collection is earned by calls, not by a roll the player never saw.
+	if ship != null and not ship.ship_variant.is_empty():
+		Progression.record_ship_variant(ship.ship_variant)
 	_imports.clear()
 	_exported.clear()
 	_active.clear()

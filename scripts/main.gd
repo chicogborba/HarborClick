@@ -196,6 +196,7 @@ func _ready() -> void:
 			"id": "achievement_%s" % id, "kind": &"milestone", "priority": 2,
 			"text": "Conquista: %s" % str(item.get("title", "meta cumprida")),
 		}))
+	Progression.album_changed.connect(func() -> void: journal.refresh())
 
 	routes = RouteMap.new()
 	routes.name = "RouteMap"

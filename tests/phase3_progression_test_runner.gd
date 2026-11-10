@@ -15,6 +15,7 @@ func _run() -> void:
 	test_pin_and_domain_statistics()
 	test_contract_determinism_frozen_reward_and_single_active()
 	test_paused_time_and_events_do_not_advance_contract()
+	test_ship_album_records_and_claims_once()
 	if failures.is_empty():
 		print("PHASE 3 PROGRESSION TESTS PASSED")
 		quit(0)
@@ -115,6 +116,32 @@ func test_paused_time_and_events_do_not_advance_contract() -> void:
 	_expect(float(manager.get_active_contract().get("progress", 0.0)) == 1.0 and is_zero_approx(float(manager.get_active_contract().get("active_elapsed", 0.0))), "active event progresses but background time does not")
 	manager.advance_active_time(5.0)
 	_expect(float(manager.get_active_contract().get("active_elapsed", 0.0)) == 5.0, "active time advances contract duration")
+	manager.free()
+
+
+func test_ship_album_records_and_claims_once() -> void:
+	## C7: every arriving hull×livery is recorded, a silhouette page completes at
+	# one chip per livery, and the prize claims exactly once across a reload.
+	var manager := ProgressionManager.new()
+	var total := 4 # ShipCatalog.PALETTES.size(), passed in to keep this suite standalone
+	for i in total:
+		manager.record_ship_variant({"silhouette_id": "panamax",
+			"palette_id": "palette_%d" % i})
+	_expect(manager.album.size() == total, "four liveries of one hull are four album keys")
+	manager.record_ship_variant({"silhouette_id": "panamax", "palette_id": "palette_0"})
+	_expect(manager.album.size() == total, "a repeat arrival does not double-record")
+	var page := manager.album_page("panamax", total)
+	_expect(bool(page.complete) and not bool(page.claimed), "the page is complete and unclaimed")
+	_expect(manager.claim_album_page("panamax", total), "the page claims")
+	_expect(not manager.claim_album_page("panamax", total), "the page never claims twice")
+	_expect(manager.album_page("panamax", total).claimed, "claimed survives the page read")
+	var saved := manager.snapshot()
+	var loaded := ProgressionManager.new()
+	loaded.restore(saved)
+	_expect(loaded.album.size() == total, "the album survives a snapshot round trip")
+	_expect(loaded.album_claimed.has("panamax"), "the claim survives a snapshot round trip")
+	_expect(not loaded.claim_album_page("panamax", total), "a reloaded page still never claims twice")
+	loaded.free()
 	manager.free()
 
 

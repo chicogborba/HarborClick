@@ -530,6 +530,9 @@ func _apply_ship_variant() -> void:
 	_shadow.texture = texture
 	for child in _outline.get_children():
 		(child as Sprite2D).texture = texture
+	var paint := str(ship_variant.get("paint", ""))
+	if not paint.is_empty() and ResourceLoader.exists("res://assets/sprites/%s.png" % paint):
+		_paint.texture = load("res://assets/sprites/%s.png" % paint)
 	var hull_scale: Vector2 = ship_variant.get("hull_scale", Vector2.ONE)
 	var hull_offset: Vector2 = ship_variant.get("hull_offset", Vector2.ZERO)
 	_hull.scale = hull_scale

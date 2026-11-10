@@ -9,16 +9,23 @@ class_name ShipCatalog
 const SOURCE_SPRITE := "ship_top"
 const FIXED_BAY_ROWS := PortLayout.SHIP_BAY_ROWS
 
+## Three native hulls drawn at 1:1 (`ship_top_feeder/panamax/new_panamax` in
+## `tools/sprites/gen_ship.py`), all on the same 66x232 canvas with the same 24
+## bays — the silhouettes differ in bow and stern shaping, never in a fractional
+## scale that would distort the containers. `sprite`/`paint` name the textures.
 const SILHOUETTES: Array[Dictionary] = [
 	{"id": "coastal_feeder", "title": "Feeder Costeiro", "capacity": 1200,
-		"unlock_blocks": 0, "hull_scale": Vector2(0.90, 0.94),
-		"hull_offset": Vector2(8.0, 3.0), "wake_scale": Vector2(0.88, 0.95)},
+		"unlock_blocks": 0, "sprite": "ship_top_feeder",
+		"paint": "ship_paint_feeder", "hull_scale": Vector2.ONE,
+		"hull_offset": Vector2.ZERO, "wake_scale": Vector2(0.92, 0.96)},
 	{"id": "panamax", "title": "Panamax", "capacity": 4500,
-		"unlock_blocks": 18, "hull_scale": Vector2.ONE,
+		"unlock_blocks": 18, "sprite": "ship_top",
+		"paint": "ship_paint", "hull_scale": Vector2.ONE,
 		"hull_offset": Vector2.ZERO, "wake_scale": Vector2.ONE},
 	{"id": "new_panamax", "title": "New Panamax", "capacity": 8000,
-		"unlock_blocks": 21, "hull_scale": Vector2(1.08, 1.03),
-		"hull_offset": Vector2(-8.0, -2.0), "wake_scale": Vector2(1.08, 1.02)},
+		"unlock_blocks": 21, "sprite": "ship_top_new_panamax",
+		"paint": "ship_paint_new_panamax", "hull_scale": Vector2.ONE,
+		"hull_offset": Vector2.ZERO, "wake_scale": Vector2(1.06, 1.03)},
 ]
 
 const COMPATIBILITY_ALIASES := {
@@ -84,7 +91,9 @@ static func compose(silhouette: Dictionary, palette: Dictionary) -> Dictionary:
 		"id": "%s:%s" % [String(silhouette.id), String(palette.id)],
 		"silhouette_id": silhouette.id, "palette_id": palette.id,
 		"capacity": silhouette.capacity, "title": silhouette.title,
-		"bay_rows": FIXED_BAY_ROWS, "sprite": SOURCE_SPRITE,
+		"bay_rows": FIXED_BAY_ROWS,
+		"sprite": silhouette.get("sprite", SOURCE_SPRITE),
+		"paint": silhouette.get("paint", "ship_paint"),
 		"hull_scale": silhouette.get("hull_scale", Vector2.ONE),
 		"hull_offset": silhouette.get("hull_offset", Vector2.ZERO),
 		"wake_scale": silhouette.get("wake_scale", Vector2.ONE),
