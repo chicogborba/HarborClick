@@ -28,7 +28,10 @@ func _ready() -> void:
 	GameState.from_save({})
 	TimeManager.from_save({})
 	DirAccess.make_dir_recursive_absolute(SHOT_DIR)
-	var args := OS.get_cmdline_user_args()
+	var args := Array(OS.get_cmdline_user_args())
+	if args.size() > 0 and String(args[0]).begins_with("lang="):
+		Loc.set_language_for_tests(StringName(String(args[0]).substr(5)))
+		args.remove_at(0)
 	var scenario := String(args[0]) if args.size() > 0 else "world"
 	var zoom := float(args[1]) if args.size() > 1 else 0.0
 	var centre := Vector2(float(args[2]), float(args[3])) if args.size() > 3 \
@@ -43,7 +46,15 @@ func _ready() -> void:
 		printerr("[closeup] FAIL: Main did not load — look for a parse error above")
 		get_tree().quit(1)
 		return
-	_furnish()
+	# `fresh*` scenarios photograph a brand-new profile: nothing bought, and for
+	# plain `fresh` the tutorial still up — the first thing a new player sees.
+	if not scenario.begins_with("fresh"):
+		_furnish()
+	elif scenario != "fresh":
+		for path in [^"TutorialSpotlight", ^"OfflinePopup"]:
+			var node := _main.get_node_or_null(path)
+			if node != null:
+				node.queue_free()
 	var focus := await _stage(scenario)
 	if centre.x >= 0.0:
 		focus = centre
@@ -100,6 +111,11 @@ func _stage(scenario: String) -> Vector2:
 			var gull := world.active_gull()
 			if gull != null:
 				return gull.global_position
+			return Vector2(-1, -1)
+		"fresh_played":
+			# Thirty taps into a new profile: the port a player has after their
+			# first minute, before the first purchase changes anything.
+			await get_tree().create_timer(8.0).timeout
 			return Vector2(-1, -1)
 		"ship":
 			await get_tree().create_timer(1.5).timeout

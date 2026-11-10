@@ -10,6 +10,12 @@ document, then open only the entry-point files it names.
   aceite que responde "isso está bom?". O [README](../README.md) responde "o que
   falta?".
 
+## Plan
+
+- [Plano de release](plans/plano-release.md) — diagnóstico, direção, cortes e
+  as tarefas (por frente, com dependências e ondas) até o jogo estar pronto
+  para loja. Leia antes de pegar qualquer tarefa grande.
+
 ## Architecture
 
 - [System overview](architecture/overview.md) — runtime topology and ownership.
