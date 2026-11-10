@@ -941,7 +941,16 @@ func _shot(shot_name: String) -> void:
 	# never comes, or saves a stale one. Raising it first is what closeup.gd does.
 	DisplayServer.window_move_to_foreground()
 	await get_tree().process_frame
-	await RenderingServer.frame_post_draw
+	# Bounded wait: on a machine whose window nobody focuses (an agent's
+	# terminal, CI), macOS stops presenting frames and frame_post_draw never
+	# fires — the matrix would hang forever on one shot. A stale frame is
+	# still a usable picture; no frame is not.
+	var drew := false
+	RenderingServer.frame_post_draw.connect(func() -> void: drew = true,
+		CONNECT_ONE_SHOT)
+	var deadline := Time.get_ticks_msec() + 1000
+	while not drew and Time.get_ticks_msec() < deadline:
+		await get_tree().process_frame
 	var image := get_viewport().get_texture().get_image()
 	if image == null or image.is_empty():
 		printerr("[capture] empty image for ", shot_name)
