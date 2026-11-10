@@ -105,6 +105,10 @@ const TUG_ESCORT_SPEED := 58.0
 const TUG_HOLD_SPEED := 24.0
 
 var id: String = ""
+## Buildings carry a warm window light that only burns at night — the port
+# reads as inhabited after dark instead of just lit from outside.
+var _window_light: PointLight2D
+var _is_building := false
 var index := 0
 ## The person operating this machine, or null when it is infrastructure.
 var profile: NpcProfile
@@ -663,16 +667,30 @@ func _build() -> void:
 			_build_drone()
 		"armazem":
 			_build_static("bld_warehouse")
+			_is_building = true
 		"alfandega":
 			_build_customs()
+			_is_building = true
 		"torre":
 			_build_tower()
+			_is_building = true
 		"porto_ia":
 			_build_static("bld_ai_hub")
+			_is_building = true
 		"portal":
 			_build_portal()
+			_is_building = true
 		_:
 			_build_static("bld_office")
+			_is_building = true
+	if _is_building:
+		_window_light = PointLight2D.new()
+		_window_light.texture = preload("res://assets/sprites/prop_glow.png")
+		_window_light.color = Color8(255, 214, 140)
+		_window_light.energy = 0.0
+		_window_light.texture_scale = 1.15
+		_window_light.position = Vector2(16.0, 14.0)
+		add_child(_window_light)
 
 
 func _sprite2d(sprite_name: String, centered: bool = false) -> Sprite2D:
@@ -994,6 +1012,10 @@ func set_block(origin: Vector2, block_index: int = -1) -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	_pulse_upgrade_marks()
+	if _window_light != null:
+		var night := Skyscape._night_factor(TimeManager.time_of_day)
+		_window_light.energy = move_toward(_window_light.energy, night * 0.85,
+			delta * 0.7)
 	# Held, or still settling after being dropped. The round they were walking is
 	# a claim off the board and stays claimed, so nothing else takes their work
 	# while they are in the air.

@@ -1547,14 +1547,14 @@ Inventory: **1775 authored code/config/scene files**.
 | `salarios/collector/db.py` | 187 | 5 functions | Conexão com PostgreSQL, aplicação do schema e seed de referências. |
 | `salarios/collector/normalize.py` | 90 | 4 functions | Normalização de valores salariais. |
 | `salarios/collector/pipeline.py` | 35 | 2 functions | Pipeline completo: coletar -> classificar -> normalizar -> recalcular. |
-| `salarios/collector/qa_agent.py` | 169 | 2 functions | Agente de Q&A: responde perguntas em português com consultas REAIS ao banco. |
+| `salarios/collector/qa_agent.py` | 173 | 2 functions | Agente de Q&A: responde perguntas em português com consultas REAIS ao banco. |
 | `salarios/collector/scheduler.py` | 66 | 4 functions | Agendamento do agente autônomo (APScheduler). |
 | `salarios/collector/sources/__init__.py` | 0 | 0 functions | Authored project file |
 | `salarios/collector/sources/adzuna.py` | 227 | 6 functions | Coletor Adzuna API (Brasil) — vagas anunciadas agregadas de vários job boards. |
 | `salarios/collector/sources/caged.py` | 235 | 8 functions | Coletor do Novo CAGED (MTE) — microdados públicos via FTP. |
 | `salarios/collector/sources/importer.py` | 106 | 1 functions | Importação de arquivos autorizados (Glassdoor licenciado, CIEE/Nube, genérico). |
 | `salarios/collector/sources/rais.py` | 229 | 7 functions | Coletor RAIS (MTE) — vínculos ativos (estoque) por ano. |
-| `salarios/collector/stats.py` | 99 | 3 functions | Estatísticas descritivas sobre salary_observations. |
+| `salarios/collector/stats.py` | 104 | 3 functions | Estatísticas descritivas sobre salary_observations. |
 | `salarios/scripts/db_start.sh` | 14 | — | Sobe o PostgreSQL local (Homebrew) usado por este projeto, na porta 5433. |
 | `salarios/scripts/run_api.sh` | 6 | — | Authored project file |
 | `salarios/scripts/run_dashboard.sh` | 4 | — | Authored project file |
@@ -1670,7 +1670,7 @@ Inventory: **1775 authored code/config/scene files**.
 | `scripts/ui/ui_theme.gd` | 815 | class `UiTheme`; 59 functions | The one place the interface is described. |
 | `scripts/ui/upgrade_map.gd` | 483 | class `UpgradeMap`; 27 functions | The upgrade catalogue as the thing it actually is: a network diagram. |
 | `scripts/ui/wheel_button.gd` | 139 | class `WheelButton`; 8 functions | The Roda da Sorte's key: a small steel key under the gantry's left end, with |
-| `scripts/world/atmosphere.gd` | 254 | class `Atmosphere`; 14 functions | Day/night lighting for the top-down port: global tint, flood-light masts |
+| `scripts/world/atmosphere.gd` | 283 | class `Atmosphere`; 14 functions | Day/night lighting for the top-down port: global tint, flood-light masts |
 | `scripts/world/cargo_relay.gd` | 349 | class `CargoRelay`; 19 functions | The visible chain of custody for one container. |
 | `scripts/world/container_yard.gd` | 637 | class `ContainerYard`; 50 functions | Physical, identity-preserving yard.  A reservation is capacity only; a box |
 | `scripts/world/critters.gd` | 106 | class `Critters`; 7 functions | Ambient life: gulls wheeling over the water and a cat that naps on the |
@@ -1687,7 +1687,7 @@ Inventory: **1775 authored code/config/scene files**.
 | `scripts/world/road_truck.gd` | 624 | class `RoadTruck`; 33 functions | A city truck on the terminal's road: a tractor unit and the chassis it pulls. |
 | `scripts/world/ship.gd` | 1025 | class `Ship`; 66 functions | View of the berth manifest.  BerthCallController owns the workflow; this |
 | `scripts/world/skyscape.gd` | 168 | class `Skyscape`; 9 functions | Weather and sky, expressed the way a top-down camera can actually see them. |
-| `scripts/world/structure_actor.gd` | 2026 | class `StructureActor`; 105 functions | One visible instance of a bought structure. |
+| `scripts/world/structure_actor.gd` | 2048 | class `StructureActor`; 105 functions | One visible instance of a bought structure. |
 | `scripts/world/structure_layer.gd` | 282 | class `StructureLayer`; 16 functions | Places the visible copies of bought structures around the terminal. |
 | `scripts/world/water_foam.gd` | 130 | class `WaterFoam`; 10 functions | A tiny sprite layer over the shader: static quay foam and a few ambient |
 | `scripts/world/water_quality.gd` | 26 | class `WaterQuality`; 3 functions | Automatic visual budget. This intentionally does not read or write player |

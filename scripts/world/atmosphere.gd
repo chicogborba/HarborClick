@@ -30,6 +30,10 @@ var _fog_mat: ShaderMaterial
 var _fog_amount := 0.0
 var _foghorn_timer := 0.0
 var _wet := 0.0
+## Lightning: a full-screen flash while it rains, paired with the thunder the
+# audio manager already rolls on its own timer.
+var _bolt: ColorRect
+var _bolt_timer := randf_range(9.0, 22.0)
 
 
 func setup(port: PortWorld) -> void:
@@ -37,6 +41,16 @@ func setup(port: PortWorld) -> void:
 	_tint = CanvasModulate.new()
 	_tint.name = "WorldTint"
 	world.add_child(_tint)
+	# Above the fog, under the HUD: the flash lights the world, never the chrome.
+	var bolt_layer := CanvasLayer.new()
+	bolt_layer.layer = 4
+	world.add_child(bolt_layer)
+	_bolt = ColorRect.new()
+	_bolt.color = Color(0.92, 0.95, 1.0)
+	_bolt.modulate.a = 0.0
+	_bolt.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bolt.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bolt_layer.add_child(_bolt)
 	_lamps_root = Node2D.new()
 	_lamps_root.name = "Lamps"
 	_lamps_root.y_sort_enabled = true
@@ -236,6 +250,21 @@ func _process(delta: float) -> void:
 		if _foghorn_timer <= 0.0:
 			_foghorn_timer = randf_range(14.0, 26.0)
 			AudioManager.play_sfx("foghorn", 0.03, -8.0)
+
+	# Lightning while it rains: a double-stroke flash, then the thunder the
+	# audio manager rolls a moment later on its own clock.
+	if TimeManager.rain_active:
+		_bolt_timer -= delta
+		if _bolt_timer <= 0.0:
+			_bolt_timer = randf_range(7.0, 19.0)
+			AudioManager.play_sfx("amb_thunder", 0.05, -6.0)
+			if UserPreferences.can_animate():
+				_bolt.modulate.a = 0.0
+				var flash := create_tween()
+				flash.tween_property(_bolt, "modulate:a", 0.7, 0.03)
+				flash.tween_property(_bolt, "modulate:a", 0.12, 0.07)
+				flash.tween_property(_bolt, "modulate:a", 0.45, 0.05)
+				flash.tween_property(_bolt, "modulate:a", 0.0, 0.30)
 
 
 func _sample(t: float) -> Color:
