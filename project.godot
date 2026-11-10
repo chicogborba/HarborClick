@@ -30,6 +30,8 @@ PortraitFrame="*res://scripts/autoload/portrait_frame.gd"
 ; After SaveManager (it registers the "ads" save section) and Loc (the
 ; placeholder provider reads its strings through it).
 AdService="*res://scripts/autoload/ad_service.gd"
+; After UserPreferences (it reads the opt-in flag) — local, opt-in only.
+Telemetry="*res://scripts/telemetry/telemetry.gd"
 
 [display]
 

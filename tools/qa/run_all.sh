@@ -64,7 +64,7 @@ scenes=(
   core cargo ui_p0 phase3_economy phase3_progression_ui
   phase4_ship phase4_water traffic notification contrast a11y
   backup profile automation gate rail wake route route_ui npc special relay
-  i18n settings wheel gull clicks daily level fx ads combo skills build adflow
+  i18n settings wheel gull clicks daily level fx ads combo skills build adflow telemetry
 )
 
 for suite in "${scenes[@]}"; do

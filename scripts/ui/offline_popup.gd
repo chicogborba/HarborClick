@@ -59,6 +59,8 @@ static func breakdown_lines(report: Dictionary) -> Array[String]:
 
 
 func _build(amount: float, report: Dictionary) -> void:
+	Telemetry.track(&"session_return", {"away_seconds": float(report.get("away_seconds", 0.0)),
+		"earnings": amount, "day": TimeManager.day})
 	_dim = UiTheme.scrim(0.62)
 	add_child(_dim)
 

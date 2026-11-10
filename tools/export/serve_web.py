@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Serve build/web with the headers a Godot web export needs.
+"""Serve build/web locally for a quick check.
 
     python3 tools/export/serve_web.py [port]
 
 Opening index.html straight from disk does not work: the browser blocks the
-module fetch, and without cross-origin isolation the engine falls back to a
-single-threaded path (or refuses to start at all). This is the smallest server
-that sets both COOP and COEP correctly.
+module fetch, so this serves the folder. The game exports without threads, so
+no COOP/COEP are needed (or sent) — sending them would only break ad SDK
+iframes later (R4).
 """
 import functools
 import http.server
@@ -19,8 +19,6 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..",
 
 class IsolatedHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
-        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
-        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 

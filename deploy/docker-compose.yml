@@ -19,11 +19,10 @@ services:
       - traefik.http.routers.harborclick.tls.certresolver=le
       - traefik.http.routers.harborclick.middlewares=harborclick-headers
       - traefik.http.services.harborclick.loadbalancer.server.port=80
-      # Godot Web needs cross-origin isolation for SharedArrayBuffer.
-      - traefik.http.middlewares.harborclick-headers.headers.customResponseHeaders.Cross-Origin-Opener-Policy=same-origin
-      - traefik.http.middlewares.harborclick-headers.headers.customResponseHeaders.Cross-Origin-Embedder-Policy=require-corp
-      - traefik.http.middlewares.harborclick-headers.headers.customResponseHeaders.Cross-Origin-Resource-Policy=same-origin
-      - traefik.http.middlewares.harborclick-headers.headers.contentTypeNosniff=true
+      # No COOP/COEP/CORP: the game exports without threads, so cross-origin
+      # isolation is not required — and it would break rewarded-ad SDKs running
+      # in a cross-origin iframe (R4). Nosniff stays.
+      - traefik.http.middlewares.harborclick-headers.headers.customResponseHeaders.X-Content-Type-Options=nosniff
 
 networks:
   edge:

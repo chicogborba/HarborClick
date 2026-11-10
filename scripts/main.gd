@@ -44,6 +44,7 @@ var _carrying := false
 
 
 func _ready() -> void:
+	Telemetry.track(&"session_start", {"day": TimeManager.day, "profile": UserPreferences.last_profile})
 	# The lucky wheel registers its save section before anything here can
 	# save, so however the slot gets chosen the section is in place for it.
 	wheel_service = WheelService.new()

@@ -92,6 +92,7 @@ func refresh() -> void:
 
 
 func _on_leveled_up(level: int, features: Array) -> void:
+	Telemetry.track(&"level_up", {"level": level, "day": TimeManager.day})
 	# Several levels at once (a long absence, a legacy save) queue up one by one.
 	_queue.append([level, features])
 	if not _showing:

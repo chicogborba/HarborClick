@@ -18,6 +18,9 @@ var reduce_motion := false
 var floating_numbers := true
 var ui_scale := 1.00
 var fullscreen := false
+## Opt-in local telemetry (plano-release R5). Default OFF. When on, events are
+# mirrored to `user://telemetry.jsonl` on the device only — nothing is sent.
+var telemetry_on := false
 ## Which language the interface is in, or `Loc.FOLLOW_DEVICE` for "whatever the
 ## phone says". Kept here rather than in the save because it is a fact about the
 ## player and their device, not about any one terminal — switching profiles must
@@ -54,6 +57,7 @@ func load_preferences() -> void:
 	floating_numbers = bool(config.get_value("preferences", "floating_numbers", floating_numbers))
 	ui_scale = _safe_ui_scale(float(config.get_value("preferences", "ui_scale", ui_scale)))
 	fullscreen = bool(config.get_value("preferences", "fullscreen", fullscreen))
+	telemetry_on = bool(config.get_value("preferences", "telemetry_on", false))
 	last_profile = clampi(int(config.get_value("preferences", "last_profile",
 		last_profile)), 0, 9)
 	# Absent from every file written before the game had more than one language,
@@ -94,6 +98,13 @@ func set_floating_numbers(value: bool) -> void:
 		return
 	floating_numbers = value
 	_commit(&"floating_numbers")
+
+
+func set_telemetry_on(value: bool) -> void:
+	if telemetry_on == value:
+		return
+	telemetry_on = value
+	_commit(&"telemetry_on")
 
 
 func set_ui_scale(value: float) -> void:

@@ -97,7 +97,9 @@ Set `GODOT_BIN` when Godot is installed elsewhere.
 ## Deployment
 
 The Web preset writes `build/web/index.html`. `build/*`, `tools/*`, and
-`tests/*` are excluded from the game pack. Production requires COOP/COEP/CORP
-headers for Godot Web; see `deploy/docker-compose.yml` (Traefik labels) and
+`tests/*` are excluded from the game pack. The export runs **without threads**
+(`variant/thread_support=false`), so COOP/COEP are neither required nor sent —
+sending them would break rewarded-ad SDK iframes on web (plano-release R4);
+see `deploy/docker-compose.yml` (Traefik labels) and
 [`docs/architecture/testing-release.md`](docs/architecture/testing-release.md).
 

@@ -4,8 +4,9 @@ Live at **https://harborclick.169-58-108-100.sslip.io** (game at `/jogar/`).
 The server, 169.58.108.100, is shared: one Traefik in front of several Docker
 Compose projects, each in `/opt/<name>/` — see `/opt/README.md` on the box.
 HarborClick is `/opt/harborclick/`, a copy of `docker-compose.yml` and
-`nginx.conf` from this directory: nginx serves `current`, and Traefik adds the
-COOP/COEP headers Godot Web needs.
+`nginx.conf` from this directory: nginx serves `current`. The game exports
+without threads, so no COOP/COEP are sent — requiring them would break
+rewarded-ad SDK iframes (plano-release R4).
 
 Every push to `main` runs `.github/workflows/deploy-production.yml`. The job
 downloads the pinned Godot 4.7.1 toolchain, verifies its SHA-256 checksums, runs

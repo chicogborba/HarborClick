@@ -1755,6 +1755,20 @@ const STRINGS := {
 	"pt_BR": "Reconstrução", "en": "Rebuild", "es": "Reconstrucción",
 	"fr": "Reconstruction", "de": "Wiederaufbau", "it": "Ricostruzione",
 	"ru": "Перестройка", "pl": "Przebudowa", "tr": "Yeniden inşa"},
+"settings.telemetry": {
+	"pt_BR": "Telemetria local", "en": "Local telemetry", "es": "Telemetría local",
+	"fr": "Télémétrie locale", "de": "Lokale Telemetrie", "it": "Telemetria locale",
+	"ru": "Локальная телеметрия", "pl": "Lokalna telemetria", "tr": "Yerel telemetri"},
+"settings.telemetry.hint": {
+	"pt_BR": "Opcional, desligada por padrão. Eventos ficam só neste aparelho, em user://telemetry.jsonl. Nada é enviado.",
+	"en": "Optional, off by default. Events stay on this device only, in user://telemetry.jsonl. Nothing is sent.",
+	"es": "Opcional, desactivado por defecto. Los eventos quedan solo en este aparato, en user://telemetry.jsonl. No se envía nada.",
+	"fr": "Optionnel, désactivé par défaut. Les événements restent sur cet appareil, dans user://telemetry.jsonl. Rien n'est envoyé.",
+	"de": "Optional, standardmäßig aus. Ereignisse bleiben nur auf diesem Gerät, in user://telemetry.jsonl. Es wird nichts gesendet.",
+	"it": "Facoltativo, disattivato di default. Gli eventi restano solo su questo dispositivo, in user://telemetry.jsonl. Non viene inviato nulla.",
+	"ru": "Опционально, по умолчанию выключено. События только на этом устройстве, в user://telemetry.jsonl. Ничего не отправляется.",
+	"pl": "Opcjonalne, domyślnie wyłączone. Zdarzenia tylko na tym urządzeniu, w user://telemetry.jsonl. Nic nie jest wysyłane.",
+	"tr": "İsteğe bağlı, varsayılan kapalı. Olaylar yalnızca bu cihazda, user://telemetry.jsonl içinde kalır. Hiçbir şey gönderilmez."},
 "journal.arcade": {
 	"pt_BR": "ARCADE", "en": "ARCADE", "es": "ARCADE",
 	"fr": "ARCADE", "de": "ARCADE", "it": "ARCADE",

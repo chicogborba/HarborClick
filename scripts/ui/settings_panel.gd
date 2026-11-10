@@ -130,6 +130,7 @@ func _build_body() -> void:
 		UiTheme.Icon.GEAR))
 	_content.add_child(_motion_row())
 	_content.add_child(_numbers_row())
+	_content.add_child(_telemetry_row())
 	_content.add_child(_ui_scale_row())
 	if _fullscreen_supported():
 		_content.add_child(_fullscreen_row())
@@ -463,6 +464,21 @@ func _numbers_row() -> Control:
 		Loc.t("settings.numbers.hint"))
 
 
+func _telemetry_row() -> Control:
+	## R5: local, opt-in only. The hint says where the data goes (nowhere) and
+	# where the local mirror lives, because a privacy toggle that does not say
+	# what it does is not a toggle.
+	var control := _segmented(&"telemetry", [
+		{"value": false, "text": Loc.t("common.off")},
+		{"value": true, "text": Loc.t("common.on")},
+	], func(on: Variant) -> void:
+		UserPreferences.set_telemetry_on(bool(on))
+		AudioManager.play_sfx("tap")
+		_refresh())
+	return _field(Loc.t("settings.telemetry"), control,
+		Loc.t("settings.telemetry.hint"))
+
+
 func _ui_scale_row() -> Control:
 	var options: Array = []
 	for preset: float in UserPreferences.UI_SCALE_PRESETS:
@@ -640,6 +656,7 @@ func _refresh() -> void:
 		_language_note.text = _language_note.text.strip_edges()
 	_refresh_segments(&"motion", UserPreferences.reduce_motion)
 	_refresh_segments(&"numbers", UserPreferences.floating_numbers)
+	_refresh_segments(&"telemetry", UserPreferences.telemetry_on)
 	_refresh_segments(&"ui_scale", UserPreferences.ui_scale)
 	_refresh_segments(&"fullscreen", UserPreferences.fullscreen)
 

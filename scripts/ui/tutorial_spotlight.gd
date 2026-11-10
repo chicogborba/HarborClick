@@ -156,6 +156,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _show_step() -> void:
+	Telemetry.track(&"tutorial_step", {"index": _index})
 	var step: Dictionary = STEPS[_index]
 	# The table holds keys, not sentences: resolving here means a language change
 	# mid-tour reflows the card instead of leaving the tour in the language it
@@ -209,6 +210,7 @@ func _layout() -> void:
 
 
 func _finish(skipped: bool) -> void:
+	Telemetry.track(&"tutorial_finished", {"skipped": skipped})
 	_active = false
 	visible = false
 	finished.emit(skipped)

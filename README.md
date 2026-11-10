@@ -184,7 +184,7 @@ tools/
   fonts/       baixa e conserta os subsets de fonte que a landing hospeda
   qa/          documentação fresca + import + todas as suítes em um comando,
                e o fotógrafo da landing (CDP, métricas de aparelho de verdade)
-  export/      build do jogo, pacote landing + /jogar e servidor com COOP/COEP
+  export/      build do jogo, pacote landing + /jogar e servidor local (sem COOP/COEP — o export roda sem threads)
 tests/         regressão headless: core/save, backup manual, UI, acessibilidade,
                contraste, tráfego, notificações e 100 escalas de carga
 ```
@@ -241,13 +241,15 @@ de desenvolvimento nunca embarcam dentro do PCK do jogo.
 
 ```bash
 tools/export/build_web.sh          # importa, roda a regressão inteira, exporta
-python3 tools/export/serve_web.py  # serve build/web com COOP/COEP
+python3 tools/export/serve_web.py  # serve build/web localmente
 ```
 
 Abrir `index.html` direto do disco **não funciona**: o navegador bloqueia o
-fetch do módulo, e sem cross-origin isolation a engine cai num caminho
-degradado ou nem inicia. O servidor acima existe só pra mandar os dois
-cabeçalhos certos.
+fetch do módulo, então sirva a pasta com o comando acima. O export roda **sem
+threads** (`variant/thread_support=false`), então não precisa (nem manda)
+COOP/COEP — o que também deixa SDKs de anúncio em iframe funcionarem na web.
+O preset PWA está ligado: manifest, ícones e service worker saem do próprio
+export, e `user://` persiste via IndexedDB no navegador.
 
 ### Deploy automático
 

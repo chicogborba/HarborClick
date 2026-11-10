@@ -108,6 +108,7 @@ func _grant() -> void:
 	_pending_placement = &""
 	_pending_reward = Callable()
 	policy.note_shown(placement, Time.get_unix_time_from_system(), _current_day())
+	Telemetry.track(&"ad_shown", {"placement": String(placement), "rewarded": true})
 	if callback.is_valid():
 		callback.call()
 	reward_granted.emit(placement)
