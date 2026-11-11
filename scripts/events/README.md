@@ -1,7 +1,7 @@
 # Events domain
 
-Rare, interrupting, refusable things. Today that is two families: the special
-call, and the golden gull.
+Rare, interrupting, refusable things. Today that is three families: the special
+call, the golden gull, and the Receita Federal's X-ray inspections.
 
 - `special_call_director.gd` — the clock and the state machine. When a charter is
   offered, which berth takes it, when the minigame is cued, what a result pays.
@@ -71,6 +71,35 @@ it pays a prize; letting it fly off costs nothing.
   `surge` through `grant_surge`, `token` through `WheelService.grant_token`.
 
 Run the `gull` suite after changing anything here.
+
+## Receita Federal: o scanner de raio-X
+
+Neide, auditora da Receita, takes Alisson's first tip slot after the tour and
+says the port needs an X-ray scanner; her tip closing opens the scanner's
+board. Bought, it calls an inspection every five to nine minutes of play.
+
+- `xray_policy.gd` — price (seconds of base income, floored), the inspection
+  clock, the Benefício Fiscal (a `grant_surge`, bigger for a clean scan) and
+  the counters. Pure rules. **Persisted** as the `xray_scanner` section: a
+  clock that reset on load would re-arm its short first delay every session.
+  A due inspection stays due until `resolve`, so a board caught by a reload
+  comes back to be played. Meta progress — a prestige does not take it back.
+  `seed_new` (new profile, and any save from before the scanner) is "not
+  bought".
+- `xray_scan.gd` — one scan: a jittered 5x2 grid of goods hidden in the
+  cargo and one contraband (pistol, rifle, taped bricks, grenade), dealt from the
+  inspection's own seed with a local generator. Wrong taps cost
+  `WRONG_PENALTY` once per spot; decoys shaped like weapons (hair dryer,
+  drill) join from `DECOY_LEVEL`. Items never overlap, so every scan is
+  winnable — the suite checks it over forty seeds.
+- `xray_service.gd` — the node: registers the section, ticks the clock while
+  `Main._xray_clock_runs` (after the tour, no board open), takes the money and
+  grants the benefit. A loss costs nothing; a lost scan may be retried once for
+  a `minigame_retry` rewarded ad, like the charters.
+
+Run the `xray` suite after changing anything here, and the `tour_receita`,
+`tour_xray_due`, `xray_panel`, `xray_roll`, `xray_boot`, `xray_scan`,
+`xray_miss` closeups.
 
 Run the `special` suite plus `cargo` and `phase3_progression_ui` after changing
 anything here, and the `charter` / `minigame` captures for the two boards.

@@ -46,3 +46,8 @@ editing them in place.
 
 Focused suites: economy, progression, route and core.
 
+The X-ray scanner is a one-off purchase with no catalogue row: its price and
+benefit are rules priced in the port's income, so they live with the rest of
+its rules in `scripts/events/xray_policy.gd`, and its cargo silhouettes in
+`XrayScan.ITEMS` (`scripts/events/xray_scan.gd`).
+

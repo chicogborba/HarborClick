@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/xray_test_runner.gd" id="1_xray"]
+
+[node name="XrayTestRunner" type="Node"]
+script = ExtResource("1_xray")

@@ -502,9 +502,9 @@ def _resonator(x, freq, bw, sr):
     return out
 
 
-def _syllable(onset, vowel, f0, bend, length, rng, sr=22050):
+def _syllable(onset, vowel, f0, bend, length, rng, sr=22050, formant=1.0):
     n = int(sr * length)
-    onset_n = {"b": 0.012, "p": 0.014, "d": 0.012, "k": 0.016,
+    onset_n = {"b": 0.012, "p": 0.014, "d": 0.012, "k": 0.016, "t": 0.012,
                "sh": 0.035, "z": 0.03, "w": 0.02, "l": 0.018,
                "n": 0.02, "m": 0.02}[onset]
     on = int(sr * onset_n)
@@ -516,7 +516,7 @@ def _syllable(onset, vowel, f0, bend, length, rng, sr=22050):
         f = f0 * (1.0 + (bend - 1.0) * k) * (1.0 + 0.025 * math.sin(2 * math.pi * 7.5 * t))
         phase = (phase + f / sr) % 1.0
         glottis.append(2.0 * phase - 1.0)
-    f1, f2 = _VOWELS[vowel]
+    f1, f2 = (f * formant for f in _VOWELS[vowel])
     voiced = [a + 0.7 * b for a, b in zip(_resonator(glottis, f1, 110, sr),
                                          _resonator(glottis, f2, 160, sr))]
     out = []
@@ -532,7 +532,7 @@ def _syllable(onset, vowel, f0, bend, length, rng, sr=22050):
         out.append(v)
     # consonant noise: hiss for sh/z, a short pop for plosives
     hiss = onset in ("sh", "z")
-    pop = onset in ("b", "p", "d", "k")
+    pop = onset in ("b", "p", "d", "k", "t")
     prev = 0.0
     for i in range(min(n, on + int(sr * 0.006))):
         noise = rng.uniform(-1.0, 1.0)
@@ -552,6 +552,26 @@ def sfx_voice():
     for index, (onset, vowel, f0, bend, length) in enumerate(VOICE_TAKES):
         save_wav(_syllable(onset, vowel, f0, bend, length, rng),
                  "voice_%d" % (index + 1))
+
+## Neide's voice, the Receita Federal auditor: the same Simlish machine, an
+## octave-ish lower and drier than Alisson. Crisp plosive onsets (t, k, p, d),
+## round "o"/"e" vowels, formants pulled down a touch for a fuller chest, and
+## contours that mostly *fall* - the cadence of somebody reading out a
+## regulation. Short takes, so she sounds clipped and official, not bouncy.
+VOICE_RF_TAKES = [
+    ("t", "o", 250, 0.86, 0.09), ("k", "e", 270, 0.90, 0.08),
+    ("p", "a", 240, 0.84, 0.10), ("d", "o", 260, 1.06, 0.09),
+    ("m", "e", 235, 0.88, 0.10), ("t", "a", 275, 0.82, 0.08),
+    ("n", "u", 245, 0.92, 0.10), ("k", "o", 265, 0.80, 0.09),
+]
+
+
+def sfx_voice_rf():
+    """Neide talking: eight clipped, official Simlish syllables."""
+    rng = random.Random(1964)
+    for index, (onset, vowel, f0, bend, length) in enumerate(VOICE_RF_TAKES):
+        save_wav(_syllable(onset, vowel, f0, bend, length, rng, formant=0.86),
+                 "voice_rf_%d" % (index + 1))
 
 if __name__ == "__main__":
     print("sfx:")
@@ -590,3 +610,4 @@ if __name__ == "__main__":
     sfx_build_start()
     sfx_bell()
     sfx_voice()
+    sfx_voice_rf()

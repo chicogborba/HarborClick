@@ -31,9 +31,18 @@ var build_hud: BuildHud
 var level_hud: LevelHud
 var roadmap: LevelRoadmap
 var level_service: TerminalLevelService
+## The Receita Federal's X-ray scanner: the service (rules + save section), its
+## board, its HUD key and the inspection minigame.
+var xray_service: XrayService
+var xray_panel: XrayPanel
+var xray_button: XrayButton
+var xray_board: XrayMinigame
+## One "contêiner suspeito!" from Neide per due inspection, not one a second.
+var _xray_announced := false
 var _overlay_state := {"roadmap": false, "shop": false, "settings": false, "journal": false,
 	"prestige": false, "routes": false, "crew": false, "special": false,
-	"minigame": false, "notices": false, "wheel": false, "daily": false}
+	"minigame": false, "notices": false, "wheel": false, "daily": false,
+	"xray": false}
 ## Whoever's dossier is open, so the objective on it keeps up with the yard.
 var _inspected: Object
 ## The two reasons the camera stops answering a drag: a board is up over the
@@ -61,6 +70,11 @@ func _ready() -> void:
 	level_service.name = "TerminalLevelService"
 	add_child(level_service)
 	daily_service.mission_claimed.connect(level_service.note_mission)
+	# The scanner's save section, registered with the others before any save.
+	xray_service = XrayService.new()
+	xray_service.name = "XrayService"
+	xray_service.can_run = _xray_clock_runs
+	add_child(xray_service)
 
 	# Normally the title screen has already chosen a slot. Running this scene
 	# directly — F6, the capture harness, the dev probe — falls back to the
@@ -285,6 +299,7 @@ func _ready() -> void:
 					})
 				return
 			world.specials.resolve(won))
+	_build_xray()
 	world.specials.offer_ready.connect(func(offer: Dictionary) -> void:
 		special_alert.open(offer, SpecialCallDirector.OFFER_TIMEOUT))
 	world.specials.offer_closed.connect(special_alert.close)
@@ -348,6 +363,7 @@ func _ready() -> void:
 	})
 	add_child(tutorial)
 	tutorial.finished.connect(_on_tutorial_finished)
+	tutorial.tip_closed.connect(_on_guide_tip_closed)
 	# The tour freezes the golden gull: its veil swallows taps, so a gull
 	# crossing under it could only ever escape.
 	tutorial.step_changed.connect(func(_i: int, _s: Dictionary) -> void:
@@ -617,6 +633,9 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		minigame.apply_view_metrics(metrics)
 	if maze != null:
 		maze.apply_view_metrics(metrics)
+	for node: Variant in [xray_panel, xray_button, xray_board]:
+		if node != null:
+			node.apply_view_metrics(metrics)
 	var offline := get_node_or_null(^"OfflinePopup")
 	if offline != null and offline.has_method("apply_view_metrics"):
 		offline.apply_view_metrics(metrics)
@@ -637,6 +656,7 @@ func _close_other_overlays(except: String) -> void:
 		"crew": func() -> void: npc_card.close(),
 		"notices": func() -> void: bell.close_log(),
 		"rate": func() -> void: rate_breakdown.close(),
+		"xray": func() -> void: xray_panel.close(),
 	}
 	for source: String in closers:
 		if source == except or not bool(_overlay_state.get(source, false)):
@@ -646,6 +666,10 @@ func _close_other_overlays(except: String) -> void:
 
 func _on_overlay_changed(opened: bool, source: String) -> void:
 	_overlay_state[source] = opened
+	# A guide's tip never talks over a board: it stands on layer 20, above all
+	# of them, so whoever was in the bubble steps out the moment one opens.
+	if opened and tutorial != null and tutorial.tip_active():
+		tutorial.dismiss_tip()
 	if rail != null:
 		# Anything that draws in the rail's place hides the rail's own keys,
 		# so they are never stacked underneath a board.
@@ -657,7 +681,8 @@ func _on_overlay_changed(opened: bool, source: String) -> void:
 			or bool(_overlay_state.routes) or bool(_overlay_state.crew)
 			or bool(_overlay_state.special) or bool(_overlay_state.minigame)
 			or bool(_overlay_state.notices) or bool(_overlay_state.wheel)
-			or bool(_overlay_state.daily) or bool(_overlay_state.roadmap))
+			or bool(_overlay_state.daily) or bool(_overlay_state.roadmap)
+			or bool(_overlay_state.xray))
 
 
 func _on_world_input_blocked(blocked: bool) -> void:
@@ -748,6 +773,8 @@ func _tutorial_target_rect(target: String) -> Rect2:
 				return daily_button._button.get_global_rect()
 		"routes_key":
 			return _rail_key_rect("rail.routes")
+		"xray_key":
+			return xray_button.button_rect() if xray_button != null else Rect2()
 		"rail", "objective", "journal":
 			return rail.head_rect() if rail != null else Rect2()
 		"shop":
@@ -770,7 +797,18 @@ var _guide_quiet := 20.0
 
 
 func _guide_tips() -> Array[Dictionary]:
+	## `who` picks the speaker (default Alisson); `seed: false` keeps a tip out of
+	## `_seed_guide_tips`, for a character an old profile has never met.
 	return [
+		# Neide from the Receita Federal takes the first slot after the tour:
+		# the port needs an X-ray scanner. Her tip closing opens its board.
+		{"id": "receita", "who": &"receita", "say": "receita.tip.intro",
+			"target": "", "seed": false,
+			"ready": func() -> bool: return not xray_service.owned()},
+		{"id": "receita_buy", "who": &"receita", "say": "receita.tip.buy",
+			"target": "xray_key", "seed": false,
+			"ready": func() -> bool:
+				return _guide_seen("receita") and xray_service.can_buy()},
 		{"id": "land", "say": "guide.tip.land", "target": "shop",
 			"ready": func() -> bool:
 				var parcel := LandDB.next_parcel(GameState.land)
@@ -807,13 +845,19 @@ func _seed_guide_tips() -> void:
 	var seen := {}
 	if GameState.flags.get("tutorial_v2_done", false):
 		for tip: Dictionary in _guide_tips():
-			if (tip.ready as Callable).call():
+			if bool(tip.get("seed", true)) and (tip.ready as Callable).call():
 				seen[tip.id] = true
 	GameState.flags["guide_tips"] = seen
 
 
+func _guide_seen(id: String) -> bool:
+	return (GameState.flags.get("guide_tips", {}) as Dictionary).has(id)
+
+
 func _check_guide_tips() -> void:
 	_guide_quiet = maxf(0.0, _guide_quiet - 1.0)
+	_refresh_xray_key()
+	_announce_inspection()
 	if tutorial == null or tutorial.is_active() or tutorial.tip_active() \
 			or _guide_quiet > 0.0 or not GameState.flags.get("tutorial_v2_done", false):
 		return
@@ -824,7 +868,8 @@ func _check_guide_tips() -> void:
 	for tip: Dictionary in _guide_tips():
 		if seen.has(tip.id) or not (tip.ready as Callable).call():
 			continue
-		if tutorial.tip(str(tip.id), str(tip.say), str(tip.target)):
+		if tutorial.tip(str(tip.id), str(tip.say), str(tip.target),
+				StringName(tip.get("who", &"alisson"))):
 			seen[tip.id] = true
 			GameState.flags["guide_tips"] = seen
 			_guide_quiet = GUIDE_GAP
@@ -1005,3 +1050,94 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			})
 		KEY_F4 when OS.is_debug_build():
 			TimeManager.speed_mult = 40.0 if TimeManager.speed_mult == 1.0 else 1.0
+
+
+# ------------------------------------------------- Receita Federal: X-ray
+
+func _build_xray() -> void:
+	xray_panel = XrayPanel.new()
+	xray_panel.name = "XrayPanel"
+	add_child(xray_panel)
+	xray_panel.setup(xray_service)
+	xray_panel.open_changed.connect(_on_overlay_changed.bind("xray"))
+	xray_panel.inspect_requested.connect(_open_xray)
+	xray_button = XrayButton.new()
+	xray_button.name = "XrayButton"
+	add_child(xray_button)
+	xray_button.setup(xray_service)
+	xray_button.pressed.connect(func() -> void:
+		if xray_service.is_due() and xray_service.owned():
+			_open_xray()
+		else:
+			xray_panel.open())
+	xray_board = XrayMinigame.new()
+	xray_board.name = "XrayMinigame"
+	add_child(xray_board)
+	xray_board.open_changed.connect(_on_overlay_changed.bind("minigame"))
+	xray_board.finished.connect(func(won: bool, summary: Dictionary) -> void:
+		var benefit := xray_service.resolve(won, summary)
+		_xray_announced = false
+		if not benefit.is_empty():
+			EventBus.notification_requested.emit({
+				"id": "xray_benefit", "kind": &"unlock", "priority": 2,
+				"text": Loc.t("xray.benefit", {"mult": str(int(benefit.mult)),
+					"s": str(int(benefit.seconds))}),
+			}))
+	xray_service.inspection_ready.connect(func() -> void: _xray_announced = false)
+	_refresh_xray_key()
+
+
+func _open_xray() -> void:
+	if xray_board == null or xray_board.is_open() or not xray_service.is_due():
+		return
+	_close_other_overlays("minigame")
+	xray_board.open(xray_service.make_offer())
+
+
+func _xray_clock_runs() -> bool:
+	## The inspection clock runs while the port is being played: after the tour,
+	## with no board up. An inspection never falls due behind a charter.
+	if not GameState.flags.get("tutorial_v2_done", false):
+		return false
+	for open: bool in _overlay_state.values():
+		if open:
+			return false
+	return true
+
+
+func _refresh_xray_key() -> void:
+	## The key appears once Neide has introduced the scanner, and packs into the
+	## HUD column under whichever of the wheel and daily keys are showing.
+	if xray_button == null:
+		return
+	xray_button.visible = _guide_seen("receita") or xray_service.owned()
+	var slot := 0
+	for key: CanvasLayer in [wheel_button, daily_button]:
+		if key != null and key.visible:
+			slot += 1
+	xray_button.set_slot(slot)
+
+
+func _announce_inspection() -> void:
+	## A due inspection brings Neide back to point at the scanner key — once per
+	## inspection, never over a board or another guide.
+	if _xray_announced or not xray_service.is_due() or tutorial == null \
+			or tutorial.is_active() or tutorial.tip_active():
+		return
+	for open: bool in _overlay_state.values():
+		if open:
+			return
+	if tutorial.tip("xray_due", "receita.tip.due", "xray_key", &"receita"):
+		_xray_announced = true
+
+
+func _on_guide_tip_closed(id: String) -> void:
+	## Neide's introduction ends at the scanner's board, so the first thing the
+	## player sees after "we need a scanner" is the scanner and its price.
+	_refresh_xray_key()
+	if id == "receita" and not xray_service.owned():
+		var open_any := false
+		for open: bool in _overlay_state.values():
+			open_any = open_any or open
+		if not open_any:
+			xray_panel.open()

@@ -19,6 +19,12 @@ extends CanvasLayer
 ##   word — the first parcel affordable, the wheel unlocked. No veil, nothing
 ##   blocked: he hops in, says one line, and hops out on a tap or after a while.
 ##
+## A tip names its speaker (`SPEAKERS`): Alisson, or Neide from the Receita
+## Federal, who arrives right after the tour to announce the X-ray scanner and
+## comes back whenever a box needs inspecting. Same walk, same bubble; each has
+## a body sheet with the same seven-frame layout, a Simlish voice family in
+## `AudioManager.VARIANTS`, and an idle habit — his futsal ball, her stamp.
+##
 ## Targets come from Main as screen rects, resolved every frame, so he follows
 ## the camera, the shop sliding open and a rotated phone.
 
@@ -49,6 +55,16 @@ const STEPS := [
 ]
 
 const BODY := preload("res://assets/sprites/ui_guide_body.png")
+const CUSTOMS_BODY := preload("res://assets/sprites/ui_customs_body.png")
+## Who can stand in the bubble. `role` is a `Loc` key; `voice` an AudioManager
+## family; `habit` what they do while they wait (`ball`: keepy-uppy, `stamp`:
+## a rubber stamp brought down on an invisible form every couple of seconds).
+const SPEAKERS := {
+	&"alisson": {"name": "ALISSON", "role": "guide.role", "body": BODY,
+		"voice": "voice", "habit": &"ball"},
+	&"receita": {"name": "NEIDE", "role": "receita.role", "body": CUSTOMS_BODY,
+		"voice": "voice_rf", "habit": &"stamp"},
+}
 const BALL := preload("res://assets/sprites/ui_guide_ball.png")
 ## One cell of the body sheet and the scale it is drawn at: big flat pixels.
 const CELL := Vector2(18, 22)
@@ -115,6 +131,9 @@ var _on_gone := Callable()
 var _tip_id := ""
 var _tip_target := ""
 var _tip_left := 0.0
+var _speaker: Dictionary = SPEAKERS[&"alisson"]
+var _speaker_id: StringName = &"alisson"
+var _stamp_down := false
 
 
 func setup(manager_or_callbacks: Variant, callbacks: Dictionary = {}) -> void:
@@ -180,7 +199,7 @@ func _ready() -> void:
 	plate.add_theme_constant_override(&"separation", 6)
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(plate)
-	_name = UiTheme.label("ALISSON", UiTheme.SIZE_BODY, UiTheme.AMBER_DEEP)
+	_name = UiTheme.label(str(_speaker.name), UiTheme.SIZE_BODY, UiTheme.AMBER_DEEP)
 	plate.add_child(_name)
 	_role = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
 	_role.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -212,6 +231,7 @@ func _ready() -> void:
 
 func start() -> void:
 	_tip_id = ""
+	_set_speaker(&"alisson")
 	_active = true
 	_index = 0
 	_taps = 0
@@ -234,11 +254,22 @@ func tip_active() -> bool:
 	return not _tip_id.is_empty()
 
 
-func tip(id: String, say_key: String, target: String = "") -> bool:
-	## He hops in for one line about something the player can do now. Refused
-	## while the tour or another tip is running.
-	if _active or tip_active():
+func tip_id() -> String:
+	return _tip_id
+
+
+func speaker() -> StringName:
+	return _speaker_id
+
+
+func tip(id: String, say_key: String, target: String = "",
+		who: StringName = &"alisson") -> bool:
+	## Somebody hops in for one line about something the player can do now:
+	## `who` is a key of `SPEAKERS`. Refused while the tour or another tip is
+	## running, or for a speaker nobody has drawn.
+	if _active or tip_active() or not SPEAKERS.has(who):
 		return false
+	_set_speaker(who)
 	_tip_id = id
 	_tip_target = target
 	_tip_left = TIP_TIME
@@ -247,12 +278,34 @@ func tip(id: String, say_key: String, target: String = "") -> bool:
 	_veil.visible = false
 	_veil.cutout = Rect2()
 	_skip.visible = false
-	_role.text = Loc.t("guide.role")
+	_role.text = Loc.t(str(_speaker.role))
 	_hint.text = Loc.t("guide.continue")
 	_say(Loc.t(say_key))
 	_enter_from_edge()
-	Telemetry.track(&"guide_tip", {"id": id})
+	Telemetry.track(&"guide_tip", {"id": id, "who": String(who)})
 	return true
+
+
+func dismiss_tip() -> void:
+	## Gone at once, no exit hop: a board is opening over the spot he stood on.
+	if not tip_active():
+		return
+	var id := _tip_id
+	_tip_id = ""
+	_on_gone = Callable()
+	_hop_t = -1.0
+	visible = false
+	_bubble.visible = true
+	tip_closed.emit(id)
+
+
+func _set_speaker(who: StringName) -> void:
+	_speaker_id = who
+	_speaker = SPEAKERS[who]
+	if _walker_atlas != null:
+		_walker_atlas.atlas = _speaker.body
+	if _name != null:
+		_name.text = str(_speaker.name)
 
 
 func apply_view_metrics(metrics: Dictionary) -> void:
@@ -419,7 +472,7 @@ func _type(delta: float) -> void:
 		_blipped = shown
 		var ch := _body.text.substr(maxi(0, shown - 1), 1)
 		if ch != " ":
-			AudioManager.play_sfx("voice", 0.12, -3.0)
+			AudioManager.play_sfx(str(_speaker.voice), 0.12, -3.0)
 	if _body.visible_characters >= _body.get_total_character_count():
 		_body.visible_characters = -1
 
@@ -504,6 +557,8 @@ func _stage_body(delta: float) -> void:
 	# Keepy-uppy while he waits: off his boot, up, and back down.
 	var idle := _hop_t < 0.0 and not _typing() and not _on_gone.is_valid() \
 		and _target_key().is_empty() and animate
+	if _speaker.habit != &"ball":
+		idle = false
 	_ball.visible = idle
 	if idle:
 		var before := sin(_juggle_t * 5.0)
@@ -528,6 +583,14 @@ func _animate(delta: float) -> void:
 	elif not _target_key().is_empty():
 		# Pointing at it, with a little wave now and then.
 		frame = F_WAVE if int(_anim_t / 0.6) % 3 != 2 else F_IDLE
+	elif _speaker.habit == &"stamp":
+		# Stamp up, and TUM: one form approved every second and a half.
+		var up := int(_anim_t / 0.375) % 4 == 0
+		frame = F_WAVE if up else F_IDLE
+		if _stamp_down and not up and UserPreferences.can_animate():
+			AudioManager.play_sfx("thunk", 0.1, -16.0)
+			_squash = 0.08
+		_stamp_down = up
 	else:
 		frame = F_BOB if int(_anim_t / 0.5) % 2 == 0 else F_IDLE
 	_walker_atlas.region = Rect2(Vector2(frame * CELL.x, 0.0), CELL)
@@ -538,6 +601,7 @@ func _animate(delta: float) -> void:
 func _show_step() -> void:
 	Telemetry.track(&"tutorial_step", {"index": _index})
 	var step: Dictionary = STEPS[_index]
+	_set_speaker(&"alisson")
 	_role.text = Loc.t("guide.role")
 	_skip.text = Loc.t("spot.skip")
 	# Nobody skips the hello.

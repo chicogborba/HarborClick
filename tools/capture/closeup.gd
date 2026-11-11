@@ -161,6 +161,19 @@ func _stage(scenario: String) -> Vector2:
 				_main.shop._refresh()
 			await get_tree().create_timer(1.2).timeout
 			return Vector2(-1, -1)
+		"diary":
+			_main.bell.open_log()
+			await get_tree().create_timer(1.0).timeout
+			_main.bell._set_tab("medals")
+			await get_tree().create_timer(0.8).timeout
+			return Vector2(-1, -1)
+		"shop_upgrades":
+			if not _main.shop.visible:
+				_main.shop.toggle()
+			await get_tree().create_timer(0.6).timeout
+			_main.shop._on_tab("upgrades")
+			await get_tree().create_timer(1.0).timeout
+			return Vector2(-1, -1)
 		"roadmap":
 			_main.roadmap.open()
 			await get_tree().create_timer(1.2).timeout
@@ -176,6 +189,68 @@ func _stage(scenario: String) -> Vector2:
 			_main.tutorial._finish(true)
 			_main.tutorial.tip("land", "guide.tip.land", "shop")
 			await get_tree().create_timer(3.5).timeout
+			return Vector2(-1, -1)
+		"tour_receita":
+			# Neide's entrance after the tour: the X-ray scanner pitch, read.
+			_main.tutorial._finish(true)
+			_main.tutorial.tip("receita", "receita.tip.intro", "", &"receita")
+			await get_tree().create_timer(2.5).timeout
+			_main.tutorial._body.visible_characters = -1
+			await get_tree().create_timer(1.2).timeout
+			return Vector2(-1, -1)
+		"xray_panel", "tour_xray_due":
+			# The scanner's board before purchase, or Neide pointing at its key
+			# with an inspection waiting.
+			GameState.flags["tutorial_v2_done"] = true
+			var flags: Dictionary = GameState.flags.get("guide_tips", {})
+			flags["receita"] = true
+			GameState.flags["guide_tips"] = flags
+			_main._refresh_xray_key()
+			if scenario == "xray_panel":
+				_main.xray_panel.open()
+			else:
+				_main.tutorial._finish(true)
+				_main.xray_service.policy.buy()
+				_main.xray_service.policy.ready = true
+				_main.xray_service.state_changed.emit()
+				_main._announce_inspection()
+				await get_tree().create_timer(2.5).timeout
+				_main.tutorial._body.visible_characters = -1
+			await get_tree().create_timer(1.2).timeout
+			return Vector2(-1, -1)
+		"xray_roll", "xray_boot", "xray_scan", "xray_miss":
+			# The inspection board at each beat: the box in the portal, the
+			# Creatus splash, the scan, and the scan after a wrong tap.
+			_main.xray_service.policy.buy()
+			_main.xray_service.policy.ready = true
+			_main._open_xray()
+			await get_tree().create_timer(0.3).timeout
+			var board: XrayMinigame = _main.xray_board
+			match scenario:
+				"xray_roll":
+					await get_tree().create_timer(1.2).timeout
+				"xray_boot":
+					board._set_phase(XrayMinigame.Phase.BOOT)
+					await get_tree().create_timer(0.6).timeout
+				_:
+					board._set_phase(XrayMinigame.Phase.SCAN)
+					await get_tree().create_timer(0.8).timeout
+					# The loupe parked on the contraband through the filter that
+					# shows it (xray_scan), or after seizing a wrong item.
+					var pick: Dictionary = board.game.contraband()
+					if scenario == "xray_miss":
+						for item: Dictionary in board.game.items:
+							if not bool(item.contraband):
+								pick = item
+								break
+					var metal := StringName(pick.id) != &"bricks"
+					board._set_filter(XrayMinigame.Filter.METAL if metal
+						else XrayMinigame.Filter.ORGANIC)
+					board._move_lens(board._to_screen(pick.pos))
+					if scenario == "xray_miss":
+						board._on_seize()
+					await get_tree().create_timer(0.3).timeout
+			board.set_process(false)
 			return Vector2(-1, -1)
 		"fresh_played":
 			# Thirty taps into a new profile: the port a player has after their

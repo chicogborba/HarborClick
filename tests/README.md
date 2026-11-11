@@ -31,6 +31,7 @@
 | fx | pooled effects: fixed pool, lifetime, reduced-motion no-op, whole pixels, camera shake returns to rest |
 | ads | rewarded-ad policy and service: daily caps, cooldowns, day rollover, reward exactly once, a failed ad pays nothing, no-ads pass |
 | wheel | Roda da Sorte: segment weights, free spin before tokens, a token per third departure, prize priced in base cps, claim-once, reload, prestige survival |
+| xray | Receita Federal scanner: scans deterministic per seed, exactly one contraband, always winnable (no overlap), wrong tap costs once per spot, timeout loses, difficulty curve and decoys; price floor, clock (first delay, blocked, waits when due), benefit sizes, streaks; snapshot/restore/garbage and a SaveManager reload; tip speakers and dismiss; the board plays a scan to a win |
 | gull | Gaivota dourada: session-only reward clock (first delay, blocked clock, re-arm gaps), prize weights and cash floor, flight escape exactly once, hit/catch, token grant capped at MAX_TOKENS |
 | daily | Missões do Dia: the same three missions for the same local day (and variety over 30 days), note() clamping to the goal and ignoring other events, claim-once, the streak with reset and the day-7 extra token, the all-three bonus, claimable count, save round trip and garbage restore, the service paying tokens to the wheel and the surge to GameState |
 

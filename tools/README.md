@@ -14,7 +14,9 @@
 - `sprites/gen_train.py` draws the rake facing east at 1:1 (see the world
   README); `gen_wheel.py` computes the Roda da Sorte disc pixel by pixel at 64
   angles, because a rotated sprite is resampled mush; `gen_bonus.py` is the
-  golden gull, its sparkle and the Missões do Dia key.
+  golden gull, its sparkle and the Missões do Dia key; `gen_customs.py` is
+  Neide of the Receita Federal and her X-ray scanner (portal, HUD key and the
+  sixteen false-colour cargo silhouettes, in `XrayScan.ITEMS` order).
 - `sprites/pixellab/` — the handful of *illustrated* assets a loop cannot draw:
   prompts, the model's committed answers and the harmoniser that makes them
   match the rest. The build reads the cached answers and never calls the API;
@@ -22,7 +24,9 @@
 - `audio/` — deterministic audio generators.
 - `capture/` — headed responsive/visual/performance harness. `lang=pt_BR`
   photographs a language other than the machine's. `closeup.tscn` takes one
-  zoomed shot per process (`rail`, `rail_shunt`, `gull`, `ship`, `yard`) — the
+  zoomed shot per process (`rail`, `rail_shunt`, `gull`, `ship`, `yard`, `tour_receita`,
+  `tour_xray_due`, `xray_panel`, `xray_roll`, `xray_boot`, `xray_scan`,
+  `xray_miss`) — the
   matrix harness can wedge on a stale frame after its first shot when the
   window is unfocused, which a single shot never does.
 - `balance/` — deterministic economy scenarios.

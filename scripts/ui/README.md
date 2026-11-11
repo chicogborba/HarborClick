@@ -183,8 +183,14 @@ Entry points:
   removes a tip at once; Main calls it whenever a board opens.
 - `xray_minigame.gd` — the Receita Federal inspection on the `MinigameBoard`
   shell: the container rolls through the portal, the Creatus Security e VWI
-  monitor boots, then the scan — tap the contraband (`XrayScan` rules). The
-  intro is skippable and the clock only runs on the scan. `xray_panel.gd` is
+  monitor boots, then the scan. The scan is a 180x84 grey transmission image
+  of the whole trailer built pixel by pixel per seed (walls, ribs, chassis,
+  wheels, a dark mass of banded bales the goods hide in), drawn nearest. The
+  player drags a loupe (it floats above the finger) that shows that spot
+  magnified 2.2x through a material filter — ORGANIC or METAL — with the bales
+  ghosted and the goods in false colour, then presses SEIZE on what is under
+  the crosshair (`XrayScan` rules). The intro is skippable and the clock only
+  runs on the scan. `xray_panel.gd` is
   the scanner's board (buy / next inspection / inspect) and `xray_button.gd`
   its HUD key, packed into the wheel/daily column by `Main._refresh_xray_key`.
 

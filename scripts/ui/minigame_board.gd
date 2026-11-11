@@ -136,6 +136,12 @@ func _closing_hint() -> String:
 	return ""
 
 
+func _result_text(won: bool) -> String:
+	## The big word at the end. Charters say it in charter terms; a board that
+	## is not a charter (the X-ray scanner) says its own.
+	return "ESCALA FEITA!" if won else "ESCALA PERDIDA"
+
+
 # -------------------------------------------------------------------- shared
 
 func open(offer: Dictionary) -> void:
@@ -216,8 +222,7 @@ func _settle() -> void:
 		return
 	_closing = true
 	var won := _won()
-	_say("ESCALA FEITA!" if won else "ESCALA PERDIDA",
-		UiTheme.TEAL_LIGHT if won else UiTheme.DANGER)
+	_say(_result_text(won), UiTheme.TEAL_LIGHT if won else UiTheme.DANGER)
 	_hint.text = _closing_hint()
 	AudioManager.play_sfx("prestige" if won else "deny", 0.03)
 	_pending_won = won
