@@ -334,7 +334,9 @@ func _ready() -> void:
 	})
 	add_child(tutorial)
 	tutorial.finished.connect(_on_tutorial_finished)
-	if not GameState.flags.get("tutorial_done", false):
+	# `tutorial_v2_done`: Alisson's tour is new, so a profile that finished the
+	# old card tour still meets him once (he can be skipped after the hello).
+	if not GameState.flags.get("tutorial_v2_done", false):
 		tutorial.start()
 
 	shell.metrics_changed.connect(_apply_view_metrics)
@@ -719,6 +721,7 @@ func _tutorial_target_rect(target: String) -> Rect2:
 
 func _on_tutorial_finished(skipped: bool) -> void:
 	GameState.flags["tutorial_done"] = true
+	GameState.flags["tutorial_v2_done"] = true
 	Progression.ingest_event(&"tutorial_completed", {"skipped": skipped})
 	SaveManager.request_save(&"tutorial")
 
