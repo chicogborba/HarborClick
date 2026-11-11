@@ -134,7 +134,7 @@ func _stage(scenario: String) -> Vector2:
 				tour._finish(true)
 				_main.bell.open_log()
 			else:
-				tour._index = 2 if scenario == "tour_ship" else 4
+				tour._index = 3 if scenario == "tour_ship" else 5
 				if scenario == "tour_shop":
 					GameState.teus = 40.0
 					_main.shop._on_tab("structures")
@@ -160,6 +160,12 @@ func _stage(scenario: String) -> Vector2:
 				_main.shop._on_tab("structures")
 				_main.shop._refresh()
 			await get_tree().create_timer(1.2).timeout
+			return Vector2(-1, -1)
+		"tour_tip":
+			# Alisson back after the tour with one line about the shop.
+			_main.tutorial._finish(true)
+			_main.tutorial.tip("land", "guide.tip.land", "shop")
+			await get_tree().create_timer(3.5).timeout
 			return Vector2(-1, -1)
 		"fresh_played":
 			# Thirty taps into a new profile: the port a player has after their

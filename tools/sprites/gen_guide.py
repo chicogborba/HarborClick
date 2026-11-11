@@ -246,5 +246,63 @@ def gen_guide():
          preview_scale=6)
 
 
+
+## The walking Alisson who hops around the screen during the tour: 18x22 cells,
+## shown at 3x. Same pictogram as the bust - hat, two dots, a vest - on legs.
+## Frames: 0 idle, 1 idle bob, 2 step A, 3 step B, 4 jump, 5 talk, 6 wave.
+BW, BH = 18, 22
+PANTS = (44, 52, 84, 255)
+BOOTS = (58, 36, 30, 255)
+
+
+def body_frame(kind):
+    g = new_img(BW, BH)
+    H, V, S = HAT, VEST, SKIN
+    o = 1 if kind == "bob" else 0      # the whole body dips a pixel
+    jump = kind == "jump"
+    # legs and boots
+    lift_l = 1 if kind in ("stepA", "jump") else 0
+    lift_r = 1 if kind in ("stepB", "jump") else 0
+    rect(g, 6, 16 - lift_l, 2, 3, PANTS); rect(g, 6, 19 - lift_l, 2, 1, BOOTS)
+    rect(g, 10, 16 - lift_r, 2, 3, PANTS); rect(g, 10, 19 - lift_r, 2, 1, BOOTS)
+    if kind == "stepA":
+        px(g, 5, 19 - lift_l, BOOTS)
+    if kind == "stepB":
+        px(g, 12, 19 - lift_r, BOOTS)
+    # body
+    rect(g, 5, 10 + o, 8, 6, V[2]); rect(g, 8, 10 + o, 2, 6, POLO[1])
+    hline(g, 5, 13 + o, 8, REFLECT[1]); hline(g, 8, 13 + o, 2, POLO[2])
+    vline(g, 12, 10 + o, 6, V[1]); hline(g, 5, 10 + o, 8, V[3])
+    # arms
+    if jump:
+        rect(g, 3, 7, 2, 4, V[2]); px(g, 3, 6, S[3]); px(g, 4, 6, S[3])
+        rect(g, 13, 7, 2, 4, V[1]); px(g, 13, 6, S[3]); px(g, 14, 6, S[3])
+    else:
+        rect(g, 4, 11 + o, 1, 3, V[2]); px(g, 4, 14 + o, S[3])
+        if kind == "wave":
+            rect(g, 13, 7 + o, 1, 4, V[1]); px(g, 13, 6 + o, S[3]); px(g, 14, 5 + o, S[3])
+        else:
+            rect(g, 13, 11 + o, 1, 3, V[1]); px(g, 13, 14 + o, S[3])
+    # head
+    rect(g, 5, 5 + o, 8, 5, S[3]); vline(g, 12, 5 + o, 5, S[2]); hline(g, 5, 9 + o, 8, S[2])
+    px(g, 7, 7 + o, EYE_DARK); px(g, 10, 7 + o, EYE_DARK)
+    px(g, 6, 8 + o, BLUSH); px(g, 11, 8 + o, BLUSH)
+    if kind in ("talk", "jump", "wave"):
+        px(g, 8, 8 + o, MOUTH[0]); px(g, 9, 8 + o, MOUTH[0])
+        px(g, 8, 9 + o, MOUTH[0]); px(g, 9, 9 + o, MOUTH[0])
+    else:
+        px(g, 8, 9 + o, MOUTH[0]); px(g, 9, 9 + o, MOUTH[0])
+    # hard hat
+    rect(g, 6, 1 + o, 6, 1, H[1]); rect(g, 5, 2 + o, 8, 2, H[2])
+    px(g, 6, 2 + o, H[3]); hline(g, 4, 4 + o, 10, H[1]); hline(g, 4, 4 + o, 3, H[2])
+    return selout(g)
+
+
+def gen_guide_body():
+    frames = [body_frame(k) for k in
+              ("idle", "bob", "stepA", "stepB", "jump", "talk", "wave")]
+    save(sheet(frames), "ui_guide_body", preview_scale=8)
+
 if __name__ == "__main__":
     gen_guide()
+    gen_guide_body()

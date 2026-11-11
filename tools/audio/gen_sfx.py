@@ -463,6 +463,30 @@ def sfx_bell():
     save_wav(reverb(buf, mix=0.2, decay=0.5), "bell")
 
 
+
+## Alisson's voice: no words, a chirpy "ba-be-bo" babble, one syllable per two
+## typed letters. Five syllables, each a short square vowel that bends up or
+## down, so a line sounds like speech rather than a stuck beep.
+VOICE_TAKES = [
+    # base Hz, second formant Hz, pitch bend
+    (520, 1040, 1.18),
+    (470, 1220, 0.88),
+    (560, 900, 1.08),
+    (440, 1150, 1.25),
+    (500, 980, 0.92),
+]
+
+
+def sfx_voice():
+    """Alisson talking: five chirpy babble syllables."""
+    for index, (base, formant, bend) in enumerate(VOICE_TAKES):
+        buf = render(0.085)
+        add_tone(buf, 0.0, 0.07, base, "square", 0.22, duty=0.35,
+                 env=(0.003, 0.02, 0.6, 0.03), sweep=bend)
+        add_tone(buf, 0.0, 0.06, formant, "triangle", 0.10,
+                 env=(0.003, 0.02, 0.4, 0.03), sweep=bend)
+        save_wav(buf, "voice_%d" % (index + 1))
+
 if __name__ == "__main__":
     print("sfx:")
     sfx_tap()
@@ -499,3 +523,4 @@ if __name__ == "__main__":
     sfx_combo()
     sfx_build_start()
     sfx_bell()
+    sfx_voice()

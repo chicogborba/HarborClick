@@ -582,6 +582,11 @@ func advance_builds(seconds: float) -> void:
 func _tick_builds(delta: float) -> void:
 	if builds.is_empty():
 		return
+	if not build_times_enabled:
+		# Construction waits are gone from the game: a save that still carries a
+		# queue from when they existed stands every machine on the next frame.
+		advance_builds(1.0e12)
+		return
 	for i in mini(builds.size(), BuildQueue.MAX_ACTIVE):
 		builds[i].left = float(builds[i].left) - delta
 	_complete_finished_builds()

@@ -41,7 +41,7 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/autoload/ad_service.gd` | 132 | 12 functions | AdService: the one door every rewarded ad goes through. Owns one `AdPolicy` |
 | `scripts/autoload/audio_manager.gd` | 435 | 28 functions | SFX pool + crossfading music. Tracks follow the day/night cycle and weather. |
 | `scripts/autoload/event_bus.gd` | 47 | 0 functions | Global signal hub. Everything talks through here to stay decoupled. |
-| `scripts/autoload/game_state.gd` | 1426 | 87 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
+| `scripts/autoload/game_state.gd` | 1431 | 87 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
 | `scripts/autoload/portrait_frame.gd` | 60 | 3 functions | Keeps the game in portrait at any window size. |
 | `scripts/autoload/save_manager.gd` | 533 | 33 functions | Versioned, recoverable persistence.  The public yard/pending_yard API is |
 | `scripts/autoload/time_manager.gd` | 112 | 9 functions | Day/night cycle + weather. Full lighting arrives in the day/night phase; |
@@ -84,8 +84,8 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/fx/fx.gd` | 193 | class `Fx`; 9 functions | The port's one VFX library: pooled sprite particles living in the world's |
 | `scripts/i18n/loc.gd` | 224 | 16 functions | Which language the port speaks, and every string it says. |
 | `scripts/i18n/strings_content.gd` | 157 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
-| `scripts/i18n/strings_ui.gd` | 1941 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
-| `scripts/main.gd` | 881 | 32 functions | Root: assembles world, camera and UI. |
+| `scripts/i18n/strings_ui.gd` | 1957 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
+| `scripts/main.gd` | 981 | 36 functions | Root: assembles world, camera and UI. |
 | `scripts/monetization/ad_policy.gd` | 184 | class `AdPolicy`; 11 functions | The rules of rewarded ads: which placements exist, how many may be watched |
 | `scripts/monetization/ad_provider.gd` | 18 | class `AdProvider`; 1 functions | The seam between the game and a real ad SDK. `AdService` asks the current |
 | `scripts/monetization/placeholder_ad_provider.gd` | 104 | class `PlaceholderAdProvider`; 6 functions | The test stand-in for a real ad SDK: a scrim with a paper board that says |
@@ -131,7 +131,7 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/ui/shop_card.gd` | 377 | class `ShopCard`; 16 functions | One line torn off the purchase manifest. |
 | `scripts/ui/special_call_alert.gd` | 206 | class `SpecialCallAlert`; 14 functions | The interruption: a charter on the table, with what it pays and what it costs. |
 | `scripts/ui/title_screen.gd` | 1221 | 38 functions | The first thing the game shows. |
-| `scripts/ui/tutorial_spotlight.gd` | 395 | class `TutorialSpotlight`; 24 functions | The first minutes, walked through by Alisson, the terminal's project manager. |
+| `scripts/ui/tutorial_spotlight.gd` | 613 | class `TutorialSpotlight`; 37 functions | Alisson, on foot. The first minutes, and every "olha isso, chefe!" after. |
 | `scripts/ui/ui_theme.gd` | 922 | class `UiTheme`; 64 functions | The one place the interface is described. |
 | `scripts/ui/upgrade_map.gd` | 483 | class `UpgradeMap`; 27 functions | The upgrade catalogue as the thing it actually is: a network diagram. |
 | `scripts/ui/wheel_button.gd` | 143 | class `WheelButton`; 8 functions | The Roda da Sorte's key: a small steel key under the gantry's left end, with |
@@ -202,7 +202,7 @@ Inventory: **251 authored code/config/scene files**.
 | `tests/phase3_economy_test_runner.gd` | 420 | 22 functions | Godot --headless --path . res://tests/phase3_economy_test_runner.tscn |
 | `tests/phase3_economy_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/phase3_progression_test_runner.gd` | 150 | 10 functions | Run with: Godot --headless --path . --script res://tests/phase3_progression_test_runner.gd |
-| `tests/phase3_progression_ui_test_runner.gd` | 238 | 9 functions | Run with: Godot --headless --path . res://tests/phase3_progression_ui_test_runner.tscn |
+| `tests/phase3_progression_ui_test_runner.gd` | 264 | 9 functions | Run with: Godot --headless --path . res://tests/phase3_progression_ui_test_runner.tscn |
 | `tests/phase3_progression_ui_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/phase4_ship_test_runner.gd` | 369 | 14 functions | Run with: Godot --headless --path . res://tests/phase4_ship_test_runner.tscn |
 | `tests/phase4_ship_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -239,13 +239,13 @@ Inventory: **251 authored code/config/scene files**.
 |---|---:|---|---|
 | `tools/audio/gen_ambience.py` | 155 | 7 functions | Harbour ambience: four seamless 12 s stereo beds plus a thunder one-shot. |
 | `tools/audio/gen_music.py` | 257 | 9 functions | Six ambient loops: dawn, day, dusk, night, fog and rain. |
-| `tools/audio/gen_sfx.py` | 501 | 37 functions | All HarborClick sound effects, generated from code. |
+| `tools/audio/gen_sfx.py` | 526 | 38 functions | All HarborClick sound effects, generated from code. |
 | `tools/audio/synth.py` | 334 | 19 functions | Tiny chiptune synth: pure stdlib (wave/struct/math). 22050 Hz, 16-bit mono. |
 | `tools/balance/run_balance.gd` | 49 | 3 functions | Usage: Godot --headless --path . -s res://tools/balance/run_balance.gd -- [scenario] [--json] |
 | `tools/balance/week_report.gd` | 56 | 4 functions | When does a week-long player first own each thing? |
 | `tools/capture/capture.gd` | 960 | 12 functions | Headed screenshot harness. Boots the real game scene, drives the overlays and |
 | `tools/capture/capture.tscn` | 6 | 1 nodes | Godot scene |
-| `tools/capture/closeup.gd` | 190 | 4 functions | One close-up of the running game, for judging art at the pixel. |
+| `tools/capture/closeup.gd` | 196 | 4 functions | One close-up of the running game, for judging art at the pixel. |
 | `tools/capture/closeup.tscn` | 6 | 1 nodes | Godot scene |
 | `tools/capture/perf.gd` | 105 | 4 functions | Frame-time measurement under the worst terminal the game can produce. |
 | `tools/capture/perf.tscn` | 6 | 1 nodes | Godot scene |
@@ -268,7 +268,7 @@ Inventory: **251 authored code/config/scene files**.
 | `tools/sprites/gen_font.py` | 371 | 2 functions | Generates the game's pixel font: a PNG atlas plus a BMFont .fnt descriptor |
 | `tools/sprites/gen_fx.py` | 123 | 6 functions | The port's VFX strips, drawn for the pooled emitter in `scripts/fx/fx.gd`. |
 | `tools/sprites/gen_ground.py` | 199 | 11 functions | Top-down ground tiles, Stardew-flavoured: textured asphalt, worn concrete, |
-| `tools/sprites/gen_guide.py` | 250 | 8 functions | Alisson, the terminal's project manager, who walks a new player through the port. |
+| `tools/sprites/gen_guide.py` | 308 | 10 functions | Alisson, the terminal's project manager, who walks a new player through the port. |
 | `tools/sprites/gen_hud24.py` | 217 | 7 functions | The console's own glyphs: 24x24, drawn for the size they are shown at. |
 | `tools/sprites/gen_icons.py` | 49 | 1 functions | PWA / home-screen icons, drawn from the title crest on the app's navy. |
 | `tools/sprites/gen_icons16.py` | 336 | 2 functions | 16x16 interface icons, outlined, for the HUD the release plan builds (D2). |

@@ -13,7 +13,7 @@ const SETTINGS_PATH := "user://audio.cfg"
 ## port and starts reading as a stuck buffer. Families are drawn from a shuffle
 ## bag, so no take is ever heard twice running and all of them are used before
 ## any repeats.
-const VARIANTS := {"thunk": 6, "click": 4, "horn": 4, "tap": 3}
+const VARIANTS := {"thunk": 6, "click": 4, "horn": 4, "tap": 3, "voice": 5}
 ## The pitch ladder a family walks, on top of `play_sfx`'s own jitter. Drawn from
 ## its own bag for the same reason: two consecutive plays never share a step.
 const PITCH_STEPS := [0.94, 0.97, 1.0, 1.04, 1.08]
@@ -50,7 +50,7 @@ var _settings_path := SETTINGS_PATH
 ## Sounds that may not restart sooner than this, in seconds. An automated yard
 ## fires `thunk` many times a second, and a full pool then hard-cuts whichever
 ## voice is oldest; spacing the frequent ones keeps the pool for the rest.
-const MIN_INTERVAL := {"thunk": 0.045, "click": 0.03, "tap": 0.02, "combo": 0.03,
+const MIN_INTERVAL := {"voice": 0.05, "thunk": 0.045, "click": 0.03, "tap": 0.02, "combo": 0.03,
 	"coins": 0.1, "wheel_tick": 0.02}
 var _last_play: Dictionary = {}    # name -> ticks_msec of the last start
 

@@ -129,11 +129,9 @@ func _ready() -> void:
 	level_hud.name = "LevelHud"
 	level_hud.setup(level_service)
 	add_child(level_hud)
-	build_hud = BuildHud.new()
-	build_hud.name = "BuildHud"
-	add_child(build_hud)
-	# The real game builds things over time; headless suites buy them at once.
-	GameState.build_times_enabled = true
+	# No construction waits: a machine bought is a machine working. A queue left
+	# in an old save is stood up at once by GameState._tick_builds.
+	GameState.build_times_enabled = false
 
 	rail = CommandRail.new()
 	rail.name = "CommandRail"
@@ -342,6 +340,15 @@ func _ready() -> void:
 	shell.world_input_blocked_changed.connect(_on_world_input_blocked)
 	shell.save_requested.connect(SaveManager.request_save)
 	_apply_view_metrics(shell.metrics)
+
+	# Alisson's later appearances: one look a second for a moment worth a word.
+	_seed_guide_tips()
+	var guide_timer := Timer.new()
+	guide_timer.name = "GuideTips"
+	guide_timer.wait_time = 1.0
+	guide_timer.autostart = true
+	guide_timer.timeout.connect(_check_guide_tips)
+	add_child(guide_timer)
 
 	if OS.is_debug_build() and DisplayServer.get_name() != "headless" \
 			and FileAccess.file_exists("res://.devprobe"):
@@ -709,12 +716,105 @@ func _tutorial_target_rect(target: String) -> Rect2:
 						return (entry.button as Control).get_global_rect()
 		"teu":
 			return hud.readout_rect() if hud != null else Rect2()
+		"wheel_key":
+			if wheel_button != null and wheel_button.visible:
+				return wheel_button._button.get_global_rect()
+		"daily_key":
+			if daily_button != null and daily_button.visible:
+				return daily_button._button.get_global_rect()
+		"routes_key":
+			return _rail_key_rect("rail.routes")
 		"rail", "objective", "journal":
 			return rail.head_rect() if rail != null else Rect2()
 		"shop":
+			# The SHOP key on the console when it is showing: the launcher rect
+			# is the whole rail head, and Alisson stood in the middle of it.
+			var key := _rail_key_rect("rail.shop")
+			if not key.size.is_zero_approx():
+				return key
 			return shop.launcher_rect() if shop != null else Rect2()
 		"prestige":
 			return shop.launcher_rect() if shop != null else Rect2()
+	return Rect2()
+
+
+## Alisson's tips, in priority order: {id, say, target, ready}. Each shows once
+## per profile (`flags.guide_tips`), only after the tour, only with no board
+## open, and never two inside `GUIDE_GAP` seconds of each other.
+const GUIDE_GAP := 40.0
+var _guide_quiet := 20.0
+
+
+func _guide_tips() -> Array[Dictionary]:
+	return [
+		{"id": "land", "say": "guide.tip.land", "target": "shop",
+			"ready": func() -> bool:
+				var parcel := LandDB.next_parcel(GameState.land)
+				return FeatureGate.unlocked(&"land") and GameState.land.is_empty() \
+					and not parcel.is_empty() and GameState.can_afford(float(parcel.cost))},
+		{"id": "upgrade", "say": "guide.tip.upgrade", "target": "shop",
+			"ready": func() -> bool:
+				if not FeatureGate.unlocked(&"upgrades") or not GameState.upgrades.is_empty():
+					return false
+				for item in UpgradeDB.ITEMS:
+					if GameState.upgrade_available(item) and GameState.can_afford(
+							UpgradeDB.price_for(item, GameState.upgrades)):
+						return true
+				return false},
+		{"id": "wheel", "say": "guide.tip.wheel", "target": "wheel_key",
+			"ready": func() -> bool: return FeatureGate.unlocked(&"wheel")},
+		{"id": "daily", "say": "guide.tip.daily", "target": "daily_key",
+			"ready": func() -> bool: return FeatureGate.unlocked(&"daily")},
+		{"id": "gull", "say": "guide.tip.gull", "target": "",
+			"ready": func() -> bool: return FeatureGate.unlocked(&"gull")},
+		{"id": "routes", "say": "guide.tip.routes", "target": "routes_key",
+			"ready": func() -> bool: return FeatureGate.unlocked(&"routes")},
+		{"id": "prestige", "say": "guide.tip.prestige", "target": "",
+			"ready": func() -> bool: return FeatureGate.unlocked(&"prestige")},
+	]
+
+
+func _seed_guide_tips() -> void:
+	## A profile that already played past these moments is not walked back
+	## through them: whatever is already true the first time this runs counts as
+	## seen. A brand-new profile seeds nothing — its tour has not happened yet.
+	if GameState.flags.has("guide_tips"):
+		return
+	var seen := {}
+	if GameState.flags.get("tutorial_v2_done", false):
+		for tip: Dictionary in _guide_tips():
+			if (tip.ready as Callable).call():
+				seen[tip.id] = true
+	GameState.flags["guide_tips"] = seen
+
+
+func _check_guide_tips() -> void:
+	_guide_quiet = maxf(0.0, _guide_quiet - 1.0)
+	if tutorial == null or tutorial.is_active() or tutorial.tip_active() \
+			or _guide_quiet > 0.0 or not GameState.flags.get("tutorial_v2_done", false):
+		return
+	for open: bool in _overlay_state.values():
+		if open:
+			return
+	var seen: Dictionary = GameState.flags.get("guide_tips", {})
+	for tip: Dictionary in _guide_tips():
+		if seen.has(tip.id) or not (tip.ready as Callable).call():
+			continue
+		if tutorial.tip(str(tip.id), str(tip.say), str(tip.target)):
+			seen[tip.id] = true
+			GameState.flags["guide_tips"] = seen
+			_guide_quiet = GUIDE_GAP
+			SaveManager.request_save(&"guide")
+		return
+
+
+func _rail_key_rect(stem: String) -> Rect2:
+	if rail == null:
+		return Rect2()
+	for entry: Dictionary in rail._key_labels:
+		var button := entry.button as Control
+		if str(entry.stem) == stem and button.is_visible_in_tree():
+			return button.get_global_rect()
 	return Rect2()
 
 

@@ -158,13 +158,17 @@ func _test_spotlight_steps_and_safe_target() -> void:
 	var ids := []
 	for step in spotlight.STEPS:
 		ids.append(str(step.id))
-	_expect(ids == ["intro", "wait", "navio", "teu", "loja", "compra", "desafios", "fim"],
-		"the tour is Alisson's eight steps (%s)" % [ids])
+	_expect(ids == ["intro", "intro2", "wait", "navio", "teu", "loja", "compra",
+		"desafios", "fim"], "the tour is Alisson's nine steps (%s)" % [ids])
 	_expect(spotlight._veil.mouse_filter == Control.MOUSE_FILTER_STOP,
 		"the veil stops presses")
-	_expect(_inside(safe, spotlight._panel.get_global_rect()),
-		"the dialogue box stays inside the safe area")
-	_expect(spotlight._panel.size.y <= 160.0, "and stays compact")
+	# Let him hop in from the edge to centre stage.
+	for i in 90:
+		spotlight._process(0.016)
+	_expect(_inside(safe, spotlight._bubble.get_global_rect()),
+		"his speech bubble stays inside the safe area")
+	_expect(_inside(safe, spotlight._walker.get_global_rect()),
+		"and so does he, once he has hopped in")
 
 	# Step 0 talks: a tap on the box moves on (after finishing the typed line).
 	_expect(spotlight._until() == "ok" and not spotlight._skip.visible,
@@ -173,8 +177,10 @@ func _test_spotlight_steps_and_safe_target() -> void:
 	if spotlight._index == 0:
 		spotlight._advance_by_tap()
 	_expect(spotlight._index == 1, "a tap on the box moves on")
+	spotlight._body.visible_characters = -1
+	spotlight._advance_by_tap()
 	spotlight._process(0.016)
-	_expect(spotlight._index == 2 and spotlight._until() == "taps",
+	_expect(spotlight._index == 3 and spotlight._until() == "taps",
 		"with a ship alongside the wait step passes straight to the taps")
 
 	# The highlight lets presses through; everywhere else is solid.
@@ -186,18 +192,21 @@ func _test_spotlight_steps_and_safe_target() -> void:
 		"a press outside it is swallowed")
 	spotlight._body.visible_characters = -1
 	spotlight._advance_by_tap()
-	_expect(spotlight._index == 2, "a tap on the box does not count as a tap on the ship")
+	_expect(spotlight._index == 3, "a tap on the box does not count as a tap on the ship")
 	for i in 14:
 		spotlight._on_tap_paid({})
-	_expect(spotlight._index == 2, "fourteen taps are not enough")
+	_expect(spotlight._index == 3, "fourteen taps are not enough")
 	spotlight._on_tap_paid({})
-	_expect(spotlight._index == 3, "the fifteenth moves on")
+	_expect(spotlight._index == 4, "the fifteenth moves on")
 
-	# The dialogue box moves out of the way of a bottom-screen target.
+	# He hops over to a bottom-screen target, and his bubble keeps off it.
 	target[0] = Rect2(Vector2(80, 650), Vector2(120, 52))
-	spotlight._process(0.016)
-	_expect(not spotlight._panel.get_global_rect().intersects(target[0].grow(4.0)),
-		"the dialogue box moves away from a bottom-screen target")
+	for i in 120:
+		spotlight._process(0.016)
+	_expect(not spotlight._bubble.get_global_rect().intersects(target[0].grow(4.0)),
+		"the speech bubble keeps off a bottom-screen target")
+	_expect(spotlight._walker.get_global_rect().get_center().distance_to(
+		target[0].get_center()) < 140.0, "he stands next to what he talks about")
 
 	spotlight._body.visible_characters = -1
 	spotlight._advance_by_tap()
@@ -217,7 +226,24 @@ func _test_spotlight_steps_and_safe_target() -> void:
 	spotlight._advance_by_tap()
 	spotlight._body.visible_characters = -1
 	spotlight._advance_by_tap()
+	# He runs off screen, and the tour ends when he is gone.
+	for i in 200:
+		if not spotlight.is_active():
+			break
+		spotlight._process(0.016)
 	_expect(not spotlight.is_active(), "the tour completes after its last line")
+
+	# A tip: no veil, one line, gone on a tap.
+	_expect(spotlight.tip("land", "guide.tip.land", "shop"), "a tip starts after the tour")
+	_expect(not spotlight._veil.visible, "a tip blocks nothing")
+	_expect(not spotlight.tip("wheel", "guide.tip.wheel"), "one tip at a time")
+	spotlight._body.visible_characters = -1
+	spotlight._advance_by_tap()
+	for i in 200:
+		if not spotlight.tip_active():
+			break
+		spotlight._process(0.016)
+	_expect(not spotlight.tip_active(), "a tap sends him off")
 	viewport.queue_free()
 	await get_tree().process_frame
 

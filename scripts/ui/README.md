@@ -35,12 +35,13 @@ Entry points:
 - `boost_chips.gd` — every active multiplier as a chip with its countdown: the
   luck surge and the tap combo. (The Capataz skill bar was removed: three
   cooldown keys over the port that nobody understood.)
-- `build_hud.gd` — the construction queue: one row per pending purchase with
-  progress, tap-to-hurry and the "ACELERAR ▶" rewarded-ad button.
+- `build_hud.gd` — unused: construction waits were removed (a machine bought
+  is a machine working). `GameState.build_times_enabled` stays false, and a
+  queue left in an old save is stood up on the first frame.
 - Rewarded-ad placements live where the reward is: `lucky_wheel_panel.gd`
   (`wheel_spin` when out of tokens, `wheel_double` after a cash prize),
   `minigame_board.gd` (`minigame_retry` on a loss, 6 s window),
-  `offline_popup.gd` (`offline_double`), `build_hud.gd` (`build_speed`).
+  `offline_popup.gd` (`offline_double`), `level_hud.gd` (`level_bonus`).
   All optional, all hidden at the daily cap.
 - `rate_breakdown.gd` — the factors behind the rate, opened by pressing the rate
   tag on the counter. It is the formula, not a caption for it: machines at
@@ -149,13 +150,18 @@ Entry points:
   `maze_minigame.gd` is navigation.
 - `notification_coordinator.gd` — notice policy: what is routine, what collapses,
   what is kept. It has no opinion about how a notice is shown.
-- `tutorial_spotlight.gd` — onboarding, walked through by Alisson (the project
-  manager from the crew roster, `ui_guide.png` from `tools/sprites/gen_guide.py`):
-  a dialogue box with his talking portrait and a typed-out line. Talking steps
-  wait for a tap, action steps for the action (tap the ship 15x, open the shop,
-  hire a docker). The veil swallows every press outside the highlight
-  (`_Veil._has_point`), and targets are re-resolved every frame from Main so the
-  highlight follows the camera and the shop sheet.
+- `tutorial_spotlight.gd` — Alisson on foot (the project manager and futsal
+  star from the crew roster; `ui_guide_body.png` from
+  `tools/sprites/gen_guide.py`, shown at 3x). He hops in from the edge, hops
+  over to whatever he is talking about and stands beside it, talking out of a
+  speech bubble that rides above or below him and never covers the target; the
+  typed line babbles in `voice_1..5` blips. Tour steps wait for a tap or for
+  the action (tap the ship 15x, open the shop, hire a docker); the veil
+  swallows every press outside the highlight (`_Veil._has_point`). After the
+  tour Main calls him back with `tip(id, say, target)` — the first parcel
+  affordable, the first upgrade, each unlocked feature — once per profile
+  (`flags.guide_tips`), no veil, gone on a tap or after 9 s, 40 s apart, never
+  over an open board. Old profiles have what is already true marked seen.
 
 `FloatText` is the game's only answer to "did my tap pay?", so it is deliberately
 loud: a large warm number with a thick dark outline, punched in and risen. Small
