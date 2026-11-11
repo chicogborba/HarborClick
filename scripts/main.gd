@@ -112,8 +112,7 @@ func _ready() -> void:
 	# every level-up. Nothing else is gated yet.
 	level_service.leveled_up.connect(func(_level: int, _features: Array) -> void:
 		_refresh_level_gates())
-	# Every level pays a wheel token (and +2% production, in GameState).
-	level_service.levels_gained.connect(wheel_service.grant_token)
+	# Every level pays +2% production (GameState); the wheel is not a level prize.
 	# A loaded save restores the level without "levelling up" to it.
 	level_service.xp_changed.connect(_refresh_level_gates)
 	_refresh_level_gates()

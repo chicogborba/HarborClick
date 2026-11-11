@@ -73,9 +73,9 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/economy/economy_math.gd` | 230 | class `EconomyMath`; 16 functions | Deterministic, side-effect-free helpers for the incremental economy. |
 | `scripts/economy/economy_simulator.gd` | 842 | class `EconomySimulator`; 38 functions | A deterministic balance sandbox: no Nodes, clocks, autoloads, randomness, or I/O. |
 | `scripts/economy/foreman.gd` | 113 | class `Foreman`; 5 functions | The standing order for spending: what the port buys when nobody is looking. |
-| `scripts/economy/lucky_wheel.gd` | 195 | class `LuckyWheel`; 13 functions | The rules of the Roda da Sorte: eight segments, one free spin every four |
+| `scripts/economy/lucky_wheel.gd` | 198 | class `LuckyWheel`; 13 functions | The rules of the Roda da Sorte: eight segments and two free spins a real |
 | `scripts/economy/tap_combo.gd` | 63 | class `TapCombo`; 7 functions | The rhythm of working a ship: taps that keep coming build a multiplier on the |
-| `scripts/economy/wheel_service.gd` | 97 | class `WheelService`; 8 functions | The Roda da Sorte as a live node. Owns one `LuckyWheel`, persists it as the |
+| `scripts/economy/wheel_service.gd` | 89 | class `WheelService`; 7 functions | The Roda da Sorte as a live node. Owns one `LuckyWheel`, persists it as the |
 | `scripts/events/golden_gull_policy.gd` | 82 | class `GoldenGullPolicy`; 3 functions | The rules of the gaivota dourada: when the golden gull crosses the terminal |
 | `scripts/events/maze_game.gd` | 181 | class `MazeGame`; 14 functions | The rules of the yard-maze minigame, with no nodes in them. |
 | `scripts/events/special_call_director.gd` | 223 | class `SpecialCallDirector`; 15 functions | When a special call turns up, which berth it takes, and what it pays. |
@@ -84,9 +84,9 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/fx/fx.gd` | 193 | class `Fx`; 9 functions | The port's one VFX library: pooled sprite particles living in the world's |
 | `scripts/i18n/loc.gd` | 224 | 16 functions | Which language the port speaks, and every string it says. |
 | `scripts/i18n/strings_content.gd` | 157 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
-| `scripts/i18n/strings_ui.gd` | 1901 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
-| `scripts/main.gd` | 879 | 32 functions | Root: assembles world, camera and UI. |
-| `scripts/monetization/ad_policy.gd` | 181 | class `AdPolicy`; 11 functions | The rules of rewarded ads: which placements exist, how many may be watched |
+| `scripts/i18n/strings_ui.gd` | 1941 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
+| `scripts/main.gd` | 881 | 32 functions | Root: assembles world, camera and UI. |
+| `scripts/monetization/ad_policy.gd` | 184 | class `AdPolicy`; 11 functions | The rules of rewarded ads: which placements exist, how many may be watched |
 | `scripts/monetization/ad_provider.gd` | 18 | class `AdProvider`; 1 functions | The seam between the game and a real ad SDK. `AdService` asks the current |
 | `scripts/monetization/placeholder_ad_provider.gd` | 104 | class `PlaceholderAdProvider`; 6 functions | The test stand-in for a real ad SDK: a scrim with a paper board that says |
 | `scripts/npc/npc_catalog.gd` | 218 | class `NpcCatalog`; 8 functions | Who works here, and why the port would stop without them. |
@@ -109,8 +109,8 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/ui/daily_orders_button.gd` | 124 | class `DailyOrdersButton`; 6 functions | The Missões do Dia key: a clipboard under the wheel's key, with a red count |
 | `scripts/ui/daily_orders_panel.gd` | 291 | class `DailyOrdersPanel`; 16 functions | Missões do Dia: three orders a day, a bonus for all three, and the streak. |
 | `scripts/ui/hud.gd` | 167 | class `Hud`; 14 functions | The gantry across the top of the port: the tally, the clock and the berth. |
-| `scripts/ui/level_hud.gd` | 174 | class `LevelHud`; 8 functions | The terminal's level, and the moment it grows. |
-| `scripts/ui/lucky_wheel_panel.gd` | 584 | class `LuckyWheelPanel`; 26 functions | The Roda da Sorte board: the carnival wheel bolted to a clipboard, opened |
+| `scripts/ui/level_hud.gd` | 232 | class `LevelHud`; 10 functions | The terminal's level, and the moment it grows. |
+| `scripts/ui/lucky_wheel_panel.gd` | 596 | class `LuckyWheelPanel`; 27 functions | The Roda da Sorte board: the carnival wheel bolted to a clipboard, opened |
 | `scripts/ui/maze_minigame.gd` | 411 | class `MazeMinigame`; 17 functions | The second charter game: a yard you have to find your way out of. |
 | `scripts/ui/minigame_board.gd` | 298 | class `MinigameBoard`; 24 functions | The shell every charter minigame is played on: the scrim, the board, the three |
 | `scripts/ui/notice_bell.gd` | 295 | class `NoticeBell`; 18 functions | Notices, collected on a bell instead of thrown across the port. |
@@ -127,8 +127,8 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/ui/responsive_shell.gd` | 81 | class `ResponsiveShell`; 6 functions | Single source of viewport metrics for UI, world framing and save lifecycle. |
 | `scripts/ui/route_map.gd` | 534 | class `RouteMap`; 16 functions | The chart on the clipboard: where this terminal trades, and what it would |
 | `scripts/ui/settings_panel.gd` | 718 | class `SettingsPanel`; 39 functions | Options board: sound, language, presentation, backup, and the one |
-| `scripts/ui/shop.gd` | 1508 | class `Shop`; 64 functions | The purchase manifest, presented as the foreman's clipboard. |
-| `scripts/ui/shop_card.gd` | 362 | class `ShopCard`; 16 functions | One line torn off the purchase manifest. |
+| `scripts/ui/shop.gd` | 1513 | class `Shop`; 64 functions | The purchase manifest, presented as the foreman's clipboard. |
+| `scripts/ui/shop_card.gd` | 377 | class `ShopCard`; 16 functions | One line torn off the purchase manifest. |
 | `scripts/ui/special_call_alert.gd` | 206 | class `SpecialCallAlert`; 14 functions | The interruption: a charter on the table, with what it pays and what it costs. |
 | `scripts/ui/title_screen.gd` | 1221 | 38 functions | The first thing the game shows. |
 | `scripts/ui/tutorial_spotlight.gd` | 395 | class `TutorialSpotlight`; 24 functions | The first minutes, walked through by Alisson, the terminal's project manager. |
@@ -165,7 +165,7 @@ Inventory: **251 authored code/config/scene files**.
 | `tests/a11y_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/adflow_test_runner.gd` | 197 | 11 functions | Where the game offers a rewarded ad, end to end with a fake provider: the |
 | `tests/adflow_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/ads_test_runner.gd` | 401 | 20 functions | AdService, AdPolicy and the provider seam: caps, cooldowns, the local-day |
+| `tests/ads_test_runner.gd` | 402 | 20 functions | AdService, AdPolicy and the provider seam: caps, cooldowns, the local-day |
 | `tests/ads_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/automation_test_runner.gd` | 382 | 12 functions | Berth automation and the departure bonus. |
 | `tests/automation_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -245,7 +245,7 @@ Inventory: **251 authored code/config/scene files**.
 | `tools/balance/week_report.gd` | 56 | 4 functions | When does a week-long player first own each thing? |
 | `tools/capture/capture.gd` | 960 | 12 functions | Headed screenshot harness. Boots the real game scene, drives the overlays and |
 | `tools/capture/capture.tscn` | 6 | 1 nodes | Godot scene |
-| `tools/capture/closeup.gd` | 163 | 4 functions | One close-up of the running game, for judging art at the pixel. |
+| `tools/capture/closeup.gd` | 190 | 4 functions | One close-up of the running game, for judging art at the pixel. |
 | `tools/capture/closeup.tscn` | 6 | 1 nodes | Godot scene |
 | `tools/capture/perf.gd` | 105 | 4 functions | Frame-time measurement under the worst terminal the game can produce. |
 | `tools/capture/perf.tscn` | 6 | 1 nodes | Godot scene |
@@ -268,7 +268,7 @@ Inventory: **251 authored code/config/scene files**.
 | `tools/sprites/gen_font.py` | 371 | 2 functions | Generates the game's pixel font: a PNG atlas plus a BMFont .fnt descriptor |
 | `tools/sprites/gen_fx.py` | 123 | 6 functions | The port's VFX strips, drawn for the pooled emitter in `scripts/fx/fx.gd`. |
 | `tools/sprites/gen_ground.py` | 199 | 11 functions | Top-down ground tiles, Stardew-flavoured: textured asphalt, worn concrete, |
-| `tools/sprites/gen_guide.py` | 279 | 8 functions | Alisson, the terminal's project manager, who walks a new player through the port. |
+| `tools/sprites/gen_guide.py` | 250 | 8 functions | Alisson, the terminal's project manager, who walks a new player through the port. |
 | `tools/sprites/gen_hud24.py` | 217 | 7 functions | The console's own glyphs: 24x24, drawn for the size they are shown at. |
 | `tools/sprites/gen_icons.py` | 49 | 1 functions | PWA / home-screen icons, drawn from the title crest on the app's navy. |
 | `tools/sprites/gen_icons16.py` | 336 | 2 functions | 16x16 interface icons, outlined, for the HUD the release plan builds (D2). |

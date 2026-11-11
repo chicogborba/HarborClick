@@ -25,11 +25,9 @@ func _ready() -> void:
 	wheel = LuckyWheel.new()
 	_rng.randomize()
 	SaveManager.register_section(SECTION_ID, wheel.snapshot, _restore, _seed_new)
-	EventBus.ship_departed.connect(_on_ship_departed)
 
 
 func _exit_tree() -> void:
-	EventBus.ship_departed.disconnect(_on_ship_departed)
 	SaveManager.unregister_section(SECTION_ID)
 
 
@@ -73,12 +71,6 @@ func grant_token(count: int = 1) -> void:
 	var before := wheel.tokens
 	wheel.tokens = mini(wheel.tokens + maxi(0, count), LuckyWheel.MAX_TOKENS)
 	if wheel.tokens > before:
-		token_earned.emit()
-	state_changed.emit()
-
-
-func _on_ship_departed() -> void:
-	if wheel.note_departure():
 		token_earned.emit()
 	state_changed.emit()
 

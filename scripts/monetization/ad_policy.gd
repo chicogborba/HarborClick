@@ -12,7 +12,7 @@ extends RefCounted
 ## id -> {daily_cap, cooldown}. `daily_cap` 0 means unlimited for the day;
 ## `cooldown` 0.0 means no wait between two shows.
 const PLACEMENTS: Dictionary = {
-	&"wheel_spin": {"daily_cap": 5, "cooldown": 600.0},
+	&"wheel_spin": {"daily_cap": 3, "cooldown": 1800.0},
 	&"wheel_double": {"daily_cap": 0, "cooldown": 0.0},
 	&"minigame_retry": {"daily_cap": 0, "cooldown": 0.0},
 	&"minigame_play": {"daily_cap": 3, "cooldown": 0.0},
@@ -21,6 +21,9 @@ const PLACEMENTS: Dictionary = {
 	&"gull_double": {"daily_cap": 0, "cooldown": 0.0},
 	&"mission_reroll": {"daily_cap": 1, "cooldown": 0.0},
 	&"boost_2x": {"daily_cap": 6, "cooldown": 0.0},
+	## The level-up card's offer: one per level, so the level itself is the cap;
+	## the cooldown only stops two queued levels from stacking two offers.
+	&"level_bonus": {"daily_cap": 0, "cooldown": 20.0},
 }
 
 ## The `last_unix` a placement starts with: far enough back that no real or

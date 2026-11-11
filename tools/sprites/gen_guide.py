@@ -84,189 +84,160 @@ def ellipse_mask(cx, cy, rx, ry):
 
 
 def torso(img, pointing):
-    # shoulders: a trapezoid of navy polo
+    """A small round body: the crew are all head and hard hat, so is he."""
     mask = []
-    for y in range(46, 64):
-        half = min(29, 11 + int((y - 46) * 1.9))
+    for y in range(48, 64):
+        half = min(25, 12 + int((y - 48) * 1.1))
         for x in range(32 - half, 32 + half):
             mask.append((x, y))
-    shade_fill(img, mask, POLO[1:], 26, 50, 30, 18, bias=0.1)
-    # collar points and the open neck
-    for i in range(5):
-        px(img, 25 + i, 46 + i, POLO[3])
-        px(img, 38 - i, 46 + i, POLO[2])
-    rect(img, 29, 46, 6, 4, SKIN[1])
-    hline(img, 29, 46, 6, SKIN[0])
-    # vest panels with a lit leading edge
+    shade_fill(img, mask, POLO[1:], 26, 52, 28, 16, bias=0.1)
+    rect(img, 28, 46, 8, 4, SKIN[1])
+    hline(img, 28, 46, 8, SKIN[0])
+    # hi-vis vest: two panels with a lit leading edge, open down the middle
     for y in range(49, 64):
-        half = min(29, 11 + int((y - 46) * 1.9))
+        half = min(25, 12 + int((y - 48) * 1.1))
         lo, hi = 32 - half, 32 + half
-        for x in range(lo, 27):
-            px(img, x, y, VEST[3] if x < lo + 2 else VEST[2] if x < 22 else VEST[1])
-        for x in range(37, hi):
-            px(img, x, y, VEST[1] if x < hi - 3 else VEST[0])
-        px(img, 26, y, VEST[0])
-        px(img, 37, y, VEST[2])
-    # reflective bands
-    for x in range(4, 27):
-        px(img, x, 57, REFLECT[2] if x < 12 else REFLECT[1])
-        px(img, x, 58, REFLECT[0])
-    for x in range(37, 61):
-        px(img, x, 57, REFLECT[1])
-        px(img, x, 58, REFLECT[0])
-    # ID badge on the left panel, lanyard clip
-    rect(img, 14, 50, 7, 6, BADGE[0])
-    rect(img, 15, 51, 5, 2, BADGE[1])
-    rect(img, 15, 53, 2, 2, HAT[2])
-    hline(img, 17, 54, 3, POLO[2])
-    vline(img, 17, 48, 2, RADIO[2])
-    # radio on the right panel, antenna up, a green led
-    rect(img, 42, 49, 6, 9, RADIO[0])
-    rect(img, 43, 50, 4, 3, RADIO[1])
-    hline(img, 43, 54, 4, RADIO[1])
-    hline(img, 43, 56, 4, RADIO[1])
-    vline(img, 46, 43, 6, RADIO[0])
-    px(img, 46, 43, RADIO[2])
-    px(img, 44, 51, (120, 230, 130, 255))
+        for x in range(lo, 28):
+            px(img, x, y, VEST[3] if x < lo + 2 else VEST[2])
+        for x in range(36, hi):
+            px(img, x, y, VEST[1] if x < hi - 2 else VEST[0])
+        px(img, 28, y, VEST[0])
+        px(img, 35, y, VEST[2])
+    for x in range(8, 28):
+        px(img, x, 58, REFLECT[2] if x < 14 else REFLECT[1])
+    for x in range(36, 57):
+        px(img, x, 58, REFLECT[1])
+    # ID badge and radio, scaled down to a toy's
+    rect(img, 18, 51, 5, 5, BADGE[0])
+    rect(img, 19, 52, 3, 2, BADGE[1])
+    px(img, 19, 54, HAT[2])
+    rect(img, 41, 50, 5, 7, RADIO[0])
+    rect(img, 42, 51, 3, 2, RADIO[1])
+    vline(img, 44, 46, 4, RADIO[0])
+    px(img, 42, 54, (120, 230, 130, 255))
     if pointing:
-        # raised hand at his left shoulder, index finger up
-        hand = ellipse_mask(55.0, 40.0, 4.2, 4.6)
-        shade_fill(img, hand, SKIN[1:], 54, 39, 4.2, 4.6)
-        rect(img, 53, 30, 3, 7, SKIN[2])
-        vline(img, 53, 30, 7, SKIN[3])
-        vline(img, 55, 31, 6, SKIN[1])
-        px(img, 54, 30, SKIN[4])
-        hline(img, 52, 38, 6, SKIN[1])
-        rect(img, 52, 44, 7, 4, VEST[1])
-        vline(img, 52, 44, 4, VEST[2])
+        # a round mitten waving up beside the hat, one finger out
+        hand = ellipse_mask(54.0, 40.0, 4.6, 4.6)
+        shade_fill(img, hand, SKIN[1:], 53, 38, 4.6, 4.6)
+        rect(img, 53, 31, 3, 6, SKIN[2])
+        vline(img, 53, 31, 6, SKIN[3])
+        px(img, 54, 31, SKIN[4])
+        rect(img, 51, 44, 7, 5, VEST[1])
+        vline(img, 51, 44, 5, VEST[2])
 
 
 def head(img, mouth_open, blink):
-    # neck with a soft shadow under the jaw
-    rect(img, 27, 38, 10, 9, SKIN[2])
-    hline(img, 27, 38, 10, SKIN[1])
-    hline(img, 27, 39, 10, SKIN[1])
-    vline(img, 36, 38, 9, SKIN[1])
-    # ears
-    for (ex, light) in ((16, True), (46, False)):
-        ear = ellipse_mask(ex + 1.0, 29.0, 2.4, 3.6)
-        for (x, y) in ear:
+    # a broad round head, wider than the shoulders
+    for (ex, light) in ((13, True), (49, False)):
+        for (x, y) in ellipse_mask(ex + 1.0, 36.0, 2.6, 3.4):
             px(img, x, y, SKIN[3] if light else SKIN[1])
-        px(img, ex + 1, 29, SKIN[1] if light else SKIN[0])
-    # face: a slightly long oval with a defined jaw
-    face = [p for p in ellipse_mask(32.0, 28.0, 13.5, 14.5) if p[1] < 41]
-    shade_fill(img, face, SKIN, 30, 25, 14, 15, bias=0.15)
-    # jaw shadow on the far side
-    for y in range(31, 41):
-        for x in range(40, 46):
-            if img.getpixel((x, y))[3] and img.getpixel((x, y)) in SKIN[2:]:
-                px(img, x, y, SKIN[1])
-    # hair: short brown, full at the temples and over the ears under the hat,
-    # tapering into sideburns
-    for y in range(19, 31):
+    face = [p for p in ellipse_mask(32.0, 32.0, 18.5, 14.5) if p[1] < 47]
+    shade_fill(img, face, SKIN, 28, 28, 19, 15, bias=0.2)
+    # a little brown hair at the temples under the brim
+    for y in range(22, 31):
         taper = max(0, y - 26)
-        for x in range(16 + taper // 2, 21 - taper):
-            px(img, x, y, HAIR[3] if x == 16 + taper // 2 and y < 24 else
-               HAIR[2] if x < 19 else HAIR[1])
-        for x in range(43 + taper, 48 - taper // 2):
-            px(img, x, y, HAIR[0] if x >= 46 - taper // 2 else HAIR[1])
-    for y in range(21, 26):
-        px(img, 17, y, HAIR[3])
-    # fringe peeking under the brim
-    for x in range(20, 44):
-        if x % 3 != 0:
-            px(img, x, 19, HAIR[1] if x < 32 else HAIR[0])
-    for x in range(21, 30, 2):
-        px(img, x, 20, HAIR[2])
-    # ears over the hair
-    for (ex, light) in ((15, True), (47, False)):
-        for (x, y) in ellipse_mask(ex + 1.0, 30.0, 2.2, 3.4):
-            px(img, x, y, SKIN[3] if light else SKIN[1])
-        px(img, ex + 1, 30, SKIN[1] if light else SKIN[0])
-    # brim shadow across the forehead
+        for x in range(15 + taper, 19 + taper // 2):
+            px(img, x, y, HAIR[2] if x < 17 else HAIR[1])
+        for x in range(46 - taper // 2, 50 - taper):
+            px(img, x, y, HAIR[0])
+    for x in range(21, 43, 3):
+        px(img, x, 23, HAIR[1])
+        px(img, x + 1, 23, HAIR[2])
     for x in range(20, 45):
-        if img.getpixel((x, 20)) in SKIN:
-            px(img, x, 20, SKIN[1])
-    # eyebrows: brown, a friendly arch
-    for (x, y) in ((22, 24), (23, 23), (24, 23), (25, 23), (26, 23), (27, 24)):
-        px(img, x, y, HAIR[0])
-    for (x, y) in ((36, 24), (37, 23), (38, 23), (39, 23), (40, 23), (41, 24)):
-        px(img, x, y, HAIR[0])
-    # eyes
+        if img.getpixel((x, 22)) in SKIN:
+            px(img, x, 22, SKIN[1])
+    # big shiny eyes, wide apart
     if blink:
-        hline(img, 23, 27, 5, EYE_DARK)
-        hline(img, 37, 27, 5, EYE_DARK)
-        px(img, 23, 26, SKIN[1])
-        px(img, 41, 26, SKIN[1])
+        for ex in (22, 38):
+            hline(img, ex, 35, 5, EYE_DARK)
+            px(img, ex, 34, EYE_DARK)
+            px(img, ex + 4, 34, EYE_DARK)
     else:
-        for ex in (23, 37):
-            rect(img, ex, 26, 5, 3, WHITE)
-            rect(img, ex + 1, 26, 3, 3, IRIS[1])
-            px(img, ex + 2, 27, EYE_DARK)
-            px(img, ex + 2, 26, IRIS[0])
-            px(img, ex + 1, 26, WHITE)  # catchlight
-            hline(img, ex, 25, 5, EYE_DARK)  # upper lid line
-            px(img, ex - 1, 26, EYE_DARK)
-    # nose: lit bridge, shadowed side and tip
-    vline(img, 32, 27, 4, SKIN[3])
-    vline(img, 33, 28, 4, SKIN[1])
-    hline(img, 31, 32, 4, SKIN[1])
-    px(img, 30, 32, SKIN[0])
-    px(img, 34, 32, SKIN[0])
-    # cheeks
-    for (x, y) in ((22, 31), (23, 31), (22, 32)):
+        for ex in (22, 38):
+            rect(img, ex, 30, 5, 7, EYE_DARK)
+            px(img, ex, 30, SKIN[2]); px(img, ex + 4, 30, SKIN[2])
+            px(img, ex, 36, SKIN[2]); px(img, ex + 4, 36, SKIN[2])
+            rect(img, ex + 1, 31, 2, 2, WHITE)       # big catchlight
+            px(img, ex + 3, 34, (96, 70, 62, 255))   # small one below
+    # brows, high and soft
+    for (x, y) in ((22, 28), (23, 27), (24, 27), (25, 27), (26, 28)):
+        px(img, x, y, HAIR[0])
+    for (x, y) in ((38, 28), (39, 27), (40, 27), (41, 27), (42, 28)):
+        px(img, x, y, HAIR[0])
+    # cheeks, round and pink
+    for (x, y) in ((18, 38), (19, 38), (20, 38), (19, 39), (20, 39), (18, 39)):
         px(img, x, y, BLUSH)
-    for (x, y) in ((41, 31), (42, 31), (42, 32)):
-        px(img, x, y, (216, 136, 128, 255))
-    # mouth: an easy smile, or mid-word
+    for (x, y) in ((44, 38), (45, 38), (46, 38), (44, 39), (45, 39), (46, 39)):
+        px(img, x, y, BLUSH)
+    # a button nose and a small happy mouth
+    px(img, 32, 37, SKIN[1])
+    px(img, 33, 37, SKIN[1])
+    px(img, 32, 36, SKIN[3])
     if mouth_open:
-        hline(img, 28, 35, 9, MOUTH[0])
-        rect(img, 29, 36, 7, 2, MOUTH[0])
-        hline(img, 29, 35, 7, TEETH)
-        hline(img, 30, 37, 5, MOUTH[1])
-        hline(img, 30, 38, 5, SKIN[1])
+        rect(img, 29, 40, 6, 3, MOUTH[0])
+        hline(img, 30, 40, 4, TEETH)
+        hline(img, 30, 42, 4, MOUTH[1])
     else:
-        hline(img, 28, 35, 9, MOUTH[0])
-        px(img, 27, 34, MOUTH[0])
-        px(img, 37, 34, MOUTH[0])
-        hline(img, 29, 36, 7, SKIN[1])
-    # chin light
-    hline(img, 30, 39, 4, SKIN[3])
+        hline(img, 29, 40, 6, MOUTH[0])
+        px(img, 28, 39, MOUTH[0])
+        px(img, 35, 39, MOUTH[0])
+        hline(img, 30, 41, 4, SKIN[1])
+    hline(img, 29, 45, 6, SKIN[3])
 
 
 def hard_hat(img):
     dome = []
-    for y in range(3, 20):
-        for x in range(14, 51):
-            dx, dy = (x + 0.5 - 32.0) / 17.0, (y + 0.5 - 20.0) / 17.0
+    for y in range(4, 24):
+        for x in range(11, 54):
+            dx, dy = (x + 0.5 - 32.0) / 21.0, (y + 0.5 - 23.0) / 19.0
             if dx * dx + dy * dy <= 1.0:
                 dome.append((x, y))
-    shade_fill(img, dome, HAT[:4], 27, 10, 18, 12, bias=0.1)
-    # centre ridge
-    vline(img, 31, 4, 15, HAT[3])
-    vline(img, 32, 4, 15, HAT[2])
-    vline(img, 33, 4, 15, HAT[1])
-    # brim: wide, lit lip, shadowed under-edge
-    rect(img, 10, 19, 44, 2, HAT[2])
-    hline(img, 10, 19, 44, HAT[3])
-    hline(img, 12, 21, 40, HAT[0])
-    # the terminal's anchor sticker
-    rect(img, 22, 11, 5, 5, (240, 238, 230, 255))
-    vline(img, 24, 12, 3, GOLD)
-    hline(img, 23, 12, 3, GOLD)
-    hline(img, 23, 14, 3, GOLD)
-    # specular glint
-    rect(img, 19, 7, 3, 2, HAT[4])
-    px(img, 22, 6, HAT[4])
-    px(img, 18, 9, HAT[3])
+    shade_fill(img, dome, HAT[:4], 26, 10, 22, 14, bias=0.1)
+    vline(img, 31, 5, 17, HAT[3])
+    vline(img, 32, 5, 17, HAT[2])
+    vline(img, 33, 5, 17, HAT[1])
+    # a short round brim, tipped up at the front
+    rect(img, 9, 21, 46, 2, HAT[2])
+    hline(img, 9, 21, 46, HAT[3])
+    hline(img, 11, 23, 42, HAT[0])
+    # anchor sticker
+    rect(img, 22, 11, 6, 6, (240, 238, 230, 255))
+    vline(img, 25, 12, 4, GOLD)
+    hline(img, 24, 13, 3, GOLD)
+    hline(img, 24, 15, 3, GOLD)
+    rect(img, 17, 8, 4, 2, HAT[4])
+    px(img, 21, 7, HAT[4])
+    px(img, 16, 10, HAT[3])
 
 
 def frame(mouth_open=False, blink=False, pointing=False):
-    img = new_img(64, 64)
-    torso(img, pointing)
-    head(img, mouth_open, blink)
-    hard_hat(img)
-    return selout(img)
+    """Drawn on a 16x16 grid and shown at 4x: each pixel is a 4x4 block, so he
+    is a sign, not a portrait - hat, two dots, a vest."""
+    g = new_img(16, 16)
+    H, V, S = HAT, VEST, SKIN
+    # hard hat: dome, a lit stripe, a wider brim
+    rect(g, 5, 2, 6, 1, H[1]); rect(g, 4, 3, 8, 2, H[2])
+    px(g, 5, 3, H[3]); px(g, 6, 3, H[3]); hline(g, 3, 5, 10, H[1])
+    hline(g, 3, 5, 3, H[2])
+    # face
+    rect(g, 4, 6, 8, 5, S[3]); vline(g, 11, 6, 5, S[2]); hline(g, 4, 10, 8, S[2])
+    if not blink:
+        px(g, 6, 8, EYE_DARK); px(g, 9, 8, EYE_DARK)
+    else:
+        px(g, 6, 8, S[1]); px(g, 9, 8, S[1])
+    px(g, 5, 9, BLUSH); px(g, 10, 9, BLUSH)
+    px(g, 7, 10, MOUTH[0]); px(g, 8, 10, MOUTH[0])
+    if mouth_open:
+        px(g, 7, 9, MOUTH[0]); px(g, 8, 9, MOUTH[0])
+    # body: hi-vis vest around a navy shirt, one reflective stripe
+    rect(g, 2, 11, 12, 5, V[2]); rect(g, 7, 11, 2, 5, POLO[1])
+    hline(g, 2, 13, 12, REFLECT[1]); px(g, 7, 13, POLO[2]); px(g, 8, 13, POLO[2])
+    vline(g, 13, 11, 5, V[1]); hline(g, 2, 11, 12, V[3])
+    if pointing:
+        rect(g, 13, 7, 2, 4, S[3]); px(g, 13, 6, S[3])
+    out = selout(g)
+    big = out.resize((64, 64), 0)  # nearest: chunky pixels on purpose
+    return big
 
 
 def gen_guide():

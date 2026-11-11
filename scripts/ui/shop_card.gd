@@ -30,6 +30,7 @@ var _art_well: PanelContainer
 var _indent: Control
 var _name_label: Label
 var _sub_label: Label
+var _lock: TextureRect
 var _count_stamp: PanelContainer
 var _count_label: Label
 var _price_stamp: PanelContainer
@@ -93,7 +94,19 @@ func setup(item_id: String, item_kind: String, art_key: String,
 	_name_label = UiTheme.label(title, UiTheme.SIZE_BODY, UiTheme.INK)
 	_name_label.clip_text = true
 	_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	text_col.add_child(_name_label)
+	_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# A padlock before the name when something is shutting the card: red words
+	# say why, the lock says "shut" before they are read.
+	var name_row := HBoxContainer.new()
+	name_row.add_theme_constant_override(&"separation", 3)
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	text_col.add_child(name_row)
+	_lock = UiTheme.icon(UiTheme.Icon.LOCK)
+	_lock.visible = false
+	_lock.modulate = UiTheme.DANGER
+	_lock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	name_row.add_child(_lock)
+	name_row.add_child(_name_label)
 
 	_sub_label = UiTheme.label(description, UiTheme.SIZE_SMALL,
 		UiTheme.INK_SOFT)
@@ -159,6 +172,7 @@ func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false,
 	# whose prerequisite was just bought does exactly that — so the silhouette
 	# `show_gated` applied has to come back off here rather than only at build.
 	_art.modulate = Color.WHITE
+	_lock.visible = false
 	if sold_out:
 		_price_label.text = "PRONTO"
 		_price_label.label_settings.font_color = UiTheme.TEAL_LIGHT
@@ -279,8 +293,9 @@ func show_gated(reason: String, cost: float) -> void:
 	## ahead and decide what to aim at, and a row that will not say what blocks it
 	## is worse than a row that is not drawn at all.
 	_sub_label.text = reason
-	_sub_label.label_settings.font_color = UiTheme.INK_SOFT
+	_sub_label.label_settings.font_color = UiTheme.DANGER
 	_name_label.label_settings.font_color = UiTheme.INK_SOFT
+	_lock.visible = true
 	_count_stamp.visible = false
 	_price_label.text = GameState.fmt(cost)
 	_price_label.label_settings.font_color = UiTheme.SLATE_DIM

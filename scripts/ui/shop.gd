@@ -1470,8 +1470,13 @@ func _refresh() -> void:
 			continue
 		# A machine waiting on ground says so on its own card, with the name of
 		# the parcel. Greying it out and saying nothing is the same as a bug.
-		card.set_effect(Loc.t("shop.requires",
-			{"name": str(gate.get("name", ""))}) if not gate.is_empty() else "")
+		if not gate.is_empty():
+			card.set_effect("")
+			card.show_gated(Loc.t("shop.needs_land",
+				{"name": str(gate.get("name", ""))}),
+				float(quote.get("total_cost", INF)))
+			continue
+		card.set_effect("")
 		card.refresh(float(quote.get("total_cost", INF)), count,
 			bool(quote.get("ok", false)), false,
 			int(quote.get("quantity", 0)),

@@ -231,7 +231,7 @@ func _test_prize_amount_uses_base_cps_and_the_floor() -> void:
 func _test_snapshot_restore_round_trip() -> void:
 	var w := _new_wheel(1000.0)
 	var rng := _seeded_rng(17)
-	w.tokens = 4
+	w.tokens = 2
 	w.departures = 2
 	w.spin(2000.0, rng) # the free spin is ready at 1000, so this is a free spin
 	w.spins_total = 9
@@ -239,7 +239,7 @@ func _test_snapshot_restore_round_trip() -> void:
 	var snap := w.snapshot()
 	var copy := LuckyWheel.new()
 	copy.restore(snap)
-	_expect(copy.tokens == 4 and copy.departures == 2
+	_expect(copy.tokens == 2 and copy.departures == 2
 		and copy.spins_total == 9 and copy.jackpots == 1, "the counters come back")
 	_expect(is_equal_approx(copy.next_free_unix, w.next_free_unix), "the clock comes back")
 	_expect(not copy.pending.is_empty() and copy.pending == w.pending,
@@ -303,8 +303,8 @@ func _test_the_service_registers_and_spins() -> void:
 	EventBus.ship_departed.emit()
 	EventBus.ship_departed.emit()
 	EventBus.ship_departed.emit()
-	_expect(earned[0] == 1, "three departures earn one token signal")
-	_expect(_service.wheel.tokens == 1, "and one token on the wheel")
+	_expect(earned[0] == 0 and _service.wheel.tokens == 0,
+		"ships no longer feed the wheel: it is rare on purpose")
 	_service.claim_and_apply() # clear the pending prize so later tests start clean
 	_done("service_spin")
 

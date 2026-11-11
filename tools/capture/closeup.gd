@@ -104,6 +104,15 @@ func _stage(scenario: String) -> Vector2:
 				rail.send_away()
 				await get_tree().create_timer(2.6).timeout
 			return Vector2(PortLayout.WORLD_W * 0.5, PortLayout.rail_y() - 4.0)
+		"levelup", "levelup_feature":
+			# The level-up card with the ad offer: level 6 opens the wheel, 4 nothing.
+			var target := 6 if scenario == "levelup_feature" else 4
+			var rules: TerminalLevel = _main.level_service.rules
+			rules.level = target - 1
+			rules.xp = TerminalLevel.xp_for_level(target) - 1
+			_main.level_service._add(1)
+			await get_tree().create_timer(0.8).timeout
+			return Vector2(-1, -1)
 		"gull":
 			# A golden gull mid-crossing, held still so the shot shows the bird
 			# and its trail rather than wherever it had flown to.
@@ -133,6 +142,24 @@ func _stage(scenario: String) -> Vector2:
 				tour._show_step()
 				tour._body.visible_characters = -1
 			await get_tree().create_timer(1.0).timeout
+			return Vector2(-1, -1)
+		"wheel_panel", "shop_lock":
+			# The wheel board waiting on its clock, or the shop with a machine
+			# shut behind an unbought parcel.
+			if scenario == "wheel_panel":
+				_main.wheel_service.wheel.next_free_unix = \
+					Time.get_unix_time_from_system() + 5.0 * 3600.0 + 1900.0
+				_main.wheel_panel.open()
+			else:
+				GameState.land.clear()
+				GameState.lifetime_teus = 1.0e9
+				GameState.teus = 1.0e9
+				if not _main.shop.visible:
+					_main.shop.toggle()
+				await get_tree().create_timer(0.6).timeout
+				_main.shop._on_tab("structures")
+				_main.shop._refresh()
+			await get_tree().create_timer(1.2).timeout
 			return Vector2(-1, -1)
 		"fresh_played":
 			# Thirty taps into a new profile: the port a player has after their

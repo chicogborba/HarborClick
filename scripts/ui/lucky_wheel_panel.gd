@@ -128,20 +128,20 @@ func _ready() -> void:
 	_column.add_child(_detail)
 
 	_spin_button = UiTheme.button(Loc.t("wheel.spin"), &"amber")
-	_spin_button.custom_minimum_size.y = UiTheme.TOUCH_MIN
+	_spin_button.custom_minimum_size.y = 34.0
 	_spin_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_spin_button.pressed.connect(_on_spin_pressed)
 	_column.add_child(_spin_button)
 	_ad_spin_button = UiTheme.button(Loc.t("wheel.ad_spin"), &"steel", UiTheme.SIZE_SMALL)
 	_ad_spin_button.icon = UiTheme.icon16_texture(UiTheme.Icon16.AD)
-	_ad_spin_button.custom_minimum_size.y = UiTheme.TOUCH_MIN
+	_ad_spin_button.custom_minimum_size.y = 28.0
 	_ad_spin_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_ad_spin_button.pressed.connect(_on_ad_spin)
 	_ad_spin_button.visible = false
 	_column.add_child(_ad_spin_button)
 	_ad_double_button = UiTheme.button(Loc.t("wheel.ad_double"), &"steel", UiTheme.SIZE_SMALL)
 	_ad_double_button.icon = UiTheme.icon16_texture(UiTheme.Icon16.AD)
-	_ad_double_button.custom_minimum_size.y = UiTheme.TOUCH_MIN
+	_ad_double_button.custom_minimum_size.y = 28.0
 	_ad_double_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_ad_double_button.pressed.connect(_on_ad_double)
 	_ad_double_button.visible = false
@@ -560,6 +560,13 @@ func _process(delta: float) -> void:
 	_update_burst(delta)
 
 
+static func _hm(seconds: float) -> String:
+	## Hours and minutes, rounded up so the clock never shows 0m while waiting.
+	var minutes := ceili(seconds / 60.0)
+	return "%dh %02dm" % [minutes / 60, minutes % 60] if minutes >= 60 \
+		else "%dm" % maxi(1, minutes)
+
+
 func _refresh_status() -> void:
 	if _service == null or _service.wheel == null or _status == null:
 		return
@@ -576,9 +583,14 @@ func _refresh_status() -> void:
 		else Loc.t("wheel.next_free", {"time": time_str})
 	_status.text = "%s  •  %s" % [Loc.t("wheel.tokens", {"n": wheel.tokens}), state]
 	if _earn != null:
-		_earn.text = Loc.t("wheel.earn", {"have": str(wheel.departures),
-			"need": str(LuckyWheel.DEPARTURES_PER_TOKEN)})
+		_earn.text = Loc.t("wheel.earn",
+			{"left": str(maxi(0, AdService.remaining_today(&"wheel_spin")))})
 	_spin_button.disabled = _spinning or not wheel.can_spin(now)
+	# The wait is the button's own face: a dead key with no clock gives no reason
+	# to come back, a clock that says "5h 32m" does.
+	if not _spinning and wheel.pending.is_empty():
+		_spin_button.text = Loc.t("wheel.spin") if wheel.can_spin(now) \
+			else Loc.t("wheel.spin_in", {"time": _hm(wait)})
 	# Nothing to spin with, and an ad may stand in for a token.
 	_ad_spin_button.visible = not _spinning and wheel.pending.is_empty() \
 		and not wheel.can_spin(now) and AdService.available(&"wheel_spin")

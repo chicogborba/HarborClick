@@ -130,7 +130,7 @@ func _reset_service() -> void:
 
 func _test_placements_table() -> void:
 	var expected := {
-		&"wheel_spin": [5, 600.0],
+		&"wheel_spin": [3, 1800.0],
 		&"wheel_double": [0, 0.0],
 		&"minigame_retry": [0, 0.0],
 		&"minigame_play": [3, 0.0],
@@ -139,9 +139,10 @@ func _test_placements_table() -> void:
 		&"gull_double": [0, 0.0],
 		&"mission_reroll": [1, 0.0],
 		&"boost_2x": [6, 0.0],
+		&"level_bonus": [0, 20.0],
 	}
 	_expect(AdPolicy.PLACEMENTS.size() == expected.size(),
-		"nine placements are declared (%d)" % AdPolicy.PLACEMENTS.size())
+		"ten placements are declared (%d)" % AdPolicy.PLACEMENTS.size())
 	for id in expected.keys():
 		_expect(AdPolicy.PLACEMENTS.has(id), "placement %s exists" % String(id))
 		var rule: Dictionary = AdPolicy.PLACEMENTS.get(id, {})
@@ -156,11 +157,11 @@ func _test_daily_cap() -> void:
 	var p := AdPolicy.new()
 	p.restore(AdPolicy.seed_new(100))
 	_expect(p.can_show(&"wheel_spin", 1000.0, 100), "the first show of the day is allowed")
-	_expect(p.remaining_today(&"wheel_spin", 100) == 5, "five left before any show")
-	for i in 5:
-		p.note_shown(&"wheel_spin", 1000.0 + 700.0 * i, 100)
+	_expect(p.remaining_today(&"wheel_spin", 100) == 3, "three left before any show")
+	for i in 3:
+		p.note_shown(&"wheel_spin", 1000.0 + 2000.0 * i, 100)
 	_expect(p.remaining_today(&"wheel_spin", 100) == 0, "none left at the cap")
-	_expect(not p.can_show(&"wheel_spin", 4500.0, 100), "the sixth show is refused")
+	_expect(not p.can_show(&"wheel_spin", 8000.0, 100), "the fourth show is refused")
 	_done("daily_cap")
 
 
@@ -181,11 +182,11 @@ func _test_cooldown() -> void:
 func _test_day_rollover() -> void:
 	var p := AdPolicy.new()
 	p.restore(AdPolicy.seed_new(100))
-	for i in 5:
-		p.note_shown(&"wheel_spin", 1000.0 + 700.0 * i, 100)
-	_expect(not p.can_show(&"wheel_spin", 4500.0, 100), "capped on day 100")
-	_expect(p.can_show(&"wheel_spin", 4500.0, 101), "the next local day resets the cap")
-	_expect(p.remaining_today(&"wheel_spin", 101) == 5, "all five shows are back")
+	for i in 3:
+		p.note_shown(&"wheel_spin", 1000.0 + 2000.0 * i, 100)
+	_expect(not p.can_show(&"wheel_spin", 8000.0, 100), "capped on day 100")
+	_expect(p.can_show(&"wheel_spin", 8000.0, 101), "the next local day resets the cap")
+	_expect(p.remaining_today(&"wheel_spin", 101) == 3, "all three shows are back")
 	# The cooldown clock is wall-clock, so it survives the midnight rollover.
 	var q := AdPolicy.new()
 	q.restore(AdPolicy.seed_new(100))
@@ -237,10 +238,10 @@ func _test_reward_once() -> void:
 	_expect(_granted.size() == 1 and _granted[0] == &"wheel_spin",
 		"reward_granted fired once for the placement")
 	_expect(_availability[0] >= 1, "availability_changed fired")
-	_expect(AdService.remaining_today(&"wheel_spin") == 4, "the show spent one of the five")
+	_expect(AdService.remaining_today(&"wheel_spin") == 2, "the show spent one of the three")
 	_expect(not AdService._showing, "the service is idle after the finish")
 	var wait := AdService.seconds_until(&"wheel_spin")
-	_expect(wait > 590.0 and wait <= 600.0, "the 10-minute cooldown counts down (%.1f)" % wait)
+	_expect(wait > 1790.0 and wait <= 1800.0, "the 30-minute cooldown counts down (%.1f)" % wait)
 	_expect(not AdService.available(&"wheel_spin"), "and blocks a second show")
 	_expect(not AdService.show_rewarded(&"wheel_spin", func(): _rewards[0] += 1),
 		"show_rewarded refuses on cooldown")
@@ -313,7 +314,7 @@ func _test_cap_blocks_service() -> void:
 	AdService.set_provider(FakeProvider.new())
 	var now := Time.get_unix_time_from_system()
 	var day := AdService._current_day()
-	for i in 5:
+	for i in 3:
 		AdService.policy.note_shown(&"wheel_spin", now, day)
 	_expect(AdService.remaining_today(&"wheel_spin") == 0, "the daily cap is spent")
 	_expect(not AdService.available(&"wheel_spin"), "not available at the cap")
@@ -335,7 +336,7 @@ func _test_snapshot_roundtrip() -> void:
 	var q := AdPolicy.new()
 	q.restore(p.snapshot())
 	_expect(q.day == 100 and q.no_ads_pass, "the day and the pass flag survive")
-	_expect(q.remaining_today(&"wheel_spin", 100) == 3, "the daily counts survive")
+	_expect(q.remaining_today(&"wheel_spin", 100) == 1, "the daily counts survive")
 	_expect(is_equal_approx(q.seconds_until(&"build_speed", 1210.0, 100), 20.0),
 		"the cooldown clock survives")
 	_expect(not q.can_show(&"wheel_spin", 2000.0, 100), "the cap state survives")
@@ -352,7 +353,7 @@ func _test_garbage_restore() -> void:
 	}})
 	_expect(p.day == 0, "a garbage day reads as zero")
 	_expect(p.no_ads_pass, "a truthy pass flag survives")
-	_expect(p.remaining_today(&"wheel_spin", 0) == 5, "a garbage count reads as zero shows")
+	_expect(p.remaining_today(&"wheel_spin", 0) == 3, "a garbage count reads as zero shows")
 	_expect(is_zero_approx(p.seconds_until(&"wheel_spin", 100.0, 0)),
 		"a garbage clock reads as never shown")
 	_expect(p.can_show(&"build_speed", 100.0, 0),
@@ -364,9 +365,9 @@ func _test_garbage_restore() -> void:
 		"a negative clock is clamped to never")
 	_expect(not p._state.has(&"ghost"), "unknown placements are dropped")
 	p.restore({"state": 42})
-	_expect(p.remaining_today(&"wheel_spin", 0) == 5, "a non-dictionary state is ignored")
+	_expect(p.remaining_today(&"wheel_spin", 0) == 3, "a non-dictionary state is ignored")
 	p.restore({})
-	_expect(p.day == 0 and p.remaining_today(&"wheel_spin", 0) == 5,
+	_expect(p.day == 0 and p.remaining_today(&"wheel_spin", 0) == 3,
 		"an empty save is a valid save")
 	_done("garbage_restore")
 
@@ -376,7 +377,7 @@ func _test_seed_new() -> void:
 	p.restore(AdPolicy.seed_new(4242))
 	_expect(p.day == 4242, "the seed day is kept")
 	_expect(not p.no_ads_pass, "a new profile has no pass")
-	_expect(p.remaining_today(&"wheel_spin", 4242) == 5, "and every cap is full")
+	_expect(p.remaining_today(&"wheel_spin", 4242) == 3, "and every cap is full")
 	_expect(p.can_show(&"wheel_spin", 0.0, 4242), "and the first show is allowed")
 	_done("seed_new")
 

@@ -1,7 +1,8 @@
 class_name LuckyWheel
 extends RefCounted
-## The rules of the Roda da Sorte: eight segments, one free spin every four
-## hours, and a token for every third ship that leaves the berth.
+## The rules of the Roda da Sorte: eight segments and two free spins a real
+## day (one every twelve hours). More spins are tokens, and tokens are scarce:
+## a daily mission, a rare respin segment, or a rewarded video.
 ##
 ## Pure rules — no nodes, no autoloads, no clock of its own. Every moment is
 ## passed in as `now_unix` and every roll comes from a caller-owned RNG, so a
@@ -14,20 +15,22 @@ extends RefCounted
 ## Clockwise from the top: index 0 sits under the pointer at rotation 0.
 ## The weights sum to 100, so a weight is a percentage.
 const SEGMENTS: Array[Dictionary] = [
-	{"id": &"cash_s", "kind": &"cash", "seconds": 90.0, "weight": 26},
-	{"id": &"surge2", "kind": &"surge", "mult": 2.0, "seconds": 90.0, "weight": 18},
+	{"id": &"cash_s", "kind": &"cash", "seconds": 90.0, "weight": 34},
+	{"id": &"surge2", "kind": &"surge", "mult": 2.0, "seconds": 90.0, "weight": 20},
 	{"id": &"cash_m", "kind": &"cash", "seconds": 360.0, "weight": 16},
-	{"id": &"respin", "kind": &"token", "tokens": 1, "weight": 12},
+	{"id": &"respin", "kind": &"token", "tokens": 1, "weight": 4},
 	{"id": &"jackpot", "kind": &"cash", "seconds": 3600.0, "weight": 3},
 	{"id": &"surge3", "kind": &"surge", "mult": 3.0, "seconds": 60.0, "weight": 12},
 	{"id": &"cash_l", "kind": &"cash", "seconds": 1200.0, "weight": 6},
 	{"id": &"frenzy", "kind": &"surge", "mult": 7.0, "seconds": 30.0, "weight": 7},
 ]
-## One free spin every four real hours, on the wall clock the save remembers.
-const FREE_SPIN_INTERVAL := 4.0 * 3600.0
-## Every third departure earns a token.
+## One free spin every twelve real hours - two a day - on the wall clock the
+## save remembers. A rare wheel is one the player comes back for.
+const FREE_SPIN_INTERVAL := 12.0 * 3600.0
+## The rules still count departures, but the service no longer feeds them: ships
+## are the most frequent event in the game and made the wheel a faucet.
 const DEPARTURES_PER_TOKEN := 3
-const MAX_TOKENS := 9
+const MAX_TOKENS := 3
 ## A cash prize is seconds of the port's own income — never less than this, so
 ## a spin in an empty port is still a spin that pays something.
 const MIN_PRIZE_CPS := 0.5

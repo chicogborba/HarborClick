@@ -9,8 +9,8 @@ extends CanvasLayer
 
 signal pressed
 
-## 44: the smallest target a thumb hits reliably. The badge stays 24.
-const SIZE := 44.0
+## 34: a quiet key; the badge stays 24 so the art keeps its pixels.
+const SIZE := 34.0
 const BADGE := 24.0
 const TEX_BADGE := preload("res://assets/sprites/ui_wheel_badge.png")
 

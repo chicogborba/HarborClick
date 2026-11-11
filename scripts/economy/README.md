@@ -73,8 +73,8 @@ rebuild pays on day 2. The levers, in the order they matter:
 Every loop has to pay into another one, or the player is right to ignore it:
 
 - **Levels** open features up to 18, and *every* level also pays +2% production
-  (`GameState.level_multiplier`, "Nível" in the rate breakdown) and a wheel
-  token. Levels 19-30 used to pay nothing at all.
+  (`GameState.level_multiplier`, "Nível" in the rate breakdown). Levels no longer
+  pay wheel tokens: the wheel is rare on purpose.
 - **Achievements** pay Terminal XP (40, or 80/160/240 for the bigger ones) on
   top of +1% production each. They used to promise "coleção" cosmetics and
   "carreira" points that existed nowhere in the game.
@@ -88,8 +88,9 @@ Every loop has to pay into another one, or the player is right to ignore it:
 ## Roda da Sorte
 
 `lucky_wheel.gd` (`LuckyWheel`) is the rules and nothing else: eight segments
-with weights that sum to 100, one free spin every four real hours, a token for
-every third ship that leaves (at most nine banked). Every moment comes in as a
+with weights that sum to 100, two free spins a real day (one every twelve hours). Extra spins are
+tokens (at most three banked): a daily mission, the rare respin segment, or the
+`wheel_spin` rewarded video (3 a day, 30 min apart). Ships no longer feed it. Every moment comes in as a
 `now_unix` argument and every roll from a caller's RNG, so the suite fakes both.
 
 `wheel_service.gd` (`WheelService`) is the live node `Main` creates first. It

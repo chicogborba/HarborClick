@@ -18,6 +18,12 @@ const FEATURE_NAMES := {
 	&"prestige": "level.feature.prestige",
 }
 
+## Inside width of the card in px; the labels wrap to it.
+const CARD_INNER := 236.0
+## From this level on the card offers a rewarded bonus. The first levels land in
+## the first minutes: a new player is shown the game, not an ad.
+const AD_FROM_LEVEL := 3
+
 var _service: TerminalLevelService
 var _badge: PanelContainer
 var _level_label: Label
@@ -26,6 +32,9 @@ var _card: PanelContainer
 var _card_title: Label
 var _card_text: Label
 var _card_reward: Label
+var _card_ad: Button
+var _card_tween: Tween
+var _card_level := 1
 var _queue: Array[Array] = []
 var _showing := false
 var _safe_rect := Rect2()
@@ -65,14 +74,23 @@ func _ready() -> void:
 	_card_title = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.TEAL_DEEP)
 	_card_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(_card_title)
-	_card_text = UiTheme.label("", UiTheme.SIZE_TITLE, UiTheme.INK)
+	# Wrapped, never clipped: a long feature name or a longer translation must
+	# grow the card, not lose its ends. The label's width is the card's inside.
+	_card_text = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK)
 	_card_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_card_text.clip_text = true
+	_card_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_card_text.custom_minimum_size.x = CARD_INNER
 	col.add_child(_card_text)
 	_card_reward = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.AMBER_DEEP)
 	_card_reward.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_card_reward.clip_text = true
+	_card_reward.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_card_reward.custom_minimum_size.x = CARD_INNER
 	col.add_child(_card_reward)
+	_card_ad = UiTheme.button("", &"amber", UiTheme.SIZE_SMALL)
+	_card_ad.icon = UiTheme.icon16_texture(UiTheme.Icon16.AD)
+	_card_ad.visible = false
+	_card_ad.pressed.connect(_on_ad_pressed)
+	col.add_child(_card_ad)
 	add_child(_card)
 	refresh()
 	_layout()
@@ -115,30 +133,70 @@ func _show_next() -> void:
 	for f in features:
 		if FEATURE_NAMES.has(f):
 			names.append(Loc.t(str(FEATURE_NAMES[f])))
-	# Every level pays, so every level gets its card: what it opened (if
-	# anything) and the bonus every level carries.
-	_card_title.text = Loc.t("level.up", {"n": str(entry[0])})
-	_card_text.text = ", ".join(names)
-	_card_text.visible = not names.is_empty()
+	# Every level pays, so every level gets its card: what it opened (or a word
+	# from the crew when it opened nothing) and the bonus every level carries.
+	_card_level = int(entry[0])
+	_card_title.text = Loc.t("level.up", {"n": str(_card_level)})
+	if names.is_empty():
+		_card_text.text = Loc.t("level.flavor.%d" % (1 + _card_level % 3))
+	else:
+		_card_text.text = Loc.t("level.new", {"names": ", ".join(names)})
 	_card_reward.text = Loc.t("level.reward")
+	# One offer per card, on the last of a queued batch, and only when the ad
+	# service would show it: the card never advertises what cannot play.
+	var minutes := _bonus_seconds(_card_level) / 60
+	var offer := _queue.is_empty() and _card_level >= AD_FROM_LEVEL \
+		and AdService.available(&"level_bonus")
+	_card_ad.visible = offer
+	_card_ad.text = Loc.t("level.ad", {"min": str(minutes)})
+	_card_ad.accessibility_name = _card_ad.text
+	_card.mouse_filter = Control.MOUSE_FILTER_PASS if offer else Control.MOUSE_FILTER_IGNORE
 	_card.visible = true
 	_layout()
 	AudioManager.play_sfx("achievement", 0.0, -3.0)
 	Fx.haptic(30)
+	var hold := 6.5 if offer else 2.4
+	if _card_tween != null:
+		_card_tween.kill()
 	if not UserPreferences.can_animate():
 		_card.modulate.a = 1.0
-		get_tree().create_timer(2.6).timeout.connect(_hide_card)
+		_card_tween = _card.create_tween()
+		_card_tween.tween_interval(hold + 0.2)
+		_card_tween.tween_callback(_hide_card)
 		return
 	var home := _card.position
 	_card.position = home - Vector2(0.0, 24.0)
 	_card.modulate.a = 0.0
-	var tween := _card.create_tween()
-	tween.tween_property(_card, "position", home, 0.25) \
+	_card_tween = _card.create_tween()
+	_card_tween.tween_property(_card, "position", home, 0.25) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(_card, "modulate:a", 1.0, 0.15)
-	tween.tween_interval(2.4)
-	tween.tween_property(_card, "modulate:a", 0.0, 0.3)
-	tween.tween_callback(_hide_card)
+	_card_tween.parallel().tween_property(_card, "modulate:a", 1.0, 0.15)
+	_card_tween.tween_interval(hold)
+	_card_tween.tween_property(_card, "modulate:a", 0.0, 0.3)
+	_card_tween.tween_callback(_hide_card)
+
+
+static func _bonus_seconds(level: int) -> int:
+	## Two minutes of double output; every fifth level is a milestone and pays
+	## five. Short enough to be a treat, long enough to be noticed on the counter.
+	return 300 if level % 5 == 0 else 120
+
+
+func _on_ad_pressed() -> void:
+	var level := _card_level
+	var seconds := _bonus_seconds(level)
+	var shown := AdService.show_rewarded(&"level_bonus", func() -> void:
+		GameState.grant_surge(2.0, float(seconds))
+		EventBus.notification_requested.emit({
+			"id": "level_bonus", "kind": &"milestone", "priority": 1,
+			"text": Loc.t("level.ad.done", {"min": str(seconds / 60)}),
+		}))
+	if shown:
+		# Whatever the ad does, the card has said its piece.
+		_card_ad.visible = false
+		if _card_tween != null:
+			_card_tween.kill()
+		_hide_card()
 
 
 func _hide_card() -> void:

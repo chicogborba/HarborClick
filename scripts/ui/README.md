@@ -29,6 +29,9 @@ Entry points:
 - `level_hud.gd` — the terminal level badge (level + XP bar) under the gantry,
   and the unlock ceremony: when a level opens features, a card drops from the
   top naming them, queued one per level. Feature names map in `FEATURE_NAMES`.
+  The card wraps its text (never clips it) and, from level 3 on, carries one
+  rewarded offer — `level_bonus`: output x2 for 2 min (5 min every fifth level),
+  shown on the last card of a queued batch and only when `AdService` would play it.
 - `boost_chips.gd` — every active multiplier as a chip with its countdown: the
   luck surge and the tap combo. (The Capataz skill bar was removed: three
   cooldown keys over the port that nobody understood.)
