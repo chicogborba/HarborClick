@@ -28,7 +28,7 @@ signal tip_closed(id: String)
 
 ## `until`: "ok" waits for a tap, "ready" for the `wait` callback, "taps" for
 ## `goal` paid taps, "shop_open" for the shop sheet, "buy" for a machine
-## purchase. `target` is a key Main resolves to a screen rect; empty means he
+## purchase, "journal_open" for the challenges board. `target` is a key Main resolves to a screen rect; empty means he
 ## stands centre stage and nothing gets through the veil.
 const STEPS := [
 	{"id": "intro", "say": "guide.intro", "until": "ok", "target": ""},
@@ -40,12 +40,16 @@ const STEPS := [
 	{"id": "teu", "say": "guide.teu", "until": "ok", "target": "teu"},
 	{"id": "loja", "say": "guide.shop", "until": "shop_open", "target": "shop"},
 	{"id": "compra", "say": "guide.buy", "until": "buy", "target": "shop_card"},
-	{"id": "desafios", "say": "guide.challenges", "until": "ok",
+	# Waits for the board itself: a tap on the highlighted key went through to
+	# the key and opened the board under the veil, while the step sat waiting
+	# for a tap on the veil — the tour looked frozen on its last screen.
+	{"id": "desafios", "say": "guide.challenges", "until": "journal_open",
 		"target": "journal_key"},
 	{"id": "fim", "say": "guide.done", "until": "ok", "target": ""},
 ]
 
 const BODY := preload("res://assets/sprites/ui_guide_body.png")
+const BALL := preload("res://assets/sprites/ui_guide_ball.png")
 ## One cell of the body sheet and the scale it is drawn at: big flat pixels.
 const CELL := Vector2(18, 22)
 const SCALE := 3.0
@@ -58,7 +62,7 @@ const F_TALK := 5
 const F_WAVE := 6
 ## Characters per second of the typed line; one voice blip every few letters.
 const TYPE_SPEED := 40.0
-const BLIP_EVERY := 2
+const BLIP_EVERY := 3
 const MOUTH_PERIOD := 0.1
 ## A hop: how far one covers, how long it takes, how high it goes.
 const HOP_LEN := 72.0
@@ -85,6 +89,17 @@ var _skip: Button
 var _typed := 0.0
 var _blipped := 0
 var _anim_t := 0.0
+## Personality: a shadow on the quay, squash on landing, a little hop of
+## excitement at every new line, a "!" when he arrives with news, and the
+## futsal ball he keeps up while he waits. He is the futsal star, after all.
+var _shadow: _Shadow
+var _ball: TextureRect
+var _excl: Label
+var _ground_y := 0.0
+var _squash := 0.0
+var _perk := 0.0
+var _excl_t := 0.0
+var _juggle_t := 0.0
 
 ## Where he stands (top-left of the sprite) and where he is hopping to.
 var _pos := Vector2.ZERO
@@ -126,7 +141,26 @@ func _ready() -> void:
 	_walker.size = CELL * SCALE
 	_walker.mouse_filter = Control.MOUSE_FILTER_STOP
 	_walker.gui_input.connect(_on_panel_input)
+	_walker.pivot_offset = Vector2(CELL.x * SCALE * 0.5, CELL.y * SCALE)
+	_shadow = _Shadow.new()
+	_shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_shadow)
 	add_child(_walker)
+	_ball = TextureRect.new()
+	_ball.texture = BALL
+	_ball.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_ball.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_ball.stretch_mode = TextureRect.STRETCH_SCALE
+	_ball.size = Vector2(18, 18)
+	_ball.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ball.visible = false
+	add_child(_ball)
+	_excl = UiTheme.label("!", UiTheme.SIZE_HUGE, UiTheme.AMBER)
+	_excl.add_theme_color_override(&"font_outline_color", UiTheme.HULL_EDGE)
+	_excl.add_theme_constant_override(&"outline_size", 6)
+	_excl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_excl.visible = false
+	add_child(_excl)
 
 	_bubble = UiTheme.panel(UiTheme.board_style(6), false)
 	_bubble.gui_input.connect(_on_panel_input)
@@ -341,6 +375,10 @@ func _process(delta: float) -> void:
 				if bool(_call(&"shop_open", false)):
 					next()
 					return
+			"journal_open":
+				if bool(_call(&"journal_open", false)):
+					next()
+					return
 			"buy":
 				# Closed the shop without buying: point at the key again.
 				if not bool(_call(&"shop_open", true)):
@@ -366,8 +404,7 @@ func _process(delta: float) -> void:
 			_dest = spot
 	_move(delta)
 	_animate(delta)
-	_walker.position = _pos.round()
-	_walker.flip_h = _facing_left
+	_stage_body(delta)
 	_layout_bubble()
 
 
@@ -382,7 +419,7 @@ func _type(delta: float) -> void:
 		_blipped = shown
 		var ch := _body.text.substr(maxi(0, shown - 1), 1)
 		if ch != " ":
-			AudioManager.play_sfx("voice", 0.07, -7.0)
+			AudioManager.play_sfx("voice", 0.12, -3.0)
 	if _body.visible_characters >= _body.get_total_character_count():
 		_body.visible_characters = -1
 
@@ -409,17 +446,76 @@ func _move(delta: float) -> void:
 	_hop_t += delta
 	var k := clampf(_hop_t / total, 0.0, 1.0)
 	var within := fmod(_hop_t, HOP_TIME) / HOP_TIME if k < 1.0 else 1.0
+	_ground_y = _from.lerp(_dest, k).y
 	_pos = _from.lerp(_dest, k) - Vector2(0.0, sin(within * PI) * HOP_HEIGHT)
 	if int(_hop_t / HOP_TIME) != before and k < 1.0:
-		# A soft boot on the quay at every landing.
+		# A soft boot on the quay at every landing, and a squash.
 		AudioManager.play_sfx("tap", 0.2, -16.0)
+		_squash = 0.12
 	if k >= 1.0:
 		_hop_t = -1.0
 		_pos = _dest
+		_ground_y = _dest.y
+		_squash = 0.14
 		if _on_gone.is_valid():
 			var done := _on_gone
 			_on_gone = Callable()
 			done.call()
+
+
+func _stage_body(delta: float) -> void:
+	## Everything that makes him a character rather than a sprite in a box.
+	var me := CELL * SCALE
+	if _hop_t < 0.0:
+		_ground_y = _pos.y
+	var animate := UserPreferences.can_animate()
+	# A little hop of excitement when a new line starts.
+	var lift := 0.0
+	if _perk > 0.0 and animate:
+		_perk = maxf(0.0, _perk - delta)
+		lift = sin((1.0 - _perk / 0.24) * PI) * 10.0
+	# Squash on landing, stretch in the air.
+	var sc := Vector2.ONE
+	if animate:
+		if _squash > 0.0:
+			_squash = maxf(0.0, _squash - delta)
+			var q := _squash / 0.14
+			sc = Vector2(1.0 + 0.2 * q, 1.0 - 0.2 * q)
+		elif _hop_t >= 0.0:
+			sc = Vector2(0.92, 1.1)
+	_walker.scale = sc
+	_walker.position = (_pos - Vector2(0.0, lift)).round()
+	_walker.flip_h = _facing_left
+	# The shadow stays on the quay and shrinks while he is up in the air.
+	var height := clampf((_ground_y - _pos.y + lift) / HOP_HEIGHT, 0.0, 1.0)
+	var w := (me.x - 12.0) * (1.0 - 0.35 * height)
+	_shadow.position = Vector2(_pos.x + (me.x - w) * 0.5, _ground_y + me.y - 7.0).round()
+	_shadow.size = Vector2(w, 9.0)
+	_shadow.queue_redraw()
+	# The "!" pops over his hat when he arrives with something to say.
+	if _excl_t > 0.0:
+		_excl_t = maxf(0.0, _excl_t - delta)
+		_excl.visible = true
+		var pop := 1.0 + 0.4 * maxf(0.0, (_excl_t - 0.6) / 0.2)
+		_excl.scale = Vector2(pop, pop)
+		_excl.position = (_walker.position + Vector2(me.x * 0.5 + 10.0, -34.0)).round()
+	else:
+		_excl.visible = false
+	# Keepy-uppy while he waits: off his boot, up, and back down.
+	var idle := _hop_t < 0.0 and not _typing() and not _on_gone.is_valid() \
+		and _target_key().is_empty() and animate
+	_ball.visible = idle
+	if idle:
+		var before := sin(_juggle_t * 5.0)
+		_juggle_t += delta
+		var phase := sin(_juggle_t * 5.0)
+		if (before < 0.0) != (phase < 0.0) and phase > 0.0:
+			AudioManager.play_sfx("tap", 0.15, -22.0)
+		var foot_x := _pos.x + (me.x * 0.2 if _facing_left else me.x * 0.62)
+		var up := absf(phase) * 40.0
+		_ball.position = Vector2(foot_x, _ground_y + me.y - 30.0 - up).round()
+	else:
+		_juggle_t = 0.0
 
 
 func _animate(delta: float) -> void:
@@ -454,6 +550,8 @@ func _show_step() -> void:
 
 
 func _say(text: String) -> void:
+	_perk = 0.24
+	_excl_t = 0.8
 	_body.text = text
 	_typed = 0.0
 	_blipped = 0
@@ -586,6 +684,15 @@ func _finish(skipped: bool) -> void:
 	_bubble.visible = true
 	_veil.cutout = Rect2()
 	finished.emit(skipped)
+
+
+class _Shadow extends Control:
+	## A soft pixel ellipse on the ground under him: two stacked bars.
+	func _draw() -> void:
+		var c := Color(0.02, 0.02, 0.06, 0.38)
+		var w := size.x
+		draw_rect(Rect2(3.0, 0.0, w - 6.0, size.y), c)
+		draw_rect(Rect2(0.0, 3.0, w, size.y - 6.0), c)
 
 
 class _Veil extends Control:

@@ -136,6 +136,12 @@ func _build() -> void:
 			"dir": Vector2.ZERO, "burst": false})
 
 
+## Held in place while Alisson's tour has the screen: the tour's veil swallows
+## every press, so a gull flying through it would escape before anyone could
+## touch it. It keeps flapping and glowing; it just does not travel.
+var frozen := false
+
+
 func _process(delta: float) -> void:
 	if _finished or _freeing:
 		return
@@ -147,7 +153,8 @@ func _process(delta: float) -> void:
 			_finished = true
 			_free_self()
 		return
-	_t += delta
+	if not frozen:
+		_t += delta
 	if _t >= _duration:
 		# Uncaught: land exactly on `to`, say so once, and go away.
 		position = _to

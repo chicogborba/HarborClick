@@ -1678,7 +1678,7 @@ const STRINGS := {
 "guide.buy": {
 	"pt_BR": "Contrata um estivador! Ele trabalha até quando você tá no intervalo.", "en": "Hire a docker! He keeps working even when you're on a break.", "es": "¡Contrata un estibador! Trabaja incluso cuando tú descansas.", "fr": "Embauche un docker ! Il bosse même pendant ta pause.", "de": "Stell einen Hafenarbeiter ein! Er arbeitet sogar in deiner Pause.", "it": "Assumi uno scaricatore! Lavora anche quando sei in pausa.", "ru": "Найми докера! Он работает, даже когда ты на перерыве.", "pl": "Zatrudnij dokera! Pracuje nawet, gdy masz przerwę.", "tr": "Bir liman işçisi tut! Sen moladayken bile çalışır."},
 "guide.challenges": {
-	"pt_BR": "Aqui ficam os desafios. Cumpriu, levou prêmio!", "en": "Challenges live here. Do one, grab a prize!", "es": "Aquí están los desafíos. ¡Lo cumples, te llevas premio!", "fr": "Ici, les défis. Tu en réussis un, tu gagnes un prix !", "de": "Hier sind die Aufgaben. Erledigt heißt belohnt!", "it": "Qui ci sono le sfide. Completata, premio!", "ru": "Тут задания. Выполнил, забрал приз!", "pl": "Tu są wyzwania. Zrobione, nagroda twoja!", "tr": "Görevler burada. Yap, ödülü kap!"},
+	"pt_BR": "Toca aqui nos desafios! Cumpriu, levou prêmio.", "en": "Tap the challenges here! Do one, grab a prize.", "es": "¡Toca aquí los desafíos! Lo cumples, te llevas premio.", "fr": "Touche les défis ici ! Réussis-en un, gagne un prix.", "de": "Tipp hier auf die Aufgaben! Erledigt heißt belohnt.", "it": "Tocca qui le sfide! Completata, premio.", "ru": "Жми сюда, тут задания! Выполнил, забрал приз.", "pl": "Stuknij tu, to wyzwania! Zrobione, nagroda twoja.", "tr": "Görevlere buradan dokun! Yap, ödülü kap."},
 "guide.done": {
 	"pt_BR": "É isso, chefe! Quando tiver novidade eu apareço. Agora deixa eu ir que tem pelada às seis!", "en": "That's it, boss! I'll pop up when there's news. Gotta run, there's a game at six!", "es": "¡Eso es, jefe! Cuando haya novedades, aparezco. ¡Me voy, que hay partido a las seis!", "fr": "C'est tout, chef ! Je repasse dès qu'il y a du nouveau. J'y vais, match à six heures !", "de": "Das war's, Chef! Wenn's was Neues gibt, komm ich vorbei. Ich muss los, um sechs ist Spiel!", "it": "È tutto, capo! Quando c'è una novità passo io. Scappo, alle sei c'è la partita!", "ru": "Вот и всё, шеф! Будут новости, загляну. Бегу, в шесть игра!", "pl": "To wszystko, szefie! Jak będzie coś nowego, wpadnę. Lecę, o szóstej mecz!", "tr": "Bu kadar patron! Yeni bir şey olunca gelirim. Kaçtım, altıda maç var!"},
 "guide.tip.land": {
@@ -1703,6 +1703,22 @@ const STRINGS := {
 	"pt_BR": "PULAR", "en": "SKIP", "es": "SALTAR",
 	"fr": "PASSER", "de": "SKIP", "it": "SALTA",
 	"ru": "ПРОПУСК", "pl": "POMIŃ", "tr": "GEÇ"},
+"roadmap.title": {
+	"pt_BR": "ROTA DO TERMINAL", "en": "TERMINAL ROADMAP", "es": "RUTA DEL PUERTO", "fr": "FEUILLE DE ROUTE", "de": "HAFEN-ROADMAP", "it": "PERCORSO DEL PORTO", "ru": "ПУТЬ ТЕРМИНАЛА", "pl": "ŚCIEŻKA PORTU", "tr": "LİMAN YOLU"},
+"roadmap.level": {
+	"pt_BR": "NÍVEL {n}", "en": "LEVEL {n}", "es": "NIVEL {n}", "fr": "NIVEAU {n}", "de": "STUFE {n}", "it": "LIVELLO {n}", "ru": "УРОВЕНЬ {n}", "pl": "POZIOM {n}", "tr": "SEVİYE {n}"},
+"roadmap.current": {
+	"pt_BR": "VOCÊ", "en": "YOU", "es": "TÚ", "fr": "TOI", "de": "DU", "it": "TU", "ru": "ТЫ", "pl": "TY", "tr": "SEN"},
+"roadmap.unlocks": {
+	"pt_BR": "Libera: {name}", "en": "Unlocks: {name}", "es": "Desbloquea: {name}", "fr": "Débloque : {name}", "de": "Schaltet frei: {name}", "it": "Sblocca: {name}", "ru": "Открывает: {name}", "pl": "Odblokowuje: {name}", "tr": "Açar: {name}"},
+"roadmap.cosmetic": {
+	"pt_BR": "Cosmético: {name}", "en": "Cosmetic: {name}", "es": "Cosmético: {name}", "fr": "Cosmétique : {name}", "de": "Kosmetik: {name}", "it": "Cosmetico: {name}", "ru": "Косметика: {name}", "pl": "Kosmetyk: {name}", "tr": "Kozmetik: {name}"},
+"roadmap.xp": {
+	"pt_BR": "{have} / {need} XP", "en": "{have} / {need} XP", "es": "{have} / {need} XP", "fr": "{have} / {need} XP", "de": "{have} / {need} XP", "it": "{have} / {need} XP", "ru": "{have} / {need} XP", "pl": "{have} / {need} XP", "tr": "{have} / {need} XP"},
+"roadmap.total": {
+	"pt_BR": "+{p}% produção", "en": "+{p}% output", "es": "+{p}% producción", "fr": "+{p}% production", "de": "+{p}% Leistung", "it": "+{p}% produzione", "ru": "+{p}% выработки", "pl": "+{p}% produkcji", "tr": "+{p}% üretim"},
+"roadmap.max": {
+	"pt_BR": "NÍVEL MÁXIMO!", "en": "MAX LEVEL!", "es": "¡NIVEL MÁXIMO!", "fr": "NIVEAU MAX !", "de": "MAXIMALSTUFE!", "it": "LIVELLO MASSIMO!", "ru": "МАКС. УРОВЕНЬ!", "pl": "MAKS. POZIOM!", "tr": "MAKS SEVİYE!"},
 "level.short": {
 	"pt_BR": "NV {n}", "en": "LV {n}", "es": "NV {n}",
 	"fr": "NIV {n}", "de": "STF {n}", "it": "LIV {n}",

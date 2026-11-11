@@ -732,6 +732,10 @@ func _refresh_cosmetics() -> void:
 			buy.visible = not owned
 			buy.text = GameState.fmt(float(item.cost))
 			buy.disabled = not GameState.can_afford(float(item.cost))
+			if CosmeticDb.level_only(id):
+				# Not for sale: the roadmap hands it over at its level.
+				buy.text = Loc.t("level.short", {"n": str(CosmeticDb.level_of(id))})
+				buy.disabled = true
 			UiTheme.describe(buy, Loc.t("shop.buy_name", {"name": str(item.name)}),
 				Loc.t("shop.cost", {"amount": GameState.fmt(float(item.cost))}))
 		if toggle != null:

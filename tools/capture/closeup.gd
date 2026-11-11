@@ -161,6 +161,16 @@ func _stage(scenario: String) -> Vector2:
 				_main.shop._refresh()
 			await get_tree().create_timer(1.2).timeout
 			return Vector2(-1, -1)
+		"roadmap":
+			_main.roadmap.open()
+			await get_tree().create_timer(1.2).timeout
+			return Vector2(-1, -1)
+		"tour_idle":
+			# The hello, read: Alisson waiting with his ball in the air.
+			await get_tree().create_timer(2.0).timeout
+			_main.tutorial._body.visible_characters = -1
+			await get_tree().create_timer(0.95).timeout
+			return Vector2(-1, -1)
 		"tour_tip":
 			# Alisson back after the tour with one line about the shop.
 			_main.tutorial._finish(true)

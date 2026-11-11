@@ -29,8 +29,9 @@ var daily_button: DailyOrdersButton
 var boost_chips: BoostChips
 var build_hud: BuildHud
 var level_hud: LevelHud
+var roadmap: LevelRoadmap
 var level_service: TerminalLevelService
-var _overlay_state := {"shop": false, "settings": false, "journal": false,
+var _overlay_state := {"roadmap": false, "shop": false, "settings": false, "journal": false,
 	"prestige": false, "routes": false, "crew": false, "special": false,
 	"minigame": false, "notices": false, "wheel": false, "daily": false}
 ## Whoever's dossier is open, so the objective on it keeps up with the yard.
@@ -110,8 +111,16 @@ func _ready() -> void:
 	daily_panel.open_changed.connect(_on_overlay_changed.bind("daily"))
 	# A1 gates the two HUD keys on the terminal level; refreshed at start and on
 	# every level-up. Nothing else is gated yet.
-	level_service.leveled_up.connect(func(_level: int, _features: Array) -> void:
+	level_service.leveled_up.connect(func(level: int, _features: Array) -> void:
+		GameState.grant_level_cosmetics(level, true)
 		_refresh_level_gates())
+	# A save that reached a level before its cosmetics existed is handed them —
+	# deferred, so a live level-up (which emits xp_changed first) gets to grant
+	# its rewards switched on before this catch-up sees them.
+	level_service.xp_changed.connect(func() -> void:
+		(func() -> void: GameState.grant_level_cosmetics(
+			level_service.rules.level, false)).call_deferred())
+	GameState.grant_level_cosmetics(level_service.rules.level, false)
 	# Every level pays +2% production (GameState); the wheel is not a level prize.
 	# A loaded save restores the level without "levelling up" to it.
 	level_service.xp_changed.connect(_refresh_level_gates)
@@ -129,6 +138,12 @@ func _ready() -> void:
 	level_hud.name = "LevelHud"
 	level_hud.setup(level_service)
 	add_child(level_hud)
+	roadmap = LevelRoadmap.new()
+	roadmap.name = "LevelRoadmap"
+	add_child(roadmap)
+	roadmap.setup(level_service)
+	roadmap.open_changed.connect(_on_overlay_changed.bind("roadmap"))
+	level_hud.roadmap_requested.connect(roadmap.open)
 	# No construction waits: a machine bought is a machine working. A queue left
 	# in an old save is stood up at once by GameState._tick_builds.
 	GameState.build_times_enabled = false
@@ -325,12 +340,18 @@ func _ready() -> void:
 		"reduced_motion": Callable(self, "_tutorial_reduced_motion"),
 		"ship_ready": Callable(self, "_ship_is_working"),
 		"shop_open": func() -> bool: return shop != null and shop.is_open(),
+		"journal_open": func() -> bool: return journal != null and journal.is_open(),
 		"close_shop": func() -> void:
 			if shop != null and shop.is_open():
 				shop._close(),
 	})
 	add_child(tutorial)
 	tutorial.finished.connect(_on_tutorial_finished)
+	# The tour freezes the golden gull: its veil swallows taps, so a gull
+	# crossing under it could only ever escape.
+	tutorial.step_changed.connect(func(_i: int, _s: Dictionary) -> void:
+		if world != null:
+			world.gulls_frozen = true)
 	# `tutorial_v2_done`: Alisson's tour is new, so a profile that finished the
 	# old card tour still meets him once (he can be skipped after the hello).
 	if not GameState.flags.get("tutorial_v2_done", false):
@@ -585,6 +606,8 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		build_hud.apply_view_metrics(metrics)
 	if level_hud != null:
 		level_hud.apply_view_metrics(metrics)
+	if roadmap != null:
+		roadmap.apply_view_metrics(metrics)
 	if daily_panel != null:
 		daily_panel.apply_view_metrics(metrics)
 	if daily_button != null:
@@ -633,7 +656,7 @@ func _on_overlay_changed(opened: bool, source: String) -> void:
 			or bool(_overlay_state.routes) or bool(_overlay_state.crew)
 			or bool(_overlay_state.special) or bool(_overlay_state.minigame)
 			or bool(_overlay_state.notices) or bool(_overlay_state.wheel)
-			or bool(_overlay_state.daily))
+			or bool(_overlay_state.daily) or bool(_overlay_state.roadmap))
 
 
 func _on_world_input_blocked(blocked: bool) -> void:
@@ -819,6 +842,8 @@ func _rail_key_rect(stem: String) -> Rect2:
 
 
 func _on_tutorial_finished(skipped: bool) -> void:
+	if world != null:
+		world.gulls_frozen = false
 	GameState.flags["tutorial_done"] = true
 	GameState.flags["tutorial_v2_done"] = true
 	Progression.ingest_event(&"tutorial_completed", {"skipped": skipped})

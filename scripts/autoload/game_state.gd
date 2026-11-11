@@ -753,8 +753,39 @@ func buy_cosmetic(id: StringName) -> bool:
 		return false
 	cosmetics_owned[String(id)] = true
 	cosmetics_on[String(id)] = true
+	_clear_slot(id)
 	EventBus.cosmetics_changed.emit()
 	return true
+
+
+func grant_level_cosmetics(level: int, switch_on: bool) -> Array[StringName]:
+	## Every roadmap cosmetic up to `level` becomes the player's. Live level-ups
+	## switch the new ones on (a reward you have to go and find is half a
+	## reward); a catch-up on load only hands them over. Returns what was new.
+	var granted: Array[StringName] = []
+	for item: Dictionary in CosmeticDb.all():
+		var at := int(item.get("level", 0))
+		var id := StringName(item.id)
+		if at <= 0 or at > level or owns_cosmetic(id):
+			continue
+		cosmetics_owned[String(id)] = true
+		cosmetics_on[String(id)] = switch_on
+		if switch_on:
+			_clear_slot(id)
+		granted.append(id)
+	if not granted.is_empty():
+		EventBus.cosmetics_changed.emit()
+	return granted
+
+
+func _clear_slot(id: StringName) -> void:
+	## One hat at a time: switching one on takes the others off.
+	var slot := CosmeticDb.slot_of(id)
+	if slot.is_empty():
+		return
+	for item: Dictionary in CosmeticDb.all():
+		if str(item.get("slot", "")) == slot and StringName(item.id) != id:
+			cosmetics_on[String(item.id)] = false
 
 
 func set_cosmetic(id: StringName, on: bool) -> bool:
@@ -763,6 +794,8 @@ func set_cosmetic(id: StringName, on: bool) -> bool:
 	if bool(cosmetics_on.get(String(id), false)) == on:
 		return false
 	cosmetics_on[String(id)] = on
+	if on:
+		_clear_slot(id)
 	EventBus.cosmetics_changed.emit()
 	return true
 

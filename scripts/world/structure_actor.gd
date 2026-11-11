@@ -821,6 +821,17 @@ func _dress_hat() -> void:
 		_hat.modulate = Color8(248, 206, 92)
 	else:
 		_hat.modulate = profile.hat_color
+		# A roadmap hat, if one is worn: a colour, or one hue per worker.
+		for item: Dictionary in CosmeticDb.all():
+			var tint := str(item.get("hat", ""))
+			if tint.is_empty() or not GameState.cosmetic_on(StringName(item.id)):
+				continue
+			if tint == "rainbow":
+				_hat.modulate = Color.from_hsv(
+					fposmod(float(profile.uid.hash() % 360) / 360.0, 1.0), 0.7, 1.0)
+			else:
+				_hat.modulate = Color(tint)
+			break
 	_sync_hat()
 
 

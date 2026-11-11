@@ -143,12 +143,14 @@ func _test_spotlight_steps_and_safe_target() -> void:
 	var target := [Rect2(Vector2(24, 80), Vector2(90, 40))]
 	var shop_open := [false]
 	var closed := [0]
+	var journal_open := [false]
 	var spotlight := TutorialSpotlight.new()
 	spotlight.setup({
 		"get_target_rect": func(_key: String) -> Rect2: return target[0],
 		"ship_ready": func() -> bool: return true,
 		"shop_open": func() -> bool: return shop_open[0],
 		"close_shop": func() -> void: closed[0] += 1; shop_open[0] = false,
+		"journal_open": func() -> bool: return journal_open[0],
 	})
 	viewport.add_child(spotlight)
 	await get_tree().process_frame
@@ -220,10 +222,16 @@ func _test_spotlight_steps_and_safe_target() -> void:
 	shop_open[0] = true
 	spotlight._process(0.016)
 	spotlight._on_purchase({})
-	_expect(closed[0] == 1 and spotlight._until() == "ok",
-		"a purchase closes the shop and moves on")
+	_expect(closed[0] == 1 and spotlight._until() == "journal_open",
+		"a purchase closes the shop and moves on to the challenges key")
 	spotlight._body.visible_characters = -1
 	spotlight._advance_by_tap()
+	_expect(spotlight._until() == "journal_open",
+		"a tap on the veil does not skip the challenges key")
+	journal_open[0] = true
+	spotlight._process(0.016)
+	_expect(spotlight._until() == "ok" and spotlight.STEPS[spotlight._index].id == "fim",
+		"opening the challenges board moves on to the goodbye")
 	spotlight._body.visible_characters = -1
 	spotlight._advance_by_tap()
 	# He runs off screen, and the tour ends when he is gone.

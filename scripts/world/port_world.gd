@@ -124,6 +124,8 @@ var _gull: GoldenGull
 ## once ever, because a hint is not worth a persisted field — and a player who
 ## comes back a week later has forgotten the bird anyway.
 var _gull_hint_shown := false
+## Main sets this while the tour is on: no new gull, and the one in the air holds.
+var gulls_frozen := false
 
 
 @onready var _containers: Texture2D = preload("res://assets/sprites/container_sheet.png")
@@ -1570,6 +1572,9 @@ func _tick_golden_gull(delta: float) -> void:
 	## terminal with no base income, or one whose input is blocked by an
 	## overlay, has nothing worth rewarding and is not owed a gull.
 	if _gull != null and is_instance_valid(_gull):
+		_gull.frozen = gulls_frozen
+		return
+	if gulls_frozen:
 		return
 	if _gull_policy.tick(delta, GameState.base_cps > 0.0 and _input_enabled, _rng):
 		_spawn_golden_gull()

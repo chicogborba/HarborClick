@@ -298,6 +298,16 @@ def body_frame(kind):
     return selout(g)
 
 
+def gen_guide_ball():
+    """His futsal ball: 9x9 with its outline, white with black patches, 3x."""
+    g = new_img(9, 9)
+    W, D, Sh = (250, 248, 240, 255), (30, 28, 36, 255), (196, 200, 210, 255)
+    rect(g, 3, 1, 3, 7, W); rect(g, 1, 3, 7, 3, W); rect(g, 2, 2, 5, 5, W)
+    rect(g, 4, 3, 2, 2, D); px(g, 2, 5, D); px(g, 6, 2, D); px(g, 5, 6, D)
+    px(g, 6, 5, Sh); px(g, 5, 7, Sh); px(g, 7, 4, Sh)
+    save(selout(g), "ui_guide_ball", preview_scale=10)
+
+
 def gen_guide_body():
     frames = [body_frame(k) for k in
               ("idle", "bob", "stepA", "stepB", "jump", "talk", "wave")]
@@ -306,3 +316,4 @@ def gen_guide_body():
 if __name__ == "__main__":
     gen_guide()
     gen_guide_body()
+    gen_guide_ball()

@@ -464,28 +464,94 @@ def sfx_bell():
 
 
 
-## Alisson's voice: no words, a chirpy "ba-be-bo" babble, one syllable per two
-## typed letters. Five syllables, each a short square vowel that bends up or
-## down, so a line sounds like speech rather than a stuck beep.
+## Alisson's voice: Simlish. No words, but a voice - a bright, high, bouncy
+## babble of syllables. Each take is a consonant onset (a noise burst or a
+## plosive pop) into a vowel: a sawtooth glottis at a cartoon-high pitch, run
+## through two formant resonators so it reads as "a", "e", "i", "o", "u"
+## rather than as a beep. The pitch contour bends up or down per syllable, with
+## a quick vibrato - the sing-song that makes Simlish sound like talking.
+import math
+import random
+
+# vowel -> (F1, F2), pushed up a third for a small, chirpy speaker
+_VOWELS = {
+    "a": (900, 1500), "e": (560, 2200), "i": (360, 2700),
+    "o": (580, 1050), "u": (400, 950),
+}
+# (onset, vowel, f0 Hz, contour end ratio, length s)
 VOICE_TAKES = [
-    # base Hz, second formant Hz, pitch bend
-    (520, 1040, 1.18),
-    (470, 1220, 0.88),
-    (560, 900, 1.08),
-    (440, 1150, 1.25),
-    (500, 980, 0.92),
+    ("b", "a", 430, 1.25, 0.11), ("w", "i", 470, 0.85, 0.10),
+    ("sh", "a", 450, 1.15, 0.12), ("n", "o", 400, 1.30, 0.11),
+    ("p", "u", 480, 0.80, 0.09), ("l", "e", 440, 1.20, 0.10),
+    ("k", "a", 500, 0.90, 0.09), ("z", "o", 420, 1.35, 0.12),
+    ("m", "i", 460, 1.10, 0.10), ("d", "e", 490, 0.82, 0.09),
 ]
 
 
+def _resonator(x, freq, bw, sr):
+    r = math.exp(-math.pi * bw / sr)
+    b1 = -2.0 * r * math.cos(2.0 * math.pi * freq / sr)
+    b2 = r * r
+    gain = 1.0 - r
+    y1 = y2 = 0.0
+    out = []
+    for v in x:
+        y = gain * v - b1 * y1 - b2 * y2
+        y2, y1 = y1, y
+        out.append(y)
+    return out
+
+
+def _syllable(onset, vowel, f0, bend, length, rng, sr=22050):
+    n = int(sr * length)
+    onset_n = {"b": 0.012, "p": 0.014, "d": 0.012, "k": 0.016,
+               "sh": 0.035, "z": 0.03, "w": 0.02, "l": 0.018,
+               "n": 0.02, "m": 0.02}[onset]
+    on = int(sr * onset_n)
+    glottis = []
+    phase = 0.0
+    for i in range(n):
+        t = i / sr
+        k = i / max(1, n - 1)
+        f = f0 * (1.0 + (bend - 1.0) * k) * (1.0 + 0.025 * math.sin(2 * math.pi * 7.5 * t))
+        phase = (phase + f / sr) % 1.0
+        glottis.append(2.0 * phase - 1.0)
+    f1, f2 = _VOWELS[vowel]
+    voiced = [a + 0.7 * b for a, b in zip(_resonator(glottis, f1, 110, sr),
+                                         _resonator(glottis, f2, 160, sr))]
+    out = []
+    for i in range(n):
+        # voiced envelope: nasals and glides fade in, plosives snap in
+        soft = onset in ("w", "l", "n", "m")
+        a = min(1.0, (i - (0 if soft else on)) / (sr * (0.02 if soft else 0.004))) \
+            if i >= (0 if soft else on) else 0.0
+        rel = min(1.0, (n - i) / (sr * 0.03))
+        v = voiced[i] * max(0.0, a) * rel
+        if onset in ("w", "l", "n", "m") and i < on:
+            v *= 0.5          # a hummed lead-in
+        out.append(v)
+    # consonant noise: hiss for sh/z, a short pop for plosives
+    hiss = onset in ("sh", "z")
+    pop = onset in ("b", "p", "d", "k")
+    prev = 0.0
+    for i in range(min(n, on + int(sr * 0.006))):
+        noise = rng.uniform(-1.0, 1.0)
+        if hiss:
+            hp = noise - prev
+            prev = noise
+            out[i] += hp * 0.18 * (1.0 - i / max(1, on)) if i < on else 0.0
+        elif pop:
+            out[i] += noise * 0.35 * math.exp(-i / (sr * 0.004))
+    peak = max(1e-6, max(abs(v) for v in out))
+    return [v / peak * 0.8 for v in out]
+
+
 def sfx_voice():
-    """Alisson talking: five chirpy babble syllables."""
-    for index, (base, formant, bend) in enumerate(VOICE_TAKES):
-        buf = render(0.085)
-        add_tone(buf, 0.0, 0.07, base, "square", 0.22, duty=0.35,
-                 env=(0.003, 0.02, 0.6, 0.03), sweep=bend)
-        add_tone(buf, 0.0, 0.06, formant, "triangle", 0.10,
-                 env=(0.003, 0.02, 0.4, 0.03), sweep=bend)
-        save_wav(buf, "voice_%d" % (index + 1))
+    """Alisson talking: ten Simlish syllables."""
+    rng = random.Random(1987)
+    for index, (onset, vowel, f0, bend, length) in enumerate(VOICE_TAKES):
+        save_wav(_syllable(onset, vowel, f0, bend, length, rng),
+                 "voice_%d" % (index + 1))
 
 if __name__ == "__main__":
     print("sfx:")

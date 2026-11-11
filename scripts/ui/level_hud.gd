@@ -24,6 +24,9 @@ const CARD_INNER := 236.0
 ## the first minutes: a new player is shown the game, not an ad.
 const AD_FROM_LEVEL := 3
 
+## The badge is a key: pressing it opens the level roadmap.
+signal roadmap_requested
+
 var _service: TerminalLevelService
 var _badge: PanelContainer
 var _level_label: Label
@@ -62,6 +65,16 @@ func _ready() -> void:
 	_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(_bar)
+	_badge.mouse_filter = Control.MOUSE_FILTER_STOP
+	_badge.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_badge.tooltip_text = Loc.t("roadmap.title")
+	_badge.gui_input.connect(func(event: InputEvent) -> void:
+		var released: bool = (event is InputEventMouseButton and not event.pressed
+			and event.button_index == MOUSE_BUTTON_LEFT) \
+			or (event is InputEventScreenTouch and not event.pressed)
+		if released:
+			AudioManager.play_sfx("tap")
+			roadmap_requested.emit())
 	add_child(_badge)
 
 	_card = UiTheme.panel(UiTheme.board_style(8), false)
@@ -133,6 +146,8 @@ func _show_next() -> void:
 	for f in features:
 		if FEATURE_NAMES.has(f):
 			names.append(Loc.t(str(FEATURE_NAMES[f])))
+	for item: Dictionary in CosmeticDb.at_level(int(entry[0])):
+		names.append(str(item.name))
 	# Every level pays, so every level gets its card: what it opened (or a word
 	# from the crew when it opened nothing) and the bonus every level carries.
 	_card_level = int(entry[0])
