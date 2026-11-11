@@ -237,6 +237,22 @@ func _step(k: float) -> void:
 	_glint.modulate.a = sin(k * PI) * 0.3
 
 
+var _snatched := false
+
+
+func snatch() -> bool:
+	## The player's finger takes the box off whatever machine is carrying it,
+	## and it hops straight to its destination, quickly. Once per box.
+	if _snatched or not is_processing():
+		return false
+	_snatched = true
+	_release_claims()
+	_legs = [{"kind": Kind.HOP, "from": position, "to": _end, "zone": "",
+		"dur": 0.28}]
+	_begin_leg(0)
+	return true
+
+
 func _hop_the_rest() -> void:
 	## Everything from here to the destination, on the box's own. This is the
 	## escape hatch every failure funnels into, and it is the behaviour the game

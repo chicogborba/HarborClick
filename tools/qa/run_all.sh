@@ -65,6 +65,7 @@ scenes=(
   phase4_ship phase4_water traffic notification contrast a11y
   backup profile automation gate rail wake route route_ui npc special relay
   i18n settings wheel gull clicks daily level fx ads combo build adflow telemetry
+  deadline
 )
 
 for suite in "${scenes[@]}"; do

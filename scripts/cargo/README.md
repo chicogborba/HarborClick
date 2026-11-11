@@ -57,6 +57,21 @@ only for save compatibility and premiada display.
   the undivided rate when nobody hands it one.
 - `traffic_coordinator.gd` — lanes and minimum separation.
 
+## Laytime
+
+A call gets a clock when its hull is alongside (`BerthDeadline.laytime`, sized
+from both legs of the manifest at the machines' rate plus an easy tap pace, so
+an attended port beats it with slack). The badge on the hull goes green, amber,
+red. Running out fines 15% of what *that ship* earned so far, once, from the
+wallet and never into debt; sailing early multiplies the freight bonus by up to
+x2 in proportion to the time left. The tour's first call has no clock. State is
+in the berth snapshot (`deadline_left`, `deadline_total`, `call_earned`,
+`late`); older saves start the clock fresh.
+
+A tap always moves a box you can see: when every hand is busy, it snatches the
+oldest container off its machine (`CargoRelay.snatch`) and hops it home, which
+frees the queue for the next tap.
+
 ## Rules
 
 - Never add cargo directly to a sprite or stack.

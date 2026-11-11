@@ -31,7 +31,11 @@ signal prestige_requested
 ## one row of the interface the player touches all session.
 const BAR_KEY_H := 44.0
 ## The head above the keys: the objective and the next-move chip.
-const HEAD_H := 17.0
+## The head line (pinned objective + next-move chip) was removed from play: the
+## challenges key already carries the goal, and a strip restating it above the
+## keys was noise. It is still built, hidden and zero-tall, so its refresh code
+## and tests keep a target.
+const HEAD_H := 0.0
 const BAR_H := 54.0 + HEAD_H
 
 var _bar: PanelContainer
@@ -124,6 +128,7 @@ func _build_head() -> Control:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override(&"separation", 4)
 	head.custom_minimum_size.y = HEAD_H
+	head.visible = false
 	_head = head
 
 	_objective_button = _flat_button(Loc.t("rail.journal.name"), journal_requested)

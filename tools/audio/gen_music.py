@@ -1,4 +1,4 @@
-"""Six ambient loops: dawn, day, dusk, night, fog and rain.
+"""Six ambient loops - dawn, day, dusk, night, fog and rain - and the shop.
 
 These play for hours, so they are written to stay out of the way: slow tempo,
 long phrases that do not repeat inside a loop, soft triangle leads, and no
@@ -247,6 +247,52 @@ def gen_rain():
     save_wav(buf, "music_rain", normalize=0.4)
 
 
+
+def gen_shop():
+    """The shop: same D tonal centre as the day loop, so the crossfade in and
+    out lands on shared harmony instead of a key change. Lighter and a touch
+    playful - a bossa comp on the off-beats, a walking bass, brushed hats -
+    because this is the board where the money gets spent. 16 bars at 92."""
+    bpm = 92
+    b = beat(bpm)
+    length = 16 * 4 * b
+    buf = render(length + 2.0)
+    prog = [["D4", "F4", "A4", "C5"], ["G3", "B3", "D4", "F4"],
+            ["C4", "E4", "G4", "B4"], ["A3", "C4", "E4", "G4"]]
+    roots = ["D2", "G2", "C2", "A2"]
+    walks = [["D2", "F2", "A2", "C3"], ["G2", "B2", "D3", "F2"],
+             ["C2", "E2", "G2", "B2"], ["A2", "G2", "F2", "E2"]]
+    for bar in range(16):
+        t0 = bar * 4 * b
+        chord = prog[bar % 4]
+        # bossa comp: short plucks on the "and"s
+        for hit in (0.5, 1.5, 2.0, 3.0, 3.5):
+            for i, name in enumerate(chord):
+                add_tone(buf, t0 + hit * b + i * 0.008, 0.18, note_freq(name),
+                         "square", 0.022, duty=0.25, env=(0.004, 0.08, 0.3, 0.08))
+        # walking bass, one note a beat
+        for i, name in enumerate(walks[bar % 4]):
+            add_tone(buf, t0 + i * b, b * 0.85, note_freq(name), "triangle", 0.12,
+                     env=(0.01, 0.12, 0.5, 0.12))
+        # brushed hats on every eighth, accent on 2 and 4
+        for e in range(8):
+            gain = 0.03 if e in (2, 6) else 0.016
+            add_noise(buf, t0 + e * 0.5 * b, 0.05, gain,
+                      env=(0.002, 0.03, 0.1, 0.02))
+    # a lead that answers itself: two 8-bar phrases, triangle, sparse
+    lead = [
+        (None, 2), ("A4", 1), ("C5", 1), ("D5", 2), ("F5", 2),
+        ("E5", 1), ("D5", 1), ("C5", 2), (None, 4),
+        (None, 2), ("G4", 1), ("B4", 1), ("D5", 2), ("E5", 2),
+        ("C5", 3), (None, 5),
+        (None, 2), ("F5", 1), ("E5", 1), ("D5", 2), ("C5", 2),
+        ("A4", 2), ("C5", 2), ("D5", 4),
+        (None, 2), ("E5", 1), ("F5", 1), ("G5", 2), ("E5", 2),
+        ("D5", 6), (None, 2),
+    ]
+    play(buf, lead, bpm, "triangle", 0.11)
+    save_wav(buf, "music_shop", normalize=0.5)
+
 if __name__ == "__main__":
     print("music:")
     gen_day()
@@ -255,3 +301,4 @@ if __name__ == "__main__":
     gen_dusk()
     gen_dawn()
     gen_rain()
+    gen_shop()

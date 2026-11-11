@@ -183,7 +183,9 @@ func _stage(scenario: String) -> Vector2:
 			await get_tree().create_timer(8.0).timeout
 			return Vector2(-1, -1)
 		"ship":
-			await get_tree().create_timer(1.5).timeout
+			# The laytime clock only runs after the tour.
+			GameState.flags["tutorial_v2_done"] = true
+			await get_tree().create_timer(9.0).timeout
 			return Vector2(PortLayout.WATER_X0 + 30.0, 200.0)
 		"yard":
 			await get_tree().create_timer(1.5).timeout

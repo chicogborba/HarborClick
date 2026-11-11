@@ -270,8 +270,28 @@ func _draw(bag_key: String, count: int) -> int:
 	return value
 
 
-func update_music() -> void:
+## A quicker fade for the shop: the board opens in a moment, and a three-second
+## swell would still be arriving after the player had bought and left.
+const SHOP_FADE := 1.2
+var _shop_music := false
+var _music_tween: Tween
+
+
+func set_shop_music(on: bool) -> void:
+	## The shop has its own loop, in the day loop's key so the two blend instead
+	## of jumping. In and out on a short crossfade; the sky loop resumes after.
+	if _shop_music == on:
+		return
+	_shop_music = on
+	update_music(SHOP_FADE)
+
+
+func update_music(fade: float = FADE_TIME) -> void:
 	## Six loops, one per sky: rain and fog outrank the clock, then the phase.
+	## The shop loop outranks them all while the shop is open.
+	if _shop_music:
+		play_music("music_shop", fade)
+		return
 	var track := "music_day"
 	if TimeManager.rain_active:
 		track = "music_rain"
@@ -282,10 +302,10 @@ func update_music() -> void:
 			&"dawn": track = "music_dawn"
 			&"dusk": track = "music_dusk"
 			&"night": track = "music_night"
-	play_music(track)
+	play_music(track, fade)
 
 
-func play_music(track: String) -> void:
+func play_music(track: String, fade: float = FADE_TIME) -> void:
 	if track == _current_track:
 		return
 	# A headless run has nowhere to send audio, and starting a looping stream it
@@ -307,10 +327,16 @@ func play_music(track: String) -> void:
 	incoming.stream = stream
 	incoming.volume_db = SILENT_DB
 	incoming.play()
+	# A shop opened and shut inside one fade swaps the two players back before
+	# the first fade ends; its "stop the outgoing one" would then silence the
+	# player that just came back in. Only the newest fade may finish.
+	if _music_tween != null and _music_tween.is_valid():
+		_music_tween.kill()
 	var tween := create_tween().set_parallel()
-	tween.tween_property(incoming, "volume_db", music_gain_db(), FADE_TIME)
+	_music_tween = tween
+	tween.tween_property(incoming, "volume_db", music_gain_db(), fade)
 	if outgoing.playing:
-		tween.tween_property(outgoing, "volume_db", SILENT_DB, FADE_TIME)
+		tween.tween_property(outgoing, "volume_db", SILENT_DB, fade)
 		tween.chain().tween_callback(outgoing.stop)
 
 

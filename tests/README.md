@@ -23,6 +23,7 @@
 | clicks | real mouse events through the viewport on the main scene: every console key opens and Escape closes, the wheel button and GIRAR, a tap on the ship moves a box, a tap on a machine and an upgrade card buys |
 | level | Terminal level: XP curve and the minute table it is tuned to, the unlock table, legacy-save migration, prestige survival |
 | combo | the tap combo: steps build with a steady hand, a pause lets it fall, a skill can pin it, a payout in it is multiplied once |
+| deadline | laytime: the clock is sized from the work, an overstay costs 15% of what that ship earned (never into debt), an early sailing multiplies the freight |
 | skills | the Capataz skills: recharge clocks, save clamping, what each does, no early or double use, level gate, ad reset |
 | build | purchases stand after a delay: tier durations, the price counts what is still being built, two work at a time, a tap hurries one, an ad finishes one, time away counts, the queue saves, a rebuild clears it |
 | adflow | every rewarded-ad placement end to end with a fake provider: wheel spin, doubling a cash prize, the offline return, finishing a build; a refused ad pays nothing |

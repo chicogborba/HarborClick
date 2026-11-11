@@ -62,6 +62,15 @@ var _rehandling := false
 ## before the quay grew — keeps the whole rate, so standing orders can only ever
 ## change how a *shared* gang is spent.
 var _auto_share := -1.0
+## Laytime (`BerthDeadline`): seconds left and the total this call was given,
+## what this ship has earned so far, and whether the clock already ran out.
+## Total 0 means the clock has not started (the hull is not alongside yet).
+var deadline_left := 0.0
+var deadline_total := 0.0
+var call_earned := 0.0
+var late := false
+## Every flight in the air by transfer id, so a tap can snatch one.
+var _flights: Dictionary = {}
 
 ## Gantries that actually reach a hull. Everything else in the yard feeds the
 ## stacks; these are the machines that work a berth, so they are the ones that
@@ -98,6 +107,10 @@ func seed_new(p_seed: int = 0, forced_variant: Dictionary = {}) -> void:
 		seed(p_seed)
 	call_id = CargoUnit.new_uid("call")
 	_starved = 0.0
+	deadline_left = 0.0
+	deadline_total = 0.0
+	call_earned = 0.0
+	late = false
 	_rehandling = false
 	if p_seed != 0:
 		_variant_seed = p_seed
@@ -191,6 +204,7 @@ func tick(delta: float) -> void:
 	## commit — so there is exactly one path that can move a container and one
 	## place a UID can be created or destroyed.
 	_tick_starvation(delta)
+	_tick_deadline(delta)
 	if ship == null or not ship.is_working():
 		_auto_carry = 0.0
 		return
@@ -244,14 +258,29 @@ func handle_tap(pos: Vector2) -> bool:
 	# nothing at all, which read as the game ignoring the player.
 	if not ship.is_working():
 		return true
+	var moved := false
 	if _in_flight < MAX_IN_FLIGHT:
-		if ship.is_discharging():
-			_discharge(pos, reward)
-		else:
-			_load(pos, reward)
+		moved = _discharge(pos, reward) if ship.is_discharging() else _load(pos, reward)
 	elif _queued.size() < MAX_QUEUED:
 		_queued.append({"pos": pos, "reward": reward})
+	# Every tap moves a box you can see. When all hands are busy - or the box
+	# the tap wanted is still riding a tractor - the tap snatches the oldest one
+	# off its machine and it hops the rest of the way home now. The queue then
+	# gets a free hand on the landing.
+	if not moved:
+		snatch_oldest()
 	return true
+
+
+func snatch_oldest() -> bool:
+	## Hurry the oldest flight still on a machine. True when one was snatched.
+	for id: String in _flights.keys():
+		var flight: Variant = _flights[id]
+		if flight == null or not is_instance_valid(flight):
+			continue
+		if flight.has_method("snatch") and flight.call("snatch"):
+			return true
+	return false
 
 
 func _drain_queue() -> void:
@@ -348,6 +377,8 @@ func _begin_flight(color: int, from: Vector2, to: Vector2, transfer: CargoTransf
 	_active[transfer.id] = record
 	_in_flight += 1
 	var flight := world.fly_cargo(color, from, to)
+	_flights[transfer.id] = flight
+	flight.tree_exiting.connect(func() -> void: _flights.erase(transfer.id))
 	move_started.emit({
 		"loading": str(record.get("origin", "")) == "yard",
 		"color": color, "duration": flight.duration(),
@@ -396,6 +427,7 @@ func _begin_flight(color: int, from: Vector2, to: Vector2, transfer: CargoTransf
 						world.show_premiada(reward_pos)
 						if world.fx != null:
 							world.fx.burst(&"spark", reward_pos, 10, 22.0)
+			call_earned += float(payload.get("reward_teu", 0.0))
 			transfer_committed.emit(payload)
 			EventBus.cargo_transfer_committed.emit(payload)
 			# Only a box *arriving* on the deck shakes the hull, and it shakes the
@@ -492,6 +524,11 @@ func _on_ship_departed() -> void:
 		"exports": _exported.map(func(u: CargoUnit) -> Dictionary: return u.snapshot()),
 		"perfect": perfect}
 	var bonus := departure_bonus(perfect)
+	# Sailing inside the laytime multiplies the freight by the time left.
+	var early := 1.0 if late else BerthDeadline.early_multiplier(deadline_left, deadline_total)
+	bonus *= early
+	if early > 1.0:
+		summary["early"] = early
 	if bonus > 0.0:
 		# Career money: it spends, but it must not shortcut the prestige curve
 		# the simulator was balanced against.
@@ -499,13 +536,45 @@ func _on_ship_departed() -> void:
 		summary["bonus"] = bonus
 		EventBus.notification_requested.emit({
 			"id": "call_bonus", "kind": &"milestone", "priority": 2,
-			"text": "Escala concluída%s. +%s TEU de frete."
-				% [" sem falhas" if perfect else "", GameState.fmt(bonus)],
+			"text": "Escala concluída%s%s. +%s TEU de frete."
+				% [" sem falhas" if perfect else "",
+				(" no prazo (x%.1f)" % early) if early > 1.0 else "",
+				GameState.fmt(bonus)],
 		})
 		world.show_call_bonus(bonus, perfect)
 	call_completed.emit(summary)
 	EventBus.berth_call_completed.emit(summary)
 	_emit_status()
+
+
+func _tick_deadline(delta: float) -> void:
+	## The laytime starts when the hull is alongside and only runs while it is
+	## being worked. The tour's first call has none: a fine before the player
+	## has been shown the shop would be a lesson in the wrong thing.
+	if ship == null:
+		return
+	if not ship.is_working():
+		ship.set_deadline(-1.0, 0.0, false)
+		return
+	if deadline_total <= 0.0:
+		if not bool(GameState.flags.get("tutorial_v2_done", false)):
+			ship.set_deadline(-1.0, 0.0, false)
+			return
+		deadline_total = BerthDeadline.laytime(ship.bay_capacity() * 2, auto_rate())
+		deadline_left = deadline_total
+	if not late:
+		deadline_left -= delta
+		if deadline_left <= 0.0:
+			deadline_left = 0.0
+			late = true
+			var taken := GameState.apply_fine(BerthDeadline.fine(call_earned))
+			EventBus.notification_requested.emit({
+				"id": "late_%s" % call_id, "kind": &"blocked", "priority": 2,
+				"text": "Navio atrasado! Multa de %s TEU (%d%% do que ele rendeu)."
+					% [GameState.fmt(taken), roundi(BerthDeadline.FINE_SHARE * 100.0)],
+			})
+			AudioManager.play_sfx("deny")
+	ship.set_deadline(deadline_left, deadline_total, late)
 
 
 func _notice(code: String, text: String) -> void:
@@ -596,6 +665,8 @@ func snapshot() -> Dictionary:
 	return {"call_id": call_id, "imports": imports, "exports": exported,
 		"active_transfers": active,
 		"variant_seed": _variant_seed, "variant_call_index": _variant_call_index,
+		"deadline_left": deadline_left, "deadline_total": deadline_total,
+		"call_earned": call_earned, "late": late,
 		"ship": ship.snapshot() if ship != null else {}}
 
 
@@ -605,6 +676,11 @@ func restore(data: Dictionary) -> void:
 	_exported = _units_from(data.get("exports", []))
 	_variant_seed = int(data.get("variant_seed", 0))
 	_variant_call_index = maxi(0, int(data.get("variant_call_index", 0)))
+	# Saves from before laytime have none: the clock starts fresh on load.
+	deadline_total = maxf(0.0, float(data.get("deadline_total", 0.0)))
+	deadline_left = clampf(float(data.get("deadline_left", 0.0)), 0.0, deadline_total)
+	call_earned = maxf(0.0, float(data.get("call_earned", 0.0)))
+	late = bool(data.get("late", false))
 	if ship != null:
 		ship.restore(data.get("ship", {}))
 		ship.set_import_manifest_reference(_imports)

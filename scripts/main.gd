@@ -223,6 +223,7 @@ func _ready() -> void:
 	rail.prestige_requested.connect(prestige_dialog.open)
 
 	shop.open_changed.connect(_on_overlay_changed.bind("shop"))
+	shop.open_changed.connect(AudioManager.set_shop_music)
 	settings.open_changed.connect(_on_overlay_changed.bind("settings"))
 	journal.open_changed.connect(_on_overlay_changed.bind("journal"))
 	journal.arcade_requested.connect(_on_arcade_requested)

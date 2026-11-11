@@ -204,6 +204,38 @@ func _update_scale_bar() -> void:
 		- _scale_label.get_combined_minimum_size() * 0.5
 
 
+var _clock_label: Label
+var _clock_shown := ""
+
+
+func set_deadline(left: float, total: float, is_late: bool) -> void:
+	## The laytime badge above the progress bar: green while there is room,
+	## amber under half, red in the last fifth, and ATRASADO once it ran out.
+	## Rewritten only when the text changes.
+	if total <= 0.0 or left < 0.0 and not is_late:
+		if _clock_label != null:
+			_clock_label.visible = false
+		_clock_shown = ""
+		return
+	var text := "ATRASADO" if is_late else BerthDeadline.clock_text(left)
+	if _clock_label == null:
+		_clock_label = Label.new()
+		_clock_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_clock_label)
+	var frac := left / total
+	var color := Color8(220, 70, 60) if is_late or frac < 0.2 \
+		else (Color8(240, 180, 60) if frac < 0.5 else Color8(110, 214, 150))
+	if text == _clock_shown and _clock_label.visible:
+		return
+	_clock_shown = text
+	_clock_label.label_settings = UiTheme.settings(UiTheme.SIZE_SMALL, color, 3)
+	_clock_label.text = text
+	_clock_label.visible = true
+	_clock_label.position = Vector2(PortLayout.SHIP_W * 0.5, -42.0) \
+		- _clock_label.get_combined_minimum_size() * 0.5
+	queue_redraw()
+
+
 func _draw() -> void:
 	if _scale_bar_frac < 0.0 or not is_working():
 		return
@@ -215,6 +247,11 @@ func _draw() -> void:
 		fill)
 	# Placa atrás do contador: à noite casco e água escurecem juntos e o texto
 	# claro apagava sem fundo próprio.
+	if _clock_label != null and _clock_label.visible:
+		var ct: Vector2 = _clock_label.position
+		var cs: Vector2 = _clock_label.get_combined_minimum_size()
+		draw_rect(Rect2(ct - Vector2(3, 2), cs + Vector2(6, 4)),
+			Color(0.04, 0.05, 0.1, 0.78))
 	if _scale_label != null and _scale_label.visible:
 		var lt: Vector2 = _scale_label.position
 		var ls: Vector2 = _scale_label.get_combined_minimum_size()
