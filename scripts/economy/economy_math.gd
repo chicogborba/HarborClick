@@ -5,7 +5,8 @@ const GROWTH := 1.15
 const MILESTONES: Array[int] = [10, 25, 50, 100]
 const MAX_BULK_LIMIT := 10_000
 const MAX_BULK_COUNT := MAX_BULK_LIMIT # compatibility for callers/tests
-const PRESTIGE_DIVISOR := 100_000_000.0
+## 1e10, up from 1e8: the first rebuild pays on day two, not in the first hour.
+const PRESTIGE_DIVISOR := 10_000_000_000.0
 const REBUILD_DISCOUNT := 0.4
 ## How many of a machine a terminal has to run before that machine counts as a
 ## kind it *operates* rather than one it happens to own. Read by the capital
@@ -219,7 +220,10 @@ static func prestige_potential(all_time_productive: float) -> int:
 
 
 static func prestige_multiplier(level: int) -> float:
-	return 1.0 + 0.05 * sqrt(float(maxi(0, level)))
+	## Cube root, not square root: with √ the rebuild loop compounded to x500 in
+	## a casual week and the catalogue was finished by day four. With ∛ a week of
+	## resets is worth ~x3 and the last machine lands on day 7.
+	return 1.0 + 0.08 * pow(float(maxi(0, level)), 1.0 / 3.0)
 
 
 static func _epsilon(value: float) -> float:

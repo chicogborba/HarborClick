@@ -19,7 +19,6 @@ const PLACEMENTS: Dictionary = {
 	&"build_speed": {"daily_cap": 0, "cooldown": 30.0},
 	&"offline_double": {"daily_cap": 0, "cooldown": 0.0},
 	&"gull_double": {"daily_cap": 0, "cooldown": 0.0},
-	&"skill_reset": {"daily_cap": 3, "cooldown": 0.0},
 	&"mission_reroll": {"daily_cap": 1, "cooldown": 0.0},
 	&"boost_2x": {"daily_cap": 6, "cooldown": 0.0},
 }

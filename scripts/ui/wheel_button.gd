@@ -18,6 +18,7 @@ var _service: WheelService
 var _button: Button
 var _badge_atlas: AtlasTexture
 var _token_badge: Label
+var _token_pill: PanelContainer
 var _safe_rect := Rect2()
 var _world_rect := Rect2()
 var _home := Vector2.ZERO
@@ -54,11 +55,9 @@ func _ready() -> void:
 	_button.pressed.connect(_on_pressed)
 	add_child(_button)
 
-	_token_badge = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER)
-	_token_badge.label_settings = UiTheme.settings(UiTheme.SIZE_SMALL, UiTheme.AMBER, 2)
-	_token_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_token_badge.visible = false
-	add_child(_token_badge)
+	_token_pill = UiTheme.count_pill(UiTheme.AMBER, UiTheme.INK)
+	_token_badge = _token_pill.get_node(^"Value")
+	add_child(_token_pill)
 	refresh()
 	_layout()
 
@@ -82,7 +81,7 @@ func refresh() -> void:
 	if not _bob:
 		_bob_up = false
 	_token_badge.text = str(wheel.tokens)
-	_token_badge.visible = wheel.tokens > 0
+	_token_pill.visible = wheel.tokens > 0
 
 
 func _on_pressed() -> void:
@@ -129,7 +128,7 @@ func _layout() -> void:
 	_home = pos
 	_button.size = Vector2(SIZE, SIZE)
 	_button.position = pos + Vector2(0.0, -1.0 if _bob_up else 0.0)
-	_token_badge.position = (pos + Vector2(SIZE - 10.0, -4.0)).round()
+	_token_pill.position = (pos + Vector2(SIZE - 10.0, -5.0)).round()
 
 
 func _resolved_world_rect(view: Vector2, safe: Rect2) -> Rect2:

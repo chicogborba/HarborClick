@@ -129,12 +129,11 @@ func _test_minute_table() -> void:
 
 
 func _test_unlock_table() -> void:
-	_expect(TerminalLevel.UNLOCKS.size() == 17, "the table has 17 features (events joined routes at level 8)")
+	_expect(TerminalLevel.UNLOCKS.size() == 14, "the table has 14 features")
 	var spot := {
-		&"shop": 1, &"objective": 2, &"upgrades": 3, &"skill_overtime": 3,
-		&"daily": 4, &"land": 5, &"skill_mutirao": 5, &"gull": 5, &"wheel": 6,
-		&"journal": 6, &"routes": 8, &"charters": 8, &"skill_pilot": 8,
-		&"decor": 10, &"orders": 10, &"prestige": 12,
+		&"shop": 1, &"objective": 2, &"upgrades": 3, &"daily": 4, &"land": 5,
+		&"gull": 6, &"wheel": 7, &"journal": 8, &"routes": 10, &"charters": 12,
+		&"events": 12, &"prestige": 14, &"decor": 16, &"orders": 18,
 	}
 	for feature in spot.keys():
 		_expect(int(TerminalLevel.UNLOCKS.get(feature, -1)) == int(spot[feature]),
@@ -144,24 +143,22 @@ func _test_unlock_table() -> void:
 		and not t.unlocked(&"wheel") and not t.unlocked(&"prestige"),
 		"a level-1 terminal has only the shop")
 	_expect(not t.unlocked(&"not_a_feature"), "an unknown feature is never unlocked")
-	t.level = 12
+	t.level = 18
 	for feature in TerminalLevel.UNLOCKS.keys():
-		_expect(t.unlocked(feature), "%s is unlocked at level 12" % String(feature))
+		_expect(t.unlocked(feature), "%s is unlocked at level 18" % String(feature))
 	_expect(TerminalLevel.new().unlocks_at(1) == [&"shop"], "level 1 unlocks the shop")
 	_expect(TerminalLevel.new().unlocks_at(2) == [&"objective"], "level 2 the objective")
 	_expect(TerminalLevel.new().unlocks_at(4) == [&"daily"], "level 4 the daily missions")
-	var at_5 := TerminalLevel.new().unlocks_at(5)
-	_expect(at_5.size() == 3 and at_5.has(&"land") and at_5.has(&"skill_mutirao")
-		and at_5.has(&"gull"), "level 5 unlocks land, mutirao and the gull")
-	var at_6 := TerminalLevel.new().unlocks_at(6)
-	_expect(at_6.size() == 2 and at_6.has(&"wheel") and at_6.has(&"journal"),
-		"level 6 unlocks the wheel and the journal")
-	_expect(TerminalLevel.new().unlocks_at(12) == [&"prestige"],
-		"level 12 unlocks the prestige")
+	_expect(TerminalLevel.new().unlocks_at(7) == [&"wheel"], "level 7 the wheel")
+	var at_12 := TerminalLevel.new().unlocks_at(12)
+	_expect(at_12.size() == 2 and at_12.has(&"charters") and at_12.has(&"events"),
+		"level 12 unlocks charters and events")
+	_expect(TerminalLevel.new().unlocks_at(14) == [&"prestige"],
+		"level 14 unlocks the prestige")
 	var total := 0
 	for n in range(1, TerminalLevel.MAX_LEVEL + 1):
 		total += TerminalLevel.new().unlocks_at(n).size()
-	_expect(total == 17, "every feature is unlocked by exactly one level")
+	_expect(total == 14, "every feature is unlocked by exactly one level")
 	_done("unlock_table")
 
 
@@ -274,9 +271,9 @@ func _test_legacy_migration() -> void:
 	GameState.from_save({})
 	GameState.lifetime_teus = 5000.0
 	_service._seed_new()
-	_expect(_service.rules.level == 12
-		and _service.rules.xp == TerminalLevel.xp_for_level(12),
-		"a profile with 5000 lifetime TEUs migrates to level 12")
+	_expect(_service.rules.level == 18
+		and _service.rules.xp == TerminalLevel.xp_for_level(18),
+		"a profile with 5000 lifetime TEUs migrates to level 18")
 	_expect(_service.rules.unlocked(&"prestige") and _service.rules.unlocked(&"wheel"),
 		"so everything it could already use stays unlocked")
 	GameState.from_save({})

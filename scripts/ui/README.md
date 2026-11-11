@@ -29,17 +29,16 @@ Entry points:
 - `level_hud.gd` — the terminal level badge (level + XP bar) under the gantry,
   and the unlock ceremony: when a level opens features, a card drops from the
   top naming them, queued one per level. Feature names map in `FEATURE_NAMES`.
-- `boost_chips.gd` — every active multiplier as a chip with its countdown:
-  luck surge and skill bonus are separate slots and stack.
-- `skill_bar.gd` — the three Capataz skills above the console, radial recharge,
-  rewarded-ad reset button when `AdService` allows it.
+- `boost_chips.gd` — every active multiplier as a chip with its countdown: the
+  luck surge and the tap combo. (The Capataz skill bar was removed: three
+  cooldown keys over the port that nobody understood.)
 - `build_hud.gd` — the construction queue: one row per pending purchase with
   progress, tap-to-hurry and the "ACELERAR ▶" rewarded-ad button.
 - Rewarded-ad placements live where the reward is: `lucky_wheel_panel.gd`
   (`wheel_spin` when out of tokens, `wheel_double` after a cash prize),
   `minigame_board.gd` (`minigame_retry` on a loss, 6 s window),
-  `offline_popup.gd` (`offline_double`), `build_hud.gd` (`build_speed`),
-  `skill_bar.gd` (`skill_reset`). All optional, all hidden at the daily cap.
+  `offline_popup.gd` (`offline_double`), `build_hud.gd` (`build_speed`).
+  All optional, all hidden at the daily cap.
 - `rate_breakdown.gd` — the factors behind the rate, opened by pressing the rate
   tag on the counter. It is the formula, not a caption for it: machines at
   catalogue rate, then milestones, fitted upgrades, capital, turmas, global

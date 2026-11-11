@@ -77,7 +77,7 @@ func _test_every_rail_key_opens_and_escape_closes() -> void:
 	_expect(not _main.shop._tab_buttons["upgrades"].visible
 		and not _main.shop._tab_buttons["land"].visible,
 		"and the shop opens with machines only")
-	_main.level_service.rules.add_xp(TerminalLevel.xp_for_level(12))
+	_main.level_service.rules.add_xp(TerminalLevel.xp_for_level(18))
 	_main.level_service.xp_changed.emit()
 	await get_tree().process_frame
 	for entry: Dictionary in _main.rail._key_labels:
@@ -96,7 +96,7 @@ func _test_every_rail_key_opens_and_escape_closes() -> void:
 
 
 func _test_the_wheel_button_opens_and_spins() -> void:
-	# A new profile has neither key yet: the wheel arrives at terminal level 6
+	# A new profile has neither key yet: the wheel arrives at terminal level 7
 	# and the missions at 4. Check that, then play as a port that has grown.
 	_expect(_main.wheel_button.visible and _main.daily_button.visible,
 		"a grown terminal shows the wheel and the missions")

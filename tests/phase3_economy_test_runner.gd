@@ -55,11 +55,15 @@ func test_runtime_catalog_integrity() -> void:
 		# port was taking seven. Lowering their prices instead would have made
 		# them proportionally weaker — in this catalogue CPS is derived from
 		# cost — so the lever is payback, not price.
+		# From the reach stacker up the paybacks stretch: the frontier machine
+		# is what compounds, and at 180-2400 s a five-check-ins-a-day player
+		# owned the whole catalogue by day four. These put the portal on day 7
+		# (`tools/balance/week_report.gd`).
 		"estivador": 85.0, "empilhadeira": 80.0, "tt": 150.0,
-		"reach_stacker": 180.0, "rtg": 240.0, "sts": 300.0,
-		"armazem": 360.0, "rebocador": 450.0, "trem": 600.0,
-		"flutuante": 720.0, "alfandega": 900.0, "torre": 1200.0,
-		"drone": 1500.0, "porto_ia": 1800.0, "portal": 2400.0,
+		"reach_stacker": 240.0, "rtg": 360.0, "sts": 540.0,
+		"armazem": 720.0, "rebocador": 1000.0, "trem": 1400.0,
+		"flutuante": 1900.0, "alfandega": 2600.0, "torre": 3600.0,
+		"drone": 4800.0, "porto_ia": 6400.0, "portal": 8600.0,
 	}
 	var catalog_by_id: Dictionary = {}
 	for item in EconomyCatalog.all():
@@ -161,8 +165,8 @@ func test_milestones_and_prestige() -> void:
 	_expect(EconomyMath.milestone_multiplier(9) == 1.0 and EconomyMath.milestone_multiplier(10) == 2.0, "first milestone doubles production")
 	_expect(EconomyMath.milestone_multiplier(100) == 16.0, "all four milestones stack")
 	_expect(_close(EconomyMath.purchase_cps_gain(1.0, 9, 1), 11.0), "milestone purchase includes retroactive impact")
-	_expect(EconomyMath.prestige_potential(99999999.0) == 0 and EconomyMath.prestige_potential(100000000.0) == 1, "prestige potential uses floor sqrt threshold")
-	_expect(_close(EconomyMath.prestige_multiplier(4), 1.1), "meta multiplier follows square-root level")
+	_expect(EconomyMath.prestige_potential(9999999999.0) == 0 and EconomyMath.prestige_potential(10000000000.0) == 1, "prestige potential uses floor sqrt threshold")
+	_expect(_close(EconomyMath.prestige_multiplier(8), 1.16), "meta multiplier follows the cube root of the level")
 
 
 func test_simulator_is_deterministic() -> void:
@@ -179,10 +183,13 @@ func test_balance_targets() -> void:
 	_expect(float(markers.first_reward) <= 10.0, "first reward arrives within 10 seconds")
 	_expect(float(markers.first_passive) <= 30.0, "passive production starts within 30 seconds")
 	_expect(float(markers.first_choice) <= 60.0, "first purchase choice happens within 60 seconds")
-	var active := EconomySimulator.run_scenario(&"active_90m")
+	# Paced for the week: someone tapping nonstop reaches the first rebuild in
+	# a few hours, a five-check-ins-a-day player on day two.
+	var active := EconomySimulator.run_scenario(&"recovery", {"duration": 5.0 * 3600.0})
 	var first_prestige := float(active.markers.first_prestige)
-	_expect(first_prestige >= 3600.0 and first_prestige <= 7200.0,
-		"first prestige lands between 60 and 120 minutes")
+	_expect(first_prestige >= 2.5 * 3600.0 and first_prestige <= 4.0 * 3600.0,
+		"first prestige of a nonstop player lands between 2.5 and 4 hours (%.0f min)"
+			% (first_prestige / 60.0))
 	# The README target is three distinct machines within five minutes. Speeding
 	# up the first two paybacks took it from 7min25 to 6min40; the rest of the
 	# gap is the price step to the third machine and it is still a roadmap item.

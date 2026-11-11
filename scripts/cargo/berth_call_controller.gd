@@ -439,8 +439,6 @@ func departure_bonus(perfect: bool) -> float:
 	var bonus := rate * DEPARTURE_SECONDS * lane_reward()
 	if perfect:
 		bonus *= 1.0 + PERFECT_CALL_BONUS
-	# "O prático a bordo": a promise made by a skill, spent on the next call.
-	bonus *= GameState.take_pilot()
 	return bonus
 
 

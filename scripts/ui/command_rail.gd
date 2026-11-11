@@ -88,10 +88,10 @@ func _build_bar() -> void:
 	# Stacking the glyph buys every key a real word inside 80px.
 	var shop_key: Button = null
 	for spec in [
-			["rail.shop", UiTheme.Icon.CRANE, &"amber", shop_requested],
-			["rail.routes", UiTheme.Icon.GLOBE, &"steel", routes_requested],
-			["rail.journal", UiTheme.Icon.TROPHY, &"steel", journal_requested],
-			["rail.settings", UiTheme.Icon.GEAR, &"steel", settings_requested]]:
+			["rail.shop", UiTheme.Hud24.SHOP, &"amber", shop_requested],
+			["rail.routes", UiTheme.Hud24.ROUTES, &"steel", routes_requested],
+			["rail.journal", UiTheme.Hud24.LOGBOOK, &"steel", journal_requested],
+			["rail.settings", UiTheme.Hud24.SETTINGS, &"steel", settings_requested]]:
 		var stem := str(spec[0])
 		var key := _make_key(Loc.t(stem), spec[1], spec[2],
 			Loc.t("%s.name" % stem), spec[3])
@@ -191,7 +191,7 @@ func apply_level_gates() -> void:
 			(entry.button as Button).visible = FeatureGate.unlocked(gates[stem])
 
 
-func _make_key(text: String, icon: UiTheme.Icon, kind: StringName,
+func _make_key(text: String, icon: UiTheme.Hud24, kind: StringName,
 		control_name: String, target: Signal) -> Button:
 	## Button draws its icon hard against the left edge and only centres the
 	## text, which left a hand-sized hole between the two on a wide key. The
@@ -210,7 +210,7 @@ func _make_key(text: String, icon: UiTheme.Icon, kind: StringName,
 	group.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	group.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	key.add_child(group)
-	var glyph := UiTheme.icon(icon, 2)
+	var glyph := UiTheme.hud24(icon)
 	glyph.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	group.add_child(glyph)

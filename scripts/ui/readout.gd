@@ -13,11 +13,9 @@ extends VBoxContainer
 ## when the tally rolls over from 999 to 1.00K, and the rate tag beside it never
 ## gets shoved sideways.
 ##
-## The cells the number has not reached yet are not left blank — they carry unlit
-## eights, the way a real totaliser shows the segments it is not driving. That is
-## what makes the reserved width read as a window rather than as a gap, and it
-## turns the fixed geometry into the progress bar the tally never had: the dark
-## digits burn away from the left as the terminal grows.
+## The cells the number has not reached are left dark glass. They used to carry
+## unlit eights like a real totaliser, but in this font a ghost "8" beside a lit
+## digit read as part of the number ("88776K"), so the window is just glass.
 
 const REFRESH := 0.05
 ## How long the glass stays lit after the number goes up, and how hard.
@@ -31,10 +29,6 @@ const FLASH_TINT := Color(1.5, 1.32, 1.0)
 ## comma and the point advance identically in this font, so localising the
 ## decimal mark does not move the glass.
 const WIDEST := "8.88Qa"
-## What an undriven cell shows. The font is monospace — every glyph advances one
-## 6px cell — so the unlit run and the lit number tile against each other exactly
-## and never overlap by a pixel.
-const UNLIT := "8"
 ## The golden-share wallet used to ride on this tag. It does not any more: the
 ## tag grows with its content and the clock is anchored to the other end of the
 ## same bar, so a five-figure share count drove the rate straight under the
@@ -56,7 +50,6 @@ var _glass: PanelContainer
 var _lift_label: Label
 var _last_cps := -1.0
 var _teus_label: Label
-var _unlit_label: Label
 var _rate_tag: PanelContainer
 var _rate_label: Label
 var _boost_row: HBoxContainer
@@ -108,14 +101,6 @@ func setup() -> void:
 	_teus_label.custom_minimum_size.x = ceilf(UiTheme.FONT.get_string_size(
 		WIDEST, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTheme.SIZE_TITLE).x)
 	tally.add_child(_teus_label)
-
-	# The unlit run is a child of the digits, not a sibling: inside the tally row
-	# it would be one more box for the layout to pack, and shortening it as the
-	# number grows would shove the number sideways — the one thing this whole
-	# control exists to prevent.
-	_unlit_label = UiTheme.label("", UiTheme.SIZE_TITLE, UiTheme.DIGIT_UNLIT)
-	_unlit_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_teus_label.add_child(_unlit_label)
 
 	# The rate is a service tag bolted beside the counter rather than a second
 	# line under it: the bar is one instrument high, and this is what keeps it
@@ -251,8 +236,6 @@ func _process(delta: float) -> void:
 		if _shown != _pending:
 			_shown = _pending
 			_teus_label.text = _pending
-			_unlit_label.text = UNLIT.repeat(
-				maxi(0, WIDEST.length() - _pending.length()))
 	# Refitted only when the boost's visible state changes — on, off, or its
 	# countdown ticking over a whole second — not every frame.
 	var boost_key := ceili(GameState.boost_time) if GameState.boost_time > 0.0 else -1

@@ -523,13 +523,13 @@ func _test_panel_button_badge() -> void:
 	button.setup(_service)
 	add_child(button)
 	button.refresh()
-	_expect(button._token_badge.visible and button._token_badge.text == "3",
+	_expect(button._token_pill.visible and button._token_badge.text == "3",
 		"three tokens show '3' on the badge")
 	_expect(button._badge_atlas.region.position.x == 24.0,
 		"the lit badge frame shows while a free spin is ready")
 	_service.wheel.tokens = 0
 	button.refresh()
-	_expect(not button._token_badge.visible, "zero tokens hides the badge")
+	_expect(not button._token_pill.visible, "zero tokens hides the badge")
 	_service.wheel.next_free_unix = Time.get_unix_time_from_system() + 100000.0
 	button.refresh()
 	_expect(button._badge_atlas.region.position.x == 0.0,

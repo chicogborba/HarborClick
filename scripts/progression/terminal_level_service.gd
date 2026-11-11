@@ -18,7 +18,7 @@ const SECTION_ID := &"terminal_level"
 ## profile that already moved this many TEU could use every system the unlock
 ## table gates, so migration starts it at the level that unlocks them all.
 const LEGACY_FULL_UNLOCK_TEUS := 1000.0
-const LEGACY_FULL_UNLOCK_LEVEL := 12
+const LEGACY_FULL_UNLOCK_LEVEL := 18
 
 var rules: TerminalLevel
 

@@ -27,8 +27,6 @@ var daily_service: DailyOrdersService
 var daily_panel: DailyOrdersPanel
 var daily_button: DailyOrdersButton
 var boost_chips: BoostChips
-var skill_service: SkillService
-var skill_bar: SkillBar
 var build_hud: BuildHud
 var level_hud: LevelHud
 var level_service: TerminalLevelService
@@ -62,9 +60,6 @@ func _ready() -> void:
 	level_service.name = "TerminalLevelService"
 	add_child(level_service)
 	daily_service.mission_claimed.connect(level_service.note_mission)
-	skill_service = SkillService.new()
-	skill_service.name = "SkillService"
-	add_child(skill_service)
 
 	# Normally the title screen has already chosen a slot. Running this scene
 	# directly — F6, the capture harness, the dev probe — falls back to the
@@ -138,12 +133,6 @@ func _ready() -> void:
 	add_child(build_hud)
 	# The real game builds things over time; headless suites buy them at once.
 	GameState.build_times_enabled = true
-	skill_bar = SkillBar.new()
-	skill_bar.name = "SkillBar"
-	skill_bar.setup(skill_service)
-	add_child(skill_bar)
-	skill_service.tap_ship = Callable(self, "_tap_ship_for_skill")
-	level_service.xp_changed.connect(skill_bar.refresh)
 
 	rail = CommandRail.new()
 	rail.name = "CommandRail"
@@ -366,17 +355,8 @@ func _exit_tree() -> void:
 	GameState.build_times_enabled = false
 
 
-func _tap_ship_for_skill() -> void:
-	## Mutirão: the crew works the ship through the same path a finger does, so
-	## it pays, flies a box and counts for the missions like any other tap.
-	if world == null or world.berth == null or world.ship == null:
-		return
-	world.berth.handle_tap(world.ship.global_position
-		+ Vector2(PortLayout.SHIP_W * 0.5, 110.0))
-
-
 func _refresh_level_gates() -> void:
-	## The two HUD keys the unlock table gates today: the wheel (level 6) and
+	## The two HUD keys the unlock table gates today: the wheel (level 7) and
 	## the daily missions (level 4). Rules only — the buttons stay, hidden.
 	if level_service == null or wheel_button == null or daily_button == null:
 		return
@@ -587,8 +567,6 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		wheel_button.apply_view_metrics(metrics)
 	if boost_chips != null:
 		boost_chips.apply_view_metrics(metrics)
-	if skill_bar != null:
-		skill_bar.apply_view_metrics(metrics)
 	if build_hud != null:
 		build_hud.apply_view_metrics(metrics)
 	if level_hud != null:

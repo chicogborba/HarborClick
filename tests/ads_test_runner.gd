@@ -137,12 +137,11 @@ func _test_placements_table() -> void:
 		&"build_speed": [0, 30.0],
 		&"offline_double": [0, 0.0],
 		&"gull_double": [0, 0.0],
-		&"skill_reset": [3, 0.0],
 		&"mission_reroll": [1, 0.0],
 		&"boost_2x": [6, 0.0],
 	}
 	_expect(AdPolicy.PLACEMENTS.size() == expected.size(),
-		"ten placements are declared (%d)" % AdPolicy.PLACEMENTS.size())
+		"nine placements are declared (%d)" % AdPolicy.PLACEMENTS.size())
 	for id in expected.keys():
 		_expect(AdPolicy.PLACEMENTS.has(id), "placement %s exists" % String(id))
 		var rule: Dictionary = AdPolicy.PLACEMENTS.get(id, {})
@@ -289,21 +288,21 @@ func _test_no_ads_pass() -> void:
 	var fake := FakeProvider.new()
 	AdService.set_provider(fake)
 	AdService.policy.no_ads_pass = true
-	_expect(AdService.available(&"skill_reset"), "available before any show")
-	_expect(AdService.show_rewarded(&"skill_reset", func(): _rewards[0] += 1),
+	_expect(AdService.available(&"minigame_play"), "available before any show")
+	_expect(AdService.show_rewarded(&"minigame_play", func(): _rewards[0] += 1),
 		"show_rewarded accepts with the pass")
 	_expect(fake.calls.is_empty(), "the provider is skipped entirely")
 	_expect(_rewards[0] == 1, "the reward is paid directly")
 	_expect(_granted.size() == 1, "with one reward_granted")
-	_expect(AdService.remaining_today(&"skill_reset") == 2, "and the show still counts")
-	# The caps still bind with the pass: three skill_reset shows is the day.
+	_expect(AdService.remaining_today(&"minigame_play") == 2, "and the show still counts")
+	# The caps still bind with the pass: three minigame_play shows is the day.
 	var now := Time.get_unix_time_from_system()
 	var day := AdService._current_day()
-	AdService.policy.note_shown(&"skill_reset", now, day)
-	AdService.policy.note_shown(&"skill_reset", now, day)
-	_expect(AdService.remaining_today(&"skill_reset") == 0, "the cap is reached")
-	_expect(not AdService.available(&"skill_reset"), "caps still apply with no_ads_pass")
-	_expect(not AdService.show_rewarded(&"skill_reset", func(): _rewards[0] += 1),
+	AdService.policy.note_shown(&"minigame_play", now, day)
+	AdService.policy.note_shown(&"minigame_play", now, day)
+	_expect(AdService.remaining_today(&"minigame_play") == 0, "the cap is reached")
+	_expect(not AdService.available(&"minigame_play"), "caps still apply with no_ads_pass")
+	_expect(not AdService.show_rewarded(&"minigame_play", func(): _rewards[0] += 1),
 		"show refuses at the cap even with the pass")
 	_expect(_rewards[0] == 1, "and pays nothing past the cap")
 	_done("no_ads_pass")

@@ -1611,44 +1611,6 @@ const STRINGS := {
 # Small labels, so every translation stays short. The × is in the bitmap font
 # (see tools/sprites/gen_font.py, "x_mult").
 
-"skill.skill_overtime": {
-	"pt_BR": "Turno Extra", "en": "Overtime", "es": "Turno extra", "fr": "Heures sup",
-	"de": "Überstunden", "it": "Straordinario", "ru": "Сверхурочные",
-	"pl": "Nadgodziny", "tr": "Fazla mesai"},
-"skill.skill_overtime.desc": {
-	"pt_BR": "Produção x2 por 30 s.", "en": "Production x2 for 30 s.",
-	"es": "Producción x2 por 30 s.", "fr": "Production x2 pendant 30 s.",
-	"de": "Produktion x2 für 30 s.", "it": "Produzione x2 per 30 s.",
-	"ru": "Производство x2 на 30 с.", "pl": "Produkcja x2 przez 30 s.",
-	"tr": "30 sn boyunca üretim x2."},
-"skill.skill_mutirao": {
-	"pt_BR": "Mutirão", "en": "All Hands", "es": "Faena", "fr": "Branle-bas",
-	"de": "Alle Mann", "it": "Tutti al lavoro", "ru": "Аврал",
-	"pl": "Wszyscy na pokład", "tr": "Seferberlik"},
-"skill.skill_mutirao.desc": {
-	"pt_BR": "10 s: combo no máximo e a equipe toca por você.",
-	"en": "10 s: combo maxed and the crew taps for you.",
-	"es": "10 s: combo al máximo y la cuadrilla toca por ti.",
-	"fr": "10 s: combo au max et l'équipe tape pour vous.",
-	"de": "10 s: Combo am Limit, die Crew tippt für dich.",
-	"it": "10 s: combo al massimo, la squadra tocca per te.",
-	"ru": "10 с: комбо на максимуме, команда жмёт за вас.",
-	"pl": "10 s: combo na maksimum, ekipa stuka za ciebie.",
-	"tr": "10 sn: kombo en üstte, ekip senin yerine dokunur."},
-"skill.skill_pilot": {
-	"pt_BR": "Prático a Bordo", "en": "Pilot Aboard", "es": "Práctico a bordo",
-	"fr": "Pilote à bord", "de": "Lotse an Bord", "it": "Pilota a bordo",
-	"ru": "Лоцман на борту", "pl": "Pilot na pokładzie", "tr": "Kılavuz kaptan"},
-"skill.skill_pilot.desc": {
-	"pt_BR": "O bônus da próxima escala paga x3.",
-	"en": "The next call's departure bonus pays x3.",
-	"es": "El bono de la próxima escala paga x3.",
-	"fr": "La prime de la prochaine escale paie x3.",
-	"de": "Der Abfahrtsbonus des nächsten Anlaufs zahlt x3.",
-	"it": "Il bonus del prossimo scalo paga x3.",
-	"ru": "Бонус следующего захода x3.",
-	"pl": "Premia za następne zawinięcie x3.",
-	"tr": "Sonraki seferin bonusu x3 öder."},
 "build.speed_up": {
 	"pt_BR": "Acelerar a obra", "en": "Speed up the build", "es": "Acelerar la obra",
 	"fr": "Accélérer le chantier", "de": "Bau beschleunigen", "it": "Accelera i lavori",
@@ -1713,10 +1675,6 @@ const STRINGS := {
 	"pt_BR": "Melhorias", "en": "Upgrades", "es": "Mejoras",
 	"fr": "Améliorations", "de": "Upgrades", "it": "Potenziamenti",
 	"ru": "Улучшения", "pl": "Ulepszenia", "tr": "Geliştirmeler"},
-"level.feature.skill_overtime": {
-	"pt_BR": "Turno Extra", "en": "Overtime", "es": "Turno extra",
-	"fr": "Heures sup", "de": "Überstunden", "it": "Straordinario",
-	"ru": "Сверхурочные", "pl": "Nadgodziny", "tr": "Fazla mesai"},
 "level.feature.daily": {
 	"pt_BR": "Missões do Dia", "en": "Daily Orders", "es": "Misiones",
 	"fr": "Missions", "de": "Tagesaufträge", "it": "Missioni",
@@ -1725,10 +1683,6 @@ const STRINGS := {
 	"pt_BR": "Terreno", "en": "Land", "es": "Terreno",
 	"fr": "Terrain", "de": "Land", "it": "Terreno",
 	"ru": "Земля", "pl": "Teren", "tr": "Arazi"},
-"level.feature.skill_mutirao": {
-	"pt_BR": "Mutirão", "en": "All Hands", "es": "Faena",
-	"fr": "Branle-bas", "de": "Alle Mann", "it": "Tutti al lavoro",
-	"ru": "Аврал", "pl": "Wszyscy na pokład", "tr": "Seferberlik"},
 "level.feature.gull": {
 	"pt_BR": "Gaivota Dourada", "en": "Golden Gull", "es": "Gaviota dorada",
 	"fr": "Mouette dorée", "de": "Goldmöwe", "it": "Gabbiano d'oro",
@@ -1749,10 +1703,6 @@ const STRINGS := {
 	"pt_BR": "Fretamentos", "en": "Charters", "es": "Fletamentos",
 	"fr": "Affrètements", "de": "Charter", "it": "Noleggi",
 	"ru": "Фрахт", "pl": "Czartery", "tr": "Çarterler"},
-"level.feature.skill_pilot": {
-	"pt_BR": "Prático a Bordo", "en": "Pilot Aboard", "es": "Práctico a bordo",
-	"fr": "Pilote à bord", "de": "Lotse an Bord", "it": "Pilota a bordo",
-	"ru": "Лоцман", "pl": "Pilot na pokładzie", "tr": "Kılavuz kaptan"},
 "level.feature.decor": {
 	"pt_BR": "Decoração", "en": "Decor", "es": "Decoración",
 	"fr": "Déco", "de": "Deko", "it": "Decori",

@@ -29,7 +29,7 @@ Contract with `LuckyWheelPanel` (scripts/ui/lucky_wheel_panel.gd):
 import math
 
 import palette as P
-from common import new_img, px, rect, save, sheet
+from common import new_img, px, rect, save, sheet, hline
 
 DISC = 104
 DISC_FRAMES = 64
@@ -382,26 +382,53 @@ def stand():
 
 
 def badge(lit=False):
-    """The HUD button's wheel: eight slices, a hub, and a pointer on top."""
+    """The HUD button's wheel, drawn to be read at 24px.
+
+    The old badge put eight different hues in a nine-pixel radius and read as a
+    rainbow smudge. This one is four colours alternating round eight slices,
+    each slice divided from the next by a dark spoke, inside a thick brass rim
+    with bulbs, a brass hub, and the red pointer biting the rim at the top.
+    `lit` lights every other bulb, which is the "a spin is waiting" frame.
+    """
     img = new_img(24, 24)
-    c = 11.5
+    slices = [(214, 62, 56, 255), (240, 178, 60, 255), (44, 150, 140, 255),
+              (246, 236, 214, 255)]
+    shade = [(160, 40, 44, 255), (196, 130, 40, 255), (28, 104, 104, 255),
+             (206, 194, 170, 255)]
+    spoke = (40, 30, 40, 255)
+    c, cy = 11.5, 12.5
     for y in range(24):
         for x in range(24):
-            dx, dy = x - c, y - c + 1
+            dx, dy = x - c, y - cy
             r = math.hypot(dx, dy)
-            if r > 10.0:
+            if r > 10.6:
                 continue
-            if r > 9.0:
-                px(img, x, y, BULB_ON if lit and (x + y) % 3 == 0 else BRASS[1])
+            if r > 8.4:
+                # rim: brass ramp lit from the upper left, bulbs on the diagonal
+                lx = dx + dy
+                px(img, x, y, BRASS[3] if lx < -6 else BRASS[2] if lx < 4 else BRASS[1])
                 continue
             a = _angle_cw_from_top(dx, dy)
-            seg = int(((a + 22.5) % 360.0) // 45.0)
-            px(img, x, y, SEG[seg][3] if r > 5.0 else SEG[seg][2])
-    rect(img, 10, 10, 4, 4, BRASS[3])
-    px(img, 10, 10, BRASS[4])
-    rect(img, 10, 0, 4, 3, (222, 58, 52, 255))
-    px(img, 11, 3, (222, 58, 52, 255))
-    px(img, 12, 3, (222, 58, 52, 255))
+            edge = (a + 22.5) % 45.0
+            if edge < 2.6 and r > 2.5:
+                px(img, x, y, spoke)
+                continue
+            seg = int(((a + 22.5) % 360.0) // 45.0) % 4
+            px(img, x, y, shade[seg] if r > 7.4 else slices[seg])
+    for k in range(8):
+        ang = math.radians(k * 45.0)
+        bx = int(round(c + math.sin(ang) * 9.5))
+        by = int(round(cy - math.cos(ang) * 9.5))
+        on = lit and k % 2 == 0
+        px(img, bx, by, BULB_ON if on else BRASS[4])
+    # hub
+    rect(img, 10, 11, 4, 4, BRASS[2])
+    hline(img, 10, 11, 4, BRASS[4])
+    px(img, 13, 14, BRASS[0])
+    # pointer: a red tab biting the rim at twelve o'clock
+    rect(img, 10, 0, 4, 2, (222, 58, 52, 255))
+    hline(img, 10, 0, 4, (250, 120, 100, 255))
+    rect(img, 11, 2, 2, 2, (180, 36, 40, 255))
     return _outline_soft(img)
 
 

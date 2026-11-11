@@ -208,7 +208,7 @@ func _set_fog(value: float) -> void:
 func _process(delta: float) -> void:
 	var tint := _sample(TimeManager.time_of_day)
 	if _fog_amount > 0.0:
-		tint = tint.lerp(Color(0.80, 0.84, 0.88), _fog_amount * 0.30)
+		tint = tint.lerp(Color(0.80, 0.84, 0.88), _fog_amount * 0.15)
 	_wet = move_toward(_wet, 1.0 if TimeManager.rain_active else 0.0, delta * 0.25)
 	if _wet > 0.0:
 		# Overcast: the whole port loses a little light and gains a cold cast,

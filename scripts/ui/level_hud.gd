@@ -9,11 +9,11 @@ extends CanvasLayer
 
 const FEATURE_NAMES := {
 	&"objective": "level.feature.objective", &"upgrades": "level.feature.upgrades",
-	&"skill_overtime": "level.feature.skill_overtime", &"daily": "level.feature.daily",
-	&"land": "level.feature.land", &"skill_mutirao": "level.feature.skill_mutirao",
+	&"daily": "level.feature.daily",
+	&"land": "level.feature.land",
 	&"gull": "level.feature.gull", &"wheel": "level.feature.wheel",
 	&"journal": "level.feature.journal", &"routes": "level.feature.routes",
-	&"charters": "level.feature.charters", &"skill_pilot": "level.feature.skill_pilot",
+	&"charters": "level.feature.charters",
 	&"decor": "level.feature.decor", &"orders": "level.feature.orders",
 	&"prestige": "level.feature.prestige",
 }

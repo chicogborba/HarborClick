@@ -41,26 +41,26 @@ const XP_PER_MISSION_CLAIMED := 40
 const XP_PER_MACHINE := 5
 const XP_PER_UPGRADE := 30
 
-## Feature -> the level that unlocks it (plano-release 2.3). A feature not in
-## this table is never unlocked.
+## Feature -> the level that unlocks it. A feature not in this table is never
+## unlocked. Paced for the week (see `tools/balance/week_report.gd`): a casual
+## player — five ten-minute check-ins a day — earns ~2.8k XP a day, so level 8
+## lands on day 1, the first rebuild (14) on day 2, and the last unlock (18) on
+## day 3, while the economy keeps opening machines and parcels until day 7.
 const UNLOCKS: Dictionary = {
 	&"shop": 1,
 	&"objective": 2,
 	&"upgrades": 3,
-	&"skill_overtime": 3,
 	&"daily": 4,
 	&"land": 5,
-	&"skill_mutirao": 5,
-	&"gull": 5,
-	&"wheel": 6,
-	&"journal": 6,
-	&"routes": 8,
-	&"charters": 8,
-	&"events": 8,
-	&"skill_pilot": 8,
-	&"decor": 10,
-	&"orders": 10,
-	&"prestige": 12,
+	&"gull": 6,
+	&"wheel": 7,
+	&"journal": 8,
+	&"routes": 10,
+	&"charters": 12,
+	&"events": 12,
+	&"prestige": 14,
+	&"decor": 16,
+	&"orders": 18,
 }
 
 ## The level the terminal is at, 1..MAX_LEVEL.

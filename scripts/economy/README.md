@@ -47,8 +47,26 @@ asserted loosely in the test.
 Keep formula code pure and deterministic — **no autoloads**, which is why
 `BREADTH_MIN_COUNT` lives in `economy_math.gd` and not on `GameState`.
 Presentation reads calculated state; it does not duplicate costs or rates. Any
-balance change should run phase3 economy/progression, route tests and
-`tools/balance/run_balance.gd -- all`.
+balance change should run phase3 economy/progression, route tests,
+`tools/balance/run_balance.gd -- all` and `tools/balance/week_report.gd`.
+
+## Pacing: a week
+
+The game is paced so a casual player — five ten-minute check-ins a day
+(`casual_week`) — opens most of the catalogue over seven days, and someone who
+keeps it open (`engaged_week`, eight half-hours a day) not before day four.
+`week_report.gd` prints the day each machine and parcel is first bought. As
+tuned: casual opens the armazém on day 1, rebocador/trem day 3, flutuante/
+alfândega day 4, torre/drone day 6, porto IA and the portal day 7; the first
+rebuild pays on day 2. The levers, in the order they matter:
+
+- **Frontier paybacks** (`StructureDB`/`EconomyCatalog`, kept identical): from
+  the reach stacker up they stretch 240 s → 8600 s. The frontier machine is what
+  compounds; at 180–2400 s the catalogue was finished on day 4.
+- **Prestige**: `PRESTIGE_DIVISOR` 1e10 and a cube-root meta multiplier. With a
+  square root the reset loop compounded to ×500 in a week.
+- **Level unlocks** (`TerminalLevel.UNLOCKS`) run to level 18 (~day 3), the
+  rebuild at 14 (~day 2), instead of all arriving in the first hour.
 
 
 ## Roda da Sorte

@@ -12,7 +12,6 @@ const TICK := 0.12
 const GAP := 4.0
 
 var _luck: Dictionary = {}
-var _skill: Dictionary = {}
 var _combo: Dictionary = {}
 var _row: HBoxContainer
 var _safe_rect := Rect2()
@@ -27,7 +26,6 @@ func _ready() -> void:
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_row)
 	_luck = _make_chip(UiTheme.Icon16.BOOST)
-	_skill = _make_chip(UiTheme.Icon16.SKILL_OVERTIME)
 	_combo = _make_chip(UiTheme.Icon16.COMBO)
 	refresh()
 	_layout()
@@ -61,7 +59,6 @@ func refresh() -> void:
 	if _row == null:
 		return
 	_set_chip(_luck, GameState.surge_mult, GameState.surge_time)
-	_set_chip(_skill, GameState.skill_mult, GameState.skill_time)
 	var now := GameState.combo_now()
 	var on := GameState.combo.is_active(now)
 	(_combo.panel as Control).visible = on

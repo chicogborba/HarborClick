@@ -26,8 +26,10 @@ void fragment() {
 	float n1 = noise(p * 0.022 + vec2(t * 0.08, 0.0));
 	float n2 = noise(p * 0.011 + vec2(-t * 0.04, t * 0.01));
 	float density = clamp(n1 * 0.55 + n2 * 0.55, 0.0, 1.0);
-	// a soft floor so the whole scene hazes, plus quantized banks on top
+	// A light haze plus drifting banks. It used to reach 64% white and wash
+	// the whole port out to grey for the length of a foggy day; fog is a mood,
+	// the containers still have to read through it.
 	float banks = floor(density * 4.0) / 4.0;
-	float a = (0.22 + banks * 0.42) * amount;
+	float a = (0.06 + banks * 0.20) * amount;
 	COLOR = vec4(fog_color.rgb, clamp(a, 0.0, 1.0));
 }

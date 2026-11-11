@@ -34,7 +34,6 @@ func _run() -> void:
 	test_a_blocked_node_is_refused_not_silently_bought()
 	test_fmt_reads_as_a_number_in_this_language()
 	test_the_cat_is_worth_finding_after_automation()
-	test_a_skill_multiplies_with_a_luck_surge_instead_of_replacing_it()
 	test_purchase_wait_reads_as_time()
 	test_late_sections_and_seed()
 	test_achievements_pay_and_gated_branches_read_their_stats()
@@ -458,10 +457,10 @@ func test_achievements_pay_and_gated_branches_read_their_stats() -> void:
 		"routes node is refused while the routes feature is locked")
 	_expect(not GameState.buy_prestige_node(&"events_reward"),
 		"events node is refused while the events feature is locked")
-	rules.level = 8
+	rules.level = 12
 	FeatureGate.bind(rules)
 	_expect(PrestigeDB.purchasable_branches().size() == PrestigeDB.BRANCHES.size(),
-		"at level 8 every branch is on the tree")
+		"at level 12 every branch is on the tree")
 	_expect(GameState.buy_prestige_node(&"routes_reward"),
 		"routes node buys once routes is unlocked")
 	_expect(is_equal_approx(GameState.route_reward_bonus(), 0.10),
@@ -469,7 +468,7 @@ func test_achievements_pay_and_gated_branches_read_their_stats() -> void:
 	_expect(GameState.buy_prestige_node(&"routes_slot"),
 		"route slot node buys after its requirement")
 	_expect(GameState.route_slot_bonus() == 1, "route_slot_bonus reads the flat node")
-	_expect(GameState.buy_prestige_node(&"events_reward"), "events node buys at level 8")
+	_expect(GameState.buy_prestige_node(&"events_reward"), "events node buys at level 12")
 	_expect(is_equal_approx(GameState.event_reward_bonus(), 0.10),
 		"event_reward_bonus reads the bought node")
 	_expect(GameState.buy_prestige_node(&"events_window"), "events window node buys")
@@ -766,28 +765,6 @@ func test_fmt_reads_as_a_number_in_this_language() -> void:
 		var text := GameState.fmt(value)
 		_expect(not text.begins_with("10"),
 			"%s prints a normalised mantissa (%s)" % [value, text])
-
-
-func test_a_skill_multiplies_with_a_luck_surge_instead_of_replacing_it() -> void:
-	## One slot for both made pressing an earned button during a gull's frenzy a
-	## waste ("the strongest wins"). Skills have their own slot and stack.
-	GameState.from_save({"owned": {"estivador": 40}, "teus": 1e6})
-	GameState.recompute()
-	var base := GameState.cps
-	GameState.grant_surge(7.0, 30.0)
-	GameState.grant_skill(2.0, 20.0)
-	_expect(is_equal_approx(GameState.cps, base * 14.0),
-		"a x7 frenzy and a x2 skill make x14")
-	_expect(is_equal_approx(GameState.click_power, GameState.click_power),
-		"taps are multiplied by both as well")
-	GameState.skill_time = 0.0001
-	GameState._process(0.01)
-	_expect(is_equal_approx(GameState.cps, base * 7.0),
-		"when the skill ends the surge is untouched")
-	GameState.from_save({})
-	_expect(is_equal_approx(GameState.skill_mult, 1.0) and GameState.skill_time == 0.0,
-		"and a load never brings a skill back")
-	GameState.recompute()
 
 
 func test_the_cat_is_worth_finding_after_automation() -> void:

@@ -62,9 +62,6 @@ const HULL_EDGE := Color8(16, 22, 34)
 ## The dark glass a lit number sits behind, and the two inks that light up on it.
 const GLASS := Color8(25, 31, 46)
 const DIGIT := Color8(252, 202, 96)
-## An undriven totaliser cell: dark enough to read as "off", light enough to
-## read as a segment of the display rather than as a hole in the glass.
-const DIGIT_UNLIT := Color8(40, 50, 70)
 ## Text on steel. `STEEL_DIM` is the quiet one — deliberately lighter than
 ## `SLATE_DIM`, which is tuned for the near-black slate of a price stamp and
 ## drops under AA on the lighter navy.
@@ -118,6 +115,25 @@ enum Icon16 {
 	SKILL_PILOT, ALBUM, MISSION, TOKEN, TAP, SHIP, TEU, GEAR,
 }
 const ICONS16 := preload("res://assets/sprites/ui_icons16.png")
+
+
+## The command rail's glyphs, drawn at 24px for the size they are shown at
+## (`tools/sprites/gen_hud24.py`). Order matches the sheet.
+enum Hud24 { SHOP, ROUTES, LOGBOOK, SETTINGS }
+const HUD24 := preload("res://assets/sprites/ui_hud24.png")
+
+
+static func hud24(kind: Hud24) -> TextureRect:
+	var atlas := AtlasTexture.new()
+	atlas.atlas = HUD24
+	atlas.region = Rect2(int(kind) * 24, 0, 24, 24)
+	var node := TextureRect.new()
+	node.texture = atlas
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	node.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	node.custom_minimum_size = Vector2(24, 24)
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return node
 
 
 static func icon16_texture(kind: Icon16) -> AtlasTexture:
@@ -853,6 +869,28 @@ static func stamp(text: String, color: Color = AMBER,
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	box.add_child(value)
 	return box
+
+
+static func count_pill(fill: Color, ink: Color = CREAM) -> PanelContainer:
+	## The little number pinned to a key's corner ("1 waiting"). A bare
+	## outlined digit floated off the key and read as stray text; a pill with an
+	## ink edge reads as a badge that belongs to the key it sits on.
+	var box := StyleBoxFlat.new()
+	box.bg_color = fill
+	box.border_color = HULL_EDGE
+	box.set_border_width_all(1)
+	box.content_margin_left = 3
+	box.content_margin_right = 3
+	box.content_margin_top = 1
+	box.content_margin_bottom = 1
+	var pill := panel(box)
+	pill.visible = false
+	var value := label("", SIZE_SMALL, ink)
+	value.name = "Value"
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	value.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pill.add_child(value)
+	return pill
 
 
 static func stamp_label(node: PanelContainer) -> Label:

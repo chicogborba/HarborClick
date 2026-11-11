@@ -17,6 +17,7 @@ var _service: DailyOrdersService
 var _button: Button
 var _badge_atlas: AtlasTexture
 var _count: Label
+var _count_pill: PanelContainer
 var _safe_rect := Rect2()
 var _world_rect := Rect2()
 var _home := Vector2.ZERO
@@ -55,12 +56,9 @@ func _ready() -> void:
 
 	# Red, not amber: amber is the wheel's token count beside it, and "a reward
 	# is waiting for you" is the one thing on the HUD allowed to shout.
-	_count = UiTheme.label("", UiTheme.SIZE_SMALL, Color8(255, 236, 220))
-	_count.label_settings = UiTheme.settings(UiTheme.SIZE_SMALL, Color8(255, 236, 220), 2)
-	_count.label_settings.outline_color = UiTheme.DANGER
-	_count.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_count.visible = false
-	add_child(_count)
+	_count_pill = UiTheme.count_pill(UiTheme.DANGER)
+	_count = _count_pill.get_node(^"Value")
+	add_child(_count_pill)
 	refresh()
 	_layout()
 
@@ -81,7 +79,7 @@ func refresh() -> void:
 	if not _bob:
 		_bob_up = false
 	_count.text = str(waiting)
-	_count.visible = waiting > 0
+	_count_pill.visible = waiting > 0
 
 
 func _process(delta: float) -> void:
@@ -123,4 +121,4 @@ func _layout() -> void:
 	_home = pos.round()
 	_button.size = Vector2(SIZE, SIZE)
 	_button.position = _home + Vector2(0.0, -1.0 if _bob_up else 0.0)
-	_count.position = (_home + Vector2(SIZE - 8.0, -4.0)).round()
+	_count_pill.position = (_home + Vector2(SIZE - 10.0, -5.0)).round()

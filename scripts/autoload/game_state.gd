@@ -32,16 +32,8 @@ var boost_time: float = 0.0      # remaining seconds of the cat boost
 ## a burst, and a burst that survives a reload could be banked.
 var surge_mult: float = 1.0
 var surge_time: float = 0.0
-## The Capataz's skills get a slot of their own, beside the luck surge above.
-## One slot for both meant that using a skill while a gull's frenzy was running
-## threw the skill away ("the strongest wins"); two slots multiply, so pressing a
-## button you earned is never wasted. Session-scoped like every burst.
-var skill_mult: float = 1.0
-var skill_time: float = 0.0
 ## The tap rhythm (see `TapCombo`): session-scoped, multiplies only the tap.
 var combo := TapCombo.new()
-## What the pilot skill has promised the next call's departure bonus (1 = nothing).
-var pilot_pending: float = 1.0
 ## Purchases still being built: {id, qty, left, total}. Paid for, not yet owned —
 ## see `BuildQueue`. Off by default so a headless suite buying a machine has it
 ## at once; `Main` turns it on for the real game.
@@ -146,11 +138,6 @@ func _process(delta: float) -> void:
 		surge_time = maxf(0.0, surge_time - delta)
 		if surge_time == 0.0:
 			surge_mult = 1.0
-			recompute()
-	if skill_time > 0.0:
-		skill_time = maxf(0.0, skill_time - delta)
-		if skill_time == 0.0:
-			skill_mult = 1.0
 			recompute()
 	if cps > 0.0:
 		_earn(cps * delta)
@@ -276,20 +263,6 @@ func grant_surge(multiplier: float, seconds: float) -> void:
 	EventBus.teus_changed.emit(teus)
 
 
-func grant_skill(multiplier: float, seconds: float) -> void:
-	## A skill burst on everything the port earns. Unlike `grant_surge` the
-	## strongest does not win: it only replaces another skill burst, and always
-	## multiplies with the luck surge.
-	skill_mult = maxf(1.0, multiplier)
-	skill_time = maxf(0.0, seconds)
-	recompute()
-	EventBus.teus_changed.emit(teus)
-
-
-func skill_remaining() -> float:
-	return skill_time
-
-
 func surge_remaining() -> float:
 	return surge_time
 
@@ -412,13 +385,6 @@ func do_click(world_pos: Vector2) -> void:
 	var quote := make_manual_reward_quote(tx_id)
 	if commit_manual_reward(tx_id, quote, world_pos):
 		EventBus.container_unloaded.emit(world_pos, float(quote.value), bool(quote.crit))
-
-
-func take_pilot() -> float:
-	## Spent by the call that pays: the promise is for one departure only.
-	var mult := pilot_pending
-	pilot_pending = 1.0
-	return mult
 
 
 func combo_now() -> float:
@@ -1083,7 +1049,7 @@ func recompute() -> void:
 	# with `base_cps`: card previews and the transform delta are quoted in
 	# base_cps, and a permanent factor inside it would make every card lie.
 	base_cps = total * global_mult
-	cps = base_cps * TimeManager.weather_cps_mult() * surge_mult * skill_mult \
+	cps = base_cps * TimeManager.weather_cps_mult() * surge_mult \
 		* achievement_multiplier()
 	var manual_meta := _tree_scope_multiplier(&"manual", &"click_multiplier")
 	var tree_cps_per_tap := _tree_scope_additive(&"manual", &"cps_per_tap")
@@ -1091,7 +1057,7 @@ func recompute() -> void:
 		+ cps * (click_cps_pct + tree_cps_per_tap)
 	# A surge is on everything the port earns, taps included — and the cat is a
 	# surge now, so it needs no second multiplication here.
-	click_power *= surge_mult * skill_mult
+	click_power *= surge_mult
 	EventBus.cps_changed.emit(cps)
 
 
@@ -1137,8 +1103,6 @@ func cps_breakdown() -> Array[Dictionary]:
 		rows.append({"label": "Neblina", "kind": "mult", "value": weather})
 	if not is_equal_approx(surge_mult, 1.0):
 		rows.append({"label": "Surto", "kind": "mult", "value": surge_mult})
-	if not is_equal_approx(skill_mult, 1.0):
-		rows.append({"label": "Habilidade", "kind": "mult", "value": skill_mult})
 	return rows
 
 
@@ -1397,10 +1361,7 @@ func from_save(data: Dictionary) -> void:
 	boost_time = 0.0
 	surge_mult = 1.0
 	surge_time = 0.0
-	skill_mult = 1.0
-	skill_time = 0.0
 	combo.reset()
-	pilot_pending = 1.0
 	builds = BuildQueue.normalise(data.get("builds", []))
 	# v1's lifetime was the only earned-total field, so it seeds both totals.
 	var legacy_lifetime := float(data.get("lifetime", data.get("lifetime_teus", 0.0)))

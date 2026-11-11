@@ -77,7 +77,8 @@ const BUILD_PLANS := {
 
 static func scenario_names() -> PackedStringArray:
 	return PackedStringArray(["active_90m", "hybrid_120m", "casual_24h",
-		"offline_night", "wrong_buy", "recovery", "build_wide", "build_tall"])
+		"offline_night", "wrong_buy", "recovery", "build_wide", "build_tall",
+		"casual_week", "engaged_week"])
 
 
 static func scenario_config(name: StringName) -> Dictionary:
@@ -131,13 +132,29 @@ static func scenario_config(name: StringName) -> Dictionary:
 		&"recovery":
 			# Long enough to reach the first reset and rebuild past it, which is
 			# the only way `first_recovery_seconds` can report anything.
-			base.merge({"duration": 4.0 * 3600.0}, true)
+			base.merge({"duration": 8.0 * 3600.0}, true)
+		&"casual_week":
+			# The week the game is paced for: five check-ins a day of ten minutes,
+			# tapping now and then, resetting when the reset is worth it. Most of
+			# the catalogue should open inside these seven days and not before.
+			base.merge({"duration": 7.0 * 86400.0, "taps_per_second": 1.5,
+				"session_seconds": 10.0 * 60.0, "away_seconds": 4.8 * 3600.0 - 600.0,
+				"prestige_policy": "efficient", "decision_interval": 10.0,
+				"tick": 1.0}, true)
+		&"engaged_week":
+			# The player who keeps it open: eight half-hour sessions a day. The
+			# ceiling of the pacing — they may finish early, but not on day two.
+			base.merge({"duration": 7.0 * 86400.0, "taps_per_second": 2.5,
+				"session_seconds": 30.0 * 60.0, "away_seconds": 3.0 * 3600.0 - 1800.0,
+				"prestige_policy": "efficient", "decision_interval": 10.0,
+				"tick": 1.0}, true)
 		&"build_wide", &"build_tall":
 			# The composition pair. Identical in every field but `build`, so the
 			# two results subtract and the difference is the tree and nothing else.
-			# Three hours: an exclusive pair does not open until the port is large,
-			# and a run that ends before the choice exists cannot measure it.
-			base.merge({"duration": 3.0 * 3600.0, "taps_per_second": 2.0,
+			# Six hours: an exclusive pair does not open until the port is large,
+			# and a run that ends before the choice exists cannot measure it
+			# (three hours was enough before the week-long pacing).
+			base.merge({"duration": 6.0 * 3600.0, "taps_per_second": 2.0,
 				"prestige_policy": "never",
 				"build": "wide" if name == &"build_wide" else "tall"}, true)
 	return base
