@@ -33,6 +33,10 @@ extends RefCounted
 ## | 30 | 19184 | ~338 |
 
 const MAX_LEVEL := 30
+## The whole curve stretched for a week of two-hour days: level 30 at ~14 h of
+## active play rather than ~5.6 h (the minute table below is the unscaled one;
+## multiply its minutes by this).
+const XP_SCALE := 2.5
 
 ## XP per event, see the class doc.
 const XP_PER_TRANSFER := 1
@@ -79,7 +83,7 @@ static func xp_for_level(n: int) -> int:
 	## Cumulative XP needed to *reach* level `n` from level 1. Quadratic in
 	## k = n-1: 96k + 19.5k², see the table in the class doc. Level 1 is free.
 	var k := clampi(n - 1, 0, MAX_LEVEL - 1)
-	return int(round(96.0 * k + 19.5 * float(k) * float(k)))
+	return int(round(XP_SCALE * (96.0 * k + 19.5 * float(k) * float(k))))
 
 
 static func level_for_xp(total_xp: int) -> int:

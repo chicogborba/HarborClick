@@ -76,7 +76,14 @@ func test_runtime_catalog_integrity() -> void:
 		_expect(catalog_by_id.has(structure_id), "%s exists in EconomyCatalog" % structure_id)
 		_expect(paybacks.has(structure_id), "%s has a payback target" % structure_id)
 		if paybacks.has(structure_id):
-			_expect(_close(float(structure.cost) / float(structure.cps), float(paybacks[structure_id])), "%s preserves its target payback" % structure_id)
+			# The authored table keeps the payback targets; the pacing curve then
+			# makes every tier past the first pay back slower, never faster.
+			var raw: Dictionary = {}
+			for entry in StructureDB.RAW_ITEMS:
+				if String(entry.id) == structure_id:
+					raw = entry
+			_expect(_close(float(raw.cost) / float(structure.cps), float(paybacks[structure_id])), "%s preserves its target payback" % structure_id)
+			_expect(float(structure.cost) >= float(raw.cost), "%s is never cheaper than authored" % structure_id)
 	_expect(structure_ids.size() == catalog_by_id.size(), "runtime structures cover every EconomyCatalog id")
 
 	# This block used to assert that every `structure_mult` was exactly ×2 and
@@ -185,10 +192,13 @@ func test_balance_targets() -> void:
 	_expect(float(markers.first_choice) <= 60.0, "first purchase choice happens within 60 seconds")
 	# Paced for the week: someone tapping nonstop reaches the first rebuild in
 	# a few hours, a five-check-ins-a-day player on day two.
-	var active := EconomySimulator.run_scenario(&"recovery", {"duration": 5.0 * 3600.0})
+	# The week-long pacing curve (`EconomyMath.pace_cost`) moved it out: two
+	# hours a day for a week finishes the game, so a nonstop player's first
+	# rebuild lands in an afternoon rather than a lunch break.
+	var active := EconomySimulator.run_scenario(&"recovery", {"duration": 7.0 * 3600.0})
 	var first_prestige := float(active.markers.first_prestige)
-	_expect(first_prestige >= 2.5 * 3600.0 and first_prestige <= 4.0 * 3600.0,
-		"first prestige of a nonstop player lands between 2.5 and 4 hours (%.0f min)"
+	_expect(first_prestige >= 4.0 * 3600.0 and first_prestige <= 6.0 * 3600.0,
+		"first prestige of a nonstop player lands between 4 and 6 hours (%.0f min)"
 			% (first_prestige / 60.0))
 	# The README target is three distinct machines within five minutes. Speeding
 	# up the first two paybacks took it from 7min25 to 6min40; the rest of the

@@ -4,7 +4,9 @@ class_name StructureDB
 
 const GROWTH := 1.15
 
-const ITEMS: Array[Dictionary] = [
+## The authored prices. Everything reads `ITEMS`, which is this table run
+## through `EconomyMath.paced`.
+const RAW_ITEMS: Array[Dictionary] = [
 	{
 		"id": "estivador", "name": "Estivador",
 		"desc": "Carrega caixas desde 1987. As costas reclamam, ele não.",
@@ -85,6 +87,7 @@ const ITEMS: Array[Dictionary] = [
 		"cost": 26e15, "growth": 1.2, "cps": 26e15 / 8600.0,
 	},
 ]
+static var ITEMS: Array[Dictionary] = EconomyMath.paced(RAW_ITEMS)
 
 static func get_item(id: String) -> Dictionary:
 	for item in ITEMS:

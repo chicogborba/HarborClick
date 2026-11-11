@@ -52,6 +52,18 @@ balance change should run phase3 economy/progression, route tests,
 
 ## Pacing: a week
 
+**Target: two hours a day for seven days owns everything** (`two_hour_week`:
+four half-hour sessions a day). Two knobs carry it:
+
+- `EconomyMath.pace_cost` runs every list price (machines, land, upgrades)
+  through `price * (price / 15) ^ 0.12`. The `RAW_ITEMS` tables keep the
+  authored prices and paybacks; `ITEMS` is the paced view everything reads.
+  Cheap things barely move, so the first minutes are as quick as ever; each
+  tier pays back slower than the last. With it, `two_hour_week` opens the
+  second-to-last machine on day 7 and the last just after.
+- `TerminalLevel.XP_SCALE` (2.5) stretches the level curve: level 30 at ~14 h
+  of active play instead of ~5.6 h.
+
 The game is paced so a casual player — five ten-minute check-ins a day
 (`casual_week`) — opens most of the catalogue over seven days, and someone who
 keeps it open (`engaged_week`, eight half-hours a day) not before day four.

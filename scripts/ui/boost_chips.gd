@@ -25,13 +25,13 @@ func _ready() -> void:
 	_row.add_theme_constant_override(&"separation", int(GAP))
 	_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_row)
-	_luck = _make_chip(UiTheme.Icon16.BOOST)
-	_combo = _make_chip(UiTheme.Icon16.COMBO)
+	_luck = _make_chip(UiTheme.Icon16.BOOST, "boost.output")
+	_combo = _make_chip(UiTheme.Icon16.COMBO, "boost.combo")
 	refresh()
 	_layout()
 
 
-func _make_chip(icon: UiTheme.Icon16) -> Dictionary:
+func _make_chip(icon: UiTheme.Icon16, caption_key: String) -> Dictionary:
 	var panel := UiTheme.panel(UiTheme.tag_style(3))
 	panel.visible = false
 	_row.add_child(panel)
@@ -40,6 +40,10 @@ func _make_chip(icon: UiTheme.Icon16) -> Dictionary:
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(box)
 	box.add_child(UiTheme.icon16(icon))
+	# The word: a bare "x7 24s" never said *what* was multiplied.
+	var caption := UiTheme.label(Loc.t(caption_key), UiTheme.SIZE_SMALL, UiTheme.STEEL_DIM)
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(caption)
 	var label := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(label)

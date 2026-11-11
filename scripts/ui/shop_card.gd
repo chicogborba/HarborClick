@@ -31,6 +31,12 @@ var _indent: Control
 var _name_label: Label
 var _sub_label: Label
 var _lock: TextureRect
+## Up to two coloured tags under the name saying what kind of thing this card
+## does (production, the whole port, taps, a swap, the rail) and whether it is
+## one of an exclusive pair. Built once, rewritten in place.
+var _chip_row: HBoxContainer
+var _chips: Array[Dictionary] = []   # {panel, style, icon, label}
+var _chip_key := ""
 var _count_stamp: PanelContainer
 var _count_label: Label
 var _price_stamp: PanelContainer
@@ -108,10 +114,20 @@ func setup(item_id: String, item_kind: String, art_key: String,
 	name_row.add_child(_lock)
 	name_row.add_child(_name_label)
 
+	_chip_row = HBoxContainer.new()
+	_chip_row.add_theme_constant_override(&"separation", 4)
+	_chip_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_chip_row.visible = false
+	text_col.add_child(_chip_row)
+	for i in 2:
+		_chips.append(_make_chip())
+
 	_sub_label = UiTheme.label(description, UiTheme.SIZE_SMALL,
 		UiTheme.INK_SOFT)
 	_sub_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_sub_label.max_lines_visible = 2
+	# Three lines: an effect cut off after "Estivador vira multiplicador:" was
+	# the shop's whole readability problem in one card.
+	_sub_label.max_lines_visible = 3
 	_sub_label.custom_minimum_size.x = 0.0
 	text_col.add_child(_sub_label)
 
@@ -157,6 +173,52 @@ func set_indent(depth: int) -> void:
 		return
 	_indent.custom_minimum_size.x = INDENT_STEP \
 		* float(clampi(depth, 0, INDENT_MAX_DEPTH))
+
+
+func _make_chip() -> Dictionary:
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.content_margin_left = 3
+	style.content_margin_right = 4
+	style.content_margin_top = 1
+	style.content_margin_bottom = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0, 0, 0, 0.35)
+	panel.add_theme_stylebox_override(&"panel", style)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.visible = false
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 3)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(row)
+	var icon := UiTheme.icon(UiTheme.Icon.STAR)
+	row.add_child(icon)
+	var label := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.CREAM)
+	row.add_child(label)
+	_chip_row.add_child(panel)
+	return {"panel": panel, "style": style, "icon": icon, "label": label}
+
+
+func set_chips(chips: Array) -> void:
+	## `chips`: [{text, color: Color, icon: UiTheme.Icon}], at most two. Only
+	## touches the nodes when what they say changes.
+	var key := str(chips)
+	if key == _chip_key:
+		return
+	_chip_key = key
+	_chip_row.visible = not chips.is_empty()
+	for i in _chips.size():
+		var chip: Dictionary = _chips[i]
+		var panel: PanelContainer = chip.panel
+		if i >= chips.size():
+			panel.visible = false
+			continue
+		var spec: Dictionary = chips[i]
+		panel.visible = true
+		(chip.style as StyleBoxFlat).bg_color = spec.get("color", UiTheme.TEAL)
+		(chip.label as Label).text = str(spec.get("text", ""))
+		(chip.icon as TextureRect).texture = UiTheme.icon_texture(
+			spec.get("icon", UiTheme.Icon.STAR))
 
 
 func set_effect(text: String) -> void:

@@ -736,6 +736,38 @@ const STRINGS := {
 	"ru": "Вся земля вокруг порта уже ваша.",
 	"pl": "Cała ziemia wokół portu już należy do ciebie.",
 	"tr": "Limanın etrafındaki tüm arazi zaten senin."},
+"shop.chip.port": {
+	"pt_BR": "{v} PORTO TODO", "en": "{v} WHOLE PORT", "es": "{v} TODO EL PUERTO", "fr": "{v} TOUT LE PORT", "de": "{v} GANZER HAFEN", "it": "{v} TUTTO IL PORTO", "ru": "{v} ВЕСЬ ПОРТ", "pl": "{v} CAŁY PORT", "tr": "{v} TÜM LİMAN"},
+"shop.chip.tap": {
+	"pt_BR": "{v} TOQUE", "en": "{v} TAP", "es": "{v} TOQUE", "fr": "{v} TOUCHE", "de": "{v} TIPPEN", "it": "{v} TOCCO", "ru": "{v} КАСАНИЕ", "pl": "{v} STUKNIĘCIE", "tr": "{v} DOKUNUŞ"},
+"shop.chip.synergy": {
+	"pt_BR": "{v} POR MÁQUINA", "en": "{v} PER MACHINE", "es": "{v} POR MÁQUINA", "fr": "{v} PAR MACHINE", "de": "{v} PRO MASCHINE", "it": "{v} PER MACCHINA", "ru": "{v} ЗА МАШИНУ", "pl": "{v} NA MASZYNĘ", "tr": "{v} MAKİNE BAŞI"},
+"shop.chip.swap": {
+	"pt_BR": "TROCA", "en": "SWAP", "es": "CAMBIO", "fr": "ÉCHANGE", "de": "TAUSCH", "it": "SCAMBIO", "ru": "ОБМЕН", "pl": "ZAMIANA", "tr": "TAKAS"},
+"shop.chip.rail": {
+	"pt_BR": "RAMAL", "en": "RAIL", "es": "RAMAL", "fr": "RAIL", "de": "BAHN", "it": "RACCORDO", "ru": "ВЕТКА", "pl": "BOCZNICA", "tr": "HAT"},
+"shop.chip.choice": {
+	"pt_BR": "ESCOLHA 1 DE 2", "en": "PICK 1 OF 2", "es": "ELIGE 1 DE 2", "fr": "1 SUR 2", "de": "1 VON 2", "it": "SCEGLI 1 DI 2", "ru": "1 ИЗ 2", "pl": "WYBIERZ 1 Z 2", "tr": "2'DEN 1'İ"},
+"shop.upgrade.or": {
+	"pt_BR": "Ou este ou {name}. Dá pra trocar depois.", "en": "This or {name}. You can swap later.", "es": "Este o {name}. Puedes cambiar después.", "fr": "Celui-ci ou {name}. Échange possible ensuite.", "de": "Dieses oder {name}. Später tauschbar.", "it": "Questo o {name}. Puoi cambiare dopo.", "ru": "Это или {name}. Потом можно поменять.", "pl": "To albo {name}. Można zmienić później.", "tr": "Bu ya da {name}. Sonra değiştirebilirsin."},
+"boost.output": {
+	"pt_BR": "PRODUÇÃO", "en": "OUTPUT", "es": "PRODUCCIÓN", "fr": "PRODUCTION", "de": "LEISTUNG", "it": "PRODUZIONE", "ru": "ВЫРАБОТКА", "pl": "PRODUKCJA", "tr": "ÜRETİM"},
+"boost.combo": {
+	"pt_BR": "TOQUE", "en": "TAP", "es": "TOQUE", "fr": "TOUCHE", "de": "TIPPEN", "it": "TOCCO", "ru": "КАСАНИЕ", "pl": "STUKNIĘCIE", "tr": "DOKUNUŞ"},
+"diary.title": {
+	"pt_BR": "DIÁRIO DO PORTO", "en": "PORT DIARY", "es": "DIARIO DEL PUERTO", "fr": "JOURNAL DU PORT", "de": "HAFENTAGEBUCH", "it": "DIARIO DEL PORTO", "ru": "ДНЕВНИК ПОРТА", "pl": "DZIENNIK PORTU", "tr": "LİMAN GÜNLÜĞÜ"},
+"diary.tab.notices": {
+	"pt_BR": "AVISOS", "en": "NOTICES", "es": "AVISOS", "fr": "AVIS", "de": "MELDUNGEN", "it": "AVVISI", "ru": "ИЗВЕЩЕНИЯ", "pl": "OGŁOSZENIA", "tr": "DUYURULAR"},
+"diary.tab.medals": {
+	"pt_BR": "MEDALHAS", "en": "MEDALS", "es": "MEDALLAS", "fr": "MÉDAILLES", "de": "MEDAILLEN", "it": "MEDAGLIE", "ru": "МЕДАЛИ", "pl": "MEDALE", "tr": "MADALYALAR"},
+"diary.trophy": {
+	"pt_BR": "TROFÉU FINAL", "en": "FINAL TROPHY", "es": "TROFEO FINAL", "fr": "TROPHÉE FINAL", "de": "LETZTE TROPHÄE", "it": "TROFEO FINALE", "ru": "ГЛАВНЫЙ ТРОФЕЙ", "pl": "TROFEUM KOŃCOWE", "tr": "SON KUPA"},
+"diary.trophy.name": {
+	"pt_BR": "Lenda do Porto: ganhe todas as medalhas.", "en": "Port Legend: earn every medal.", "es": "Leyenda del Puerto: gana todas las medallas.", "fr": "Légende du port : gagne toutes les médailles.", "de": "Hafenlegende: verdiene alle Medaillen.", "it": "Leggenda del Porto: vinci tutte le medaglie.", "ru": "Легенда порта: собери все медали.", "pl": "Legenda Portu: zdobądź wszystkie medale.", "tr": "Liman Efsanesi: tüm madalyaları kazan."},
+"diary.count": {
+	"pt_BR": "{n} / {total} medalhas", "en": "{n} / {total} medals", "es": "{n} / {total} medallas", "fr": "{n} / {total} médailles", "de": "{n} / {total} Medaillen", "it": "{n} / {total} medaglie", "ru": "{n} / {total} медалей", "pl": "{n} / {total} medali", "tr": "{n} / {total} madalya"},
+"diary.tap_medal": {
+	"pt_BR": "Toque numa medalha para ver o que ela pede.", "en": "Tap a medal to see what it asks for.", "es": "Toca una medalla para ver qué pide.", "fr": "Touche une médaille pour voir ce qu'elle demande.", "de": "Tippe auf eine Medaille, um zu sehen, was sie verlangt.", "it": "Tocca una medaglia per vedere cosa chiede.", "ru": "Нажми на медаль, чтобы увидеть условие.", "pl": "Stuknij medal, aby zobaczyć, czego wymaga.", "tr": "Ne istediğini görmek için bir madalyaya dokun."},
 "shop.requires": {
 	"pt_BR": "Requer: {name}", "en": "Needs: {name}", "es": "Requiere: {name}",
 	"fr": "Nécessite : {name}", "de": "Erfordert: {name}",
@@ -1969,5 +2001,205 @@ const STRINGS := {
 	"pt_BR": "+1 FICHA!", "en": "+1 TOKEN", "es": "+1 FICHA",
 	"fr": "+1 JETON", "de": "+1 JETON", "it": "+1 GETTONE",
 	"ru": "+1 ФИШКА", "pl": "+1 ŻETON", "tr": "+1 JETON"},
+
+# ------------------------------- Receita Federal: Neide and the X-ray scanner
+# Neide is the customs auditor who arrives right after Alisson's tour. The
+# scanner software is "Creatus Security e VWI" in every language (a brand,
+# drawn on the monitor, not translated). The legend labels sit side by side on
+# one status line under the scan, so they stay short.
+
+"receita.role": {
+	"pt_BR": "AUDITORA DA RECEITA", "en": "CUSTOMS AUDITOR", "es": "AUDITORA DE ADUANAS",
+	"fr": "AUDITRICE DES DOUANES", "de": "ZOLLPRÜFERIN", "it": "ISPETTRICE DOGANALE",
+	"ru": "ТАМОЖЕННЫЙ ИНСПЕКТОР", "pl": "AUDYTORKA CELNA", "tr": "GÜMRÜK DENETÇİSİ"},
+"receita.tip.intro": {
+	"pt_BR": "Boa tarde! Neide, Receita Federal. Porto que cresce atrai contrabando, e aqui ninguém confere nada. Vocês precisam de um scanner de raio-X. Pra ontem!",
+	"en": "Good afternoon! Neide, Customs. A growing port attracts smugglers, and nobody checks anything here. You need an X-ray scanner. Yesterday!",
+	"es": "¡Buenas tardes! Neide, Aduanas. Un puerto que crece atrae contrabando, y aquí nadie revisa nada. Necesitan un escáner de rayos X. ¡Para ayer!",
+	"fr": "Bonjour ! Neide, des Douanes. Un port qui grandit attire la contrebande, et ici personne ne vérifie rien. Il vous faut un scanner à rayons X. Pour hier !",
+	"de": "Guten Tag! Neide, Zoll. Ein wachsender Hafen lockt Schmuggler an, und hier prüft niemand etwas. Sie brauchen einen Röntgenscanner. Am besten gestern!",
+	"it": "Buongiorno! Neide, Dogana. Un porto che cresce attira il contrabbando, e qui nessuno controlla niente. Vi serve uno scanner a raggi X. Per ieri!",
+	"ru": "Добрый день! Нейди, таможня. Растущий порт манит контрабандистов, а тут никто ничего не проверяет. Вам нужен рентгеновский сканер. Ещё вчера!",
+	"pl": "Dzień dobry! Neide, służba celna. Rosnący port przyciąga przemytników, a tu nikt niczego nie sprawdza. Potrzebujecie skanera RTG. Na wczoraj!",
+	"tr": "İyi günler! Ben Neide, Gümrük. Büyüyen liman kaçakçı çeker, burada da kimse bir şey kontrol etmiyor. Size bir röntgen tarayıcı lazım. Dün!"},
+"receita.tip.buy": {
+	"pt_BR": "O caixa já cobre o scanner, hein? Contrabando não espera. Toca aqui.",
+	"en": "Your cash covers the scanner now, you know. Smugglers won't wait. Tap here.",
+	"es": "Ya les alcanza para el escáner, ¿eh? El contrabando no espera. Toca aquí.",
+	"fr": "Votre caisse couvre le scanner maintenant. La contrebande n'attend pas. Touchez ici.",
+	"de": "Die Kasse reicht jetzt für den Scanner. Schmuggler warten nicht. Hier tippen.",
+	"it": "Ora la cassa basta per lo scanner, eh? Il contrabbando non aspetta. Tocca qui.",
+	"ru": "Денег на сканер уже хватает. Контрабанда ждать не будет. Жми сюда.",
+	"pl": "Kasa wystarczy już na skaner. Przemyt nie czeka. Stuknij tutaj.",
+	"tr": "Kasa artık tarayıcıya yetiyor. Kaçakçı beklemez. Buraya dokun."},
+"receita.tip.due": {
+	"pt_BR": "Contêiner suspeito no portal! Bora passar no raio-X. Toca no scanner.",
+	"en": "Suspicious container at the portal! Let's X-ray it. Tap the scanner.",
+	"es": "¡Contenedor sospechoso en el portal! A pasarlo por rayos X. Toca el escáner.",
+	"fr": "Conteneur suspect au portique ! On le passe aux rayons X. Touchez le scanner.",
+	"de": "Verdächtiger Container am Portal! Ab unters Röntgen. Tipp auf den Scanner.",
+	"it": "Container sospetto al portale! Passiamolo ai raggi X. Tocca lo scanner.",
+	"ru": "Подозрительный контейнер у портала! На рентген. Жми на сканер.",
+	"pl": "Podejrzany kontener przy bramce! Prześwietlmy go. Stuknij skaner.",
+	"tr": "Kapıda şüpheli konteyner! Röntgene sokalım. Tarayıcıya dokun."},
+"xray.title": {
+	"pt_BR": "Inspeção de Raio-X", "en": "X-ray Inspection", "es": "Inspección de rayos X",
+	"fr": "Contrôle aux rayons X", "de": "Röntgenkontrolle", "it": "Ispezione a raggi X",
+	"ru": "Рентген-досмотр", "pl": "Kontrola RTG", "tr": "Röntgen Denetimi"},
+"xray.hint": {
+	"pt_BR": "Arraste a lupa, troque o filtro e APREENDA o item ilegal. Errar custa tempo!",
+	"en": "Drag the loupe, switch filters and SEIZE the illegal item. Mistakes cost time!",
+	"es": "Arrastra la lupa, cambia el filtro e INCAUTA el objeto ilegal. ¡Fallar cuesta tiempo!",
+	"fr": "Glissez la loupe, changez de filtre et SAISISSEZ l'objet illégal. Une erreur coûte du temps !",
+	"de": "Zieh die Lupe, wechsle den Filter und BESCHLAGNAHME das Verbotene. Fehler kosten Zeit!",
+	"it": "Trascina la lente, cambia filtro e SEQUESTRA l'oggetto illegale. Gli errori costano tempo!",
+	"ru": "Води лупой, меняй фильтр и ИЗЫМИ запрещённое. Ошибка стоит времени!",
+	"pl": "Przesuwaj lupę, zmieniaj filtr i ZAJMIJ nielegalny przedmiot. Pomyłka kosztuje czas!",
+	"tr": "Büyüteci sürükle, filtreyi değiştir ve yasadışı eşyaya EL KOY. Hata zaman kaybettirir!"},
+"xray.mark": {
+	"pt_BR": "APREENDER", "en": "SEIZE", "es": "INCAUTAR", "fr": "SAISIR",
+	"de": "SICHERN", "it": "SEQUESTRA", "ru": "ИЗЪЯТЬ", "pl": "ZAJMIJ", "tr": "EL KOY"},
+"xray.rolling": {
+	"pt_BR": "Contêiner passando pelo portal...", "en": "Container rolling through the portal...",
+	"es": "Contenedor pasando por el portal...", "fr": "Le conteneur passe le portique...",
+	"de": "Container fährt durchs Portal...", "it": "Il container passa nel portale...",
+	"ru": "Контейнер проходит портал...", "pl": "Kontener przejeżdża przez bramkę...",
+	"tr": "Konteyner kapıdan geçiyor..."},
+"xray.booting": {
+	"pt_BR": "Carregando a imagem...", "en": "Loading the scan...", "es": "Cargando la imagen...",
+	"fr": "Chargement de l'image...", "de": "Bild wird geladen...", "it": "Caricamento immagine...",
+	"ru": "Загрузка снимка...", "pl": "Wczytywanie obrazu...", "tr": "Görüntü yükleniyor..."},
+"xray.found": {
+	"pt_BR": "APREENDIDO!", "en": "SEIZED!", "es": "¡INCAUTADO!", "fr": "SAISI !",
+	"de": "BESCHLAGNAHMT!", "it": "SEQUESTRATO!", "ru": "ИЗЪЯТО!", "pl": "ZAJĘTE!",
+	"tr": "EL KONDU!"},
+"xray.mistakes": {
+	"pt_BR": "erros {n}", "en": "misses {n}", "es": "fallos {n}", "fr": "erreurs {n}",
+	"de": "Fehler {n}", "it": "errori {n}", "ru": "ошибки {n}", "pl": "błędy {n}",
+	"tr": "hata {n}"},
+"xray.level": {
+	"pt_BR": "nível {n}", "en": "level {n}", "es": "nivel {n}", "fr": "niveau {n}",
+	"de": "Stufe {n}", "it": "livello {n}", "ru": "уровень {n}", "pl": "poziom {n}",
+	"tr": "seviye {n}"},
+"xray.win": {
+	"pt_BR": "LIBERADO!", "en": "CLEARED!", "es": "¡DESPACHADO!", "fr": "DÉDOUANÉ !",
+	"de": "VERZOLLT!", "it": "SDOGANATO!", "ru": "ВЫПУЩЕНО!", "pl": "ODPRAWIONE!",
+	"tr": "TAMAMLANDI!"},
+"xray.lose": {
+	"pt_BR": "ESCAPOU...", "en": "IT GOT AWAY...", "es": "SE ESCAPÓ...", "fr": "ÇA A FILÉ...",
+	"de": "ENTWISCHT...", "it": "È SFUGGITO...", "ru": "УПУСТИЛИ...", "pl": "UCIEKŁO...",
+	"tr": "KAÇTI..."},
+"xray.benefit": {
+	"pt_BR": "Benefício Fiscal: produção ×{mult} por {s}s!",
+	"en": "Tax Benefit: production ×{mult} for {s}s!",
+	"es": "Beneficio Fiscal: producción ×{mult} durante {s}s!",
+	"fr": "Avantage fiscal : production ×{mult} pendant {s}s !",
+	"de": "Steuervorteil: Produktion ×{mult} für {s}s!",
+	"it": "Beneficio fiscale: produzione ×{mult} per {s}s!",
+	"ru": "Налоговая льгота: доход ×{mult} на {s}с!",
+	"pl": "Ulga podatkowa: produkcja ×{mult} przez {s}s!",
+	"tr": "Vergi Avantajı: üretim ×{mult}, {s}sn boyunca!"},
+"xray.missed": {
+	"pt_BR": "Era {item}. Sem multa, fica pra próxima.",
+	"en": "It was {item}. No fine, next time.",
+	"es": "Era {item}. Sin multa, a la próxima.",
+	"fr": "C'était {item}. Pas d'amende, la prochaine fois.",
+	"de": "Es war {item}. Keine Strafe, nächstes Mal.",
+	"it": "Era {item}. Niente multa, sarà per la prossima.",
+	"ru": "Это был(а) {item}. Без штрафа, в другой раз.",
+	"pl": "To był(a) {item}. Bez kary, następnym razem.",
+	"tr": "{item} idi. Ceza yok, bir dahakine."},
+"xray.item.pistol": {
+	"pt_BR": "uma pistola", "en": "a pistol", "es": "una pistola", "fr": "un pistolet",
+	"de": "eine Pistole", "it": "una pistola", "ru": "пистолет", "pl": "pistolet",
+	"tr": "bir tabanca"},
+"xray.item.rifle": {
+	"pt_BR": "um fuzil", "en": "a rifle", "es": "un fusil", "fr": "un fusil",
+	"de": "ein Gewehr", "it": "un fucile", "ru": "винтовка", "pl": "karabin",
+	"tr": "bir tüfek"},
+"xray.item.bricks": {
+	"pt_BR": "droga em tijolos", "en": "bricks of drugs", "es": "droga en ladrillos",
+	"fr": "de la drogue en briques", "de": "Drogenpakete", "it": "droga in panetti",
+	"ru": "брикеты наркотиков", "pl": "kostki narkotyków", "tr": "paket uyuşturucu"},
+"xray.item.grenade": {
+	"pt_BR": "uma granada", "en": "a grenade", "es": "una granada", "fr": "une grenade",
+	"de": "eine Granate", "it": "una granata", "ru": "граната", "pl": "granat",
+	"tr": "bir el bombası"},
+"xray.legend.organic": {
+	"pt_BR": "ORGÂNICO", "en": "ORGANIC", "es": "ORGÁNICO", "fr": "ORGANIQUE",
+	"de": "ORGANISCH", "it": "ORGANICO", "ru": "ОРГАН.", "pl": "ORGAN.", "tr": "ORGANİK"},
+"xray.legend.metal": {
+	"pt_BR": "METAL", "en": "METAL", "es": "METAL", "fr": "MÉTAL", "de": "METALL",
+	"it": "METALLO", "ru": "МЕТАЛЛ", "pl": "METAL", "tr": "METAL"},
+"xray.panel.title": {
+	"pt_BR": "SCANNER RAIO-X", "en": "X-RAY SCANNER", "es": "ESCÁNER RX", "fr": "SCANNER RX",
+	"de": "RÖNTGENSCANNER", "it": "SCANNER RX", "ru": "РЕНТГЕН", "pl": "SKANER RTG",
+	"tr": "RÖNTGEN"},
+"xray.panel.pitch": {
+	"pt_BR": "Portal de raio-X para contêineres. A Receita chama para inspeções de vez em quando; cada apreensão rende um Benefício Fiscal.",
+	"en": "A drive-through X-ray portal for containers. Customs calls an inspection now and then; every seizure earns a Tax Benefit.",
+	"es": "Portal de rayos X para contenedores. Aduanas pide inspecciones de vez en cuando; cada incautación da un Beneficio Fiscal.",
+	"fr": "Un portique à rayons X pour conteneurs. La douane demande des contrôles de temps en temps ; chaque saisie rapporte un avantage fiscal.",
+	"de": "Ein Röntgenportal für Container. Der Zoll ruft ab und zu zur Kontrolle; jeder Fund bringt einen Steuervorteil.",
+	"it": "Un portale a raggi X per container. La dogana chiede ispezioni ogni tanto; ogni sequestro vale un beneficio fiscale.",
+	"ru": "Рентгеновский портал для контейнеров. Таможня время от времени зовёт на досмотр; каждое изъятие даёт налоговую льготу.",
+	"pl": "Bramka RTG dla kontenerów. Służba celna co jakiś czas zarządza kontrolę; każde zajęcie daje ulgę podatkową.",
+	"tr": "Konteynerler için röntgen kapısı. Gümrük ara sıra denetim ister; her el koyma bir vergi avantajı kazandırır."},
+"xray.panel.price": {
+	"pt_BR": "Preço: {price} TEU", "en": "Price: {price} TEU", "es": "Precio: {price} TEU",
+	"fr": "Prix : {price} TEU", "de": "Preis: {price} TEU", "it": "Prezzo: {price} TEU",
+	"ru": "Цена: {price} TEU", "pl": "Cena: {price} TEU", "tr": "Fiyat: {price} TEU"},
+"xray.panel.buy": {
+	"pt_BR": "INSTALAR", "en": "INSTALL", "es": "INSTALAR", "fr": "INSTALLER",
+	"de": "AUFSTELLEN", "it": "INSTALLA", "ru": "УСТАНОВИТЬ", "pl": "ZAINSTALUJ",
+	"tr": "KUR"},
+"xray.panel.owned": {
+	"pt_BR": "Portal instalado no gate. A Neide avisa quando chegar contêiner suspeito.",
+	"en": "Portal installed at the gate. Neide will call when a suspicious box arrives.",
+	"es": "Portal instalado en la entrada. Neide avisa cuando llegue algo sospechoso.",
+	"fr": "Portique installé au gate. Neide prévient dès qu'un conteneur suspect arrive.",
+	"de": "Portal am Gate aufgestellt. Neide meldet sich, wenn ein verdächtiger Container kommt.",
+	"it": "Portale installato al gate. Neide avvisa quando arriva un container sospetto.",
+	"ru": "Портал стоит у ворот. Нейди позовёт, когда придёт подозрительный контейнер.",
+	"pl": "Bramka stoi przy wjeździe. Neide da znać, gdy przyjdzie podejrzany kontener.",
+	"tr": "Kapı girişe kuruldu. Şüpheli konteyner gelince Neide haber verir."},
+"xray.panel.due": {
+	"pt_BR": "Contêiner suspeito esperando inspeção!", "en": "A suspicious container is waiting!",
+	"es": "¡Un contenedor sospechoso espera!", "fr": "Un conteneur suspect attend !",
+	"de": "Ein verdächtiger Container wartet!", "it": "Un container sospetto aspetta!",
+	"ru": "Подозрительный контейнер ждёт!", "pl": "Podejrzany kontener czeka!",
+	"tr": "Şüpheli bir konteyner bekliyor!"},
+"xray.panel.inspect": {
+	"pt_BR": "INSPECIONAR", "en": "INSPECT", "es": "INSPECCIONAR", "fr": "CONTRÔLER",
+	"de": "PRÜFEN", "it": "ISPEZIONA", "ru": "ДОСМОТР", "pl": "SPRAWDŹ", "tr": "DENETLE"},
+"xray.panel.next": {
+	"pt_BR": "Próxima inspeção em {time}", "en": "Next inspection in {time}",
+	"es": "Próxima inspección en {time}", "fr": "Prochain contrôle dans {time}",
+	"de": "Nächste Kontrolle in {time}", "it": "Prossima ispezione tra {time}",
+	"ru": "Следующий досмотр через {time}", "pl": "Następna kontrola za {time}",
+	"tr": "Sonraki denetim {time} sonra"},
+"xray.panel.wait": {
+	"pt_BR": "AGUARDANDO", "en": "WAITING", "es": "ESPERANDO", "fr": "EN ATTENTE",
+	"de": "WARTEN", "it": "IN ATTESA", "ru": "ОЖИДАНИЕ", "pl": "CZEKAM", "tr": "BEKLENİYOR"},
+"xray.panel.stats": {
+	"pt_BR": "Inspeções {played}, apreensões {won}, melhor sequência {streak}",
+	"en": "Inspections {played}, seizures {won}, best streak {streak}",
+	"es": "Inspecciones {played}, incautaciones {won}, mejor racha {streak}",
+	"fr": "Contrôles {played}, saisies {won}, meilleure série {streak}",
+	"de": "Kontrollen {played}, Funde {won}, beste Serie {streak}",
+	"it": "Ispezioni {played}, sequestri {won}, serie migliore {streak}",
+	"ru": "Досмотры {played}, изъятия {won}, лучшая серия {streak}",
+	"pl": "Kontrole {played}, zajęcia {won}, najlepsza seria {streak}",
+	"tr": "Denetim {played}, el koyma {won}, en iyi seri {streak}"},
+"xray.bought": {
+	"pt_BR": "Scanner de raio-X instalado! A Receita agradece.",
+	"en": "X-ray scanner installed! Customs thanks you.",
+	"es": "¡Escáner de rayos X instalado! Aduanas lo agradece.",
+	"fr": "Scanner à rayons X installé ! La douane vous remercie.",
+	"de": "Röntgenscanner aufgestellt! Der Zoll bedankt sich.",
+	"it": "Scanner a raggi X installato! La dogana ringrazia.",
+	"ru": "Рентген-сканер установлен! Таможня благодарит.",
+	"pl": "Skaner RTG zainstalowany! Służba celna dziękuje.",
+	"tr": "Röntgen tarayıcı kuruldu! Gümrük teşekkür eder."},
 
 }

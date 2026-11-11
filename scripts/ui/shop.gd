@@ -488,6 +488,7 @@ func _refresh_upgrade_list() -> void:
 		if card == null:
 			continue
 		var price := UpgradeDB.price_for(item, GameState.upgrades)
+		card.set_chips(upgrade_chips(item))
 		if GameState.has_upgrade(id):
 			card.visible = _up_owned_open
 			card.set_effect(str(GameState.upgrade_preview(item).get("text", "")))
@@ -496,9 +497,14 @@ func _refresh_upgrade_list() -> void:
 			card.visible = true
 			var effect := str(GameState.upgrade_preview(item).get("text", ""))
 			var refits := UpgradeDB.conflicts_with(item, GameState.upgrades)
+			var rivals := UpgradeDB.excludes_of(item)
 			if not refits.is_empty():
 				effect = "%s\n%s" % [effect, Loc.t("shop.upgrade.swap", {"name": str(
 					UpgradeDB.get_item(refits[0]).get("name", refits[0]))})]
+			elif not rivals.is_empty():
+				# The pair explained before the first buy, not discovered after it.
+				effect = "%s\n%s" % [effect, Loc.t("shop.upgrade.or", {"name": str(
+					UpgradeDB.get_item(rivals[0]).get("name", rivals[0]))})]
 			card.set_effect(effect)
 			card.refresh(price, 0, GameState.can_afford(price), false, 1,
 				float(GameState.upgrade_preview(item).get("cps_gain", 0.0)))
@@ -507,6 +513,53 @@ func _refresh_upgrade_list() -> void:
 			card.show_gated(_gate_reason(item), price)
 		else:
 			card.visible = false
+
+
+## Chip colours, one per kind of effect, so a glance tells production from taps
+## from the whole port without reading a word.
+const CHIP_PRODUCTION := Color8(36, 120, 110)
+const CHIP_PORT := Color8(52, 128, 58)
+const CHIP_TAP := Color8(176, 104, 22)
+const CHIP_SYNERGY := Color8(40, 96, 156)
+const CHIP_SWAP := Color8(112, 70, 156)
+const CHIP_RAIL := Color8(76, 88, 112)
+const CHIP_CHOICE := Color8(170, 56, 100)
+
+
+static func upgrade_chips(item: Dictionary) -> Array:
+	## What kind of thing an upgrade card does, as up to two coloured tags.
+	var chips: Array = []
+	var value := float(item.get("value", 1.0))
+	var scale := ("x%s" % String.num(value, 2).trim_suffix(".0")) if value >= 2.0 \
+		else "+%d%%" % roundi((value - 1.0) * 100.0)
+	match str(item.get("kind", "")):
+		"structure_mult":
+			chips.append({"text": "%s TEU/s" % scale, "color": CHIP_PRODUCTION,
+				"icon": UiTheme.Icon.TEU})
+		"global_mult":
+			chips.append({"text": Loc.t("shop.chip.port", {"v": scale}),
+				"color": CHIP_PORT, "icon": UiTheme.Icon.STAR})
+		"click_mult":
+			chips.append({"text": Loc.t("shop.chip.tap", {"v": scale}),
+				"color": CHIP_TAP, "icon": UiTheme.Icon.GLOVE})
+		"click_cps_pct":
+			chips.append({"text": Loc.t("shop.chip.tap",
+				{"v": "+%d%%" % roundi(value * 100.0)}),
+				"color": CHIP_TAP, "icon": UiTheme.Icon.GLOVE})
+		"synergy":
+			chips.append({"text": Loc.t("shop.chip.synergy",
+				{"v": "+%d%%" % roundi(value * 100.0)}),
+				"color": CHIP_SYNERGY, "icon": UiTheme.Icon.CREW})
+		"transform":
+			chips.append({"text": Loc.t("shop.chip.swap"), "color": CHIP_SWAP,
+				"icon": UiTheme.Icon.CHEVRON})
+		"rail_stat":
+			chips.append({"text": Loc.t("shop.chip.rail"), "color": CHIP_RAIL,
+				"icon": UiTheme.Icon.TRAIN})
+	if not UpgradeDB.excludes_of(item).is_empty():
+		chips.append({"text": Loc.t("shop.chip.choice"), "color": CHIP_CHOICE,
+			"icon": UiTheme.Icon.LOCK})
+	return chips
 
 
 static func _ids(items: Array[Dictionary]) -> String:

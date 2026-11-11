@@ -2,6 +2,15 @@ class_name EconomyMath
 ## Deterministic, side-effect-free helpers for the incremental economy.
 
 const GROWTH := 1.15
+## The pacing curve over every list price (machines, land, upgrades): a price
+## is multiplied by (price / PACE_BASE) ^ PACE_EXPONENT. Cheap things stay as
+## they were, so the first minutes are as quick as ever; expensive things get
+## progressively dearer while machine output stays put, so each tier pays back
+## slower than the last. That is the "fast start, slow road" a week-long game
+## needs - tuned with `tools/balance/week_report.gd -- two_hour_week` so two
+## hours a day for seven days is what it takes to own everything.
+const PACE_BASE := 15.0
+const PACE_EXPONENT := 0.12
 const MILESTONES: Array[int] = [10, 25, 50, 100]
 const MAX_BULK_LIMIT := 10_000
 const MAX_BULK_COUNT := MAX_BULK_LIMIT # compatibility for callers/tests
@@ -228,3 +237,21 @@ static func prestige_multiplier(level: int) -> float:
 
 static func _epsilon(value: float) -> float:
 	return maxf(0.000001, absf(value) * 0.0000000001)
+
+
+static func pace_cost(cost: float) -> float:
+	if cost <= PACE_BASE:
+		return cost
+	return cost * pow(cost / PACE_BASE, PACE_EXPONENT)
+
+
+static func paced(items: Array[Dictionary]) -> Array[Dictionary]:
+	## A catalogue with every `cost` run through `pace_cost`. The raw tables keep
+	## the authored numbers so the curve can be retuned in one place.
+	var out: Array[Dictionary] = []
+	for item in items:
+		var copy := item.duplicate(true)
+		if copy.has("cost"):
+			copy["cost"] = pace_cost(float(copy["cost"]))
+		out.append(copy)
+	return out

@@ -78,7 +78,7 @@ const BUILD_PLANS := {
 static func scenario_names() -> PackedStringArray:
 	return PackedStringArray(["active_90m", "hybrid_120m", "casual_24h",
 		"offline_night", "wrong_buy", "recovery", "build_wide", "build_tall",
-		"casual_week", "engaged_week"])
+		"casual_week", "engaged_week", "two_hour_week"])
 
 
 static func scenario_config(name: StringName) -> Dictionary:
@@ -148,13 +148,21 @@ static func scenario_config(name: StringName) -> Dictionary:
 				"session_seconds": 30.0 * 60.0, "away_seconds": 3.0 * 3600.0 - 1800.0,
 				"prestige_policy": "efficient", "decision_interval": 10.0,
 				"tick": 1.0}, true)
+		&"two_hour_week":
+			# The target the user set: two hours a day for a week completes the
+			# game, and not before. Four half-hour sessions spread over the day.
+			base.merge({"duration": 7.0 * 86400.0, "taps_per_second": 2.0,
+				"session_seconds": 30.0 * 60.0, "away_seconds": 6.0 * 3600.0 - 1800.0,
+				"prestige_policy": "efficient", "decision_interval": 10.0,
+				"tick": 1.0}, true)
 		&"build_wide", &"build_tall":
 			# The composition pair. Identical in every field but `build`, so the
 			# two results subtract and the difference is the tree and nothing else.
 			# Six hours: an exclusive pair does not open until the port is large,
 			# and a run that ends before the choice exists cannot measure it
-			# (three hours was enough before the week-long pacing).
-			base.merge({"duration": 6.0 * 3600.0, "taps_per_second": 2.0,
+			# (three hours was enough before the week-long pacing, six before the
+			# pacing curve; twelve now).
+			base.merge({"duration": 12.0 * 3600.0, "taps_per_second": 2.0,
 				"prestige_policy": "never",
 				"build": "wide" if name == &"build_wide" else "tall"}, true)
 	return base

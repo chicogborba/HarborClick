@@ -340,7 +340,8 @@ func test_an_exclusive_swap_costs_and_replaces() -> void:
 	_expect(not GameState.has_upgrade("estoque_profundo"),
 		"and the half it replaced came off in the same transaction")
 	var paid := before - GameState.teus
-	_expect(absf(paid - list_price * UpgradeDB.SWAP_SURCHARGE) <= 1.0,
+	# Relative: the wallet is 1e18, where a double's spacing is 128 TEU.
+	_expect(absf(paid - list_price * UpgradeDB.SWAP_SURCHARGE) <= maxf(1.0, paid * 1e-6),
 		"changing its mind cost the surcharge, not the list price (%f)" % paid)
 
 

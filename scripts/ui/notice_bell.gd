@@ -1,6 +1,13 @@
 class_name NoticeBell
 extends CanvasLayer
-## Notices, collected on a bell instead of thrown across the port.
+## The port diary (formerly the notice bell). A leather book on the gantry: tap
+## it, it opens in a little pixel animation, and inside are two bookmarks -
+## AVISOS, the notices log below, and MEDALHAS, every achievement in the game
+## as a struck medal (dark until earned) under the final trophy that lights up
+## for whoever earns them all. The class keeps its name and API so Main and the
+## notification coordinator did not have to change.
+##
+## Notices, collected in the book instead of thrown across the port.
 ##
 ## They used to arrive as a banner: a slate chip that faded in over the quay,
 ## sat there for three seconds and faded out, once per notice with a second
@@ -37,13 +44,40 @@ var _unread := 0
 var _safe_rect := Rect2()
 var _world_rect := Rect2()
 var _last_focus: Control
+const TEX_KEY := preload("res://assets/sprites/ui_diary_key.png")
+const TEX_OPEN := preload("res://assets/sprites/ui_diary_open.png")
+const TEX_TROPHY := preload("res://assets/sprites/ui_trophy_final.png")
+const OPEN_FRAME := Vector2(64, 48)
+const OPEN_SCALE := 3.0
+const MEDAL_COLUMNS := 4
+var _tab := "notices"
+var _tab_buttons: Dictionary = {}
+var _medals: VBoxContainer
+var _medal_cells: Array[Dictionary] = []   # {id, medal, title}
+var _trophy: TextureRect
+var _trophy_count: Label
+var _trophy_bar: ProgressBar
+var _detail: Label
+var _book: TextureRect
+var _book_atlas: AtlasTexture
+var _book_t := -1.0
 
 
 func _ready() -> void:
 	# Above the level badge (9): the open log used to slide under it and lose
 	# its title.
 	layer = 12
-	_button = UiTheme.icon_button(UiTheme.Icon.BELL, &"steel", KEY, "Avisos do porto")
+	_button = UiTheme.button("", &"steel", UiTheme.SIZE_SMALL)
+	_button.custom_minimum_size = Vector2(KEY, KEY)
+	var book_icon := TextureRect.new()
+	book_icon.texture = TEX_KEY
+	book_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	book_icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	book_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	book_icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_button.add_child(book_icon)
+	UiTheme.describe(_button, Loc.t("diary.title"))
+	_button.tooltip_text = Loc.t("diary.title")
 	_button.pressed.connect(toggle)
 	add_child(_button)
 	_pip = UiTheme.pip()
@@ -61,8 +95,19 @@ func _ready() -> void:
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override(&"separation", 3)
 	_board.add_child(column)
-	var head := UiTheme.header("AVISOS DO PORTO", close_log, UiTheme.Icon.BELL)
+	var head := UiTheme.header(Loc.t("diary.title"), close_log, UiTheme.Icon.TROPHY)
 	column.add_child(head.root)
+	# The two bookmarks.
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override(&"separation", 4)
+	column.add_child(tabs)
+	for spec in [["notices", "diary.tab.notices"], ["medals", "diary.tab.medals"]]:
+		var key := UiTheme.button(Loc.t(str(spec[1])), &"steel", UiTheme.SIZE_SMALL)
+		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		key.custom_minimum_size.y = 26.0
+		key.pressed.connect(_set_tab.bind(str(spec[0])))
+		tabs.add_child(key)
+		_tab_buttons[str(spec[0])] = key
 	# The rows wrap, and a wrapped label measured before the layout pass reports a
 	# height in the thousands — which is exactly how a 250px log came out 3505px
 	# tall and hanging off the bottom of the screen. Inside a scroll container the
@@ -84,7 +129,26 @@ func _ready() -> void:
 	_empty = UiTheme.label("Nada novo no porto.", UiTheme.SIZE_SMALL,
 		UiTheme.INK_SOFT)
 	inner.add_child(_empty)
+	_medals = VBoxContainer.new()
+	_medals.add_theme_constant_override(&"separation", 6)
+	_medals.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_medals.visible = false
+	inner.add_child(_medals)
 	_inner = inner
+
+	# The book that opens before the pages appear.
+	_book_atlas = AtlasTexture.new()
+	_book_atlas.atlas = TEX_OPEN
+	_book_atlas.region = Rect2(Vector2.ZERO, OPEN_FRAME)
+	_book = TextureRect.new()
+	_book.texture = _book_atlas
+	_book.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_book.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_book.stretch_mode = TextureRect.STRETCH_SCALE
+	_book.size = OPEN_FRAME * OPEN_SCALE
+	_book.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_book.visible = false
+	add_child(_book)
 	_layout()
 
 
@@ -123,15 +187,15 @@ func unread() -> int:
 
 
 func is_open() -> bool:
-	return _board.visible
+	return _board.visible or _book.visible
 
 
 func toggle() -> void:
-	close_log() if _board.visible else open_log()
+	close_log() if is_open() else open_log()
 
 
 func open_log() -> void:
-	if _board.visible:
+	if is_open():
 		return
 	_last_focus = get_viewport().gui_get_focus_owner() if get_viewport() != null \
 		else null
@@ -142,17 +206,45 @@ func open_log() -> void:
 	_board.size = Vector2(_board.size.x, 90.0)
 	_fill()
 	_scrim.visible = true
-	_board.visible = true
-	_layout()
 	open_changed.emit(true)
+	AudioManager.play_sfx("ui_open")
+	if UserPreferences.can_animate():
+		# The book opens first; the pages come up when it lands open.
+		var area := _area()
+		_book.position = (area.get_center() - _book.size * 0.5).round()
+		_book_atlas.region = Rect2(Vector2.ZERO, OPEN_FRAME)
+		_book.visible = true
+		_book_t = 0.0
+		return
+	_show_pages()
+
+
+func _show_pages() -> void:
+	_book.visible = false
+	_book_t = -1.0
+	_board.visible = true
+	_set_tab(_tab)
+	_layout()
 	UiTheme.focus_first(_board)
 	_fit_board()
 	UiTheme.pop_open(_board, _scrim)
 
 
-func close_log() -> void:
-	if not _board.visible:
+func _process(delta: float) -> void:
+	if _book_t < 0.0:
 		return
+	_book_t += delta
+	var frame := mini(int(_book_t / 0.075), 4)
+	_book_atlas.region = Rect2(Vector2(frame * OPEN_FRAME.x, 0.0), OPEN_FRAME)
+	if _book_t >= 0.075 * 5.0 + 0.12:
+		_show_pages()
+
+
+func close_log() -> void:
+	if not _board.visible and not _book.visible:
+		return
+	_book.visible = false
+	_book_t = -1.0
 	_scrim.visible = false
 	_board.visible = false
 	open_changed.emit(false)
@@ -291,5 +383,140 @@ func _fit_board() -> void:
 	var area := _area()
 	var wanted := _inner.get_combined_minimum_size().y \
 		+ _board.get_combined_minimum_size().y
+	if _tab == "medals":
+		wanted = _room(area)
 	_board.size.y = clampf(wanted, 90.0, _room(area))
 	_layout()
+
+
+# ------------------------------------------------------------------ medals
+
+func _set_tab(tab: String) -> void:
+	_tab = tab
+	for key: String in _tab_buttons:
+		UiTheme.style_button(_tab_buttons[key], &"amber" if key == tab else &"steel")
+	var medals := tab == "medals"
+	_list.visible = not medals and _list.get_child_count() > 0
+	_empty.visible = not medals and _list.get_child_count() == 0
+	_medals.visible = medals
+	if medals:
+		_refresh_medals()
+	_scroll.scroll_vertical = 0
+	if _board.visible:
+		_fit_board()
+
+
+func _build_medals() -> void:
+	## Once: the final trophy, the detail line, and one cell per achievement.
+	var card := UiTheme.panel(UiTheme.card_style(&"normal"))
+	_medals.add_child(card)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(row)
+	_trophy = TextureRect.new()
+	_trophy.texture = TEX_TROPHY
+	_trophy.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_trophy.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_trophy.stretch_mode = TextureRect.STRETCH_SCALE
+	_trophy.custom_minimum_size = Vector2(64, 64)
+	_trophy.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(_trophy)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override(&"separation", 3)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(col)
+	col.add_child(UiTheme.label(Loc.t("diary.trophy"), UiTheme.SIZE_BODY, UiTheme.AMBER_DEEP))
+	var sub_title := UiTheme.label(Loc.t("diary.trophy.name"), UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	sub_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub_title.custom_minimum_size.x = 120.0
+	col.add_child(sub_title)
+	_trophy_bar = ProgressBar.new()
+	var styles := UiTheme.bar_styles()
+	_trophy_bar.add_theme_stylebox_override(&"background", styles[0])
+	_trophy_bar.add_theme_stylebox_override(&"fill", styles[1])
+	_trophy_bar.show_percentage = false
+	_trophy_bar.custom_minimum_size = Vector2(0, 8)
+	_trophy_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(_trophy_bar)
+	_trophy_count = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+	col.add_child(_trophy_count)
+
+	_detail = UiTheme.label(Loc.t("diary.tap_medal"), UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_detail.custom_minimum_size.x = 120.0
+	_medals.add_child(_detail)
+
+	var grid := GridContainer.new()
+	grid.columns = MEDAL_COLUMNS
+	grid.add_theme_constant_override(&"h_separation", 4)
+	grid.add_theme_constant_override(&"v_separation", 6)
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_medals.add_child(grid)
+	for item: Dictionary in AchievementDB.ITEMS:
+		var cell := VBoxContainer.new()
+		cell.add_theme_constant_override(&"separation", 2)
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.mouse_filter = Control.MOUSE_FILTER_STOP
+		grid.add_child(cell)
+		var medal := TextureRect.new()
+		var key := str(item.get("category", "teu"))
+		var path := "res://assets/sprites/ui_medal_%s.png" % key
+		medal.texture = load(path) if ResourceLoader.exists(path) \
+			else load("res://assets/sprites/ui_medal_teu.png")
+		medal.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		medal.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		medal.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		medal.custom_minimum_size = Vector2(64, 64)
+		medal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(medal)
+		var title := UiTheme.label(str(item.get("title", "")), UiTheme.SIZE_SMALL, UiTheme.INK)
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.custom_minimum_size.x = 60.0
+		title.max_lines_visible = 2
+		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(title)
+		cell.gui_input.connect(_on_medal_input.bind(item))
+		_medal_cells.append({"id": str(item.id), "medal": medal, "title": title})
+
+
+func _refresh_medals() -> void:
+	if _medal_cells.is_empty():
+		_build_medals()
+	var done := 0
+	for cell: Dictionary in _medal_cells:
+		var earned := Progression.unlocked.has(StringName(cell.id)) \
+			or Progression.unlocked.has(str(cell.id))
+		if earned:
+			done += 1
+		# Unearned: a dark silhouette of the coin, still recognisable as a goal.
+		(cell.medal as TextureRect).modulate = Color.WHITE if earned \
+			else Color(0.16, 0.15, 0.2, 0.75)
+		(cell.title as Label).label_settings.font_color = UiTheme.INK if earned \
+			else UiTheme.INK_SOFT
+	var total := _medal_cells.size()
+	_trophy_bar.max_value = total
+	_trophy_bar.value = done
+	_trophy_count.text = Loc.t("diary.count", {"n": str(done), "total": str(total)})
+	var complete := done >= total
+	_trophy.modulate = Color.WHITE if complete else Color(0.3, 0.28, 0.34, 0.85)
+
+
+func _on_medal_input(event: InputEvent, item: Dictionary) -> void:
+	var released: bool = (event is InputEventMouseButton and not event.pressed
+		and event.button_index == MOUSE_BUTTON_LEFT) \
+		or (event is InputEventScreenTouch and not event.pressed)
+	if not released:
+		return
+	var earned := Progression.unlocked.has(StringName(str(item.id))) \
+		or Progression.unlocked.has(str(item.id))
+	var reward: Dictionary = item.get("reward", {})
+	_detail.text = "%s%s - %s  (+%d XP)" % ["[OK] " if earned else "",
+		str(item.get("title", "")), str(item.get("description", "")),
+		int(reward.get("amount", 0))]
+	_detail.label_settings.font_color = UiTheme.TEAL_DEEP if earned else UiTheme.INK
+	AudioManager.play_sfx("tap")

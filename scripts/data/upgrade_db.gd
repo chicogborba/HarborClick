@@ -50,7 +50,9 @@ const BRANCHES: Array[Dictionary] = [
 	{"id": "comando", "title": "Comando", "art": "torre"},
 ]
 
-const ITEMS: Array[Dictionary] = [
+## The authored prices. Everything reads `ITEMS`, which is this table run
+## through `EconomyMath.paced`.
+const RAW_ITEMS: Array[Dictionary] = [
 	# ---------------------------------------------------------------- mão de obra
 	{"id": "luvas", "name": "Luvas Reforçadas", "short": "Luvas",
 		"desc": "Menos farpa, mais caixa.",
@@ -384,6 +386,7 @@ const ITEMS: Array[Dictionary] = [
 		"cost": 2e15, "requires": ["janela_berco_ia"],
 		"unlock": {"owned": {"torre": 10}}},
 ]
+static var ITEMS: Array[Dictionary] = EconomyMath.paced(RAW_ITEMS)
 
 
 static func get_item(id: String) -> Dictionary:

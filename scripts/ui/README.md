@@ -52,7 +52,11 @@ Entry points:
   adding a row here**: a port that converted a fleet into conductors traded the
   "Melhorias" row away to buy the "Turmas" one, and a trade invisible in the
   formula did not happen anywhere the player can see.
-- `shop.gd` — the purchase board. Its DECOR. tab is the one place in the game
+- `shop.gd` — the purchase board. Upgrade cards carry coloured chips from
+  `upgrade_chips()` — teal TEU/s, green whole port, amber tap, blue per-machine,
+  purple swap, slate rail — plus a rose "ESCOLHA 1 DE 2" on exclusive pairs, and
+  the effect line says "this or X, you can swap later" before the first buy.
+  Chips are prebuilt in `ShopCard.set_chips` and only rewritten on change. Its DECOR. tab is the one place in the game
   that sells nothing productive: a row there carries a price before it is owned
   and an on/off switch afterwards, and the switch is the reason the tab works —
   a decoration you cannot take back off is one nobody risks buying. See
@@ -112,7 +116,14 @@ Entry points:
   measured at width 0 reports a fantasy height, which once pushed the wheel's
   board off a phone), and both open() let that settle before `pop_open`
   records the resting position. Rows are built once and rewritten in place.
-- `notice_bell.gd` — every notice, collected instead of thrown. Nothing
+- `notice_bell.gd` — the **port diary** (class name kept): a leather book on
+  the gantry (`ui_diary_key.png`) that opens in a five-frame pixel animation
+  (`ui_diary_open.png`, `tools/sprites/gen_diary.py`) onto two bookmarks.
+  AVISOS is the notices log below. MEDALHAS is every `AchievementDB` entry as a
+  struck medal (dark until earned, tap for what it asks and pays) under the
+  final trophy (`ui_trophy_final.png`), lit for whoever earns them all. The
+  medal grid is built once and recoloured on open.
+  Every notice, collected instead of thrown. Nothing
   interrupts the port: `NotificationCoordinator` still decides what is worth
   keeping and still collapses repeats, and this lights a lamp on the gantry and
   waits. It must answer `notify_shown_finished()` the moment a notice arrives —
@@ -145,8 +156,9 @@ Entry points:
   buildings can be dragged out from under them: the camera stops at the edge of
   the terminal, not at the edge of what can be seen.
 - `special_call_alert.gd` — the charter interruption.
-- `minigame_board.gd` — the shell both charter games are played on; the subclass
-  supplies only the middle of it. `crane_minigame.gd` is timing,
+- `minigame_board.gd` — the shell every minigame is played on (the two charter
+  games and the X-ray scan); the subclass supplies only the middle of it and,
+  through `_result_text`, the closing shout. `crane_minigame.gd` is timing,
   `maze_minigame.gd` is navigation.
 - `notification_coordinator.gd` — notice policy: what is routine, what collapses,
   what is kept. It has no opinion about how a notice is shown.
@@ -155,13 +167,26 @@ Entry points:
   `tools/sprites/gen_guide.py`, shown at 3x). He hops in from the edge, hops
   over to whatever he is talking about and stands beside it, talking out of a
   speech bubble that rides above or below him and never covers the target; the
-  typed line babbles in `voice_1..5` blips. Tour steps wait for a tap or for
+  typed line babbles in `voice_1..10` blips. Tour steps wait for a tap or for
   the action (tap the ship 15x, open the shop, hire a docker); the veil
   swallows every press outside the highlight (`_Veil._has_point`). After the
   tour Main calls him back with `tip(id, say, target)` — the first parcel
   affordable, the first upgrade, each unlocked feature — once per profile
   (`flags.guide_tips`), no veil, gone on a tap or after 9 s, 40 s apart, never
   over an open board. Old profiles have what is already true marked seen.
+  A tip names its speaker: `tip(id, say, target, who)` with `who` a key of
+  `SPEAKERS` — Alisson, or Neide, the Receita Federal auditor
+  (`ui_customs_body.png` from `tools/sprites/gen_customs.py`, same seven-frame
+  layout; voice family `voice_rf`; she brings a rubber stamp down while she
+  waits where he juggles). Tips marked `seed: false` in `Main._guide_tips` are
+  never pre-marked seen, so an old profile still meets her. `dismiss_tip()`
+  removes a tip at once; Main calls it whenever a board opens.
+- `xray_minigame.gd` — the Receita Federal inspection on the `MinigameBoard`
+  shell: the container rolls through the portal, the Creatus Security e VWI
+  monitor boots, then the scan — tap the contraband (`XrayScan` rules). The
+  intro is skippable and the clock only runs on the scan. `xray_panel.gd` is
+  the scanner's board (buy / next inspection / inspect) and `xray_button.gd`
+  its HUD key, packed into the wheel/daily column by `Main._refresh_xray_key`.
 
 `FloatText` is the game's only answer to "did my tap pay?", so it is deliberately
 loud: a large warm number with a thick dark outline, punched in and risen. Small

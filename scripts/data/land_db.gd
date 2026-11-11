@@ -18,7 +18,9 @@ class_name LandDB
 
 const PARCEL_H := 150.0
 
-const ITEMS: Array[Dictionary] = [
+## The authored prices. Everything reads `ITEMS`, which is this table run
+## through `EconomyMath.paced`.
+const RAW_ITEMS: Array[Dictionary] = [
 	{
 		"id": "patio_norte", "name": "Pátio Norte",
 		"desc": "Terra batida com potencial. E um carrinho de pipoca abandonado.",
@@ -60,6 +62,7 @@ const ITEMS: Array[Dictionary] = [
 		"cost": 11e15, "slots": 8, "unlocks": "portal",
 	},
 ]
+static var ITEMS: Array[Dictionary] = EconomyMath.paced(RAW_ITEMS)
 
 
 static func get_item(id: String) -> Dictionary:

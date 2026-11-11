@@ -119,8 +119,14 @@ func _test_minute_table() -> void:
 		2: [1.5, 2.6], 3: [4.0, 6.0], 4: [6.5, 9.5], 5: [10.5, 14.0],
 		6: [15.0, 20.0], 8: [26.0, 33.0], 10: [40.0, 50.0], 12: [55.0, 66.0],
 	}
+	var last_hours := float(TerminalLevel.xp_for_level(TerminalLevel.MAX_LEVEL)) \
+		/ ASSUMED_XP_PER_MIN / 60.0
+	_expect(last_hours >= 12.0 and last_hours <= 16.0,
+		"level 30 takes about two hours a day for a week (%.1f h)" % last_hours)
 	for n in ranges.keys():
-		var minutes := float(TerminalLevel.xp_for_level(int(n))) / ASSUMED_XP_PER_MIN
+		# The table is the unscaled curve; the week-long pacing stretches all of it.
+		var minutes := float(TerminalLevel.xp_for_level(int(n))) / ASSUMED_XP_PER_MIN \
+			/ TerminalLevel.XP_SCALE
 		var bounds: Array = ranges[n]
 		_expect(minutes >= float(bounds[0]) and minutes <= float(bounds[1]),
 			"level %d at %.1f min, expected %.1f-%.1f"
@@ -258,15 +264,20 @@ func _test_service_counts_events() -> void:
 		+ TerminalLevel.XP_PER_UPGRADE, "an upgrade pays %d XP"
 		% TerminalLevel.XP_PER_UPGRADE)
 	_service.note_mission()
-	_expect(_service.rules.xp == TerminalLevel.xp_for_level(2),
-		"a claimed mission pays %d XP and completes level 2"
-		% TerminalLevel.XP_PER_MISSION_CLAIMED)
+	var sum := TerminalLevel.XP_PER_TRANSFER + TerminalLevel.XP_PER_SHIP_DEPARTED \
+		+ 4 * TerminalLevel.XP_PER_MACHINE + TerminalLevel.XP_PER_UPGRADE \
+		+ TerminalLevel.XP_PER_MISSION_CLAIMED
+	_expect(_service.rules.xp == sum,
+		"a claimed mission pays %d XP" % TerminalLevel.XP_PER_MISSION_CLAIMED)
+	# The week-long curve puts level 2 further out; top up to exactly reach it.
+	_service._add(TerminalLevel.xp_for_level(2) - sum)
+	_expect(_service.rules.xp == TerminalLevel.xp_for_level(2), "and the top-up lands level 2")
 	_expect(_service.rules.level == 2, "the level rose to 2")
 	_expect(levels.size() == 1 and int(levels[0][0]) == 2,
 		"leveled_up fired once for level 2 (%d)" % levels.size())
 	_expect(levels[0][1].has(&"objective"),
 		"and carries the feature the level unlocked")
-	_expect(changed[0] == 5, "every event announced xp_changed (%d)" % changed[0])
+	_expect(changed[0] == 6, "every event announced xp_changed (%d)" % changed[0])
 	EventBus.achievement_completed.connect(_service._on_achievement_completed)
 	var before := _service.rules.xp
 	EventBus.achievement_completed.emit({"id": &"x", "reward": {"kind": "xp", "amount": 80}})
