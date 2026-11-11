@@ -1663,6 +1663,12 @@ const STRINGS := {
 	"pt_BR": "NV {n}", "en": "LV {n}", "es": "NV {n}",
 	"fr": "NIV {n}", "de": "STF {n}", "it": "LIV {n}",
 	"ru": "УР {n}", "pl": "POZ {n}", "tr": "SV {n}"},
+"level.reward": {
+	"pt_BR": "+2% PRODUÇÃO  +1 FICHA", "en": "+2% OUTPUT  +1 TOKEN",
+	"es": "+2% PRODUCCIÓN  +1 FICHA", "fr": "+2% PRODUCTION  +1 JETON",
+	"de": "+2% LEISTUNG  +1 CHIP", "it": "+2% PRODUZIONE  +1 GETTONE",
+	"ru": "+2% ВЫРАБОТКА  +1 ЖЕТОН", "pl": "+2% PRODUKCJA  +1 ŻETON",
+	"tr": "+2% ÜRETİM  +1 JETON"},
 "level.up": {
 	"pt_BR": "NÍVEL {n}!", "en": "LEVEL {n}!", "es": "¡NIVEL {n}!",
 	"fr": "NIVEAU {n} !", "de": "STUFE {n}!", "it": "LIVELLO {n}!",

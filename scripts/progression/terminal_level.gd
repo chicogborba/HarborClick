@@ -50,10 +50,13 @@ const UNLOCKS: Dictionary = {
 	&"shop": 1,
 	&"objective": 2,
 	&"upgrades": 3,
-	&"daily": 4,
+	# Missions come after everything a mission can ask for: one of them is "catch
+	# a golden gull" and another "spin the wheel", and the day's three are rolled
+	# the same for everyone, so a mission before its feature could be impossible.
+	&"gull": 4,
 	&"land": 5,
-	&"gull": 6,
-	&"wheel": 7,
+	&"wheel": 6,
+	&"daily": 7,
 	&"journal": 8,
 	&"routes": 10,
 	&"charters": 12,

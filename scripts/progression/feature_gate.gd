@@ -21,3 +21,8 @@ static func unbind(rules: TerminalLevel) -> void:
 
 static func unlocked(feature: StringName) -> bool:
 	return _rules == null or _rules.unlocked(feature)
+
+
+static func level() -> int:
+	## The terminal's level, 1 when nothing is bound (headless suites).
+	return _rules.level if _rules != null else 1

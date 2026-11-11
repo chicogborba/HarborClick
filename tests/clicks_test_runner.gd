@@ -96,8 +96,8 @@ func _test_every_rail_key_opens_and_escape_closes() -> void:
 
 
 func _test_the_wheel_button_opens_and_spins() -> void:
-	# A new profile has neither key yet: the wheel arrives at terminal level 7
-	# and the missions at 4. Check that, then play as a port that has grown.
+	# A new profile has neither key yet: the wheel arrives at terminal level 6
+	# and the missions at 7. Check that, then play as a port that has grown.
 	_expect(_main.wheel_button.visible and _main.daily_button.visible,
 		"a grown terminal shows the wheel and the missions")
 	var button: Button = _main.wheel_button._button

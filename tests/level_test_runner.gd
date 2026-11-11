@@ -131,8 +131,8 @@ func _test_minute_table() -> void:
 func _test_unlock_table() -> void:
 	_expect(TerminalLevel.UNLOCKS.size() == 14, "the table has 14 features")
 	var spot := {
-		&"shop": 1, &"objective": 2, &"upgrades": 3, &"daily": 4, &"land": 5,
-		&"gull": 6, &"wheel": 7, &"journal": 8, &"routes": 10, &"charters": 12,
+		&"shop": 1, &"objective": 2, &"upgrades": 3, &"gull": 4, &"land": 5,
+		&"wheel": 6, &"daily": 7, &"journal": 8, &"routes": 10, &"charters": 12,
 		&"events": 12, &"prestige": 14, &"decor": 16, &"orders": 18,
 	}
 	for feature in spot.keys():
@@ -148,8 +148,9 @@ func _test_unlock_table() -> void:
 		_expect(t.unlocked(feature), "%s is unlocked at level 18" % String(feature))
 	_expect(TerminalLevel.new().unlocks_at(1) == [&"shop"], "level 1 unlocks the shop")
 	_expect(TerminalLevel.new().unlocks_at(2) == [&"objective"], "level 2 the objective")
-	_expect(TerminalLevel.new().unlocks_at(4) == [&"daily"], "level 4 the daily missions")
-	_expect(TerminalLevel.new().unlocks_at(7) == [&"wheel"], "level 7 the wheel")
+	_expect(TerminalLevel.new().unlocks_at(6) == [&"wheel"], "level 6 the wheel")
+	_expect(TerminalLevel.new().unlocks_at(7) == [&"daily"],
+		"level 7 the daily missions, after the gull and the wheel they ask for")
 	var at_12 := TerminalLevel.new().unlocks_at(12)
 	_expect(at_12.size() == 2 and at_12.has(&"charters") and at_12.has(&"events"),
 		"level 12 unlocks charters and events")
@@ -235,6 +236,10 @@ func _test_service_counts_events() -> void:
 	var levels: Array = []
 	_service.leveled_up.connect(
 		func(level: int, features: Array) -> void: levels.append([level, features]))
+	# The career tracker turns these same events into achievements, which pay XP
+	# of their own; that path is checked on its own below, so the per-event
+	# figures here are measured without it.
+	EventBus.achievement_completed.disconnect(_service._on_achievement_completed)
 	EventBus.cargo_transfer_committed.emit({})
 	_expect(_service.rules.xp == TerminalLevel.XP_PER_TRANSFER,
 		"a committed transfer pays %d XP" % TerminalLevel.XP_PER_TRANSFER)
@@ -261,6 +266,12 @@ func _test_service_counts_events() -> void:
 	_expect(levels[0][1].has(&"objective"),
 		"and carries the feature the level unlocked")
 	_expect(changed[0] == 5, "every event announced xp_changed (%d)" % changed[0])
+	EventBus.achievement_completed.connect(_service._on_achievement_completed)
+	var before := _service.rules.xp
+	EventBus.achievement_completed.emit({"id": &"x", "reward": {"kind": "xp", "amount": 80}})
+	_expect(_service.rules.xp == before + 80, "an achievement pays the XP it declares")
+	EventBus.achievement_completed.emit({"id": &"y", "reward": {"kind": "teu", "amount": 999}})
+	_expect(_service.rules.xp == before + 80, "and nothing for a non-XP reward")
 	_done("service_counts_events")
 
 
@@ -296,8 +307,9 @@ func _test_survives_prestige() -> void:
 	_expect(GameState.can_prestige(), "the run has shares to claim")
 	_expect(GameState.do_prestige(), "the prestige commits")
 	_expect(GameState.prestige_count == 1, "the run itself reset")
-	_expect(_service.rules.level == 7
-		and _service.rules.xp == TerminalLevel.xp_for_level(7) + 5,
+	# ">=": the first rebuild is itself an achievement, and achievements pay XP.
+	_expect(_service.rules.level >= 7
+		and _service.rules.xp >= TerminalLevel.xp_for_level(7) + 5,
 		"the level and XP survive the prestige")
 	var envelope := SaveManager.build_envelope()
 	_expect(envelope.sections.has("terminal_level"),

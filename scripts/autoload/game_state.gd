@@ -90,6 +90,9 @@ const CRIT_MULT := 7.0
 # collection is part of the rate now, and `cps_breakdown` shows it as its own
 # row so the bonus is visible where the number is explained.
 const ACHIEVEMENT_BONUS_PER := 0.01
+## +2% permanent production per Terminal level above 1 (x1.58 at level 30), so
+## every level-up pays something, not only the ones that open a feature.
+const LEVEL_BONUS_PER := 0.02
 ## The cat's surge. Below every charter reward — those are earned by playing a
 ## minigame, this is found by looking at the right pixel — but on the whole port
 ## rather than on a tap, which is what makes it worth finding at all.
@@ -1050,7 +1053,7 @@ func recompute() -> void:
 	# base_cps, and a permanent factor inside it would make every card lie.
 	base_cps = total * global_mult
 	cps = base_cps * TimeManager.weather_cps_mult() * surge_mult \
-		* achievement_multiplier()
+		* achievement_multiplier() * level_multiplier()
 	var manual_meta := _tree_scope_multiplier(&"manual", &"click_multiplier")
 	var tree_cps_per_tap := _tree_scope_additive(&"manual", &"cps_per_tap")
 	click_power = (1.0 * click_mult * manual_meta) \
@@ -1097,6 +1100,7 @@ func cps_breakdown() -> Array[Dictionary]:
 		{"label": "Turmas", "kind": "mult", "value": _conductor_multiplier()},
 		{"label": "Melhorias globais", "kind": "mult", "value": global_mult},
 		{"label": "Conquistas", "kind": "mult", "value": achievement_multiplier()},
+		{"label": "Nível", "kind": "mult", "value": level_multiplier()},
 	]
 	var weather := TimeManager.weather_cps_mult()
 	if not is_equal_approx(weather, 1.0):
@@ -1200,6 +1204,10 @@ func _tree_scope_additive(scope: StringName, stat: StringName,
 				and effect.get("operation", "") == operation:
 			value += float(effect.get("value", 0.0))
 	return value
+
+
+func level_multiplier() -> float:
+	return 1.0 + LEVEL_BONUS_PER * float(maxi(0, FeatureGate.level() - 1))
 
 
 func achievement_multiplier() -> float:

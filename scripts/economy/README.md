@@ -68,6 +68,22 @@ rebuild pays on day 2. The levers, in the order they matter:
 - **Level unlocks** (`TerminalLevel.UNLOCKS`) run to level 18 (~day 3), the
   rebuild at 14 (~day 2), instead of all arriving in the first hour.
 
+## Why level up, why take a challenge
+
+Every loop has to pay into another one, or the player is right to ignore it:
+
+- **Levels** open features up to 18, and *every* level also pays +2% production
+  (`GameState.level_multiplier`, "Nível" in the rate breakdown) and a wheel
+  token. Levels 19-30 used to pay nothing at all.
+- **Achievements** pay Terminal XP (40, or 80/160/240 for the bigger ones) on
+  top of +1% production each. They used to promise "coleção" cosmetics and
+  "carreira" points that existed nowhere in the game.
+- **Daily missions** pay a wheel token each (+40 XP), all three a x3 surge.
+  They unlock at level 7, after the gull and the wheel they can ask for.
+- **Contracts** pay 180-360 s of production for a 5-10 min window (was 60-120 s,
+  less than the window itself earned). "Produce TEU" is measured in seconds of
+  the port's own rate, not a fixed 30-90 TEU a grown port finished instantly.
+
 
 ## Roda da Sorte
 

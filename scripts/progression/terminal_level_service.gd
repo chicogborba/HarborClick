@@ -12,6 +12,8 @@ extends Node
 signal xp_changed
 ## A level was reached. `features` is every feature the new level(s) unlocked.
 signal leveled_up(level: int, features: Array)
+## How many levels the last grant crossed — Main pays one wheel token each.
+signal levels_gained(count: int)
 
 const SECTION_ID := &"terminal_level"
 ## A legacy save from before this section existed has no level at all. A
@@ -31,6 +33,7 @@ func _ready() -> void:
 	EventBus.ship_departed.connect(_on_ship_departed)
 	EventBus.structure_purchase_committed.connect(_on_structure_purchase)
 	EventBus.upgrade_bought.connect(_on_upgrade_bought)
+	EventBus.achievement_completed.connect(_on_achievement_completed)
 
 
 func _exit_tree() -> void:
@@ -39,6 +42,7 @@ func _exit_tree() -> void:
 	EventBus.ship_departed.disconnect(_on_ship_departed)
 	EventBus.structure_purchase_committed.disconnect(_on_structure_purchase)
 	EventBus.upgrade_bought.disconnect(_on_upgrade_bought)
+	EventBus.achievement_completed.disconnect(_on_achievement_completed)
 	SaveManager.unregister_section(SECTION_ID)
 
 
@@ -53,10 +57,14 @@ func _add(amount: int) -> void:
 	var gained := rules.add_xp(amount)
 	xp_changed.emit()
 	if gained > 0:
+		# Every level is worth something: +2% production (`GameState`), read
+		# through FeatureGate, so the rate has to be recomputed now.
+		GameState.recompute()
 		var features: Array = []
 		for lvl in range(before + 1, rules.level + 1):
 			features.append_array(rules.unlocks_at(lvl))
 		leveled_up.emit(rules.level, features)
+		levels_gained.emit(gained)
 
 
 # ------------------------------------------------------------- event wiring
@@ -80,10 +88,17 @@ func _on_upgrade_bought(_id: String) -> void:
 	_add(TerminalLevel.XP_PER_UPGRADE)
 
 
+func _on_achievement_completed(payload: Dictionary) -> void:
+	var reward: Dictionary = payload.get("reward", {})
+	if String(reward.get("kind", "")) == "xp":
+		_add(maxi(0, _as_int(reward.get("amount", 0), 0)))
+
+
 # -------------------------------------------------------------- persistence
 
 func _restore(data: Dictionary) -> void:
 	rules.restore(data)
+	GameState.recompute()
 	xp_changed.emit()
 
 

@@ -603,10 +603,8 @@ func _reward_text(reward: Variant) -> String:
 	match kind:
 		&"teu":
 			return "+%s TEU" % GameState.fmt(float(reward.get("amount", 0.0)))
-		&"meta":
-			return "+%d carreira" % int(reward.get("amount", 1))
-		&"cosmetic":
-			return "coleção"
+		&"xp":
+			return "+%d XP" % int(reward.get("amount", 0))
 	return "especial"
 
 

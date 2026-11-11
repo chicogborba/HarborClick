@@ -41,7 +41,7 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/autoload/ad_service.gd` | 132 | 12 functions | AdService: the one door every rewarded ad goes through. Owns one `AdPolicy` |
 | `scripts/autoload/audio_manager.gd` | 435 | 28 functions | SFX pool + crossfading music. Tracks follow the day/night cycle and weather. |
 | `scripts/autoload/event_bus.gd` | 47 | 0 functions | Global signal hub. Everything talks through here to stay decoupled. |
-| `scripts/autoload/game_state.gd` | 1418 | 86 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
+| `scripts/autoload/game_state.gd` | 1426 | 87 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
 | `scripts/autoload/portrait_frame.gd` | 60 | 3 functions | Keeps the game in portrait at any window size. |
 | `scripts/autoload/save_manager.gd` | 533 | 33 functions | Versioned, recoverable persistence.  The public yard/pending_yard API is |
 | `scripts/autoload/time_manager.gd` | 112 | 9 functions | Day/night cycle + weather. Full lighting arrives in the day/night phase; |
@@ -58,8 +58,8 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/cargo/route_policy.gd` | 76 | class `RoutePolicy`; 5 functions | Standing orders: which lane the port books its next call on. |
 | `scripts/cargo/traffic_coordinator.gd` | 173 | class `TrafficCoordinator`; 12 functions | Keeps the terminal's vehicles out of each other. |
 | `scripts/core/save_schema.gd` | 7 | class `SaveSchema`; 0 functions | Shared names for external systems that inspect a save without owning it. |
-| `scripts/data/achievement_db.gd` | 75 | class `AchievementDB`; 2 functions | Stable Phase 3 career achievements. Runtime state belongs to ProgressionManager. |
-| `scripts/data/contract_db.gd` | 88 | class `ContractDB`; 6 functions | Deterministic short-contract definitions. Runtime progress is owned elsewhere. |
+| `scripts/data/achievement_db.gd` | 80 | class `AchievementDB`; 2 functions | Stable Phase 3 career achievements. Runtime state belongs to ProgressionManager. |
+| `scripts/data/contract_db.gd` | 95 | class `ContractDB`; 6 functions | Deterministic short-contract definitions. Runtime progress is owned elsewhere. |
 | `scripts/data/cosmetic_db.gd` | 94 | class `CosmeticDb`; 5 functions | Static data for every decoration the terminal can be dressed in. |
 | `scripts/data/land_db.gd` | 129 | class `LandDB`; 6 functions | Land parcels: what the terminal is allowed to become next. |
 | `scripts/data/prestige_db.gd` | 123 | class `PrestigeDB`; 5 functions | Declarative prestige branches. A future economy owner applies these effects. |
@@ -84,8 +84,8 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/fx/fx.gd` | 193 | class `Fx`; 9 functions | The port's one VFX library: pooled sprite particles living in the world's |
 | `scripts/i18n/loc.gd` | 224 | 16 functions | Which language the port speaks, and every string it says. |
 | `scripts/i18n/strings_content.gd` | 157 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
-| `scripts/i18n/strings_ui.gd` | 1873 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
-| `scripts/main.gd` | 860 | 32 functions | Root: assembles world, camera and UI. |
+| `scripts/i18n/strings_ui.gd` | 1879 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
+| `scripts/main.gd` | 862 | 32 functions | Root: assembles world, camera and UI. |
 | `scripts/monetization/ad_policy.gd` | 181 | class `AdPolicy`; 11 functions | The rules of rewarded ads: which placements exist, how many may be watched |
 | `scripts/monetization/ad_provider.gd` | 18 | class `AdProvider`; 1 functions | The seam between the game and a real ad SDK. `AdService` asks the current |
 | `scripts/monetization/placeholder_ad_provider.gd` | 104 | class `PlaceholderAdProvider`; 6 functions | The test stand-in for a real ad SDK: a scrim with a paper board that says |
@@ -95,10 +95,10 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/npc/task_board.gd` | 533 | class `TaskBoard`; 31 functions | What the terminal needs next, and exactly one owner for each of it. |
 | `scripts/progression/daily_orders.gd` | 228 | class `DailyOrders`; 13 functions | The rules of Missões do Dia: three missions a day, picked deterministically |
 | `scripts/progression/daily_orders_service.gd` | 165 | class `DailyOrdersService`; 19 functions | Missões do Dia as a live node. Owns one `DailyOrders`, persists it as the |
-| `scripts/progression/feature_gate.gd` | 23 | class `FeatureGate`; 3 functions | One question, asked from anywhere: has the terminal grown enough for this? |
+| `scripts/progression/feature_gate.gd` | 28 | class `FeatureGate`; 4 functions | One question, asked from anywhere: has the terminal grown enough for this? |
 | `scripts/progression/progression_manager.gd` | 673 | class `ProgressionManager`; 52 functions | Pure progression state owner for Phase 3. It intentionally does not touch autoloads. |
-| `scripts/progression/terminal_level.gd` | 160 | class `TerminalLevel`; 10 functions | The rules of Nível do Terminal: the XP curve, the level, and the table of |
-| `scripts/progression/terminal_level_service.gd` | 116 | class `TerminalLevelService`; 12 functions | Nível do Terminal as a live node. Owns one `TerminalLevel`, persists it as |
+| `scripts/progression/terminal_level.gd` | 163 | class `TerminalLevel`; 10 functions | The rules of Nível do Terminal: the XP curve, the level, and the table of |
+| `scripts/progression/terminal_level_service.gd` | 131 | class `TerminalLevelService`; 13 functions | Nível do Terminal as a live node. Owns one `TerminalLevel`, persists it as |
 | `scripts/telemetry/placeholder_telemetry_provider.gd` | 9 | class `PlaceholderTelemetryProvider`; 1 functions | Accepts events and does nothing with them — the game's telemetry is local |
 | `scripts/telemetry/telemetry.gd` | 82 | 5 functions | Local, opt-in telemetry (plano-release R5). |
 | `scripts/telemetry/telemetry_provider.gd` | 9 | class `TelemetryProvider`; 1 functions | The seam between the game and any telemetry backend. The build never calls |
@@ -109,7 +109,7 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/ui/daily_orders_button.gd` | 124 | class `DailyOrdersButton`; 6 functions | The Missões do Dia key: a clipboard under the wheel's key, with a red count |
 | `scripts/ui/daily_orders_panel.gd` | 291 | class `DailyOrdersPanel`; 16 functions | Missões do Dia: three orders a day, a bonus for all three, and the streak. |
 | `scripts/ui/hud.gd` | 167 | class `Hud`; 14 functions | The gantry across the top of the port: the tally, the clock and the berth. |
-| `scripts/ui/level_hud.gd` | 169 | class `LevelHud`; 8 functions | The terminal's level, and the moment it grows. |
+| `scripts/ui/level_hud.gd` | 174 | class `LevelHud`; 8 functions | The terminal's level, and the moment it grows. |
 | `scripts/ui/lucky_wheel_panel.gd` | 584 | class `LuckyWheelPanel`; 26 functions | The Roda da Sorte board: the carnival wheel bolted to a clipboard, opened |
 | `scripts/ui/maze_minigame.gd` | 411 | class `MazeMinigame`; 17 functions | The second charter game: a yard you have to find your way out of. |
 | `scripts/ui/minigame_board.gd` | 298 | class `MinigameBoard`; 24 functions | The shell every charter minigame is played on: the scrim, the board, the three |
@@ -120,7 +120,7 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/ui/pixel_slider.gd` | 199 | class `PixelSlider`; 12 functions | A level you can actually set: drag it, tap it, or arrow it. |
 | `scripts/ui/port_clock.gd` | 197 | class `PortClock`; 8 functions | What day it is, what time it is, what the sky is doing and how hard it blows. |
 | `scripts/ui/port_icon.gd` | 98 | class `PortIcon`; 4 functions | The picture on a shop card is the machine itself, taken straight from the |
-| `scripts/ui/port_journal.gd` | 624 | class `PortJournal`; 27 functions | The career board. The optional callbacks are deliberately tiny adapters: |
+| `scripts/ui/port_journal.gd` | 622 | class `PortJournal`; 27 functions | The career board. The optional callbacks are deliberately tiny adapters: |
 | `scripts/ui/prestige_dialog.gd` | 358 | class `PrestigeDialog`; 20 functions | All state-changing work remains in the supplied callbacks. This surface only |
 | `scripts/ui/rate_breakdown.gd` | 164 | class `RateBreakdown`; 12 functions | Why the rate is what it is: the factors, in the order the economy applies them. |
 | `scripts/ui/readout.gd` | 289 | class `Readout`; 11 functions | The TEU tally: a lit counter behind glass, with the rate on a tag beside it. |
@@ -194,7 +194,7 @@ Inventory: **251 authored code/config/scene files**.
 | `tests/gull_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/i18n_test_runner.gd` | 277 | 13 functions | Translations. |
 | `tests/i18n_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/level_test_runner.gd` | 308 | 13 functions | Nível do Terminal: the XP curve, the unlock table, and the service that |
+| `tests/level_test_runner.gd` | 320 | 13 functions | Nível do Terminal: the XP curve, the unlock table, and the service that |
 | `tests/level_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/notification_test_runner.gd` | 119 | 8 functions | Notification policy suite. |
 | `tests/notification_test_runner.tscn` | 6 | 1 nodes | Godot scene |

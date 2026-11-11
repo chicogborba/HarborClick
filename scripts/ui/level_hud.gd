@@ -25,6 +25,7 @@ var _bar: ProgressBar
 var _card: PanelContainer
 var _card_title: Label
 var _card_text: Label
+var _card_reward: Label
 var _queue: Array[Array] = []
 var _showing := false
 var _safe_rect := Rect2()
@@ -68,6 +69,10 @@ func _ready() -> void:
 	_card_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_card_text.clip_text = true
 	col.add_child(_card_text)
+	_card_reward = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.AMBER_DEEP)
+	_card_reward.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_card_reward.clip_text = true
+	col.add_child(_card_reward)
 	add_child(_card)
 	refresh()
 	_layout()
@@ -110,12 +115,12 @@ func _show_next() -> void:
 	for f in features:
 		if FEATURE_NAMES.has(f):
 			names.append(Loc.t(str(FEATURE_NAMES[f])))
-	if names.is_empty():
-		# A level that opens nothing is just a number on the badge.
-		_show_next()
-		return
+	# Every level pays, so every level gets its card: what it opened (if
+	# anything) and the bonus every level carries.
 	_card_title.text = Loc.t("level.up", {"n": str(entry[0])})
 	_card_text.text = ", ".join(names)
+	_card_text.visible = not names.is_empty()
+	_card_reward.text = Loc.t("level.reward")
 	_card.visible = true
 	_layout()
 	AudioManager.play_sfx("achievement", 0.0, -3.0)
