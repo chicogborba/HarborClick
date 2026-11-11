@@ -9,6 +9,7 @@ These are native 24px, one light source (upper left), hue-shifted ramps and a
     1 ROUTES    a globe with two continents and a meridian
     2 LOGBOOK   a bound log with a ribbon and a brass anchor
     3 SETTINGS  an eight-tooth gear
+    4 TROPHY    a gold cup on a plinth (the challenges key)
 
 Critiqued against the pixel-art-studio checklist (silhouette at 1x, clusters of
 3+ px, no pillow shading, hue-shifted ramps, uniform outline).
@@ -171,8 +172,44 @@ def settings():
     return selout(img)
 
 
+GOLD = [(120, 70, 20, 255), (184, 120, 30, 255), (236, 176, 52, 255),
+        (255, 222, 110, 255), (255, 246, 196, 255)]
+
+
+def trophy():
+    img = new_img(24, 24)
+    # cup bowl: wide at the top, tapering, lit on the left
+    rows = [(5, 14), (5, 14), (6, 12), (6, 12), (7, 10), (8, 8), (9, 6)]
+    for i, (x, w) in enumerate(rows):
+        y = 3 + i
+        for k in range(w):
+            tone = 4 if k < 2 else 3 if k < w // 2 else 2 if k < w - 2 else 1
+            px(img, x + k, y, GOLD[tone])
+    hline(img, 5, 3, 14, GOLD[4])
+    # handles
+    for y in range(4, 8):
+        px(img, 3, y, GOLD[2])
+        px(img, 20, y, GOLD[1])
+    px(img, 4, 4, GOLD[3]); px(img, 4, 8, GOLD[2])
+    px(img, 19, 4, GOLD[2]); px(img, 19, 8, GOLD[1])
+    # stem and plinth
+    rect(img, 11, 10, 2, 4, GOLD[2])
+    px(img, 11, 10, GOLD[3])
+    rect(img, 8, 14, 8, 2, GOLD[2])
+    hline(img, 8, 14, 8, GOLD[3])
+    rect(img, 6, 16, 12, 5, LEATHER[1])
+    hline(img, 6, 16, 12, LEATHER[3])
+    hline(img, 6, 20, 12, LEATHER[0])
+    rect(img, 10, 17, 4, 3, BRASS[2])
+    px(img, 10, 17, BRASS[3])
+    # a star on the bowl
+    for x, y in ((11, 4), (12, 4), (10, 5), (11, 5), (12, 5), (13, 5), (11, 6), (12, 6)):
+        px(img, x, y, GOLD[4])
+    return selout(img)
+
+
 def gen_hud24():
-    save(sheet([shop(), routes(), logbook(), settings()]), "ui_hud24",
+    save(sheet([shop(), routes(), logbook(), settings(), trophy()]), "ui_hud24",
          preview_scale=8)
 
 

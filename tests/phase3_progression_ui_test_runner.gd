@@ -137,36 +137,87 @@ func _test_prestige_requires_explicit_confirmation() -> void:
 
 
 func _test_spotlight_steps_and_safe_target() -> void:
+	## Alisson's tour: talking steps wait for a tap, action steps for the action,
+	## and nothing outside the highlight can be pressed.
 	var viewport := _viewport(Vector2i(360, 800))
 	var target := [Rect2(Vector2(24, 80), Vector2(90, 40))]
+	var shop_open := [false]
+	var closed := [0]
 	var spotlight := TutorialSpotlight.new()
-	spotlight.setup({"get_target_rect": func(_key: String) -> Rect2: return target[0], "reduced_motion": func() -> bool: return true, "ship_ready": func() -> bool: return true})
+	spotlight.setup({
+		"get_target_rect": func(_key: String) -> Rect2: return target[0],
+		"ship_ready": func() -> bool: return true,
+		"shop_open": func() -> bool: return shop_open[0],
+		"close_shop": func() -> void: closed[0] += 1; shop_open[0] = false,
+	})
 	viewport.add_child(spotlight)
 	await get_tree().process_frame
 	var safe := Rect2(Vector2(10, 24), Vector2(340, 740))
 	spotlight.apply_view_metrics({"safe_rect": safe})
 	spotlight.start()
-	_expect(spotlight.STEPS.size() == 4, "the tour is four data-driven steps")
-	_expect(spotlight._veil.mouse_filter == Control.MOUSE_FILTER_IGNORE, "spotlight veil does not block the highlighted target")
-	_expect(_inside(safe, spotlight._panel.get_global_rect()), "spotlight instruction panel stays inside safe area")
-	_expect(spotlight._panel.size.y <= 120.0,
-		"spotlight instruction panel remains compact instead of covering the port")
-	target[0] = Rect2(Vector2(80, 650), Vector2(120, 52))
-	spotlight._show_step()
-	_expect(not spotlight._panel.get_global_rect().intersects(target[0].grow(8.0)),
-		"spotlight instruction panel moves away from a bottom-screen target")
-	# The first step asks for fifteen paid taps, and a tap on the card is not one.
-	_expect(spotlight._until() == "taps" and spotlight.is_active(), "step one waits for taps")
-	for i in 14: spotlight._on_tap_paid({})
-	_expect(spotlight._index == 0, "fourteen taps are not enough")
+	var ids := []
+	for step in spotlight.STEPS:
+		ids.append(str(step.id))
+	_expect(ids == ["intro", "wait", "navio", "teu", "loja", "compra", "desafios", "fim"],
+		"the tour is Alisson's eight steps (%s)" % [ids])
+	_expect(spotlight._veil.mouse_filter == Control.MOUSE_FILTER_STOP,
+		"the veil stops presses")
+	_expect(_inside(safe, spotlight._panel.get_global_rect()),
+		"the dialogue box stays inside the safe area")
+	_expect(spotlight._panel.size.y <= 160.0, "and stays compact")
+
+	# Step 0 talks: a tap on the box moves on (after finishing the typed line).
+	_expect(spotlight._until() == "ok" and not spotlight._skip.visible,
+		"the hello waits for a tap and cannot be skipped")
+	spotlight._advance_by_tap()
+	if spotlight._index == 0:
+		spotlight._advance_by_tap()
+	_expect(spotlight._index == 1, "a tap on the box moves on")
+	spotlight._process(0.016)
+	_expect(spotlight._index == 2 and spotlight._until() == "taps",
+		"with a ship alongside the wait step passes straight to the taps")
+
+	# The highlight lets presses through; everywhere else is solid.
+	spotlight._process(0.016)
+	var veil: Control = spotlight._veil
+	_expect(not veil._has_point(target[0].get_center()),
+		"a press inside the highlight reaches the game")
+	_expect(veil._has_point(Vector2(300, 400)),
+		"a press outside it is swallowed")
+	spotlight._body.visible_characters = -1
+	spotlight._advance_by_tap()
+	_expect(spotlight._index == 2, "a tap on the box does not count as a tap on the ship")
+	for i in 14:
+		spotlight._on_tap_paid({})
+	_expect(spotlight._index == 2, "fourteen taps are not enough")
 	spotlight._on_tap_paid({})
-	_expect(spotlight._index == 1, "the fifteenth moves on")
-	spotlight.next()
-	_expect(spotlight._until() == "buy", "then the tour waits for a purchase")
+	_expect(spotlight._index == 3, "the fifteenth moves on")
+
+	# The dialogue box moves out of the way of a bottom-screen target.
+	target[0] = Rect2(Vector2(80, 650), Vector2(120, 52))
+	spotlight._process(0.016)
+	_expect(not spotlight._panel.get_global_rect().intersects(target[0].grow(4.0)),
+		"the dialogue box moves away from a bottom-screen target")
+
+	spotlight._body.visible_characters = -1
+	spotlight._advance_by_tap()
+	_expect(spotlight._until() == "shop_open", "then he asks for the shop")
+	shop_open[0] = true
+	spotlight._process(0.016)
+	_expect(spotlight._until() == "buy", "an open shop moves to the purchase")
+	shop_open[0] = false
+	spotlight._process(0.016)
+	_expect(spotlight._until() == "shop_open", "closing the shop without buying points back at it")
+	shop_open[0] = true
+	spotlight._process(0.016)
 	spotlight._on_purchase({})
-	_expect(spotlight._index == 3, "and a purchase moves it on")
-	spotlight.next()
-	_expect(not spotlight.is_active(), "the tour completes after its fourth step")
+	_expect(closed[0] == 1 and spotlight._until() == "ok",
+		"a purchase closes the shop and moves on")
+	spotlight._body.visible_characters = -1
+	spotlight._advance_by_tap()
+	spotlight._body.visible_characters = -1
+	spotlight._advance_by_tap()
+	_expect(not spotlight.is_active(), "the tour completes after its last line")
 	viewport.queue_free()
 	await get_tree().process_frame
 

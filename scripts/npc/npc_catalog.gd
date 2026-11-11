@@ -125,7 +125,7 @@ const SPECIALS := [
 		"slot": 0,
 		"name": "Alisson",
 		"hat": "#3f7ad6",
-		"dossier": "Veio da Wilson Sons de Rio Grande, onde aprendeu a ler um pátio inteiro de longe: sabe pela altura da pilha o que já saiu e o que ainda vai sair. Chegou dizendo que aqui o vento é mais manso.",
+		"dossier": "Veio da Wilson Sons de Rio Grande, onde aprendeu a ler um pátio inteiro de longe: sabe pela altura da pilha o que já saiu e o que ainda vai sair. Chegou dizendo que aqui o vento é mais manso. Hoje é o gerente de projetos do terminal, e é ele quem recebe quem chega.",
 		"trait": "Capacete azul, sempre. Diz que é para o pessoal do costado achar ele na neblina.",
 	},
 	{

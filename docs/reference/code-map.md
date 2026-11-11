@@ -84,8 +84,8 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/fx/fx.gd` | 193 | class `Fx`; 9 functions | The port's one VFX library: pooled sprite particles living in the world's |
 | `scripts/i18n/loc.gd` | 224 | 16 functions | Which language the port speaks, and every string it says. |
 | `scripts/i18n/strings_content.gd` | 157 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
-| `scripts/i18n/strings_ui.gd` | 1879 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
-| `scripts/main.gd` | 862 | 32 functions | Root: assembles world, camera and UI. |
+| `scripts/i18n/strings_ui.gd` | 1901 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
+| `scripts/main.gd` | 879 | 32 functions | Root: assembles world, camera and UI. |
 | `scripts/monetization/ad_policy.gd` | 181 | class `AdPolicy`; 11 functions | The rules of rewarded ads: which placements exist, how many may be watched |
 | `scripts/monetization/ad_provider.gd` | 18 | class `AdProvider`; 1 functions | The seam between the game and a real ad SDK. `AdService` asks the current |
 | `scripts/monetization/placeholder_ad_provider.gd` | 104 | class `PlaceholderAdProvider`; 6 functions | The test stand-in for a real ad SDK: a scrim with a paper board that says |
@@ -97,7 +97,7 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/progression/daily_orders_service.gd` | 165 | class `DailyOrdersService`; 19 functions | Missões do Dia as a live node. Owns one `DailyOrders`, persists it as the |
 | `scripts/progression/feature_gate.gd` | 28 | class `FeatureGate`; 4 functions | One question, asked from anywhere: has the terminal grown enough for this? |
 | `scripts/progression/progression_manager.gd` | 673 | class `ProgressionManager`; 52 functions | Pure progression state owner for Phase 3. It intentionally does not touch autoloads. |
-| `scripts/progression/terminal_level.gd` | 163 | class `TerminalLevel`; 10 functions | The rules of Nível do Terminal: the XP curve, the level, and the table of |
+| `scripts/progression/terminal_level.gd` | 166 | class `TerminalLevel`; 10 functions | The rules of Nível do Terminal: the XP curve, the level, and the table of |
 | `scripts/progression/terminal_level_service.gd` | 131 | class `TerminalLevelService`; 13 functions | Nível do Terminal as a live node. Owns one `TerminalLevel`, persists it as |
 | `scripts/telemetry/placeholder_telemetry_provider.gd` | 9 | class `PlaceholderTelemetryProvider`; 1 functions | Accepts events and does nothing with them — the game's telemetry is local |
 | `scripts/telemetry/telemetry.gd` | 82 | 5 functions | Local, opt-in telemetry (plano-release R5). |
@@ -113,7 +113,7 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/ui/lucky_wheel_panel.gd` | 584 | class `LuckyWheelPanel`; 26 functions | The Roda da Sorte board: the carnival wheel bolted to a clipboard, opened |
 | `scripts/ui/maze_minigame.gd` | 411 | class `MazeMinigame`; 17 functions | The second charter game: a yard you have to find your way out of. |
 | `scripts/ui/minigame_board.gd` | 298 | class `MinigameBoard`; 24 functions | The shell every charter minigame is played on: the scrim, the board, the three |
-| `scripts/ui/notice_bell.gd` | 297 | class `NoticeBell`; 18 functions | Notices, collected on a bell instead of thrown across the port. |
+| `scripts/ui/notice_bell.gd` | 295 | class `NoticeBell`; 18 functions | Notices, collected on a bell instead of thrown across the port. |
 | `scripts/ui/notification_coordinator.gd` | 148 | class `NotificationCoordinator`; 10 functions | One place decides whether something deserves the player's attention. |
 | `scripts/ui/npc_card.gd` | 291 | class `NpcCard`; 15 functions | Somebody's staff badge: their face, their name, their trade, and the one job |
 | `scripts/ui/offline_popup.gd` | 148 | class `OfflinePopup`; 9 functions | "While you were away" board, shown once when idle income piled up. |
@@ -131,9 +131,8 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/ui/shop_card.gd` | 362 | class `ShopCard`; 16 functions | One line torn off the purchase manifest. |
 | `scripts/ui/special_call_alert.gd` | 206 | class `SpecialCallAlert`; 14 functions | The interruption: a charter on the table, with what it pays and what it costs. |
 | `scripts/ui/title_screen.gd` | 1221 | 38 functions | The first thing the game shows. |
-| `scripts/ui/tutorial.gd` | 231 | class `Tutorial`; 12 functions | Seu Waldemar walks new players through the first minute. |
-| `scripts/ui/tutorial_spotlight.gd` | 232 | class `TutorialSpotlight`; 17 functions | The first minute, as four things to *do* rather than seven things to read. |
-| `scripts/ui/ui_theme.gd` | 912 | class `UiTheme`; 64 functions | The one place the interface is described. |
+| `scripts/ui/tutorial_spotlight.gd` | 395 | class `TutorialSpotlight`; 24 functions | The first minutes, walked through by Alisson, the terminal's project manager. |
+| `scripts/ui/ui_theme.gd` | 922 | class `UiTheme`; 64 functions | The one place the interface is described. |
 | `scripts/ui/upgrade_map.gd` | 483 | class `UpgradeMap`; 27 functions | The upgrade catalogue as the thing it actually is: a network diagram. |
 | `scripts/ui/wheel_button.gd` | 143 | class `WheelButton`; 8 functions | The Roda da Sorte's key: a small steel key under the gantry's left end, with |
 | `scripts/world/atmosphere.gd` | 283 | class `Atmosphere`; 14 functions | Day/night lighting for the top-down port: global tint, flood-light masts |
@@ -194,7 +193,7 @@ Inventory: **251 authored code/config/scene files**.
 | `tests/gull_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/i18n_test_runner.gd` | 277 | 13 functions | Translations. |
 | `tests/i18n_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/level_test_runner.gd` | 320 | 13 functions | Nível do Terminal: the XP curve, the unlock table, and the service that |
+| `tests/level_test_runner.gd` | 321 | 13 functions | Nível do Terminal: the XP curve, the unlock table, and the service that |
 | `tests/level_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/notification_test_runner.gd` | 119 | 8 functions | Notification policy suite. |
 | `tests/notification_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -203,7 +202,7 @@ Inventory: **251 authored code/config/scene files**.
 | `tests/phase3_economy_test_runner.gd` | 420 | 22 functions | Godot --headless --path . res://tests/phase3_economy_test_runner.tscn |
 | `tests/phase3_economy_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/phase3_progression_test_runner.gd` | 150 | 10 functions | Run with: Godot --headless --path . --script res://tests/phase3_progression_test_runner.gd |
-| `tests/phase3_progression_ui_test_runner.gd` | 187 | 9 functions | Run with: Godot --headless --path . res://tests/phase3_progression_ui_test_runner.tscn |
+| `tests/phase3_progression_ui_test_runner.gd` | 238 | 9 functions | Run with: Godot --headless --path . res://tests/phase3_progression_ui_test_runner.tscn |
 | `tests/phase3_progression_ui_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/phase4_ship_test_runner.gd` | 369 | 14 functions | Run with: Godot --headless --path . res://tests/phase4_ship_test_runner.tscn |
 | `tests/phase4_ship_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -246,7 +245,7 @@ Inventory: **251 authored code/config/scene files**.
 | `tools/balance/week_report.gd` | 56 | 4 functions | When does a week-long player first own each thing? |
 | `tools/capture/capture.gd` | 960 | 12 functions | Headed screenshot harness. Boots the real game scene, drives the overlays and |
 | `tools/capture/capture.tscn` | 6 | 1 nodes | Godot scene |
-| `tools/capture/closeup.gd` | 144 | 4 functions | One close-up of the running game, for judging art at the pixel. |
+| `tools/capture/closeup.gd` | 163 | 4 functions | One close-up of the running game, for judging art at the pixel. |
 | `tools/capture/closeup.tscn` | 6 | 1 nodes | Godot scene |
 | `tools/capture/perf.gd` | 105 | 4 functions | Frame-time measurement under the worst terminal the game can produce. |
 | `tools/capture/perf.tscn` | 6 | 1 nodes | Godot scene |
@@ -269,7 +268,8 @@ Inventory: **251 authored code/config/scene files**.
 | `tools/sprites/gen_font.py` | 371 | 2 functions | Generates the game's pixel font: a PNG atlas plus a BMFont .fnt descriptor |
 | `tools/sprites/gen_fx.py` | 123 | 6 functions | The port's VFX strips, drawn for the pooled emitter in `scripts/fx/fx.gd`. |
 | `tools/sprites/gen_ground.py` | 199 | 11 functions | Top-down ground tiles, Stardew-flavoured: textured asphalt, worn concrete, |
-| `tools/sprites/gen_hud24.py` | 180 | 6 functions | The console's own glyphs: 24x24, drawn for the size they are shown at. |
+| `tools/sprites/gen_guide.py` | 279 | 8 functions | Alisson, the terminal's project manager, who walks a new player through the port. |
+| `tools/sprites/gen_hud24.py` | 217 | 7 functions | The console's own glyphs: 24x24, drawn for the size they are shown at. |
 | `tools/sprites/gen_icons.py` | 49 | 1 functions | PWA / home-screen icons, drawn from the title crest on the app's navy. |
 | `tools/sprites/gen_icons16.py` | 336 | 2 functions | 16x16 interface icons, outlined, for the HUD the release plan builds (D2). |
 | `tools/sprites/gen_landing.py` | 1014 | 31 functions | Generates every pixel asset the public landing page ships. |

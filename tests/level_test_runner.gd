@@ -132,21 +132,22 @@ func _test_unlock_table() -> void:
 	_expect(TerminalLevel.UNLOCKS.size() == 14, "the table has 14 features")
 	var spot := {
 		&"shop": 1, &"objective": 2, &"upgrades": 3, &"gull": 4, &"land": 5,
-		&"wheel": 6, &"daily": 7, &"journal": 8, &"routes": 10, &"charters": 12,
+		&"wheel": 6, &"daily": 7, &"journal": 1, &"routes": 10, &"charters": 12,
 		&"events": 12, &"prestige": 14, &"decor": 16, &"orders": 18,
 	}
 	for feature in spot.keys():
 		_expect(int(TerminalLevel.UNLOCKS.get(feature, -1)) == int(spot[feature]),
 			"%s unlocks at %d" % [String(feature), int(spot[feature])])
 	var t := TerminalLevel.new()
-	_expect(t.unlocked(&"shop") and not t.unlocked(&"objective")
+	_expect(t.unlocked(&"shop") and t.unlocked(&"journal") and not t.unlocked(&"objective")
 		and not t.unlocked(&"wheel") and not t.unlocked(&"prestige"),
-		"a level-1 terminal has only the shop")
+		"a level-1 terminal has only the shop and the challenges")
 	_expect(not t.unlocked(&"not_a_feature"), "an unknown feature is never unlocked")
 	t.level = 18
 	for feature in TerminalLevel.UNLOCKS.keys():
 		_expect(t.unlocked(feature), "%s is unlocked at level 18" % String(feature))
-	_expect(TerminalLevel.new().unlocks_at(1) == [&"shop"], "level 1 unlocks the shop")
+	_expect(TerminalLevel.new().unlocks_at(1) == [&"journal", &"shop"],
+		"level 1 has the shop and the challenges")
 	_expect(TerminalLevel.new().unlocks_at(2) == [&"objective"], "level 2 the objective")
 	_expect(TerminalLevel.new().unlocks_at(6) == [&"wheel"], "level 6 the wheel")
 	_expect(TerminalLevel.new().unlocks_at(7) == [&"daily"],

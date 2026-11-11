@@ -519,9 +519,9 @@ const STRINGS := {
 	"ru": "Открыть карту маршрутов", "pl": "Otwórz mapę tras",
 	"tr": "Rota haritasını aç"},
 "rail.journal": {
-	"pt_BR": "DIÁRIO", "en": "LOGBOOK", "es": "DIARIO", "fr": "JOURNAL",
-	"de": "LOGBUCH", "it": "DIARIO", "ru": "ЖУРНАЛ", "pl": "DZIENNIK",
-	"tr": "GÜNLÜK"},
+	"pt_BR": "DESAFIOS", "en": "CHALLENGES", "es": "DESAFÍOS", "fr": "DÉFIS",
+	"de": "AUFGABEN", "it": "SFIDE", "ru": "ЗАДАНИЯ", "pl": "WYZWANIA",
+	"tr": "GÖREVLER"},
 "rail.journal.name": {
 	"pt_BR": "Abrir o Diário do Porto", "en": "Open the Port Logbook",
 	"es": "Abrir el Diario del Puerto", "fr": "Ouvrir le journal du port",
@@ -1655,6 +1655,28 @@ const STRINGS := {
 	"pt_BR": "toque para continuar", "en": "tap to continue", "es": "toca para seguir",
 	"fr": "touchez pour continuer", "de": "tippen zum Weitermachen", "it": "tocca per continuare",
 	"ru": "нажмите, чтобы продолжить", "pl": "dotknij, by kontynuować", "tr": "devam için dokun"},
+"guide.role": {
+	"pt_BR": "Gerente de Projetos", "en": "Project Manager", "es": "Gerente de Proyectos", "fr": "Chef de projet", "de": "Projektleiter", "it": "Responsabile progetti", "ru": "Руководитель проектов", "pl": "Kierownik projektów", "tr": "Proje Müdürü"},
+"guide.intro": {
+	"pt_BR": "E aí! Eu sou o Alisson, gerente de projetos aqui do terminal. Bora botar esse porto pra rodar?", "en": "Hey! I'm Alisson, project manager here at the terminal. Let's get this port moving!", "es": "¡Hola! Soy Alisson, gerente de proyectos de la terminal. ¿Ponemos este puerto en marcha?", "fr": "Salut ! Moi c'est Alisson, chef de projet du terminal. On fait tourner ce port ?", "de": "Hallo! Ich bin Alisson, Projektleiter hier am Terminal. Bringen wir den Hafen ins Rollen!", "it": "Ciao! Sono Alisson, responsabile progetti del terminal. Facciamo girare questo porto?", "ru": "Привет! Я Алиссон, руководитель проектов терминала. Запустим этот порт?", "pl": "Cześć! Jestem Alisson, kierownik projektów terminalu. Rozkręcamy ten port?", "tr": "Selam! Ben Alisson, terminalin proje müdürüyüm. Bu limanı çalıştıralım mı?"},
+"guide.wait": {
+	"pt_BR": "Lá vem o primeiro navio. Assim que ele encostar no cais, a gente começa.", "en": "Here comes the first ship. As soon as she's alongside, we start.", "es": "Ahí viene el primer barco. En cuanto atraque, empezamos.", "fr": "Voilà le premier navire. Dès qu'il est à quai, on commence.", "de": "Da kommt das erste Schiff. Sobald es am Kai liegt, legen wir los.", "it": "Ecco la prima nave. Appena attracca, cominciamo.", "ru": "Вот и первое судно. Как только пришвартуется, начинаем.", "pl": "Płynie pierwszy statek. Jak tylko przybije, zaczynamy.", "tr": "İlk gemi geliyor. Rıhtıma yanaşır yanaşmaz başlıyoruz."},
+"guide.ship": {
+	"pt_BR": "Toca no navio! Cada toque tira um contêiner do porão e paga TEU, a nossa moeda.", "en": "Tap the ship! Every tap lifts a box out of the hold and pays TEU, our money.", "es": "¡Toca el barco! Cada toque saca un contenedor de la bodega y paga TEU, nuestra moneda.", "fr": "Touche le navire ! Chaque touche sort un conteneur de la cale et paie des TEU, notre monnaie.", "de": "Tipp auf das Schiff! Jeder Tipp hebt einen Container aus dem Laderaum und bringt TEU, unser Geld.", "it": "Tocca la nave! Ogni tocco tira fuori un container dalla stiva e paga TEU, la nostra moneta.", "ru": "Жми на судно! Каждое касание достаёт контейнер из трюма и платит TEU, нашу валюту.", "pl": "Stuknij statek! Każde stuknięcie wyjmuje kontener z ładowni i płaci TEU, naszą walutę.", "tr": "Gemiye dokun! Her dokunuş ambardan bir konteyner çıkarır ve TEU kazandırır, bizim paramız."},
+"guide.teu": {
+	"pt_BR": "Esse é o caixa do porto. Tudo que a gente faz paga TEU, e com TEU a gente cresce.", "en": "This is the port's till. Everything we do pays TEU, and TEU is how we grow.", "es": "Esta es la caja del puerto. Todo lo que hacemos paga TEU, y con TEU crecemos.", "fr": "Voici la caisse du port. Tout ce qu'on fait rapporte des TEU, et avec les TEU on grandit.", "de": "Das ist die Hafenkasse. Alles, was wir tun, bringt TEU, und mit TEU wachsen wir.", "it": "Questa è la cassa del porto. Tutto ciò che facciamo paga TEU, e con i TEU cresciamo.", "ru": "Это касса порта. Всё, что мы делаем, приносит TEU, а с TEU мы растём.", "pl": "To kasa portu. Wszystko, co robimy, daje TEU, a dzięki TEU rośniemy.", "tr": "Bu limanın kasası. Yaptığımız her şey TEU kazandırır, TEU ile büyürüz."},
+"guide.shop": {
+	"pt_BR": "Agora abre a LOJA. É lá que a gente contrata gente e compra máquina.", "en": "Now open the SHOP. That's where we hire crew and buy machines.", "es": "Ahora abre la TIENDA. Ahí contratamos gente y compramos máquinas.", "fr": "Ouvre la BOUTIQUE. C'est là qu'on embauche et qu'on achète des machines.", "de": "Öffne jetzt den LADEN. Dort stellen wir Leute ein und kaufen Maschinen.", "it": "Ora apri il NEGOZIO. Lì assumiamo gente e compriamo macchine.", "ru": "Теперь открой МАГАЗИН. Там нанимаем людей и покупаем технику.", "pl": "Teraz otwórz SKLEP. Tam zatrudniamy ludzi i kupujemy maszyny.", "tr": "Şimdi MAĞAZA'yı aç. Orada eleman alır, makine satın alırız."},
+"guide.buy": {
+	"pt_BR": "Contrata um Estivador. Ele trabalha sozinho, até quando tu não tá tocando.", "en": "Hire a Docker. He works on his own, even when you're not tapping.", "es": "Contrata un Estibador. Trabaja solo, incluso cuando no tocas.", "fr": "Embauche un Docker. Il travaille tout seul, même quand tu ne touches pas.", "de": "Stell einen Stauer ein. Er arbeitet allein, auch wenn du nicht tippst.", "it": "Assumi uno Scaricatore. Lavora da solo, anche quando non tocchi.", "ru": "Найми докера. Он работает сам, даже когда ты не жмёшь.", "pl": "Zatrudnij Dokera. Pracuje sam, nawet gdy nie stukasz.", "tr": "Bir Liman İşçisi tut. Sen dokunmasan da kendi kendine çalışır."},
+"guide.challenges": {
+	"pt_BR": "Aqui ficam os DESAFIOS. Cada um dá XP, e cada nível dá mais produção e libera coisa nova.", "en": "These are the CHALLENGES. Each one pays XP, and every level means more output and something new.", "es": "Aquí están los DESAFÍOS. Cada uno da XP, y cada nivel da más producción y desbloquea algo nuevo.", "fr": "Ici, les DÉFIS. Chacun rapporte de l'XP, et chaque niveau donne plus de production et débloque du nouveau.", "de": "Hier sind die AUFGABEN. Jede bringt XP, und jede Stufe bringt mehr Leistung und etwas Neues.", "it": "Qui ci sono le SFIDE. Ognuna dà XP, e ogni livello dà più produzione e sblocca qualcosa di nuovo.", "ru": "Здесь ЗАДАНИЯ. Каждое даёт XP, а каждый уровень повышает выработку и открывает новое.", "pl": "Tu są WYZWANIA. Każde daje XP, a każdy poziom to większa produkcja i coś nowego.", "tr": "Burada GÖREVLER var. Her biri XP verir, her seviye daha fazla üretim ve yeni bir şey açar."},
+"guide.done": {
+	"pt_BR": "É isso! Se precisar de mim, tô nos Ajustes. Bom turno, chefe!", "en": "That's it! If you need me, I'm in Settings. Have a good shift, boss!", "es": "¡Eso es todo! Si me necesitas, estoy en Ajustes. ¡Buen turno, jefe!", "fr": "C'est tout ! Si tu as besoin de moi, je suis dans les Réglages. Bon quart, chef !", "de": "Das war's! Wenn du mich brauchst, ich bin in den Einstellungen. Gute Schicht, Chef!", "it": "Tutto qui! Se ti servo, sono nelle Impostazioni. Buon turno, capo!", "ru": "Вот и всё! Если понадоблюсь, я в Настройках. Хорошей смены, шеф!", "pl": "To wszystko! Jak będę potrzebny, jestem w Ustawieniach. Dobrej zmiany, szefie!", "tr": "Bu kadar! Bana ihtiyacın olursa Ayarlar'dayım. İyi vardiyalar, patron!"},
+"guide.continue": {
+	"pt_BR": "toque para continuar", "en": "tap to continue", "es": "toca para seguir", "fr": "touche pour continuer", "de": "tippen zum Weitermachen", "it": "tocca per continuare", "ru": "нажми, чтобы продолжить", "pl": "stuknij, aby kontynuować", "tr": "devam için dokun"},
+"guide.progress": {
+	"pt_BR": "{n}/{goal} toques", "en": "{n}/{goal} taps", "es": "{n}/{goal} toques", "fr": "{n}/{goal} touches", "de": "{n}/{goal} Tipps", "it": "{n}/{goal} tocchi", "ru": "{n}/{goal} касаний", "pl": "{n}/{goal} stuknięć", "tr": "{n}/{goal} dokunuş"},
 "spot.skip": {
 	"pt_BR": "PULAR", "en": "SKIP", "es": "SALTAR",
 	"fr": "PASSER", "de": "SKIP", "it": "SALTA",
@@ -1698,9 +1720,9 @@ const STRINGS := {
 	"fr": "Roulette", "de": "Glücksrad", "it": "Ruota",
 	"ru": "Колесо", "pl": "Koło", "tr": "Çark"},
 "level.feature.journal": {
-	"pt_BR": "Diário", "en": "Logbook", "es": "Diario",
-	"fr": "Journal", "de": "Logbuch", "it": "Diario",
-	"ru": "Журнал", "pl": "Dziennik", "tr": "Seyir defteri"},
+	"pt_BR": "Desafios", "en": "Challenges", "es": "Desafíos",
+	"fr": "Défis", "de": "Aufgaben", "it": "Sfide",
+	"ru": "Задания", "pl": "Wyzwania", "tr": "Görevler"},
 "level.feature.routes": {
 	"pt_BR": "Rotas e Ramal", "en": "Routes and Rail", "es": "Rutas y ramal",
 	"fr": "Routes et rail", "de": "Routen und Bahn", "it": "Rotte e raccordo",

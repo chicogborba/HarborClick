@@ -40,7 +40,9 @@ var _last_focus: Control
 
 
 func _ready() -> void:
-	layer = 8
+	# Above the level badge (9): the open log used to slide under it and lose
+	# its title.
+	layer = 12
 	_button = UiTheme.icon_button(UiTheme.Icon.BELL, &"steel", KEY, "Avisos do porto")
 	_button.pressed.connect(toggle)
 	add_child(_button)
@@ -59,17 +61,8 @@ func _ready() -> void:
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override(&"separation", 3)
 	_board.add_child(column)
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override(&"separation", 5)
-	column.add_child(head)
-	var title := UiTheme.label("AVISOS DO PORTO", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
-	var close := UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 22.0,
-		"Fechar avisos")
-	close.pressed.connect(close_log)
-	head.add_child(close)
-	column.add_child(UiTheme.divider())
+	var head := UiTheme.header("AVISOS DO PORTO", close_log, UiTheme.Icon.BELL)
+	column.add_child(head.root)
 	# The rows wrap, and a wrapped label measured before the layout pass reports a
 	# height in the thousands — which is exactly how a 250px log came out 3505px
 	# tall and hanging off the bottom of the screen. Inside a scroll container the
@@ -213,7 +206,12 @@ func _row(notice: Dictionary) -> Control:
 	row.add_theme_constant_override(&"separation", 5)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(row)
-	row.add_child(UiTheme.icon(notice.get("icon", UiTheme.Icon.TEU)))
+	# Shrunk to its own 12px: left to fill, a wrapped three-line notice stretched
+	# its icon into a tall smear down the side of the card.
+	var glyph := UiTheme.icon(notice.get("icon", UiTheme.Icon.TEU))
+	glyph.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	glyph.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	row.add_child(glyph)
 	var count := int(notice.get("count", 1))
 	var text := str(notice.get("text", ""))
 	var label := UiTheme.label(text if count <= 1 else "%s  x%d" % [text, count],
@@ -268,7 +266,7 @@ func _layout() -> void:
 	_pip.position = _button.position + Vector2(KEY - 8.0, 2.0)
 	if not _board.visible:
 		return
-	var width := clampf(area.size.x - 16.0, 150.0, 250.0)
+	var width := clampf(area.size.x - 16.0, 150.0, 340.0)
 	_board.size = Vector2(width, minf(_board.size.y, _room(area)))
 	_board.position = Vector2(
 		clampf(_button.get_global_rect().end.x - width, area.position.x + 6.0,

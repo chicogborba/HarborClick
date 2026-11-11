@@ -327,6 +327,10 @@ func _ready() -> void:
 		"get_target_rect": Callable(self, "_tutorial_target_rect"),
 		"reduced_motion": Callable(self, "_tutorial_reduced_motion"),
 		"ship_ready": Callable(self, "_ship_is_working"),
+		"shop_open": func() -> bool: return shop != null and shop.is_open(),
+		"close_shop": func() -> void:
+			if shop != null and shop.is_open():
+				shop._close(),
 	})
 	add_child(tutorial)
 	tutorial.finished.connect(_on_tutorial_finished)
@@ -686,9 +690,22 @@ func _commit_prestige() -> Variant:
 func _tutorial_target_rect(target: String) -> Rect2:
 	match target:
 		"ship":
+			# The hull's own hit area, through the camera: a fixed 100x76 box
+			# at the hull's origin missed the ship at any zoom but one.
 			if world != null and world.ship != null:
-				var point := world.ship.get_global_transform_with_canvas().origin
-				return Rect2(point - Vector2(20, 12), Vector2(100, 76))
+				var xf := world.ship.get_global_transform_with_canvas()
+				var a := xf * Vector2(-8.0, -8.0)
+				var b := xf * Vector2(PortLayout.SHIP_W + 8.0, world.ship.hull_height() + 8.0)
+				var view := get_viewport().get_visible_rect()
+				return Rect2(a, b - a).abs().intersection(view)
+		"shop_card":
+			if shop != null and shop.is_open() and shop._cards.has("estivador"):
+				return (shop._cards["estivador"] as Control).get_global_rect()
+		"journal_key":
+			if rail != null:
+				for entry: Dictionary in rail._key_labels:
+					if str(entry.stem) == "rail.journal":
+						return (entry.button as Control).get_global_rect()
 		"teu":
 			return hud.readout_rect() if hud != null else Rect2()
 		"rail", "objective", "journal":
@@ -733,7 +750,7 @@ func _save_screenshot(shot_name: String = "shot") -> void:
 func _dev_probe() -> void:
 	## Plays the game: taps the ship, buys everything, expands the port, then
 	## grabs framed screenshots. Any failed expectation prints to the console.
-	var tut := get_node_or_null(^"Tutorial")
+	var tut := get_node_or_null(^"TutorialSpotlight")
 	if tut != null:
 		tut.queue_free()
 	for child in get_children():

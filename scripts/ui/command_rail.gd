@@ -90,7 +90,7 @@ func _build_bar() -> void:
 	for spec in [
 			["rail.shop", UiTheme.Hud24.SHOP, &"amber", shop_requested],
 			["rail.routes", UiTheme.Hud24.ROUTES, &"steel", routes_requested],
-			["rail.journal", UiTheme.Hud24.LOGBOOK, &"steel", journal_requested],
+			["rail.journal", UiTheme.Hud24.TROPHY, &"steel", journal_requested],
 			["rail.settings", UiTheme.Hud24.SETTINGS, &"steel", settings_requested]]:
 		var stem := str(spec[0])
 		var key := _make_key(Loc.t(stem), spec[1], spec[2],

@@ -119,7 +119,7 @@ const ICONS16 := preload("res://assets/sprites/ui_icons16.png")
 
 ## The command rail's glyphs, drawn at 24px for the size they are shown at
 ## (`tools/sprites/gen_hud24.py`). Order matches the sheet.
-enum Hud24 { SHOP, ROUTES, LOGBOOK, SETTINGS }
+enum Hud24 { SHOP, ROUTES, LOGBOOK, SETTINGS, TROPHY }
 const HUD24 := preload("res://assets/sprites/ui_hud24.png")
 
 
@@ -189,6 +189,9 @@ static func icon(kind: Icon, scale: int = 1) -> TextureRect:
 	node.custom_minimum_size = Vector2(12, 12) * scale
 	node.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	node.stretch_mode = TextureRect.STRETCH_SCALE
+	# Never stretched by a tall row: next to wrapped text an icon used to become
+	# a smear the height of the paragraph.
+	node.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return node
@@ -721,7 +724,10 @@ static func focus_first(root: Node) -> Control:
 		var control := child as Control
 		if control != null and control.focus_mode == Control.FOCUS_ALL \
 				and control.is_visible_in_tree() and not control.is_queued_for_deletion():
-			control.grab_focus()
+			# Focus lands here so a keyboard user can act at once, but the ring
+			# stays hidden until they actually use the keyboard: on a phone it
+			# was a white box drawn round the close key of every board.
+			control.grab_focus(true)
 			return control
 		var found := focus_first(child)
 		if found != null:
@@ -795,6 +801,10 @@ static func icon_button(kind: Icon, style: StringName = &"alt",
 	node.expand_icon = false
 	node.add_theme_constant_override(&"icon_max_width", 20)
 	node.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Button's icon is left-aligned by default whatever `alignment` says, which
+	# sat the close cross and the bell off-centre in their keys.
+	node.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	node.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 	if not control_name.is_empty():
 		describe(node, control_name)
 	return node

@@ -146,7 +146,13 @@ Entry points:
   `maze_minigame.gd` is navigation.
 - `notification_coordinator.gd` — notice policy: what is routine, what collapses,
   what is kept. It has no opinion about how a notice is shown.
-- `tutorial.gd`, `tutorial_spotlight.gd` — onboarding.
+- `tutorial_spotlight.gd` — onboarding, walked through by Alisson (the project
+  manager from the crew roster, `ui_guide.png` from `tools/sprites/gen_guide.py`):
+  a dialogue box with his talking portrait and a typed-out line. Talking steps
+  wait for a tap, action steps for the action (tap the ship 15x, open the shop,
+  hire a docker). The veil swallows every press outside the highlight
+  (`_Veil._has_point`), and targets are re-resolved every frame from Main so the
+  highlight follows the camera and the shop sheet.
 
 `FloatText` is the game's only answer to "did my tap pay?", so it is deliberately
 loud: a large warm number with a thick dark outline, punched in and risen. Small

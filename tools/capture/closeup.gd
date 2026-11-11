@@ -48,9 +48,9 @@ func _ready() -> void:
 		return
 	# `fresh*` scenarios photograph a brand-new profile: nothing bought, and for
 	# plain `fresh` the tutorial still up — the first thing a new player sees.
-	if not scenario.begins_with("fresh"):
+	if not scenario.begins_with("fresh") and not scenario.begins_with("tour"):
 		_furnish()
-	elif scenario != "fresh":
+	elif scenario != "fresh" and not scenario.begins_with("tour"):
 		for path in [^"TutorialSpotlight", ^"OfflinePopup"]:
 			var node := _main.get_node_or_null(path)
 			if node != null:
@@ -114,6 +114,25 @@ func _stage(scenario: String) -> Vector2:
 			var gull := world.active_gull()
 			if gull != null:
 				return gull.global_position
+			return Vector2(-1, -1)
+		"tour_ship", "tour_shop", "tour_bell":
+			# Alisson's tour, at the step named, on a brand-new profile.
+			var tour: TutorialSpotlight = _main.tutorial
+			var deadline := Time.get_ticks_msec() + 25000
+			while Time.get_ticks_msec() < deadline and not _main._ship_is_working():
+				await get_tree().process_frame
+			if scenario == "tour_bell":
+				tour._finish(true)
+				_main.bell.open_log()
+			else:
+				tour._index = 2 if scenario == "tour_ship" else 4
+				if scenario == "tour_shop":
+					GameState.teus = 40.0
+					_main.shop._on_tab("structures")
+					await get_tree().create_timer(0.8).timeout
+				tour._show_step()
+				tour._body.visible_characters = -1
+			await get_tree().create_timer(1.0).timeout
 			return Vector2(-1, -1)
 		"fresh_played":
 			# Thirty taps into a new profile: the port a player has after their

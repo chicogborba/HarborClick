@@ -48,6 +48,10 @@ const XP_PER_UPGRADE := 30
 ## day 3, while the economy keeps opening machines and parcels until day 7.
 const UNLOCKS: Dictionary = {
 	&"shop": 1,
+	# The challenges board is there from the first minute: a new port's console
+	# had a single real key, and the list of what to do next is the reason to
+	# keep tapping.
+	&"journal": 1,
 	&"objective": 2,
 	&"upgrades": 3,
 	# Missions come after everything a mission can ask for: one of them is "catch
@@ -57,7 +61,6 @@ const UNLOCKS: Dictionary = {
 	&"land": 5,
 	&"wheel": 6,
 	&"daily": 7,
-	&"journal": 8,
 	&"routes": 10,
 	&"charters": 12,
 	&"events": 12,

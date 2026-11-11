@@ -1,90 +1,144 @@
 class_name TutorialSpotlight
 extends CanvasLayer
-## The first minute, as four things to *do* rather than seven things to read.
+## The first minutes, walked through by Alisson, the terminal's project manager.
 ##
-## The tour used to be seven cards you tapped through, pointing at keys a new
-## terminal does not have yet and — on the very first card — at an empty patch of
-## water, because the ship was still coming in. Now every step but the two
-## explanations waits for the player to do what it says: tap the ship fifteen
-## times (the first card does not appear until a ship is actually alongside),
-## open the shop and buy a docker. Target callbacks can return a Rect2, allowing
-## the real control to remain interactive beneath the overlay.
+## He talks from a dialogue box (portrait, name plate, typed-out line) and every
+## step either waits for a tap on the box or for the player to *do* the thing:
+## tap the ship, open the shop, hire a docker. The rest of the screen is behind
+## a veil that swallows every press — the old tour drew a dark veil that let
+## taps straight through, so a new player could open boards, buy things and
+## pan away mid-step and leave the tour pointing at nothing. Only the
+## highlighted rectangle reaches the game underneath (`_Veil._has_point`).
+##
+## Targets come from Main as screen rects, resolved every frame, so the
+## highlight follows the camera, the shop sliding open and a rotated phone.
 
 signal step_changed(index: int, step: Dictionary)
 signal finished(skipped: bool)
 
-## `until`: "taps" waits for `goal` paid taps, "buy" for a machine purchase, "ok"
-## for a tap on the card. `wait` names a callback that must answer true before
-## the step is shown at all.
+## `until`: "ok" waits for a tap on the box (or anywhere on the veil), "ready"
+## for the `wait` callback, "taps" for `goal` paid taps, "shop_open" for the
+## shop sheet, "buy" for a machine purchase. `target` is a key Main resolves to
+## a screen rect; empty means nothing is highlighted and nothing gets through.
 const STEPS := [
-	{"id": "navio", "title": "spot.ship.title", "text": "spot.ship.text2",
-		"target": "ship", "until": "taps", "goal": 15, "wait": "ship_ready"},
-	{"id": "teu", "title": "spot.teu.title", "text": "spot.teu.text2",
-		"target": "teu", "until": "ok"},
-	{"id": "loja", "title": "spot.shop.title2", "text": "spot.shop.text2",
-		"target": "shop", "until": "buy"},
-	{"id": "fim", "title": "spot.done.title", "text": "spot.done.text",
-		"target": "", "until": "ok"},
+	{"id": "intro", "say": "guide.intro", "until": "ok", "target": ""},
+	{"id": "wait", "say": "guide.wait", "until": "ready", "target": "",
+		"wait": "ship_ready"},
+	{"id": "navio", "say": "guide.ship", "until": "taps", "goal": 15,
+		"target": "ship"},
+	{"id": "teu", "say": "guide.teu", "until": "ok", "target": "teu"},
+	{"id": "loja", "say": "guide.shop", "until": "shop_open", "target": "shop"},
+	{"id": "compra", "say": "guide.buy", "until": "buy", "target": "shop_card"},
+	{"id": "desafios", "say": "guide.challenges", "until": "ok",
+		"target": "journal_key"},
+	{"id": "fim", "say": "guide.done", "until": "ok", "target": ""},
 ]
+
+const PORTRAIT := preload("res://assets/sprites/ui_guide.png")
+const FRAME := 64
+const PORTRAIT_SCALE := 2
+## Characters per second of the typed line, and the mouth's flap while typing.
+const TYPE_SPEED := 42.0
+const MOUTH_PERIOD := 0.11
+const BLINK_EVERY := 3.4
+const BLINK_TIME := 0.13
+const PANEL_H := 150.0
 
 var _callbacks: Dictionary = {}
 var _safe_rect := Rect2()
 var _index := 0
 var _active := false
-var _veil: Control
+var _taps := 0
+var _veil: _Veil
 var _panel: PanelContainer
-var _title: Label
+var _face: TextureRect
+var _face_atlas: AtlasTexture
+var _name: Label
+var _role: Label
 var _body: Label
 var _hint: Label
 var _skip: Button
-var _taps := 0
-var _waiting := false
+var _typed := 0.0
+var _mouth_t := 0.0
+var _blink_t := 0.0
 
 
 func setup(manager_or_callbacks: Variant, callbacks: Dictionary = {}) -> void:
-	_callbacks = manager_or_callbacks.duplicate() if manager_or_callbacks is Dictionary else callbacks.duplicate()
+	_callbacks = manager_or_callbacks.duplicate() if manager_or_callbacks is Dictionary \
+		else callbacks.duplicate()
 
 
 func _ready() -> void:
 	layer = 20
-	_veil = _SpotlightVeil.new()
-	_veil.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_veil = _Veil.new()
+	_veil.mouse_filter = Control.MOUSE_FILTER_STOP
 	_veil.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_veil.gui_input.connect(_on_veil_input)
 	add_child(_veil)
-	_panel = PanelContainer.new()
-	UiTheme.apply_panel(_panel, UiTheme.board_style(8))
-	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	_panel = UiTheme.panel(UiTheme.board_style(9), false)
+	_panel.gui_input.connect(_on_panel_input)
 	add_child(_panel)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.add_child(row)
+
+	_face_atlas = AtlasTexture.new()
+	_face_atlas.atlas = PORTRAIT
+	_face_atlas.region = Rect2(0, 0, FRAME, FRAME)
+	var frame := UiTheme.panel(UiTheme.well_style(2))
+	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(frame)
+	_face = TextureRect.new()
+	_face.texture = _face_atlas
+	_face.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_face.stretch_mode = TextureRect.STRETCH_SCALE
+	_face.custom_minimum_size = Vector2(FRAME, FRAME) * PORTRAIT_SCALE
+	_face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(_face)
+
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override(&"separation", 3)
-	_panel.add_child(col)
-	_title = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK)
-	col.add_child(_title)
-	_body = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	col.add_theme_constant_override(&"separation", 4)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(col)
+	var plate := HBoxContainer.new()
+	plate.add_theme_constant_override(&"separation", 6)
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(plate)
+	_name = UiTheme.label("ALISSON", UiTheme.SIZE_BODY, UiTheme.AMBER_DEEP)
+	plate.add_child(_name)
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.add_child(gap)
+	_skip = UiTheme.button("", &"ghost", UiTheme.SIZE_SMALL)
+	_skip.custom_minimum_size = Vector2(54, 22)
+	_skip.pressed.connect(func() -> void: _finish(true))
+	plate.add_child(_skip)
+	# The role on its own line: beside the name it lost half its words to the
+	# skip key on a phone.
+	_role = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+	_role.clip_text = true
+	col.add_child(_role)
+	col.add_child(UiTheme.divider())
+	_body = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK)
 	_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	# Autowrap needs a real width before PanelContainer computes its minimum
-	# height; otherwise a zero-width first pass wraps one glyph per line and can
-	# turn this compact tutorial card into a full-height sheet.
-	_body.custom_minimum_size = Vector2(280.0, 26.0)
-	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body.visible_characters_behavior = TextServer.VC_CHARS_AFTER_SHAPING
+	_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	# A real width before the first layout pass, or autowrap measures one glyph
+	# per line and the box comes out the height of the screen.
+	_body.custom_minimum_size = Vector2(150.0, 40.0)
 	col.add_child(_body)
 	_hint = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_hint.clip_text = true
 	col.add_child(_hint)
+
 	EventBus.manual_reward_committed.connect(_on_tap_paid)
 	EventBus.structure_purchase_committed.connect(_on_purchase)
-	var actions := HBoxContainer.new()
-	actions.add_theme_constant_override(&"separation", 4)
-	col.add_child(actions)
-	_skip = UiTheme.button(Loc.t("spot.skip"), &"ghost", UiTheme.SIZE_SMALL)
-	_skip.custom_minimum_size = Vector2(60, 26)
-	_skip.pressed.connect(func() -> void: _finish(true))
-	actions.add_child(_skip)
-	var next_button := UiTheme.button(Loc.t("spot.next"), &"amber", UiTheme.SIZE_SMALL)
-	next_button.custom_minimum_size.y = 26.0
-	next_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	next_button.pressed.connect(next)
-	actions.add_child(next_button)
 	visible = false
 
 
@@ -96,117 +150,217 @@ func start() -> void:
 	_show_step()
 
 
-func replay() -> void: start()
+func replay() -> void:
+	start()
 
 
-func is_active() -> bool: return _active
+func is_active() -> bool:
+	return _active
 
 
 func apply_view_metrics(metrics: Dictionary) -> void:
-	_safe_rect = metrics.get("safe_rect", Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size))
+	_safe_rect = metrics.get("safe_rect",
+		Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size))
 	_layout()
 
 
 func next() -> void:
-	if not _active: return
+	if not _active:
+		return
 	_index += 1
 	_taps = 0
-	if _index >= STEPS.size(): _finish(false)
-	else: _show_step()
+	if _index >= STEPS.size():
+		_finish(false)
+	else:
+		_show_step()
 
 
 func _until() -> String:
 	return str(STEPS[_index].get("until", "ok"))
 
 
+func _typing() -> bool:
+	return _body.visible_characters >= 0 \
+		and _body.visible_characters < _body.get_total_character_count()
+
+
+# ------------------------------------------------------------------- events
+
 func _on_tap_paid(_payload: Dictionary) -> void:
-	if not _active or _waiting or _until() != "taps":
+	if not _active or _until() != "taps":
 		return
 	_taps += 1
 	var goal := int(STEPS[_index].get("goal", 1))
 	if _taps >= goal:
 		next()
 	else:
-		_hint.text = Loc.t("spot.hint.tap", {"n": str(_taps), "goal": str(goal)})
+		_refresh_hint()
 
 
 func _on_purchase(_quote: Dictionary) -> void:
-	if _active and _until() == "buy":
+	if not _active or _until() != "buy":
+		return
+	# The shop has done its job; close it so the next thing he points at is not
+	# behind the sheet.
+	_call(&"close_shop")
+	next()
+
+
+func _on_veil_input(event: InputEvent) -> void:
+	if _is_release(event):
+		_advance_by_tap()
+	get_viewport().set_input_as_handled()
+
+
+func _on_panel_input(event: InputEvent) -> void:
+	if _is_release(event):
+		_advance_by_tap()
+
+
+func _advance_by_tap() -> void:
+	## A tap finishes the line being typed first; only a tap on a finished line
+	## of a talking step moves on. An action step waits for its action.
+	if _typing():
+		_body.visible_characters = -1
+		return
+	if _until() == "ok":
+		AudioManager.play_sfx("tap", 0.1)
 		next()
 
 
-func _process(_delta: float) -> void:
-	## The first step does not exist until there is a ship to tap.
-	if not _active or not _waiting:
-		return
-	var ready: Callable = _callbacks.get(str(STEPS[_index].get("wait", "")), Callable())
-	if not ready.is_valid() or bool(ready.call()):
-		_waiting = false
-		_show_step()
+static func _is_release(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch:
+		return not event.pressed
+	if event is InputEventMouseButton:
+		return event.button_index == MOUSE_BUTTON_LEFT and not event.pressed
+	return false
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not _active: return
-	if event is InputEventKey and event.pressed and (event.keycode == KEY_ESCAPE or event.keycode == KEY_BACK):
-		_finish(true)
-	elif _until() == "ok" and not _waiting \
-			and ((event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed)) \
-			and not _target_rect().has_point(event.position):
-		next()
+	if not _active:
+		return
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_ESCAPE or event.keycode == KEY_BACK:
+			if _index > 0:
+				_finish(true)
+			get_viewport().set_input_as_handled()
+		elif event.keycode in [KEY_ENTER, KEY_SPACE, KEY_KP_ENTER]:
+			_advance_by_tap()
+			get_viewport().set_input_as_handled()
 
+
+func _process(delta: float) -> void:
+	if not _active:
+		return
+	match _until():
+		"ready":
+			if bool(_call(&"ship_ready", true)):
+				next()
+				return
+		"shop_open":
+			if bool(_call(&"shop_open", false)):
+				next()
+				return
+		"buy":
+			# Closed the shop without buying: point at the key again.
+			if not bool(_call(&"shop_open", true)):
+				_index -= 1
+				_show_step()
+				return
+	if _typing():
+		_typed += delta * TYPE_SPEED
+		_body.visible_characters = mini(int(_typed), _body.get_total_character_count())
+		if _body.visible_characters >= _body.get_total_character_count():
+			_body.visible_characters = -1
+	_animate_face(delta)
+	# Targets move (camera, a sheet sliding in, rotation): follow them.
+	_veil.cutout = _target_rect()
+	_veil.queue_redraw()
+	_layout()
+
+
+func _animate_face(delta: float) -> void:
+	var frame := 0
+	if _typing():
+		_mouth_t += delta
+		frame = 1 if int(_mouth_t / MOUTH_PERIOD) % 2 == 0 else 0
+	else:
+		frame = 0 if str(STEPS[_index].get("target", "")).is_empty() else 3
+		_blink_t += delta
+		if _blink_t >= BLINK_EVERY:
+			frame = 2
+			if _blink_t >= BLINK_EVERY + BLINK_TIME:
+				_blink_t = 0.0
+	_face_atlas.region = Rect2(frame * FRAME, 0, FRAME, FRAME)
+
+
+# ------------------------------------------------------------------ drawing
 
 func _show_step() -> void:
 	Telemetry.track(&"tutorial_step", {"index": _index})
 	var step: Dictionary = STEPS[_index]
-	# The table holds keys, not sentences: resolving here means a language change
-	# mid-tour reflows the card instead of leaving the tour in the language it
-	# started in.
-	var wait_cb: Callable = _callbacks.get(str(step.get("wait", "")), Callable())
-	_waiting = wait_cb.is_valid() and not bool(wait_cb.call())
-	_title.text = Loc.t(str(step.title))
-	_body.text = Loc.t("spot.wait.text") if _waiting else Loc.t(str(step.text))
-	match str(step.get("until", "ok")):
-		"taps":
-			_hint.text = "" if _waiting else Loc.t("spot.hint.tap",
-				{"n": str(_taps), "goal": str(int(step.goal))})
-		"buy":
-			_hint.text = Loc.t("spot.hint.buy")
-		_:
-			_hint.text = Loc.t("spot.hint.ok")
-	# Nobody skips the first thing the game asks of them.
+	_role.text = Loc.t("guide.role")
+	_skip.text = Loc.t("spot.skip")
+	# Nobody skips the hello.
 	_skip.visible = _index > 0
-	_veil.cutout = _target_rect().grow(5.0) if not _waiting else Rect2()
-	_veil.reduced_motion = _reduced_motion()
+	_body.text = Loc.t(str(step.say))
+	_typed = 0.0
+	_mouth_t = 0.0
+	_body.visible_characters = -1 if not UserPreferences.can_animate() else 0
+	_refresh_hint()
+	_veil.cutout = _target_rect()
 	_veil.queue_redraw()
 	_layout()
 	step_changed.emit(_index, step.duplicate(true))
 
 
+func _refresh_hint() -> void:
+	match _until():
+		"taps":
+			_hint.text = Loc.t("guide.progress", {"n": str(_taps),
+				"goal": str(int(STEPS[_index].get("goal", 1)))})
+		"ok":
+			_hint.text = Loc.t("guide.continue")
+		_:
+			_hint.text = ""
+
+
 func _target_rect() -> Rect2:
+	var key := str(STEPS[_index].get("target", "")) if _active else ""
+	if key.is_empty():
+		return Rect2()
 	var callback: Callable = _callbacks.get("get_target_rect", Callable())
 	if callback.is_valid():
-		var result: Variant = callback.call(str(STEPS[_index].get("target", "")))
-		if result is Rect2: return result
+		var result: Variant = callback.call(key)
+		if result is Rect2 and not (result as Rect2).size.is_zero_approx():
+			return (result as Rect2).grow(4.0)
 	return Rect2()
 
 
-func _reduced_motion() -> bool:
-	var callback: Callable = _callbacks.get("reduced_motion", Callable())
-	return bool(callback.call()) if callback.is_valid() else false
+func _call(name: StringName, fallback: Variant = null) -> Variant:
+	var callback: Callable = _callbacks.get(String(name), Callable())
+	return callback.call() if callback.is_valid() else fallback
 
 
 func _layout() -> void:
-	if _panel == null or not is_instance_valid(_panel): return
-	var safe := _safe_rect if _safe_rect.size != Vector2.ZERO else Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
-	_panel.size = Vector2(minf(340.0, safe.size.x - 16.0), 96.0)
-	var target := _target_rect() if _active else Rect2()
-	var bottom_position := Vector2(
-		safe.get_center().x - _panel.size.x * 0.5,
-		safe.end.y - _panel.size.y - 10.0)
-	var top_position := Vector2(bottom_position.x, safe.position.y + 10.0)
-	var bottom_rect := Rect2(bottom_position, _panel.size)
-	_panel.position = top_position if not target.size.is_zero_approx() \
-		and bottom_rect.intersects(target.grow(8.0)) else bottom_position
+	if _panel == null or not is_instance_valid(_panel):
+		return
+	var safe := _safe_rect if _safe_rect.size != Vector2.ZERO \
+		else Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
+	var width := minf(380.0, safe.size.x - 16.0)
+	_panel.size = Vector2(width, PANEL_H)
+	var x := safe.get_center().x - width * 0.5
+	var bottom := Vector2(x, safe.end.y - PANEL_H - 8.0)
+	var top := Vector2(x, safe.position.y + 8.0)
+	var target := _veil.cutout
+	var at := bottom
+	if not target.size.is_zero_approx() and Rect2(bottom, _panel.size).intersects(target.grow(6.0)):
+		at = top
+		# A target near the top as well (a tall ship): sit just above it.
+		if Rect2(top, _panel.size).intersects(target.grow(6.0)):
+			at = Vector2(x, clampf(target.position.y - PANEL_H - 10.0,
+				safe.position.y, safe.end.y - PANEL_H))
+	_panel.position = at.round()
 
 
 func _finish(skipped: bool) -> void:
@@ -216,17 +370,26 @@ func _finish(skipped: bool) -> void:
 	finished.emit(skipped)
 
 
-class _SpotlightVeil extends Control:
+class _Veil extends Control:
+	## Dark everywhere but the target, and solid everywhere but the target: a
+	## press inside the cutout is not ours (`_has_point` false), so it reaches
+	## the control or the port underneath; anywhere else it stops here.
 	var cutout := Rect2()
-	var reduced_motion := false
+
+	func _has_point(point: Vector2) -> bool:
+		return not cutout.has_point(point)
+
 	func _draw() -> void:
 		var full := Rect2(Vector2.ZERO, size)
-		var shade := Color(0.02, 0.02, 0.06, 0.72)
+		var shade := Color(0.02, 0.02, 0.06, 0.68)
 		if cutout.size == Vector2.ZERO:
 			draw_rect(full, shade)
 			return
-		draw_rect(Rect2(full.position, Vector2(full.size.x, cutout.position.y)), shade)
-		draw_rect(Rect2(Vector2(0, cutout.end.y), Vector2(full.size.x, maxf(0, full.end.y - cutout.end.y))), shade)
-		draw_rect(Rect2(Vector2(0, cutout.position.y), Vector2(cutout.position.x, cutout.size.y)), shade)
-		draw_rect(Rect2(Vector2(cutout.end.x, cutout.position.y), Vector2(maxf(0, full.end.x - cutout.end.x), cutout.size.y)), shade)
-		draw_rect(cutout, UiTheme.TEAL, false, 2.0)
+		draw_rect(Rect2(0, 0, full.size.x, cutout.position.y), shade)
+		draw_rect(Rect2(0, cutout.end.y, full.size.x, maxf(0.0, full.end.y - cutout.end.y)), shade)
+		draw_rect(Rect2(0, cutout.position.y, cutout.position.x, cutout.size.y), shade)
+		draw_rect(Rect2(cutout.end.x, cutout.position.y,
+			maxf(0.0, full.end.x - cutout.end.x), cutout.size.y), shade)
+		# A two-tone frame so it reads on the dark water and on the cream sheet.
+		draw_rect(cutout.grow(1.0), UiTheme.HULL_EDGE, false, 2.0)
+		draw_rect(cutout, UiTheme.AMBER, false, 2.0)

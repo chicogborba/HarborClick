@@ -70,10 +70,10 @@ func _run() -> void:
 # ---------------------------------------------------------------- the tests
 
 func _test_every_rail_key_opens_and_escape_closes() -> void:
-	# A new terminal has the shop and settings only; the logbook (6) and routes
-	# (8) arrive with the level. Check that, then play as a grown port.
+	# A new terminal has the shop, the challenges and settings; routes
+	# (10) arrive with the level. Check that, then play as a grown port.
 	for entry: Dictionary in _main.rail._key_labels:
-		var grown: bool = str(entry.stem) in ["rail.routes", "rail.journal"]
+		var grown: bool = str(entry.stem) == "rail.routes"
 		_expect((entry.button as Button).visible != grown,
 			"%s %s on a new terminal" % [entry.stem, "is hidden" if grown else "is shown"])
 	_expect(not _main.shop._tab_buttons["upgrades"].visible
