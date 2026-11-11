@@ -46,7 +46,7 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/autoload/save_manager.gd` | 533 | 33 functions | Versioned, recoverable persistence.  The public yard/pending_yard API is |
 | `scripts/autoload/time_manager.gd` | 112 | 9 functions | Day/night cycle + weather. Full lighting arrives in the day/night phase; |
 | `scripts/autoload/user_preferences.gd` | 248 | 18 functions | Player-facing preferences kept separate from the progression save. |
-| `scripts/cargo/berth_call_controller.gd` | 615 | class `BerthCallController`; 34 functions | Authoritative, restart-safe berth workflow. Visual flights are transactions: |
+| `scripts/cargo/berth_call_controller.gd` | 647 | class `BerthCallController`; 35 functions | Authoritative, restart-safe berth workflow. Visual flights are transactions: |
 | `scripts/cargo/cargo_inventory.gd` | 82 | class `CargoInventory`; 11 functions | Small ownership ledger used by yards, ships and offline saves. |
 | `scripts/cargo/cargo_transfer.gd` | 41 | class `CargoTransfer`; 3 functions | One reversible movement.  Commit occurs only when the visual flight lands; |
 | `scripts/cargo/cargo_unit.gd` | 47 | class `CargoUnit`; 5 functions | A single traceable container.  Cargo is deliberately data first: the |
@@ -147,7 +147,7 @@ Inventory: **251 authored code/config/scene files**.
 | `scripts/world/harbour_signals.gd` | 104 | class `HarbourSignals`; 5 functions | The instruments a working port wears: windsocks on the quay and pennants over |
 | `scripts/world/port_camera.gd` | 240 | class `PortCamera`; 17 functions | Responsive terminal camera: touch/mouse drag, wheel zoom and keyboard pan. |
 | `scripts/world/port_layout.gd` | 748 | class `PortLayout`; 58 functions | Pure geometry for the top-down terminal. No nodes, no state — just the |
-| `scripts/world/port_world.gd` | 1791 | class `PortWorld`; 98 functions | Top-down terminal: yard on the left, quay and berth on the right. |
+| `scripts/world/port_world.gd` | 1837 | class `PortWorld`; 99 functions | Top-down terminal: yard on the left, quay and berth on the right. |
 | `scripts/world/rail_rake.gd` | 471 | class `RailRake`; 19 functions | The train on the branch, and the shunt that lets it leave. |
 | `scripts/world/rainfall.gd` | 132 | class `Rainfall`; 8 functions | Rain over the terminal: falling streaks, the splash where each one lands, and |
 | `scripts/world/road_truck.gd` | 624 | class `RoadTruck`; 33 functions | A city truck on the terminal's road: a tractor unit and the chassis it pulls. |
@@ -176,7 +176,7 @@ Inventory: **251 authored code/config/scene files**.
 | `tests/build_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/cargo_test_runner.gd` | 866 | 34 functions | Integration suite for cargo phases 1-2. |
 | `tests/cargo_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/clicks_test_runner.gd` | 239 | 12 functions | Real clicks, end to end. |
+| `tests/clicks_test_runner.gd` | 320 | 15 functions | Real clicks, end to end. |
 | `tests/clicks_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/combo_test_runner.gd` | 108 | 8 functions | The tap combo: steady taps build a multiplier, a pause lets it fall, a skill |
 | `tests/combo_test_runner.tscn` | 6 | 1 nodes | Godot scene |

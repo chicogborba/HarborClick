@@ -22,7 +22,10 @@ const OUTLINE_INTERVAL := 0.12
 const GRAB_HOLD := 0.26
 ## The pointer travel that turns a press into a camera pan rather than a tap or
 ## a grab.
-const GRAB_SLOP := 10.0
+## How far a press may travel (straight-line, viewport px) and still be a tap.
+## Measured as displacement, not path length: a finger rolling on glass covers
+## ten pixels of path without going anywhere, and that used to cancel the tap.
+const GRAB_SLOP := 14.0
 ## How many hulls the water shader is told about. One per berth.
 const WATER_HULLS := PortLayout.BERTH_MAX
 
@@ -90,6 +93,9 @@ var _marks: Node2D
 var _props: Node2D
 var _pressed := false
 var _drag_accum := 0.0
+var _touch_down: Dictionary = {} # touch index -> {at, moved}
+var _primary_touch := -1
+var _mouse_at := Vector2.ZERO
 ## How long the finger has been down on somebody, and where it went down. A
 ## negative timer means this press can no longer become a grab.
 var _hold_t := -1.0
@@ -542,6 +548,8 @@ func set_input_enabled(input_allowed: bool) -> void:
 	if not input_allowed:
 		_pressed = false
 		_hold_t = -1.0
+		_touch_down.clear()
+		_primary_touch = -1
 		# An overlay opening with somebody in the air would leave them there, in
 		# front of the board, with nothing able to put them down.
 		drop_held()
@@ -1155,29 +1163,67 @@ func _feed_water_shader() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _input_enabled:
 		return
+	# Touch and mouse each arrive twice — the engine emulates one from the other
+	# (`emulate_touch_from_mouse`, and mouse-from-touch by default). The emulated
+	# copy carries DEVICE_ID_EMULATION and is skipped, so one finger is one tap.
 	if event is InputEventScreenTouch:
+		if event.device == InputEvent.DEVICE_ID_EMULATION:
+			return
 		if event.pressed:
-			_begin_press(_to_world(event.position))
+			_touch_down[event.index] = {"at": event.position, "moved": 0.0}
+			if _touch_down.size() == 1:
+				_primary_touch = event.index
+				_begin_press(_to_world(event.position))
 		else:
-			_end_press(_to_world(event.position))
-	elif event is InputEventScreenDrag and _pressed:
-		_drag_accum += event.relative.length()
-		_move_press(_to_world(event.position))
+			_end_touch(event.index, event.position)
+	elif event is InputEventScreenDrag:
+		if event.device == InputEvent.DEVICE_ID_EMULATION:
+			return
+		if _touch_down.has(event.index):
+			var down: Dictionary = _touch_down[event.index]
+			down.moved = maxf(float(down.moved),
+				(event.position - (down.at as Vector2)).length())
+			if event.index == _primary_touch and _pressed:
+				_drag_accum = float(down.moved)
+				_move_press(_to_world(event.position))
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.device == InputEvent.DEVICE_ID_EMULATION:
+			return
 		_hover_world_pos = _to_world(event.position)
 		if event.pressed:
+			_mouse_at = event.position
 			_begin_press(_hover_world_pos)
 		elif _pressed:
+			_drag_accum = (event.position - _mouse_at).length()
 			_end_press(_hover_world_pos)
 	elif event is InputEventMouseMotion:
+		if event.device == InputEvent.DEVICE_ID_EMULATION:
+			return
 		_hover_world_pos = _to_world(event.position)
 		if _pressed:
-			_drag_accum += event.relative.length()
+			_drag_accum = maxf(_drag_accum, (event.position - _mouse_at).length())
 			_move_press(_hover_world_pos)
 		# A moving pointer refreshes on its own event rather than waiting out the
 		# tick, so the outline still feels immediate under the cursor.
 		_outline_due = OUTLINE_INTERVAL
 		_refresh_interaction_outlines()
+
+
+func _end_touch(index: int, screen_pos: Vector2) -> void:
+	## Every finger is its own tap. With one press slot a second thumb landing
+	## before the first lifted overwrote it, and the second thumb's tap was lost
+	## — the fast two-thumb tapping a clicker is played with.
+	var down: Dictionary = _touch_down.get(index, {})
+	_touch_down.erase(index)
+	if down.is_empty():
+		return
+	var moved := maxf(float(down.moved), (screen_pos - (down.at as Vector2)).length())
+	if index == _primary_touch:
+		_primary_touch = -1
+		_drag_accum = moved
+		_end_press(_to_world(screen_pos))
+	elif moved < GRAB_SLOP:
+		_try_tap(_to_world(screen_pos))
 
 
 func _begin_press(world_pos: Vector2) -> void:
@@ -1510,7 +1556,7 @@ func _tap_a_berth(world_pos: Vector2) -> bool:
 	var hulls := berth_hulls()
 	for index in hulls.size():
 		var hull := hulls[index]
-		if hull.is_working() and hull.hit_test(world_pos):
+		if hull.phase != Ship.Phase.AWAY and hull.hit_test(world_pos):
 			var controller := berth_controller(index)
 			if controller != null:
 				return controller.handle_tap(world_pos)

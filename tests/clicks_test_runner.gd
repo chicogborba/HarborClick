@@ -11,7 +11,8 @@ extends Node
 const TEST_SAVE_PATH := "user://harborclick_clicks_test.json"
 ## The roll call: a script error aborts a test silently and the runner would
 ## otherwise print PASSED with the stack trace above it.
-const EXPECTED := ["rail_keys", "wheel", "daily", "ship_tap", "shop_buy", "upgrade_buy"]
+const EXPECTED := ["rail_keys", "wheel", "daily", "ship_tap", "every_tap_counts",
+	"shop_buy", "upgrade_buy"]
 const OVERLAY_OF := {
 	"rail.shop": "shop", "rail.routes": "routes",
 	"rail.journal": "journal", "rail.settings": "settings",
@@ -47,6 +48,7 @@ func _run() -> void:
 	await _test_the_wheel_button_opens_and_spins()
 	await _test_the_daily_button_opens_the_orders()
 	await _test_tapping_the_ship_moves_a_box()
+	await _test_every_tap_on_the_ship_counts()
 	await _test_tapping_a_machine_card_buys_it()
 	await _test_tapping_an_upgrade_card_buys_it()
 
@@ -157,6 +159,85 @@ func _test_tapping_the_ship_moves_a_box() -> void:
 	_expect(world.ship.cargo_left() < left or GameState.teus > teus,
 		"a real tap on the ship moves a box (left %d -> %d)" % [left, world.ship.cargo_left()])
 	_done("ship_tap")
+
+
+func _test_every_tap_on_the_ship_counts() -> void:
+	## "I tapped the ship and nothing happened" — each way that used to happen,
+	## through real touch events. Every tap must pay at the finger.
+	var world: PortWorld = _main.world
+	var berth: BerthCallController = world.berth
+	var at: Vector2 = world.get_canvas_transform() \
+		* (world.ship.global_position + Vector2(PortLayout.SHIP_W * 0.5, 110.0))
+	GameState.surge_mult = 1.0
+	GameState.recompute()
+
+	# Two thumbs: the second lands before the first lifts. Both are taps.
+	var before := GameState.teus
+	_touch(0, at, true)
+	_touch(1, at + Vector2(6, 4), true)
+	_touch(0, at, false)
+	_touch(1, at + Vector2(6, 4), false)
+	await get_tree().process_frame
+	_expect(GameState.teus - before >= 2.0 * GameState.click_power * 0.99,
+		"two overlapping thumbs pay two taps (%.1f for click %.1f)"
+			% [GameState.teus - before, GameState.click_power])
+
+	# A finger that rolls on the glass: lots of path, no real movement.
+	before = GameState.teus
+	_touch(0, at, true)
+	for step in [Vector2(5, 0), Vector2(-5, 3), Vector2(4, -4), Vector2(-4, 2), Vector2(3, 3)]:
+		_drag(0, at + step)
+	_touch(0, at + Vector2(3, 3), false)
+	await get_tree().process_frame
+	_expect(GameState.teus > before, "a wobbling finger is still a tap")
+
+	# A real pan is not a tap.
+	before = GameState.teus
+	_touch(0, at, true)
+	_drag(0, at + Vector2(0, 40))
+	_touch(0, at + Vector2(0, 40), false)
+	await get_tree().process_frame
+	_expect(is_equal_approx(GameState.teus, before), "a 40px drag pans instead of tapping")
+
+	# Six boxes already in the air: the tap pays and waits for a free hand.
+	if world.ship.is_working():
+		var flying: int = berth._in_flight
+		berth._in_flight = BerthCallController.MAX_IN_FLIGHT
+		before = GameState.teus
+		var queued: int = berth._queued.size()
+		_touch(0, at, true)
+		_touch(0, at, false)
+		await get_tree().process_frame
+		_expect(GameState.teus > before, "a tap over the in-flight cap still pays")
+		_expect(berth._queued.size() == queued + 1, "and queues its box instead of dropping it")
+		berth._in_flight = flying
+		berth._drain_queue()
+
+	# A hull still coming alongside is on screen: tapping it pays.
+	var phase: int = world.ship.phase
+	world.ship.phase = Ship.Phase.ARRIVING
+	before = GameState.teus
+	_touch(0, at, true)
+	_touch(0, at, false)
+	await get_tree().process_frame
+	_expect(GameState.teus > before, "tapping an arriving ship pays")
+	world.ship.phase = phase
+	_done("every_tap_counts")
+
+
+func _touch(index: int, at: Vector2, pressed: bool) -> void:
+	var e := InputEventScreenTouch.new()
+	e.index = index
+	e.position = at
+	e.pressed = pressed
+	get_viewport().push_input(e, true)
+
+
+func _drag(index: int, at: Vector2) -> void:
+	var e := InputEventScreenDrag.new()
+	e.index = index
+	e.position = at
+	get_viewport().push_input(e, true)
 
 
 func _test_tapping_a_machine_card_buys_it() -> void:

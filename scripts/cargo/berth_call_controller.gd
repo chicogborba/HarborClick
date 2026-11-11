@@ -19,6 +19,10 @@ signal call_completed(summary: Dictionary)
 ## a hull that already had enough on the way. The cap is generous enough that
 ## ordinary tapping never meets it and tight enough that the yard stops churning.
 const MAX_IN_FLIGHT := 6
+## Taps beyond the boxes in the air wait here, already paid, and fly as soon as
+## a box lands. Before this a tap made while six boxes were airborne paid but
+## moved nothing — the player saw the ship ignore them.
+const MAX_QUEUED := 12
 ## How long a berth may sit with no legal move before it is allowed to break the
 ## transhipment rule to get going again.
 ##
@@ -40,6 +44,9 @@ var call_id := ""
 var lane: Dictionary = {}
 var input_enabled := true
 var _in_flight := 0
+## Paid taps waiting for a free hand: [{pos, reward}]. Session-only; a reload
+## settles every paid tap already, so the queue is never persisted.
+var _queued: Array[Dictionary] = []
 var _imports: Array[CargoUnit] = []
 var _exported: Array[CargoUnit] = [] # committed outbound ledger only
 var _active: Dictionary = {} # transfer id -> restart-reconciliation record
@@ -125,6 +132,7 @@ func seed_new(p_seed: int = 0, forced_variant: Dictionary = {}) -> void:
 	_exported.clear()
 	_active.clear()
 	_in_flight = 0
+	_queued.clear()
 	var capacity := ship.bay_capacity()
 	for i in capacity:
 		var unit := CargoUnit.new("%s_i_%02d" % [call_id, i], CargoUnit.IMPORT,
@@ -228,15 +236,37 @@ func handle_tap(pos: Vector2) -> bool:
 	## finger, immediately. The cap and the yard rules still govern how many
 	## containers may physically be crossing the terminal — they are what stop the
 	## yard churning — but they govern the *cargo*, not the player.
-	if not input_enabled or ship == null or not ship.is_working():
+	if not input_enabled or ship == null or ship.phase == Ship.Phase.AWAY:
 		return false
 	var reward := _commit_reward(pos)
+	# A hull still coming up the fairway or already pulling out cannot be worked,
+	# but it is on screen under the finger, so the tap still pays. It used to do
+	# nothing at all, which read as the game ignoring the player.
+	if not ship.is_working():
+		return true
 	if _in_flight < MAX_IN_FLIGHT:
 		if ship.is_discharging():
 			_discharge(pos, reward)
 		else:
 			_load(pos, reward)
+	elif _queued.size() < MAX_QUEUED:
+		_queued.append({"pos": pos, "reward": reward})
 	return true
+
+
+func _drain_queue() -> void:
+	## A box landed: the next paid tap gets its hands. A queued move that the
+	## terminal can no longer make (hold empty, nothing exportable) ends the queue
+	## — those taps were paid when they happened and owe nothing more.
+	while not _queued.is_empty() and _in_flight < MAX_IN_FLIGHT \
+			and ship != null and ship.is_working():
+		var next: Dictionary = _queued.pop_front()
+		var moved := _discharge(next.pos, next.reward) if ship.is_discharging() \
+			else _load(next.pos, next.reward)
+		if not moved:
+			_queued.clear()
+	if ship == null or not ship.is_working():
+		_queued.clear()
 
 
 func can_work() -> bool:
@@ -377,6 +407,7 @@ func _begin_flight(color: int, from: Vector2, to: Vector2, transfer: CargoTransf
 				ship.nudge(int(bay.get("col", -1)), true)
 		else:
 			_notice("transfer_reverted", "Movimento cancelado; o contêiner voltou à origem.")
+		_drain_queue()
 		if ship.is_discharging():
 			_wait_for_exports()
 		else:
@@ -582,6 +613,7 @@ func restore(data: Dictionary) -> void:
 			_reconcile_active(record)
 	_active.clear()
 	_in_flight = 0
+	_queued.clear()
 	if ship != null:
 		ship.set_flights_in_progress(0)
 		ship.normalize_after_restore()
