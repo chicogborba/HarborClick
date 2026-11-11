@@ -52,9 +52,10 @@ func _ready() -> void:
 	_column.add_theme_constant_override(&"separation", 4)
 	_board.add_child(_column)
 
-	_title = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK)
-	_title.clip_text = true
-	_column.add_child(_title)
+	# No close key: a round ends by playing it out (or its own abandon key).
+	var header := UiTheme.header("", Callable(), UiTheme.Icon.SHIP)
+	_column.add_child(header.root)
+	_title = header.title
 
 	var stats := HBoxContainer.new()
 	stats.add_theme_constant_override(&"separation", 5)
@@ -149,6 +150,7 @@ func open(offer: Dictionary) -> void:
 	_shout.text = ""
 	_shout.modulate.a = 0.0
 	_title.text = str(_offer.get("title", "Escala especial"))
+	UiTheme.fit_title(_title)
 	visible = true
 	_layout()
 	# pop_open captures board.position as the resting point; the layout above

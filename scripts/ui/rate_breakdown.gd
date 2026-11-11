@@ -48,18 +48,9 @@ func _build() -> void:
 	col.add_theme_constant_override(&"separation", 4)
 	_panel.add_child(col)
 
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override(&"separation", 4)
-	col.add_child(header)
-	var title := UiTheme.label("DE ONDE VEM A TAXA", UiTheme.SIZE_BODY, UiTheme.INK)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
-	var close_button := UiTheme.button("X", &"ghost", UiTheme.SIZE_SMALL)
-	close_button.custom_minimum_size = Vector2(26, 22)
-	close_button.tooltip_text = "Fechar (Esc)"
-	close_button.accessibility_name = "Fechar"
-	close_button.pressed.connect(close)
-	header.add_child(close_button)
+	var header := UiTheme.header("DE ONDE VEM A TAXA", close, UiTheme.Icon.CLOCK)
+	col.add_child(header.root)
+	(header.close as Button).tooltip_text = Loc.t("common.close_hint")
 
 	_rows = VBoxContainer.new()
 	_rows.add_theme_constant_override(&"separation", 2)
@@ -162,8 +153,12 @@ func _layout() -> void:
 	# Fixed on both axes, like every other board here: a panel that asks for its
 	# own height depends on Godot's deferred minimum-size pass and can draw one
 	# frame at the wrong size.
+	# Its height is computed, not asked for: nameplate, one line per factor, the
+	# rule and the total, inside the board's margins. A fixed 240 left half the
+	# board as empty paper under seven short rows.
+	var lines := GameState.cps_breakdown().size()
 	var wanted := Vector2(minf(MAX_WIDTH, safe.size.x - 24.0),
-		minf(240.0, safe.size.y - 24.0))
+		minf(30.0 + 4.0 + lines * 14.0 + 26.0 + 22.0, safe.size.y - 24.0))
 	_panel.custom_minimum_size = wanted
 	_panel.size = wanted
 	_panel.position = safe.position + (safe.size - wanted) * 0.5

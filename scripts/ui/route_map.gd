@@ -60,22 +60,10 @@ func _ready() -> void:
 	_sheet.add_child(_column)
 	var column := _column
 
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override(&"separation", 5)
-	header.custom_minimum_size.y = 24.0
-	column.add_child(header)
-	var badge := UiTheme.icon(UiTheme.Icon.SHIP)
-	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	header.add_child(badge)
-	_title = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK)
-	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_title.clip_text = true
-	header.add_child(_title)
-	_close_button = UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0)
-	_close_button.custom_minimum_size = Vector2(30, 24)
-	_close_button.pressed.connect(close)
-	header.add_child(_close_button)
+	var header := UiTheme.header("", close, UiTheme.Icon.GLOBE)
+	column.add_child(header.root)
+	_title = header.title
+	_close_button = header.close
 
 	_chart = RouteChart.new()
 	_chart.custom_minimum_size.y = CHART_HEIGHT
@@ -137,6 +125,7 @@ func _apply_language() -> void:
 	## on the next tick anyway, so this only has to cover what a refresh does not
 	## touch.
 	_title.text = Loc.t("routes.title")
+	UiTheme.fit_title(_title)
 	UiTheme.describe(_close_button, Loc.t("routes.close_name"))
 	_close_button.tooltip_text = Loc.t("common.close_hint")
 

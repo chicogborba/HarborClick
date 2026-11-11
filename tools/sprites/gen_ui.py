@@ -1,7 +1,7 @@
 """UI chrome, in the two materials the terminal is actually made of.
 
-**Paper** is the paperwork you pick up: every overlay is one weathered wooden
-clipboard with steel corner protectors, a chrome spring clip, and a stack of
+**Paper** is the paperwork you pick up: every overlay is a manifest sheet in an
+enamel frame, under a nameplate and a chrome spring clip, with a stack of
 manifest sheets under it. Cards are slips torn off that manifest and prices are
 ink stamped into a steel plate.
 
@@ -163,43 +163,34 @@ def paper_fibre(img, x, y, w, h, seed=11):
 # ------------------------------------------------------------------ surfaces
 
 def gen_board():
-    """32x32 nine-patch, margin 12: the clipboard itself.
+    """32x32 nine-patch, margin 12: every overlay's frame.
 
-    Wood back board with grain and steel corner protectors, a sunk well, and
-    the manifest paper inside it. Everything decorative lives within 12px of an
-    edge; the middle 8x8 is plain fibred paper and tiles.
+    Navy enamel, the HUD's own material, so a board that opens over the port
+    reads as part of the same terminal rather than a brown box dropped on it:
+    a dark outline, a lit lip along the top, a rivet in each corner and one
+    amber hairline framing the sheet. Inside it the manifest paper is clean —
+    no fibre, no ruling — with a two-step shadow under the frame's top and left
+    edges so the sheet sits *in* the frame. The middle 8x8 is plain paper and
+    tiles.
     """
     s = 32
     img = new_img(s, s)
-    # --- wooden back board ---
-    rect(img, 0, 0, s, s, WOOD_XD)
-    rect(img, 1, 1, s - 2, s - 2, WOOD)
-    wood_grain(img, 2, 2, s - 4, s - 4, seed=5)
-    bevel(img, 1, 1, s - 2, s - 2, WOOD_L, WOOD_D)
-    hline(img, 2, 2, s - 4, WOOD_XL)
-
-    # --- steel corner protectors ---
-    for ox, oy, flip_x, flip_y in ((1, 1, 1, 1), (s - 2, 1, -1, 1),
-                                   (1, s - 2, 1, -1), (s - 2, s - 2, -1, -1)):
-        for i in range(6):
-            px(img, ox + flip_x * i, oy, STEEL_D if i > 3 else STEEL)
-            px(img, ox, oy + flip_y * i, STEEL_D if i > 3 else STEEL)
-        px(img, ox, oy, STEEL_XL)
-        px(img, ox + flip_x, oy + flip_y, STEEL_L)
-        rivet(img, ox + flip_x * 2, oy + flip_y * 2)
-
-    # --- the well the paper sits in, with its own cast shadow ---
-    rect(img, 5, 5, s - 10, s - 10, WOOD_XD)
-    rect(img, 6, 6, s - 12, s - 12, PAPER_XD)
+    rect(img, 0, 0, s, s, HULL_XD)
+    rect(img, 1, 1, s - 2, s - 2, HULL)
+    hline(img, 2, 1, s - 4, HULL_XL)
+    hline(img, 1, 2, s - 2, HULL_L)
+    vline(img, 1, 2, s - 4, HULL_L)
+    hline(img, 1, s - 2, s - 2, HULL_D)
+    vline(img, s - 2, 2, s - 4, HULL_D)
+    for rx, ry in ((3, 3), (s - 5, 3), (3, s - 5), (s - 5, s - 5)):
+        rivet(img, rx, ry)
+    # the amber hairline around the sheet, then the sheet
+    rect(img, 5, 5, s - 10, s - 10, AMBER_D)
+    rect(img, 6, 6, s - 12, s - 12, HULL_XD)
     rect(img, 7, 7, s - 14, s - 14, PAPER)
-    paper_fibre(img, 8, 8, s - 16, s - 16, seed=17)
-    # light falls in from the upper left: the well's top and left edges are in
-    # shadow, the opposite pair catches it
-    hline(img, 7, 7, s - 14, PAPER_D)
-    hline(img, 7, 8, s - 14, PAPER_XD)
+    hline(img, 7, 7, s - 14, PAPER_XD)
+    hline(img, 7, 8, s - 14, PAPER_D)
     vline(img, 7, 7, s - 14, PAPER_D)
-    hline(img, 7, s - 8, s - 14, PAPER_L)
-    vline(img, s - 8, 7, s - 14, PAPER_L)
     corner_notch(img, s, s, 2)
     save(img, "ui_board")
 
@@ -251,68 +242,58 @@ def gen_clip():
 
 
 def gen_paper():
-    """16x16 nine-patch, margin 5: the sheet cards are laid out on.
+    """16x16 nine-patch, margin 5: the sheet a list of cards is laid out on.
 
-    A shade darker than a card so a list reads as separate slips rather than
-    one block of cream, ruled like a real manifest, and creased along the top
-    where the clip holds it down.
+    One clean step darker than a card, recessed: its top and left edges are in
+    the shadow of whatever sits above it, so a list reads as slips lying in a
+    tray rather than one block of cream.
     """
     s = 16
     img = new_img(s, s)
     rect(img, 0, 0, s, s, PAPER_XD)
     rect(img, 1, 1, s - 2, s - 2, PAPER_D)
-    speckle(img, 1, 1, s - 2, s - 2, [(198, 180, 148, 255), (214, 197, 166, 255)],
-            0.14, seed=23)
-    # faint rules every four pixels: the centre tiles, so they carry on down
-    for ry in range(3, s - 1, 4):
-        hline(img, 1, ry, s - 2, PAPER_RULE)
-    # the crease under the clip and the lift at the bottom edge
-    hline(img, 1, 1, s - 2, (188, 170, 140, 255))
-    hline(img, 1, 2, s - 2, (198, 180, 150, 255))
-    hline(img, 1, s - 2, s - 2, PAPER)
+    hline(img, 1, 1, s - 2, (184, 164, 132, 255))
+    vline(img, 1, 1, s - 2, (194, 175, 143, 255))
+    hline(img, 1, s - 2, s - 2, (214, 197, 166, 255))
     save(img, "ui_paper")
 
 
 def _card(name, field, edge, edge_hi, rail=None, fibre_seed=31):
-    """16x16 nine-patch, margin 5: one slip torn off the manifest.
+    """16x16 nine-patch, margin 5: one chunky slip.
 
-    The right edge is perforated and the whole slip drops a shadow, so a list
-    of them reads as loose paper on a sheet instead of a stack of divs.
+    Clean field, a lit top edge, and a two-pixel skirt along the bottom so the
+    slip has thickness and casts onto the sheet. A coloured spine on the left
+    says what state it is in (amber: you can buy it, teal: done).
     """
     s = 16
     img = new_img(s, s)
-    # shadow under the slip
     hline(img, 2, s - 1, s - 3, SHADOW_1)
-    vline(img, s - 1, 2, s - 3, SHADOW_1)
-
     rect(img, 0, 0, s - 1, s - 1, edge)
-    rect(img, 1, 1, s - 3, s - 3, field)
-    speckle(img, 2, 2, s - 5, s - 5, [PAPER_FIBRE, PAPER_XL], 0.10,
-            seed=fibre_seed)
+    rect(img, 1, 1, s - 3, s - 4, field)
     hline(img, 1, 1, s - 3, edge_hi)
-    vline(img, 1, 1, s - 3, edge_hi)
-    hline(img, 1, s - 3, s - 3, PAPER_D)
-    # perforation: the torn side of a slip
-    for py in range(2, s - 2, 3):
-        px(img, s - 2, py, PAPER_XD)
+    # the skirt: the slip's own thickness
+    hline(img, 1, s - 3, s - 3, _shade(field, 0.86))
     if rail is not None:
-        # a colour-coded spine, like a file label
+        vline(img, 1, 1, s - 4, rail[1])
+        vline(img, 2, 1, s - 4, rail[2] if len(rail) > 2 else rail[1])
         vline(img, 0, 1, s - 3, rail[0])
-        vline(img, 1, 1, s - 3, rail[1])
-        px(img, 1, 1, rail[2] if len(rail) > 2 else rail[1])
     for cx, cy in ((0, 0), (s - 2, 0), (0, s - 2), (s - 2, s - 2)):
         px(img, cx, cy, (0, 0, 0, 0))
     save(img, name)
 
 
+def _shade(color, k):
+    return (int(color[0] * k), int(color[1] * k), int(color[2] * k), 255)
+
+
 def gen_cards():
-    _card("ui_card", PAPER, PAPER_XD, PAPER_L, fibre_seed=31)
+    _card("ui_card", PAPER, (150, 126, 98, 255), PAPER_XL)
     _card("ui_card_hi", PAPER_L, AMBER_D, PAPER_XL,
-          rail=(AMBER_XD, AMBER, AMBER_L), fibre_seed=37)
-    _card("ui_card_off", (200, 190, 176, 255), (156, 146, 136, 255),
-          (216, 208, 196, 255), fibre_seed=41)
-    _card("ui_card_done", (206, 220, 208, 255), TEAL_D, (230, 242, 232, 255),
-          rail=(TEAL_XD, TEAL, TEAL_L), fibre_seed=43)
+          rail=(AMBER_XD, AMBER, AMBER_L))
+    _card("ui_card_off", (200, 190, 176, 255), (140, 130, 120, 255),
+          (214, 206, 194, 255))
+    _card("ui_card_done", (206, 220, 208, 255), TEAL_D, (232, 244, 234, 255),
+          rail=(TEAL_XD, TEAL, TEAL_L))
 
 
 def gen_slate():
@@ -630,13 +611,27 @@ def _button(base, light, xlight, dark, xdark, name):
     save(img, name)
 
 
+def _flat_key(field, edge, name):
+    """16x16 nine-patch, margin 5: a key that is not there yet.
+
+    Flat — no lit face, no skirt, no shadow — and the colour of the paper it
+    sits on, so a "not yet" never competes with an amber "now" beside it.
+    """
+    s = 16
+    img = new_img(s, s)
+    rect(img, 0, 0, s - 1, s - 1, edge)
+    rect(img, 1, 1, s - 3, s - 3, field)
+    for cx, cy in ((0, 0), (s - 2, 0), (0, s - 2), (s - 2, s - 2)):
+        px(img, cx, cy, (0, 0, 0, 0))
+    save(img, name)
+
+
 def gen_buttons():
     _button(AMBER, AMBER_L, AMBER_XL, AMBER_D, AMBER_XD, "ui_btn")
     # pressed: the key sinks, so light and shade swap
     _button(AMBER_D, AMBER, AMBER_L, AMBER_XD, AMBER_XD, "ui_btn_down")
     _button(TEAL, TEAL_L, TEAL_XL, TEAL_D, TEAL_XD, "ui_btn_alt")
-    _button((178, 168, 156, 255), (204, 196, 186, 255), (224, 218, 210, 255),
-            (138, 128, 118, 255), (104, 96, 88, 255), "ui_btn_off")
+    _flat_key((214, 198, 170, 255), (150, 132, 106, 255), "ui_btn_off")
     _button(RUST, RUST_L, (222, 140, 116, 255), RUST_D, RUST_XD, "ui_btn_danger")
     _button(PAPER, PAPER_L, PAPER_XL, PAPER_D, PAPER_XD, "ui_btn_ghost")
     # The console keys. Paper keys on a steel console read as sticky notes; these
@@ -647,33 +642,49 @@ def gen_buttons():
 
 
 def gen_tabs():
-    """16x16 nine-patch, margin 5: file-folder tabs sitting on the board."""
+    """16x16 nine-patch, margin 5: folder tabs on the board's frame.
+
+    The active tab is the sheet itself, lifted, its bottom edge open into the
+    paper below. The others are enamel keys sunk into the frame, so the one you
+    are on is the only cream thing in the row.
+    """
     s = 16
-    # active: continuous with the sheet below, so the bottom edge is open
     on = new_img(s, s)
-    rect(on, 0, 0, s, s - 1, PAPER_XD)
-    rect(on, 1, 0, s - 2, s - 1, PAPER)
-    speckle(on, 2, 2, s - 4, s - 4, [PAPER_FIBRE], 0.10, seed=61)
-    hline(on, 2, 0, s - 4, PAPER_XL)
-    hline(on, 1, 1, s - 2, PAPER_L)
-    vline(on, 1, 1, s - 2, PAPER_L)
-    vline(on, s - 2, 1, s - 2, PAPER_D)
-    hline(on, 1, s - 1, s - 2, PAPER)
+    rect(on, 0, 0, s, s, AMBER_D)
+    rect(on, 1, 1, s - 2, s - 1, PAPER)
+    hline(on, 1, 1, s - 2, PAPER_XL)
+    hline(on, 1, 2, s - 2, PAPER_L)
     for cx in (0, s - 1):
         px(on, cx, 0, (0, 0, 0, 0))
     save(on, "ui_tab_on")
 
-    # inactive: pushed back into the board's shadow, with a fold at the base
     off = new_img(s, s)
-    rect(off, 0, 1, s, s - 1, WOOD_XD)
-    rect(off, 1, 2, s - 2, s - 3, (196, 178, 150, 255))
-    speckle(off, 2, 3, s - 4, s - 5, [(184, 166, 138, 255)], 0.12, seed=67)
-    hline(off, 2, 2, s - 4, (214, 198, 172, 255))
-    hline(off, 1, s - 2, s - 2, (168, 150, 124, 255))
-    hline(off, 1, s - 1, s - 2, WOOD_XD)
+    rect(off, 0, 1, s, s - 1, HULL_XD)
+    rect(off, 1, 2, s - 2, s - 3, HULL)
+    hline(off, 2, 2, s - 4, HULL_L)
+    hline(off, 1, s - 2, s - 2, HULL_D)
     for cx in (0, s - 1):
         px(off, cx, 1, (0, 0, 0, 0))
     save(off, "ui_tab_off")
+
+
+def gen_header():
+    """16x16 nine-patch, margin 5: the nameplate across the top of a board.
+
+    The frame's enamel carried into the sheet, with an amber hairline under it,
+    so every board announces itself the same way the gantry over the port does.
+    """
+    s = 16
+    img = new_img(s, s)
+    hline(img, 1, s - 1, s - 2, SHADOW_1)
+    rect(img, 0, 0, s, s - 1, HULL_XD)
+    rect(img, 1, 1, s - 2, s - 3, HULL)
+    hline(img, 2, 1, s - 4, HULL_L)
+    hline(img, 1, s - 3, s - 2, HULL_D)
+    hline(img, 1, s - 2, s - 2, AMBER)
+    for cx, cy in ((0, 0), (s - 1, 0)):
+        px(img, cx, cy, (0, 0, 0, 0))
+    save(img, "ui_header")
 
 
 def gen_segments():
@@ -1229,6 +1240,7 @@ if __name__ == "__main__":
     gen_indicators()
     gen_buttons()
     gen_tabs()
+    gen_header()
     gen_segments()
     gen_focus()
     gen_bar()

@@ -40,23 +40,9 @@ func _ready() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override(&"separation", 5)
 	_panel.add_child(col)
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override(&"separation", 5)
-	header.custom_minimum_size.y = 24.0
-	col.add_child(header)
-	var star := UiTheme.icon(UiTheme.Icon.STAR)
-	star.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	header.add_child(star)
-	var title := UiTheme.label("RECONSTRUIR O PORTO", UiTheme.SIZE_BODY, UiTheme.INK)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	header.add_child(title)
-	var close_button := UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0,
-		"Fechar a proposta")
-	close_button.custom_minimum_size = Vector2(30, 24)
-	close_button.tooltip_text = "Fechar (Esc)"
-	close_button.pressed.connect(close)
-	header.add_child(close_button)
+	var header := UiTheme.header("RECONSTRUIR O PORTO", close, UiTheme.Icon.STAR)
+	col.add_child(header.root)
+	(header.close as Button).tooltip_text = Loc.t("common.close_hint")
 	_summary = UiTheme.label("Consulte a proposta de reconstrução.", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(_summary)

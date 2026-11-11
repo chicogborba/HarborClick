@@ -9,10 +9,17 @@ what kind of thing it is. **Steel** — navy enamel, brushed pinstripe, one ambe
 hairline on the edge facing the water — is the terminal's own signage: the
 gantry, the key console, the glass a lit number sits behind (`gantry_style`,
 `console_style`, `glass_style`, `tag_style`, the `steel` button kind). **Paper**
-— wood, spring clip, manifest sheets — is the paperwork: every overlay. Anything
-permanently over the port is steel; anything you open is paper. Do not mix them:
-a wooden board floating over the quay reads as nothing, which is what the old
-HUD was.
+— clean manifest sheets held in an enamel frame, under a spring clip — is the
+paperwork: every overlay. The frame is the HUD's own navy, so a board reads as
+part of the terminal, and the sheet inside it is plain cream with no fibre.
+
+Every board opens with the same nameplate: `UiTheme.header(title, close, icon)`
+returns `{root, title, close}` — amber title on enamel, steel close key at its
+right end. Do not hand-build a title row; a long title steps down to body size
+by itself (`UiTheme.fit_title`, call it again after changing the text).
+Cards are chunky slips with a coloured spine (amber: affordable, teal: done);
+a key that is not available yet is flat paper (`ui_btn_off`), never a grey
+bevelled key that competes with the amber one beside it.
 
 Entry points:
 

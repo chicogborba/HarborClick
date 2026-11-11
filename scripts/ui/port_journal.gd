@@ -78,23 +78,9 @@ func _ready() -> void:
 	column.add_theme_constant_override(&"separation", 4)
 	_sheet.add_child(column)
 
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override(&"separation", 5)
-	header.custom_minimum_size.y = 24.0
-	column.add_child(header)
-	var badge := UiTheme.icon(UiTheme.Icon.TROPHY)
-	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	header.add_child(badge)
-	var title := UiTheme.label("DIÁRIO DO PORTO", UiTheme.SIZE_BODY, UiTheme.INK)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	header.add_child(title)
-	var close_button := UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0,
-		"Fechar o diário")
-	close_button.custom_minimum_size = Vector2(30, 24)
-	close_button.tooltip_text = "Fechar (Esc)"
-	close_button.pressed.connect(close)
-	header.add_child(close_button)
+	var header := UiTheme.header("DIÁRIO DO PORTO", close, UiTheme.Icon.TROPHY)
+	column.add_child(header.root)
+	(header.close as Button).tooltip_text = Loc.t("common.close_hint")
 
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override(&"separation", 2)

@@ -39,18 +39,9 @@ func _ready() -> void:
 	_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_board.add_child(_column)
 
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override(&"separation", 6)
-	_column.add_child(header)
-	var title := UiTheme.label(Loc.t("daily.title"), UiTheme.SIZE_TITLE)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.clip_text = true
-	header.add_child(title)
-	_close_button = UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0,
-		Loc.t("common.close"))
-	_close_button.custom_minimum_size = Vector2(30, 24)
-	_close_button.pressed.connect(close)
-	header.add_child(_close_button)
+	var header := UiTheme.header(Loc.t("daily.title"), close)
+	_column.add_child(header.root)
+	_close_button = header.close
 
 	_streak = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.TEAL_DEEP)
 	_streak.clip_text = true

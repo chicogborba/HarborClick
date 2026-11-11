@@ -179,33 +179,26 @@ func _build() -> void:
 
 
 func _build_header() -> Control:
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override(&"separation", 5)
-	header.custom_minimum_size.y = 24.0
-
-	var wallet := UiTheme.panel(UiTheme.slate_style(false, 3))
+	## The shop's nameplate: its title, the wallet lit into a glass well on the
+	## right, then the close key — the one balance that matters while buying is
+	## next to the hand that buys.
+	var header := UiTheme.header(Loc.t("shop.title"), _close, UiTheme.Icon.CRANE)
+	var close_btn: Button = header.close
+	close_btn.tooltip_text = Loc.t("common.close_hint")
+	UiTheme.describe(close_btn, Loc.t("shop.close_name"))
+	var wallet := UiTheme.panel(UiTheme.glass_style(3))
 	wallet.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	header.add_child(wallet)
 	var wallet_row := HBoxContainer.new()
 	wallet_row.add_theme_constant_override(&"separation", 4)
 	wallet_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	wallet.add_child(wallet_row)
 	wallet_row.add_child(UiTheme.icon(UiTheme.Icon.TEU))
-	_balance = UiTheme.label("0", UiTheme.SIZE_BODY, UiTheme.AMBER)
+	_balance = UiTheme.label("0", UiTheme.SIZE_BODY, UiTheme.DIGIT)
 	wallet_row.add_child(_balance)
-
-	var gap := Control.new()
-	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	header.add_child(gap)
-
-	var close_btn := UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0,
-		Loc.t("shop.close_name"))
-	close_btn.custom_minimum_size = Vector2(30, 24)
-	close_btn.tooltip_text = Loc.t("common.close_hint")
-	close_btn.pressed.connect(_close)
-	header.add_child(close_btn)
-	return header
+	var row := close_btn.get_parent()
+	row.add_child(wallet)
+	row.move_child(wallet, close_btn.get_index())
+	return header.root
 
 
 func _build_tabs() -> Control:

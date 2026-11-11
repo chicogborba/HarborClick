@@ -187,21 +187,11 @@ func _header() -> Control:
 	## Title and an escape hatch on the same line. A board this tall is scrolled
 	## away from its bottom button most of the time, so the close key has to be
 	## somewhere that does not depend on where the player happens to be.
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 4)
-	row.custom_minimum_size.y = 26.0
-	var title := UiTheme.label(Loc.t("settings.title"), UiTheme.SIZE_TITLE,
-		UiTheme.INK)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(title)
-	var close_button := UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 26.0,
-		Loc.t("settings.close_name"))
-	close_button.custom_minimum_size = Vector2(30, 26)
-	close_button.tooltip_text = Loc.t("common.close_hint")
-	close_button.pressed.connect(close)
-	row.add_child(close_button)
-	return row
+	var header := UiTheme.header(Loc.t("settings.title"), close, UiTheme.Icon.GEAR)
+	var key: Button = header.close
+	key.tooltip_text = Loc.t("common.close_hint")
+	UiTheme.describe(key, Loc.t("settings.close_name"))
+	return header.root
 
 
 func _caption(text: String, glyph: UiTheme.Icon) -> Control:

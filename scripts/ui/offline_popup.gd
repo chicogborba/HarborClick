@@ -73,9 +73,8 @@ func _build(amount: float, report: Dictionary) -> void:
 	col.add_theme_constant_override(&"separation", 6)
 	_panel.add_child(col)
 
-	var title := UiTheme.label(Loc.t("offline.title"), UiTheme.SIZE_BODY, UiTheme.INK)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(title)
+	col.add_child(UiTheme.header(Loc.t("offline.title"), Callable(),
+		UiTheme.Icon.CLOCK).root)
 
 	col.add_child(_line(greeting(report), UiTheme.INK_SOFT))
 

@@ -64,7 +64,7 @@ const GLASS := Color8(25, 31, 46)
 const DIGIT := Color8(252, 202, 96)
 ## An undriven totaliser cell: dark enough to read as "off", light enough to
 ## read as a segment of the display rather than as a hole in the glass.
-const DIGIT_UNLIT := Color8(78, 96, 128)
+const DIGIT_UNLIT := Color8(40, 50, 70)
 ## Text on steel. `STEEL_DIM` is the quiet one — deliberately lighter than
 ## `SLATE_DIM`, which is tuned for the near-black slate of a price stamp and
 ## drops under AA on the lighter navy.
@@ -84,9 +84,10 @@ const SURFACE := {
 	&"btn_alt": Color8(44, 116, 110),
 	&"btn_danger": Color8(150, 60, 48),
 	&"btn_ghost": Color8(238, 224, 198),
-	&"btn_off": Color8(176, 166, 154),
+	&"btn_off": Color8(214, 198, 170),
 	&"seg_off": Color8(224, 210, 184),
-	&"tab_off": Color8(196, 178, 150),
+	&"tab_off": Color8(42, 54, 74),
+	&"header": Color8(42, 54, 74),
 	&"gantry": Color8(42, 54, 74),
 	&"glass": Color8(25, 31, 46),
 	&"tag": Color8(28, 37, 54),
@@ -434,6 +435,61 @@ static func tab_style(active: bool) -> StyleBoxTexture:
 	return nine("ui_tab_on" if active else "ui_tab_off", 5, 5)
 
 
+static func header_style() -> StyleBoxTexture:
+	## The nameplate across the top of a board: the frame's enamel with an
+	## amber hairline under it. Bottom margin is thicker so the title never
+	## sits on the stripe.
+	var box := nine("ui_header", 5, 4)
+	box.content_margin_left = 8
+	box.content_margin_bottom = 6
+	return box
+
+
+static func header(title: String, close: Callable = Callable(),
+		kind: int = -1) -> Dictionary:
+	## One nameplate for every board: optional icon, the title in amber on
+	## enamel, and the close key bolted to its right end. Returns
+	## {root, title, close} so a board can restyle or retitle it later.
+	var plate := panel(header_style(), false)
+	plate.custom_minimum_size.y = 34
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 6)
+	plate.add_child(row)
+	if kind >= 0:
+		var glyph := icon(kind as Icon)
+		glyph.modulate = AMBER
+		glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(glyph)
+	var text := label(title, SIZE_TITLE, AMBER)
+	text.label_settings = settings(SIZE_TITLE, AMBER, 2)
+	text.label_settings.outline_color = HULL_EDGE
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	text.clip_text = true
+	# A long title (German, a long board name) steps down to body size rather
+	# than being cut mid-word; it steps back up when the board grows again.
+	text.resized.connect(fit_title.bind(text))
+	row.add_child(text)
+	var key: Button = null
+	if close.is_valid():
+		key = icon_button(Icon.CLOSE, &"steel", 24.0, Loc.t("common.close"))
+		key.custom_minimum_size = Vector2(32, 24)
+		key.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		key.pressed.connect(close)
+		row.add_child(key)
+	return {"root": plate, "title": text, "close": key}
+
+
+static func fit_title(text: Label) -> void:
+	if text.size.x <= 0.0:
+		return
+	var wide := FONT.get_string_size(text.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+		SIZE_TITLE).x
+	var size := SIZE_TITLE if wide <= text.size.x else SIZE_BODY
+	if text.label_settings.font_size != size:
+		text.label_settings.font_size = size
+
+
 static func bar_styles() -> Array[StyleBoxTexture]:
 	return [nine("ui_bar_bg", 4, 1), nine("ui_bar_fill", 4, 1)]
 
@@ -758,9 +814,9 @@ static func style_tab(node: Button, active: bool) -> void:
 	node.add_theme_stylebox_override(&"hover", box)
 	node.add_theme_stylebox_override(&"pressed", tab_style(true))
 	node.add_theme_stylebox_override(&"focus", _focus_style())
-	var color := INK if active else Color8(66, 52, 44)
+	var color := INK if active else STEEL_TEXT
 	node.add_theme_color_override(&"font_color", color)
-	node.add_theme_color_override(&"font_hover_color", INK)
+	node.add_theme_color_override(&"font_hover_color", color)
 	node.add_theme_color_override(&"font_pressed_color", INK)
 	node.add_theme_color_override(&"font_focus_color", color)
 

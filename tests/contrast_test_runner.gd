@@ -45,7 +45,8 @@ func _run() -> void:
 		[UiTheme.INK, surfaces.btn_ghost, "label on a ghost key"],
 		[UiTheme.INK, surfaces.btn_off, "label on a muted key"],
 		[UiTheme.INK_SOFT, surfaces.seg_off, "label on an inactive segment"],
-		[Color8(66, 52, 44), surfaces.tab_off, "label on an inactive tab"],
+		[UiTheme.STEEL_TEXT, surfaces.tab_off, "label on an inactive tab"],
+		[UiTheme.AMBER, surfaces.header, "a board's title on its nameplate"],
 		# The steel half of the interface: the gantry over the port, the glass
 		# the tally is lit behind, the berth tag and the console keys.
 		[UiTheme.DIGIT, surfaces.glass, "the tally lit behind glass"],
