@@ -56,7 +56,8 @@ func _compute_phase() -> StringName:
 
 func _roll_weather() -> void:
 	var was := fog_active
-	fog_active = randf() < FOG_CHANCE
+	# The monsoon port (Shanghai) fogs over far more often.
+	fog_active = randf() < float(PortDB.port_trait("fog_chance", FOG_CHANCE))
 	if was != fog_active:
 		EventBus.fog_changed.emit(fog_active)
 		GameState.recompute()
@@ -91,7 +92,8 @@ func clock_text() -> String:
 func weather_cps_mult() -> float:
 	# There is no radar_neblina upgrade in the current catalog.  Keeping a
 	# hidden reference here made fog behavior depend on an impossible state.
-	if fog_active:
+	# An automated port works through the fog.
+	if fog_active and not bool(PortDB.port_trait("fog_free", false)):
 		return 0.8
 	return 1.0
 

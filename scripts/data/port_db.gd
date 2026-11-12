@@ -21,8 +21,8 @@ class_name PortDB
 ##
 ## `active` is the port the running scene is built for. It is set by
 ## `SaveManager` *before* a save is applied, because production maths read it.
-## Coming-soon ports are on the chart and cannot be opened: `playable` is the
-## gate, and `SaveManager.use_port` refuses the rest.
+## Every port in the table is playable: two abroad, chosen for how differently
+## they play (`traits`), rather than a row of names with a multiplier each.
 
 const HOME: StringName = &"santos"
 
@@ -42,10 +42,13 @@ const PORTS: Array[Dictionary] = [
 		"id": &"long_beach", "name": "Long Beach", "country": "EUA", "flag": 1,
 		"chart": Vector2(0.172, 0.3125), "playable": true, "cost": 250e6,
 		"tagline": "A porta do Pacífico.",
-		"perk": "Intermodal: caminhão, gate e trem x2. Toque +50%.",
+		"perk": "Intermodal: caminhões e trens chegam no dobro do ritmo e rendem x2. Toque +50%.",
 		"grant": 2500.0,
 		"mods": {"tt": 2.0, "trem": 2.0, "alfandega": 2.0, "armazem": 1.5},
 		"click": 1.5,
+		# How the place *plays*, read by the systems it changes: the gate calls a
+		# lorry twice as often and the branch line runs twice as many trains.
+		"traits": {"gate_cadence": 0.5, "rail_gap": 0.5},
 		"theme": {
 			"suffix": "usa",
 			"water": ["#5fb0b8", "#2f7f96", "#17506f", "#0e3350"],
@@ -96,11 +99,16 @@ const PORTS: Array[Dictionary] = [
 		"id": &"shanghai", "name": "Xangai", "country": "China", "flag": 2,
 		"chart": Vector2(0.8375, 0.327), "playable": true, "cost": 50e9,
 		"tagline": "O maior porto do mundo.",
-		"perk": "Automação: guindastes, drones e IA x2. Toque -50%.",
+		"perk": "Automação: Capataz liberado, guindastes trabalham 60% mais rápido sozinhos, monção sem perda. Toque -50%.",
 		"grant": 100_000.0,
 		"mods": {"sts": 2.0, "rtg": 2.0, "drone": 2.0, "porto_ia": 2.0,
 			"torre": 1.5},
 		"click": 0.5,
+		# The automated port: the foreman (the auto-buyer) works from day one, the
+		# quay and yard cranes move boxes on their own 60% faster, and the monsoon
+		# fog comes three times as often but costs an automated port nothing.
+		"traits": {"foreman_free": true, "crane_auto": 1.6, "fog_chance": 0.45,
+			"fog_free": true},
 		"theme": {
 			"suffix": "cn",
 			"water": ["#8fb39a", "#5f8f80", "#3d6a66", "#274a50"],
@@ -146,21 +154,6 @@ const PORTS: Array[Dictionary] = [
 				"requires": ["sh_semana_dourada"],
 				"unlock": {"owned": {"drone": 1}}},
 		],
-	},
-	{
-		"id": &"rotterdam", "name": "Roterdã", "country": "Países Baixos", "flag": 3,
-		"chart": Vector2(0.5125, 0.212), "playable": false,
-		"tagline": "A foz do Reno.", "perk": "Em breve.",
-	},
-	{
-		"id": &"singapura", "name": "Singapura", "country": "Singapura", "flag": 4,
-		"chart": Vector2(0.788, 0.493), "playable": false,
-		"tagline": "O estreito por onde tudo passa.", "perk": "Em breve.",
-	},
-	{
-		"id": &"dubai", "name": "Jebel Ali", "country": "Emirados", "flag": 5,
-		"chart": Vector2(0.6536, 0.359), "playable": false,
-		"tagline": "Um porto no meio do deserto.", "perk": "Em breve.",
 	},
 ]
 
@@ -211,6 +204,13 @@ static func set_active(id: StringName) -> void:
 
 static func structure_mult(structure_id: String) -> float:
 	return float((current().get("mods", {}) as Dictionary).get(structure_id, 1.0))
+
+
+static func port_trait(key: String, fallback: Variant) -> Variant:
+	## A gameplay switch the active port flips (`traits`). Every system that
+	## reads one names its home default as the fallback, so home plays exactly
+	## as it always has.
+	return (current().get("traits", {}) as Dictionary).get(key, fallback)
 
 
 static func click_mult() -> float:

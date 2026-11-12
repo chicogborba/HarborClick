@@ -861,7 +861,6 @@ func _build_orders() -> void:
 		blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		blurb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(blurb)
-	_build_route_orders(list)
 	_build_rail_orders(list)
 	_build_foreman(list)
 	_refresh_orders()
@@ -1150,8 +1149,7 @@ func _update_orders_tab() -> void:
 		return
 	# A second lane is reason enough on its own now: from the moment the port
 	# trades on two, which one it books next is a decision.
-	tab.visible = (PortLayout.berth_count() > 1 or GameState.prestige_count > 0
-		or RouteDB.owned(GameState.routes).size() > 1) \
+	tab.visible = (PortLayout.berth_count() > 1 or GameState.prestige_count > 0) \
 		and FeatureGate.unlocked(&"orders")
 	if not tab.visible and _active == "orders":
 		_on_tab("structures")

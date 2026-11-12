@@ -196,7 +196,9 @@ static func pool_rate() -> float:
 	var rate := 0.0
 	for id: String in AUTO_MOVERS:
 		rate += float(AUTO_MOVERS[id]) * float(GameState.structure_count(id))
-	return minf(rate, AUTO_RATE_CAP)
+	# An automated port's cranes work faster on their own (Shanghai).
+	var auto := float(PortDB.port_trait("crane_auto", 1.0))
+	return minf(rate * auto, AUTO_RATE_CAP * auto)
 
 
 func tick(delta: float) -> void:

@@ -235,7 +235,8 @@ func _call_a_service() -> void:
 	# The timetable is a band, not a number, so what is fitted to the branch scales
 	# both ends of it: signalling that halves the interval has to halve the long
 	# nights too, or the average would improve while the worst wait did not.
-	var factor := GameState.rail_stat(&"service_gap", 1.0)
+	var factor := GameState.rail_stat(&"service_gap", 1.0) \
+		* float(PortDB.port_trait("rail_gap", 1.0))
 	var gap := RailCargoPolicy.clamp_gap(
 		RailCargoPolicy.service_gap(has_branch()) * factor)
 	_next_service = randf_range(gap.x, gap.y)

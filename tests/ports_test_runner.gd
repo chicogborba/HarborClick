@@ -29,8 +29,9 @@ func _run() -> void:
 	_test_the_rate_panel_still_multiplies_out()
 	_test_a_profile_resumes_in_its_last_port()
 	_test_deleting_a_profile_takes_its_ports()
+	_test_each_port_plays_differently()
 	_wipe()
-	var expected := 7
+	var expected := 8
 	if _finished.size() != expected:
 		failures.append("only %d of %d tests reached their last line (%s)"
 			% [_finished.size(), expected, ", ".join(_finished)])
@@ -48,7 +49,8 @@ func _test_the_table_is_sound() -> void:
 	_expect(PortDB.is_valid(), "PortDB is internally consistent")
 	_expect(PortDB.is_playable(&"long_beach") and PortDB.is_playable(&"shanghai"),
 		"the United States and China are open for business")
-	_expect(not PortDB.is_playable(&"rotterdam"), "a coming-soon port is not")
+	_expect(PortDB.PORTS.size() == 3, "home and exactly two ports abroad")
+	_expect(not PortDB.is_playable(&"atlantis"), "a port that is not in the table is not")
 	for port in PortDB.PORTS:
 		if not bool(port.get("playable", false)):
 			continue
@@ -72,7 +74,7 @@ func _test_a_port_must_be_paid_for() -> void:
 	_expect(not SaveManager.port_open(&"long_beach"), "and opens nothing")
 	_expect(not SaveManager.use_port(&"long_beach"),
 		"a port that is not open cannot be sailed to")
-	_expect(not SaveManager.buy_port(&"rotterdam"), "a coming-soon port is not for sale")
+	_expect(not SaveManager.buy_port(&"atlantis"), "a port that does not exist is not for sale")
 	GameState.teus = cost + 50.0
 	_expect(SaveManager.buy_port(&"long_beach"), "the price buys the port")
 	_expect(is_equal_approx(GameState.teus, 50.0), "and is taken once (%s)" % GameState.teus)
@@ -211,6 +213,41 @@ func _test_deleting_a_profile_takes_its_ports() -> void:
 	_expect((SaveManager.port_ledger(SLOT).open as Array).size() == 1,
 		"and the ledger: a fresh profile owns only its home port")
 	_finished.append("delete")
+
+
+func _test_each_port_plays_differently() -> void:
+	## Two ports abroad, each with a way of playing that changes a real system,
+	## and home exactly as it was.
+	PortDB.set_active(PortDB.HOME)
+	var home_foreman := GameState.foreman_unlocked()
+	GameState.prestige_count = 0
+	_expect(not GameState.foreman_unlocked(), "at home the foreman waits for a rebuild")
+	_expect(is_equal_approx(float(PortDB.port_trait("gate_cadence", 1.0)), 1.0)
+		and is_equal_approx(float(PortDB.port_trait("crane_auto", 1.0)), 1.0),
+		"and home has no traits at all")
+	PortDB.set_active(&"long_beach")
+	_expect(float(PortDB.port_trait("gate_cadence", 1.0)) < 1.0
+		and float(PortDB.port_trait("rail_gap", 1.0)) < 1.0,
+		"Long Beach calls lorries and trains more often")
+	PortDB.set_active(&"shanghai")
+	_expect(GameState.foreman_unlocked(), "Shanghai has the foreman from day one")
+	GameState.owned = {"sts": 2}
+	var auto := BerthCallController.pool_rate()
+	PortDB.set_active(PortDB.HOME)
+	var home_auto := BerthCallController.pool_rate()
+	_expect(auto > home_auto * 1.5, "and its cranes work faster on their own (%s vs %s)"
+		% [auto, home_auto])
+	PortDB.set_active(&"shanghai")
+	TimeManager.fog_active = true
+	_expect(is_equal_approx(TimeManager.weather_cps_mult(), 1.0),
+		"and the monsoon fog costs it nothing")
+	PortDB.set_active(PortDB.HOME)
+	_expect(TimeManager.weather_cps_mult() < 1.0, "where at home fog still slows the port")
+	TimeManager.fog_active = false
+	GameState.owned = {}
+	_finished.append("traits")
+	if home_foreman:
+		pass
 
 
 func _wipe() -> void:

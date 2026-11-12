@@ -42,20 +42,20 @@ Inventory: **274 authored code/config/scene files**.
 | `scripts/autoload/ad_service.gd` | 135 | 12 functions | AdService: the one door every rewarded ad goes through. Owns one `AdPolicy` |
 | `scripts/autoload/audio_manager.gd` | 465 | 29 functions | SFX pool + crossfading music. Tracks follow the day/night cycle and weather. |
 | `scripts/autoload/event_bus.gd` | 47 | 0 functions | Global signal hub. Everything talks through here to stay decoupled. |
-| `scripts/autoload/game_state.gd` | 1478 | 89 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
+| `scripts/autoload/game_state.gd` | 1506 | 90 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
 | `scripts/autoload/portrait_frame.gd` | 60 | 3 functions | Keeps the game in portrait at any window size. |
 | `scripts/autoload/save_manager.gd` | 708 | 44 functions | Versioned, recoverable persistence.  The public yard/pending_yard API is |
-| `scripts/autoload/time_manager.gd` | 112 | 9 functions | Day/night cycle + weather. Full lighting arrives in the day/night phase; |
+| `scripts/autoload/time_manager.gd` | 114 | 9 functions | Day/night cycle + weather. Full lighting arrives in the day/night phase; |
 | `scripts/autoload/user_preferences.gd` | 248 | 18 functions | Player-facing preferences kept separate from the progression save. |
-| `scripts/cargo/berth_call_controller.gd` | 723 | class `BerthCallController`; 37 functions | Authoritative, restart-safe berth workflow. Visual flights are transactions: |
+| `scripts/cargo/berth_call_controller.gd` | 725 | class `BerthCallController`; 37 functions | Authoritative, restart-safe berth workflow. Visual flights are transactions: |
 | `scripts/cargo/berth_deadline.gd` | 50 | class `BerthDeadline`; 4 functions | The rules of a call's laytime: how long a hull may stay alongside, what an |
 | `scripts/cargo/cargo_inventory.gd` | 82 | class `CargoInventory`; 11 functions | Small ownership ledger used by yards, ships and offline saves. |
 | `scripts/cargo/cargo_transfer.gd` | 41 | class `CargoTransfer`; 3 functions | One reversible movement.  Commit occurs only when the visual flight lands; |
 | `scripts/cargo/cargo_unit.gd` | 47 | class `CargoUnit`; 5 functions | A single traceable container.  Cargo is deliberately data first: the |
 | `scripts/cargo/crane_allocation.gd` | 115 | class `CraneAllocation`; 5 functions | Standing orders: how the bought equipment is divided between the berths. |
-| `scripts/cargo/gate_dock.gd` | 469 | class `GateDock`; 24 functions | The road side of the terminal: trucks from the city, and the guarantee that |
+| `scripts/cargo/gate_dock.gd` | 471 | class `GateDock`; 24 functions | The road side of the terminal: trucks from the city, and the guarantee that |
 | `scripts/cargo/rail_cargo_policy.gd` | 170 | class `RailCargoPolicy`; 9 functions | Pure rail/yard policy: how long a rake is, and what one service does to the |
-| `scripts/cargo/rail_yard.gd` | 637 | class `RailYard`; 37 functions | The branch line: block trains from the interior, and the terminal's third |
+| `scripts/cargo/rail_yard.gd` | 638 | class `RailYard`; 37 functions | The branch line: block trains from the interior, and the terminal's third |
 | `scripts/cargo/road_cargo_policy.gd` | 49 | class `RoadCargoPolicy`; 3 functions | Pure road/yard policy. Keeping these invariants outside the animated gate |
 | `scripts/cargo/route_policy.gd` | 76 | class `RoutePolicy`; 5 functions | Standing orders: which lane the port books its next call on. |
 | `scripts/cargo/traffic_coordinator.gd` | 173 | class `TrafficCoordinator`; 12 functions | Keeps the terminal's vehicles out of each other. |
@@ -64,7 +64,7 @@ Inventory: **274 authored code/config/scene files**.
 | `scripts/data/contract_db.gd` | 95 | class `ContractDB`; 6 functions | Deterministic short-contract definitions. Runtime progress is owned elsewhere. |
 | `scripts/data/cosmetic_db.gd` | 158 | class `CosmeticDb`; 9 functions | Static data for every decoration the terminal can be dressed in. |
 | `scripts/data/land_db.gd` | 139 | class `LandDB`; 7 functions | Land parcels: what the terminal is allowed to become next. |
-| `scripts/data/port_db.gd` | 300 | class `PortDB`; 15 functions | The ports a terminal operator can run, and which one is on screen. |
+| `scripts/data/port_db.gd` | 300 | class `PortDB`; 16 functions | The ports a terminal operator can run, and which one is on screen. |
 | `scripts/data/prestige_db.gd` | 123 | class `PrestigeDB`; 5 functions | Declarative prestige branches. A future economy owner applies these effects. |
 | `scripts/data/route_db.gd` | 181 | class `RouteDB`; 10 functions | The trade lanes this terminal is on. |
 | `scripts/data/ship_catalog.gd` | 176 | class `ShipCatalog`; 9 functions | GitHub's single-source visual fleet. |
@@ -135,7 +135,7 @@ Inventory: **274 authored code/config/scene files**.
 | `scripts/ui/responsive_shell.gd` | 81 | class `ResponsiveShell`; 6 functions | Single source of viewport metrics for UI, world framing and save lifecycle. |
 | `scripts/ui/route_map.gd` | 768 | class `RouteMap`; 22 functions | The chart on the clipboard: where this terminal trades, and what it would |
 | `scripts/ui/settings_panel.gd` | 713 | class `SettingsPanel`; 39 functions | Options board: sound, language, presentation, backup, and the one |
-| `scripts/ui/shop.gd` | 1572 | class `Shop`; 65 functions | The purchase manifest, presented as the foreman's clipboard. |
+| `scripts/ui/shop.gd` | 1570 | class `Shop`; 65 functions | The purchase manifest, presented as the foreman's clipboard. |
 | `scripts/ui/shop_card.gd` | 445 | class `ShopCard`; 18 functions | One line torn off the purchase manifest. |
 | `scripts/ui/special_call_alert.gd` | 208 | class `SpecialCallAlert`; 14 functions | The interruption: a charter on the table, with what it pays and what it costs. |
 | `scripts/ui/title_screen.gd` | 1221 | 38 functions | The first thing the game shows. |
@@ -224,7 +224,7 @@ Inventory: **274 authored code/config/scene files**.
 | `tests/phase4_ship_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/phase4_water_test_runner.gd` | 66 | 6 functions | Run with: Godot --headless --path . res://tests/phase4_water_test_runner.tscn |
 | `tests/phase4_water_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/ports_test_runner.gd` | 226 | 11 functions | Ports contract. |
+| `tests/ports_test_runner.gd` | 263 | 12 functions | Ports contract. |
 | `tests/ports_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/profile_test_runner.gd` | 97 | 7 functions | Profile slot contract. |
 | `tests/profile_test_runner.tscn` | 6 | 1 nodes | Godot scene |

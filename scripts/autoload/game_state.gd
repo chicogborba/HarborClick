@@ -153,7 +153,8 @@ func foreman_unlocked() -> bool:
 	## prestige opened nothing but a multiplier — the second run was the first run
 	## again, faster, with the same thirty taps to get through it. This is the
 	## thing you go back for.
-	return prestige_count > 0
+	# An automated port (Shanghai) has the foreman from its first day.
+	return prestige_count > 0 or bool(PortDB.port_trait("foreman_free", false))
 
 
 const FOREMAN_INTERVAL := 0.5
@@ -475,7 +476,32 @@ func _earn(amount: float, productive: bool = true) -> void:
 	_check_milestones()
 
 
+## A lane opens by itself once the port has earned this many times its old
+## price. Lanes used to be bought from a world map; nobody bought them on
+## purpose, they were a shopping list with one row. They are freight tiers now:
+## the port grows into longer, better-paid trades, and says so when it does.
+const LANE_OPEN_FACTOR := 4.0
+
+
+func _grant_routes(announce: bool = true) -> void:
+	for item in RouteDB.ITEMS:
+		var id := str(item.id)
+		var cost := float(item.get("cost", 0.0))
+		if cost <= 0.0 or routes.has(id):
+			continue
+		if all_time_teus < cost * LANE_OPEN_FACTOR:
+			break
+		routes[id] = true
+		EventBus.route_bought.emit(id)
+		if announce:
+			EventBus.notification_requested.emit({
+				"id": "route_%s" % id, "kind": &"unlock", "priority": 2,
+				"text": Loc.t("routes.bought", {"name": RouteDB.display_name(id)}),
+			})
+
+
 func _check_milestones() -> void:
+	_grant_routes()
 	var seen := _normalized_milestones(flags.get("milestones", []))
 	for i in MILESTONES.size():
 		var milestone: Dictionary = MILESTONES[i]
@@ -1467,6 +1493,8 @@ func from_save(data: Dictionary) -> void:
 	routes.clear()
 	for rid in data.get("routes", []):
 		routes[str(rid)] = true
+	# A save from before lanes opened on their own may be past the threshold.
+	_grant_routes(false)
 	for lid in data.get("land", []):
 		land[lid] = true
 	_manual_quotes = data.get("manual_quotes", {}).duplicate()

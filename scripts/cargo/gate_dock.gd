@@ -82,7 +82,9 @@ func auto_rate() -> float:
 func tick(delta: float) -> void:
 	_next_arrival -= delta
 	if _next_arrival <= 0.0:
-		_next_arrival = randf_range(ARRIVAL_SECONDS.x, ARRIVAL_SECONDS.y)
+		# An intermodal port (Long Beach) calls its lorries twice as often.
+		_next_arrival = randf_range(ARRIVAL_SECONDS.x, ARRIVAL_SECONDS.y) \
+			* float(PortDB.port_trait("gate_cadence", 1.0))
 		_call_a_truck()
 	for bay: int in bays.keys():
 		var truck: Dictionary = bays[bay]
