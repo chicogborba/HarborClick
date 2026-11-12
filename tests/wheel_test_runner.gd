@@ -442,6 +442,10 @@ func _test_panel_spin() -> void:
 	panel.setup(_service)
 	add_child(panel)
 	panel.open()
+	# The panel measures itself hidden and only then rises, so "open" is a
+	# couple of frames later than the call.
+	for i in 3:
+		await get_tree().process_frame
 	var applied: Array = []
 	_service.prize_applied.connect(
 		func(p: Dictionary, amount: float) -> void: applied.append([p, amount]))
@@ -477,6 +481,8 @@ func _test_panel_close_mid_spin() -> void:
 	panel.setup(_service)
 	add_child(panel)
 	panel.open()
+	for i in 3:
+		await get_tree().process_frame
 	var applied := [0]
 	_service.prize_applied.connect(
 		func(_p: Dictionary, _amount: float) -> void: applied[0] += 1)
@@ -503,6 +509,8 @@ func _test_panel_disabled() -> void:
 	panel.setup(_service)
 	add_child(panel)
 	panel.open()
+	for i in 3:
+		await get_tree().process_frame
 	panel._refresh_status()
 	_expect(panel._spin_button.disabled,
 		"no free spin and no tokens disables the spin key")

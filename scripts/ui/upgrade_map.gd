@@ -45,6 +45,7 @@ const LINE_COLOURS := {
 	"ramal": Color8(96, 178, 118),
 	"portao": Color8(174, 118, 196),
 	"comando": Color8(72, 168, 168),
+	"porto": Color8(214, 176, 72),
 }
 
 var _nodes: Dictionary = {}        # id -> {pos, branch, depth, item}
@@ -99,7 +100,7 @@ func _build_layout() -> void:
 	_order.clear()
 	_headers.clear()
 	var y := MARGIN.y
-	for branch: Dictionary in UpgradeDB.BRANCHES:
+	for branch: Dictionary in UpgradeDB.branches():
 		var branch_id := str(branch.get("id", ""))
 		var items := UpgradeDB.items_in_branch(branch_id)
 		if items.is_empty():

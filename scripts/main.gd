@@ -220,6 +220,7 @@ func _ready() -> void:
 	routes.name = "RouteMap"
 	add_child(routes)
 	rail.routes_requested.connect(routes.open)
+	routes.travel_requested.connect(_travel_to_port)
 	routes.open_changed.connect(_on_overlay_changed.bind("routes"))
 
 	prestige_dialog = PrestigeDialog.new()
@@ -286,6 +287,11 @@ func _ready() -> void:
 	add_child(maze)
 	for board: MinigameBoard in [minigame, maze]:
 		board.open_changed.connect(_on_overlay_changed.bind("minigame"))
+		board.open_changed.connect(func(opened: bool) -> void:
+			if not opened:
+				# The board the queued charter was waiting on is gone: take its
+				# turn before the port gives the slot to anything else.
+				_flush_queued_charter())
 		board.finished.connect(func(won: bool, _summary: Dictionary) -> void:
 			var offer: Dictionary = board.offer()
 			if bool(offer.get("arcade", false)):
@@ -300,6 +306,8 @@ func _ready() -> void:
 				return
 			world.specials.resolve(won))
 	_build_xray()
+	# One event at a time: no charter is offered over an open board or the tour.
+	world.specials.can_run = func() -> bool: return not _event_boards_busy()
 	world.specials.offer_ready.connect(func(offer: Dictionary) -> void:
 		special_alert.open(offer, SpecialCallDirector.OFFER_TIMEOUT))
 	world.specials.offer_closed.connect(special_alert.close)
@@ -498,13 +506,64 @@ func _journal_charters() -> Dictionary:
 		else {}
 
 
+## A charter cued while another event had the port: it waits here until every
+## board is down. One event at a time — the cue arrives whenever its vessel
+## berths, which is whenever it happens to berth.
+var _queued_charter: Dictionary = {}
+
+
 func _open_minigame(offer: Dictionary) -> void:
 	## The charter names its own game. An unknown one falls back to the stacker
-	## rather than accepting a charter the player can never work.
+	## rather than accepting a charter the player can never work. A cued
+	## charter that arrived behind an open board waits its turn instead of
+	## stacking two boards the player cannot tell apart.
+	if not bool(offer.get("arcade", false)) and _event_boards_busy():
+		_queued_charter = offer
+		return
+	_open_charter_board(offer)
+
+
+func _open_charter_board(offer: Dictionary) -> void:
+	# An interrupting board closes whatever menu is open so two never render
+	# stacked — the same rule the special alert follows.
+	_close_other_overlays("minigame")
 	var board: MinigameBoard = minigame
 	if StringName(offer.get("game", &"")) == SpecialCallDB.GAME_MAZE:
 		board = maze
 	board.open(offer)
+
+
+func _event_boards_busy() -> bool:
+	## One event at a time. The tour and the three minigame boards are events:
+	## opening a second over them stacks two boards and the port becomes
+	## unanswerable. Menus are not events — an event closes them instead.
+	if tutorial != null and is_instance_valid(tutorial) \
+			and tutorial.is_active():
+		return true
+	if bool(_overlay_state.special):
+		return true
+	for board in [minigame, maze, xray_board]:
+		if board != null and board.is_open():
+			return true
+	return false
+
+
+func _flush_queued_charter() -> void:
+	if _queued_charter.is_empty() or _event_boards_busy():
+		return
+	# The vessel may have sailed while the queue waited its turn: an
+	# abandoned charter is not played, and nothing was promised — the queue
+	# was only a held turn, so the stale offer is dropped, not paid.
+	var still_active := false
+	if world != null and world.specials != null:
+		still_active = not world.specials.active.is_empty() \
+			and world.specials.active.get("id") == _queued_charter.get("id")
+	if not still_active:
+		_queued_charter = {}
+		return
+	var offer := _queued_charter
+	_queued_charter = {}
+	_open_charter_board(offer)
 
 
 func _on_arcade_requested() -> void:
@@ -515,6 +574,10 @@ func _on_arcade_requested() -> void:
 		AudioManager.play_sfx("deny")
 		return
 	AdService.show_rewarded(&"minigame_play", func() -> void:
+		# The journal opened the board; the board closes what opened it. Both
+		# up at once is the wheel-SPIN-under-a-charter bug again.
+		if journal != null and journal.is_open():
+			journal.close()
 		var offer := {
 			"title": Loc.t("arcade.title"),
 			"game": SpecialCallDB.GAME_MAZE if randi() % 2 == 0 else SpecialCallDB.GAME_STACK,
@@ -657,6 +720,7 @@ func _close_other_overlays(except: String) -> void:
 		"notices": func() -> void: bell.close_log(),
 		"rate": func() -> void: rate_breakdown.close(),
 		"xray": func() -> void: xray_panel.close(),
+		"roadmap": func() -> void: roadmap.close(),
 	}
 	for source: String in closers:
 		if source == except or not bool(_overlay_state.get(source, false)):
@@ -894,6 +958,9 @@ func _on_tutorial_finished(skipped: bool) -> void:
 	GameState.flags["tutorial_v2_done"] = true
 	Progression.ingest_event(&"tutorial_completed", {"skipped": skipped})
 	SaveManager.request_save(&"tutorial")
+	# A charter that berthed during the tour plays now: the port it interrupts
+	# is finally free.
+	_flush_queued_charter()
 
 
 func _replay_tutorial() -> void:
@@ -1052,6 +1119,18 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			TimeManager.speed_mult = 40.0 if TimeManager.speed_mult == 1.0 else 1.0
 
 
+# --------------------------------------------------------------------- ports
+
+func _travel_to_port(port: StringName) -> void:
+	## Leave this port as it stands and sail. The Voyage scene does the actual
+	## switch, once this world — and the save sections it registered — is gone.
+	if port == PortDB.active or not SaveManager.port_open(port):
+		return
+	SaveManager.save_game(&"travel")
+	PortDB.destination = port
+	get_tree().change_scene_to_file("res://scenes/Voyage.tscn")
+
+
 # ------------------------------------------------- Receita Federal: X-ray
 
 func _build_xray() -> void:
@@ -1074,6 +1153,10 @@ func _build_xray() -> void:
 	xray_board.name = "XrayMinigame"
 	add_child(xray_board)
 	xray_board.open_changed.connect(_on_overlay_changed.bind("minigame"))
+	xray_board.open_changed.connect(func(opened: bool) -> void:
+		if not opened:
+			# A charter that berthed during the inspection plays now.
+			_flush_queued_charter())
 	xray_board.finished.connect(func(won: bool, summary: Dictionary) -> void:
 		var benefit := xray_service.resolve(won, summary)
 		_xray_announced = false
@@ -1090,14 +1173,22 @@ func _build_xray() -> void:
 func _open_xray() -> void:
 	if xray_board == null or xray_board.is_open() or not xray_service.is_due():
 		return
+	if tutorial != null and is_instance_valid(tutorial) \
+			and tutorial.is_active():
+		return
 	_close_other_overlays("minigame")
 	xray_board.open(xray_service.make_offer())
 
 
 func _xray_clock_runs() -> bool:
 	## The inspection clock runs while the port is being played: after the tour,
-	## with no board up. An inspection never falls due behind a charter.
+	## with no board up. An inspection never falls due behind a charter — and
+	## the tour being replayed is still the tour (`tutorial_v2_done` only says
+	## the first one finished, so the flag alone cannot gate the clock).
 	if not GameState.flags.get("tutorial_v2_done", false):
+		return false
+	if tutorial != null and is_instance_valid(tutorial) \
+			and tutorial.is_active():
 		return false
 	for open: bool in _overlay_state.values():
 		if open:

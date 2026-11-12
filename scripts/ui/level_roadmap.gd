@@ -19,6 +19,10 @@ const RAIL_W := 46.0
 const NODE_R := 13.0
 
 var _service: TerminalLevelService
+## True from the key press to the first frame of the rise: the state says the
+## roadmap is open while the board is still being measured, so nothing else can
+## claim the screen in that window and a close in it is honoured.
+var _opening := false
 var _scrim: ColorRect
 var _board: PanelContainer
 var _column: VBoxContainer
@@ -206,27 +210,33 @@ func _reward_line(reward: Dictionary) -> Control:
 # --------------------------------------------------------------- open/close
 
 func open() -> void:
-	if visible:
+	if visible or _opening:
 		return
-	visible = true
+	_opening = true
+	# Open to the game from the press itself, not from the first drawn frame:
+	# a charter that arrives two frames later must find this screen taken.
+	open_changed.emit(true)
+	# Measured hidden, then shown while it is already travelling — the board
+	# must never be seen at rest before its rise.
 	refresh()
 	_layout()
 	await get_tree().process_frame
 	await get_tree().process_frame
-	if not visible:
+	if not _opening:
 		return
+	_opening = false
+	visible = true
 	_scroll_to_current()
-	open_changed.emit(true)
 	UiTheme.pop_open(_board, _scrim)
-	AudioManager.play_sfx("ui_open")
 	_close_button.grab_focus()
 
 
 func close() -> void:
-	if not visible:
+	if not visible and not _opening:
 		return
-	visible = false
-	AudioManager.play_sfx("ui_close")
+	_opening = false
+	if visible:
+		UiTheme.pop_close(_board, _scrim, func() -> void: visible = false)
 	open_changed.emit(false)
 
 

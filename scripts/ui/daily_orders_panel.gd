@@ -12,6 +12,10 @@ const ROWS := 3
 const BUTTON_W := 78.0
 
 var _service: DailyOrdersService
+## True from the key press to the first frame of the rise: the state says the
+## panel is open while the board is still being measured, so nothing else can
+## claim the screen in that window and a close in it is honoured.
+var _opening := false
 var _scrim: ColorRect
 var _board: PanelContainer
 var _column: VBoxContainer
@@ -117,26 +121,35 @@ func setup(service: DailyOrdersService) -> void:
 
 
 func open() -> void:
-	if visible:
+	if visible or _opening:
 		return
-	visible = true
+	_opening = true
+	# Open to the game from the press itself, not from the first drawn frame:
+	# a charter that arrives two frames later must find this screen taken.
+	open_changed.emit(true)
+	# Same as the wheel: the height is fitted a frame after the width, and a
+	# board must never be seen at rest before its rise — measured hidden,
+	# then shown while it is already travelling.
 	refresh()
 	_layout()
-	# Same as the wheel: the height is fitted a frame after the width, and
-	# pop_open captures the resting position, so let it settle first.
 	await get_tree().process_frame
 	await get_tree().process_frame
-	if not visible:
+	if not _opening:
 		return
-	open_changed.emit(true)
+	_opening = false
+	visible = true
 	UiTheme.pop_open(_board, _scrim)
 	_close_button.grab_focus()
 
 
 func close() -> void:
-	if not visible:
+	if not visible and not _opening:
 		return
-	visible = false
+	_opening = false
+	if visible:
+		# The rise has a drop to answer it: a board that comes up travelling
+		# and vanishes standing still is half a gesture.
+		UiTheme.pop_close(_board, _scrim, func() -> void: visible = false)
 	open_changed.emit(false)
 
 

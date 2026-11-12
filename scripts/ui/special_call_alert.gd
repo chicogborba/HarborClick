@@ -113,10 +113,15 @@ func open(offer: Dictionary, seconds: float) -> void:
 	open_changed.emit(true)
 	AudioManager.play_sfx("milestone", 0.02, -2.0)
 	_accept.grab_focus()
-	_fit_to_content()
-	# `_fit_to_content` re-places the board a frame later, so this open only
-	# fades the board in; sliding would land on the stale position.
-	UiTheme.pop_open(_board, _scrim, false)
+	# One frame for the wrapped brief to report its true height, then the
+	# board rises like every other — an interrupting call that only fades in
+	# asks nobody to look up; one that slams onto the counter does.
+	if is_inside_tree():
+		await get_tree().process_frame
+		if not visible:
+			return
+	_fit_now()
+	UiTheme.pop_open(_board, _scrim, true)
 
 
 func close() -> void:
@@ -189,14 +194,11 @@ func _cap_height(safe: Rect2) -> float:
 	return minf(maxf(200.0, safe.size.y * 0.62), safe.size.y - 20.0)
 
 
-func _fit_to_content() -> void:
-	## Shrink to the brief once it has wrapped. Measuring before the layout pass is
-	## what reports a height in the thousands, so this waits a frame and stays
-	## clamped to the cap either way.
-	if not is_inside_tree():
-		return
-	await get_tree().process_frame
-	if not visible or _board == null or not is_instance_valid(_board):
+func _fit_now() -> void:
+	## Shrink to the brief once it has wrapped, in the caller's own frame: a
+	## board must never change size while it travels, so the fit happens
+	## before the rise rather than a frame into it.
+	if _board == null or not is_instance_valid(_board):
 		return
 	var safe := _safe_rect
 	if safe.size == Vector2.ZERO:

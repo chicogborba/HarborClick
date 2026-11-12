@@ -105,6 +105,19 @@ Entry points:
     sentence is indistinguishable from a bug. The third case, a buy that refits an
     exclusive sibling out, is not a state but a price, and it is on the ticket
     before the press rather than in a dialog after it.
+- `route_map.gd` — **Portos e Rotas**, behind the console's PORTOS key. The
+  chart is the generated world map (`gen_worldmap.py`, 288x144, blitted 1:1)
+  with the lanes and one diamond per port: amber where the operator is, teal
+  for an open port, cream for one that can be bought, grey for "em breve".
+  Two tabs share the sheet. PORTOS lists every port with its flag, what the
+  place is good at and one key — the price, or VIAJAR — and the status line
+  says what the network is worth. Cards are built once and rewritten in place,
+  like the lanes; the wallets of the other open ports are read once per open.
+  The board never changes scene: it emits `travel_requested` and Main saves
+  and hands over to `voyage_screen.gd`.
+- `voyage_screen.gd` (`scenes/Voyage.tscn`) — the crossing. It exists because
+  a save must not be applied while the last port's world is alive; it is also
+  the moment the player is told where they are going. A tap skips it.
 - `upgrade_map.gd` — the upgrade graph drawn as a transit map: one coloured line
   per trunk, one station per upgrade, depth as distance along the line. Bought
   track is solid, unbought is a dashed survey line, and a node that excludes a

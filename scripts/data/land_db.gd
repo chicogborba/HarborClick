@@ -65,6 +65,13 @@ const RAW_ITEMS: Array[Dictionary] = [
 static var ITEMS: Array[Dictionary] = EconomyMath.paced(RAW_ITEMS)
 
 
+static func apply_port() -> void:
+	## The same parcels, under the names the active port gives its ground.
+	ITEMS = EconomyMath.paced(RAW_ITEMS)
+	for item in ITEMS:
+		item["name"] = PortDB.name_for(str(item.id), str(item.name))
+
+
 static func get_item(id: String) -> Dictionary:
 	for item in ITEMS:
 		if item.id == id:

@@ -89,6 +89,15 @@ const RAW_ITEMS: Array[Dictionary] = [
 ]
 static var ITEMS: Array[Dictionary] = EconomyMath.paced(RAW_ITEMS)
 
+
+static func apply_port() -> void:
+	## The same machines, under the names they go by in the active port
+	## (`PortDB.names`). Ids and numbers never change, so nothing that keys on
+	## an id — the yard, the actors, a save — can tell ports apart.
+	ITEMS = EconomyMath.paced(RAW_ITEMS)
+	for item in ITEMS:
+		item["name"] = PortDB.name_for(str(item.id), str(item.name))
+
 static func get_item(id: String) -> Dictionary:
 	for item in ITEMS:
 		if item.id == id:

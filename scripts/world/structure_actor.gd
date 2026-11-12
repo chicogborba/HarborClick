@@ -695,7 +695,7 @@ func _build() -> void:
 
 func _sprite2d(sprite_name: String, centered: bool = false) -> Sprite2D:
 	var spr := Sprite2D.new()
-	spr.texture = load("res://assets/sprites/%s.png" % sprite_name)
+	spr.texture = PortDB.tex(sprite_name)
 	spr.centered = centered
 	return spr
 
@@ -704,7 +704,7 @@ func _anim(sheet_name: String, count: int, fw: int, fh: int, fps: float,
 		centered: bool = false) -> AnimatedSprite2D:
 	var spr := AnimatedSprite2D.new()
 	var frames := SpriteFrames.new()
-	var tex: Texture2D = load("res://assets/sprites/%s.png" % sheet_name)
+	var tex: Texture2D = PortDB.tex(sheet_name)
 	frames.set_animation_speed(&"default", fps)
 	for i in count:
 		var at := AtlasTexture.new()
@@ -729,7 +729,7 @@ func _add_shadow(w: float, h: float, offset := Vector2.ZERO) -> void:
 
 
 func _build_static(sprite_name: String) -> void:
-	var tex: Texture2D = load("res://assets/sprites/%s.png" % sprite_name)
+	var tex: Texture2D = PortDB.tex(sprite_name)
 	_add_shadow(tex.get_width() + 4, 12.0,
 		Vector2(tex.get_width() / 2.0, tex.get_height() - 2.0))
 	_sprite = _sprite2d(sprite_name)
@@ -799,7 +799,7 @@ func _dress_hat() -> void:
 	if str(_hat.get_meta("sheet", "")) != sheet:
 		_hat.set_meta("sheet", sheet)
 		var frames := SpriteFrames.new()
-		var tex: Texture2D = load("res://assets/sprites/%s.png" % sheet)
+		var tex: Texture2D = PortDB.tex(sheet)
 		for pair in [["side", 0], ["down", 4], ["up", 8]]:
 			var anim := StringName(pair[0])
 			if anim != &"default":

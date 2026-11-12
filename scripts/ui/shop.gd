@@ -395,7 +395,7 @@ func _upgrade_art(item: Dictionary) -> String:
 	if str(item.get("kind", "")).begins_with("click"):
 		return "estivador"
 	var branch := UpgradeDB.branch_of(item)
-	for entry: Dictionary in UpgradeDB.BRANCHES:
+	for entry: Dictionary in UpgradeDB.branches():
 		if str(entry.id) == branch:
 			return str(entry.get("art", ""))
 	return ""

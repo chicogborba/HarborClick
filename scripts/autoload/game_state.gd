@@ -1029,7 +1029,9 @@ func structure_cps(id: String, override_id: String = "",
 	var item := StructureDB.get_item(id)
 	if item.is_empty():
 		return 0.0
-	var value: float = item.cps
+	# What the place itself is good at comes first: it is a property of the
+	# port, not something fitted to the machine.
+	var value: float = float(item.cps) * PortDB.structure_mult(id)
 	for uid: String in upgrades:
 		var up := UpgradeDB.get_item(uid)
 		match str(up.get("kind", "")):
@@ -1091,10 +1093,11 @@ func recompute() -> void:
 	# base_cps, and a permanent factor inside it would make every card lie.
 	base_cps = total * global_mult
 	cps = base_cps * TimeManager.weather_cps_mult() * surge_mult \
-		* achievement_multiplier() * level_multiplier()
+		* achievement_multiplier() * level_multiplier() \
+		* PortDB.network_multiplier()
 	var manual_meta := _tree_scope_multiplier(&"manual", &"click_multiplier")
 	var tree_cps_per_tap := _tree_scope_additive(&"manual", &"cps_per_tap")
-	click_power = (1.0 * click_mult * manual_meta) \
+	click_power = (1.0 * click_mult * manual_meta * PortDB.click_mult()) \
 		+ cps * (click_cps_pct + tree_cps_per_tap)
 	# A surge is on everything the port earns, taps included — and the cat is a
 	# surge now, so it needs no second multiplication here.
@@ -1109,6 +1112,7 @@ func cps_breakdown() -> Array[Dictionary]:
 	## multiplier, and multiplying them all reproduces `cps` exactly — the panel
 	## is the formula, not a description of it.
 	var raw := 0.0          # machines at catalogue rate
+	var with_port := 0.0    # ...and what this port is good and bad at
 	var with_milestones := 0.0
 	var with_upgrades := 0.0
 	for id: String in owned:
@@ -1119,7 +1123,9 @@ func cps_breakdown() -> Array[Dictionary]:
 		if item.is_empty():
 			continue
 		raw += float(item.cps) * float(count)
-		with_milestones += EconomyMath.total_cps(float(item.cps), count)
+		var local := float(item.cps) * PortDB.structure_mult(id)
+		with_port += local * float(count)
+		with_milestones += EconomyMath.total_cps(local, count)
 		with_upgrades += structure_total_cps(id, count)
 	var global_mult := 1.0
 	for uid: String in upgrades:
@@ -1128,7 +1134,7 @@ func cps_breakdown() -> Array[Dictionary]:
 			global_mult *= float(up.value)
 	var rows: Array[Dictionary] = [
 		{"label": "Máquinas", "kind": "base", "value": raw},
-		{"label": "Marcos", "kind": "mult", "value": _ratio(with_milestones, raw)},
+		{"label": "Marcos", "kind": "mult", "value": _ratio(with_milestones, with_port)},
 		{"label": "Melhorias", "kind": "mult", "value": _ratio(with_upgrades, with_milestones)},
 		{"label": "Capital", "kind": "mult", "value": _global_cps_multiplier()},
 		# Its own line, not folded into "Capital": a player who converted a fleet
@@ -1140,6 +1146,14 @@ func cps_breakdown() -> Array[Dictionary]:
 		{"label": "Conquistas", "kind": "mult", "value": achievement_multiplier()},
 		{"label": "Nível", "kind": "mult", "value": level_multiplier()},
 	]
+	# Only where they apply, so a home port with nothing abroad reads exactly
+	# as it always did.
+	if not is_equal_approx(with_port, raw):
+		rows.insert(1, {"label": "Porto", "kind": "mult",
+			"value": _ratio(with_port, raw)})
+	if not is_equal_approx(PortDB.network_multiplier(), 1.0):
+		rows.append({"label": "Rede de portos", "kind": "mult",
+			"value": PortDB.network_multiplier()})
 	var weather := TimeManager.weather_cps_mult()
 	if not is_equal_approx(weather, 1.0):
 		rows.append({"label": "Neblina", "kind": "mult", "value": weather})

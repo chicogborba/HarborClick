@@ -61,6 +61,8 @@ func _fresh_port(teus: float) -> RouteMap:
 	add_child(map)
 	await get_tree().process_frame
 	map.open()
+	# The board opens on its PORTOS tab; these tests are about the lanes.
+	map._select_tab("routes")
 	await get_tree().process_frame
 	await get_tree().process_frame
 	# The chart is lifted into view over 0.30 s. These tests are about a tap on

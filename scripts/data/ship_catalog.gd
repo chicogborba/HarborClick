@@ -35,12 +35,16 @@ const COMPATIBILITY_ALIASES := {
 	"ulcv": {"base": "new_panamax", "title": "ULCV", "capacity": 21000},
 }
 
-const PALETTES: Array[Dictionary] = [
+const HOME_PALETTES: Array[Dictionary] = [
 	{"id": "harbor_blue", "hull": "#5c89a8", "wake": "#b9e5f2", "cargo": "#ffffff"},
 	{"id": "rust_red", "hull": "#a95d51", "wake": "#d3e8ed", "cargo": "#fff3e0"},
 	{"id": "evergreen", "hull": "#527b69", "wake": "#caedf0", "cargo": "#f0fff4"},
 	{"id": "sunset_gold", "hull": "#ad8750", "wake": "#d7eef2", "cargo": "#fff8dc"},
 ]
+
+## The liveries calling at the active port. Home's by default; a port with its
+## own (`PortDB.palettes`) swaps them in through `apply_port`.
+static var PALETTES: Array[Dictionary] = HOME_PALETTES
 
 const SPECIAL_PALETTE := {
 	"id": "gala_black", "hull": "#2b2733", "wake": "#f0d68a", "cargo": "#ffe9a8",
@@ -127,8 +131,17 @@ static func get_silhouette(id: StringName) -> Dictionary:
 	return restored
 
 
+static func apply_port() -> void:
+	var local := PortDB.palettes()
+	PALETTES = local if not local.is_empty() else HOME_PALETTES
+
+
 static func get_palette(id: StringName) -> Dictionary:
 	for palette in PALETTES:
+		if StringName(palette.get("id", "")) == id:
+			return palette.duplicate(true)
+	# A hull saved under another port's livery, or under home's while abroad.
+	for palette in HOME_PALETTES + PortDB.all_palettes():
 		if StringName(palette.get("id", "")) == id:
 			return palette.duplicate(true)
 	if StringName(SPECIAL_PALETTE.id) == id:

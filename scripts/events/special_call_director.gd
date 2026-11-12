@@ -31,6 +31,11 @@ const OFFER_TIMEOUT := 30.0
 ## Below this the port has nothing worth staking, so no charter is offered.
 const MIN_LIFETIME_TEUS := 500.0
 
+## Main sets this. No charter is offered while another event already has the
+## port's attention — an open board, the tour. One event at a time; while this
+## says false the clock simply holds, and nothing is offered or lost.
+var can_run := Callable()
+
 var world: PortWorld
 var offer: Dictionary = {}          # the charter currently on the table
 var booked: Dictionary = {}         # accepted, waiting for a berth
@@ -57,6 +62,8 @@ func tick(delta: float) -> void:
 	if not booked.is_empty() or not active.is_empty():
 		return
 	if GameState.all_time_teus < MIN_LIFETIME_TEUS:
+		return
+	if can_run.is_valid() and not can_run.call():
 		return
 	_cooldown -= delta
 	if _cooldown > 0.0:

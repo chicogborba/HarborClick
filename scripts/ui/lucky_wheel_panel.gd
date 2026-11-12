@@ -41,6 +41,10 @@ const JITTER := 14.0
 const PEG_OFFSET := 22.5 ## a peg is under the pointer at angle + PEG_OFFSET over SEGMENT_DEG
 
 var _service: WheelService
+## True from the key press to the first frame of the rise: the state says the
+## wheel is open while the board is still being measured, so nothing else can
+## claim the screen in that window and a close in it is honoured.
+var _opening := false
 var _scrim: ColorRect
 var _board: PanelContainer
 var _column: VBoxContainer
@@ -240,22 +244,26 @@ func _on_prize_applied(_p: Dictionary, amount: float) -> void:
 # ------------------------------------------------------------------ open/close
 
 func open() -> void:
-	if visible:
+	if visible or _opening:
 		return
-	visible = true
+	_opening = true
+	# Open to the game from the press itself, not from the first drawn frame:
+	# a charter that arrives two frames later must find this screen taken.
+	open_changed.emit(true)
+	# The board fits its content one frame after its width is set (the labels
+	# wrap to that width), so the fit is measured with the panel still hidden
+	# and only then does it appear — shown and already travelling in the same
+	# frame, never resting one frame before the rise.
 	_prize.visible = false
 	_detail.visible = false
 	_refresh_status()
 	_layout()
-	# The board fits its content one frame after its width is set (the labels
-	# wrap to that width), and pop_open captures board.position as the final
-	# resting point — let the layout settle first or the board animates to a
-	# stale, off-screen position.
 	await get_tree().process_frame
 	await get_tree().process_frame
-	if not visible:
+	if not _opening:
 		return
-	open_changed.emit(true)
+	_opening = false
+	visible = true
 	UiTheme.pop_open(_board, _scrim)
 	if _spin_button.disabled:
 		_close_button.grab_focus()
@@ -264,12 +272,16 @@ func open() -> void:
 
 
 func close() -> void:
-	if not visible:
+	if not visible and not _opening:
 		return
+	_opening = false
 	if _spinning:
 		# A spin already decided its prize; closing must not eat it.
 		finish_now()
-	visible = false
+	if visible:
+		# The rise has a drop to answer it: a board that comes up travelling
+		# and vanishes standing still is half a gesture.
+		UiTheme.pop_close(_board, _scrim, func() -> void: visible = false)
 	open_changed.emit(false)
 
 

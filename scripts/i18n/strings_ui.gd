@@ -403,11 +403,79 @@ const STRINGS := {
 # ------------------------------------------------------------------- routes
 
 "routes.title": {
-	"pt_BR": "MAPA-MÚNDI DE ROTAS", "en": "WORLD ROUTE CHART",
-	"es": "MAPA MUNDIAL DE RUTAS", "fr": "CARTE MONDIALE DES ROUTES",
-	"de": "WELTROUTENKARTE", "it": "CARTA MONDIALE DELLE ROTTE",
-	"ru": "КАРТА МИРОВЫХ МАРШРУТОВ", "pl": "MAPA ŚWIATOWYCH TRAS",
-	"tr": "DÜNYA ROTA HARİTASI"},
+	"pt_BR": "PORTOS E ROTAS", "en": "PORTS AND ROUTES",
+	"es": "PUERTOS Y RUTAS", "fr": "PORTS ET ROUTES",
+	"de": "HÄFEN UND ROUTEN", "it": "PORTI E ROTTE",
+	"ru": "ПОРТЫ И МАРШРУТЫ", "pl": "PORTY I TRASY",
+	"tr": "LİMANLAR VE ROTALAR"},
+# ---------------------------------------------------------------- ports
+# A port's own name, tagline and perk are catalogue content (`PortDB`), in
+# Portuguese like the rest of the catalogues. These are the chrome around them.
+"ports.tab.ports": {
+	"pt_BR": "PORTOS", "en": "PORTS", "es": "PUERTOS", "fr": "PORTS",
+	"de": "HÄFEN", "it": "PORTI", "ru": "ПОРТЫ", "pl": "PORTY", "tr": "LİMANLAR"},
+"ports.tab.routes": {
+	"pt_BR": "ROTAS", "en": "ROUTES", "es": "RUTAS", "fr": "ROUTES",
+	"de": "ROUTEN", "it": "ROTTE", "ru": "МАРШРУТЫ", "pl": "TRASY", "tr": "ROTALAR"},
+"ports.here": {
+	"pt_BR": "VOCÊ ESTÁ AQUI", "en": "YOU ARE HERE", "es": "ESTÁS AQUÍ",
+	"fr": "VOUS ÊTES ICI", "de": "SIE SIND HIER", "it": "SEI QUI",
+	"ru": "ВЫ ЗДЕСЬ", "pl": "JESTEŚ TUTAJ", "tr": "BURADASIN"},
+"ports.travel": {
+	"pt_BR": "VIAJAR", "en": "TRAVEL", "es": "VIAJAR", "fr": "PARTIR",
+	"de": "REISEN", "it": "PARTI", "ru": "В ПУТЬ", "pl": "PŁYŃ", "tr": "GİT"},
+"ports.soon": {
+	"pt_BR": "EM BREVE", "en": "COMING SOON", "es": "PRÓXIMAMENTE",
+	"fr": "BIENTÔT", "de": "DEMNÄCHST", "it": "PROSSIMAMENTE",
+	"ru": "СКОРО", "pl": "WKRÓTCE", "tr": "YAKINDA"},
+"ports.missing": {
+	"pt_BR": "Faltam {amount} para abrir", "en": "{amount} short of opening",
+	"es": "Faltan {amount} para abrir", "fr": "Il manque {amount} pour ouvrir",
+	"de": "Es fehlen {amount} zur Eröffnung", "it": "Mancano {amount} per aprire",
+	"ru": "Не хватает {amount}", "pl": "Brakuje {amount} do otwarcia",
+	"tr": "Açmak için {amount} eksik"},
+"ports.wallet": {
+	"pt_BR": "Caixa lá: {amount}", "en": "Cash there: {amount}",
+	"es": "Caja allí: {amount}", "fr": "Caisse là-bas : {amount}",
+	"de": "Kasse dort: {amount}", "it": "Cassa lì: {amount}",
+	"ru": "Касса там: {amount}", "pl": "Kasa tam: {amount}",
+	"tr": "Oradaki kasa: {amount}"},
+"ports.new": {
+	"pt_BR": "Aberto. Ninguém pisou lá ainda.", "en": "Open. Nobody has set foot there yet.",
+	"es": "Abierto. Nadie ha pisado allí todavía.", "fr": "Ouvert. Personne n'y a encore mis le pied.",
+	"de": "Eröffnet. Noch war niemand dort.", "it": "Aperto. Nessuno ci ha ancora messo piede.",
+	"ru": "Открыт. Там ещё никто не был.", "pl": "Otwarty. Nikt tam jeszcze nie był.",
+	"tr": "Açık. Henüz kimse ayak basmadı."},
+"ports.network": {
+	"pt_BR": "{count} portos - rede +{pct}% em todos", "en": "{count} ports - network +{pct}% everywhere",
+	"es": "{count} puertos - red +{pct}% en todos", "fr": "{count} ports - réseau +{pct}% partout",
+	"de": "{count} Häfen - Netz +{pct}% überall", "it": "{count} porti - rete +{pct}% ovunque",
+	"ru": "Портов: {count} - сеть +{pct}% везде", "pl": "Porty: {count} - sieć +{pct}% wszędzie",
+	"tr": "{count} liman - ağ her yerde +%{pct}"},
+"ports.network.none": {
+	"pt_BR": "Cada porto aberto rende +10% em todos", "en": "Every open port adds +10% to all of them",
+	"es": "Cada puerto abierto da +10% en todos", "fr": "Chaque port ouvert donne +10% à tous",
+	"de": "Jeder eröffnete Hafen bringt allen +10%", "it": "Ogni porto aperto dà +10% a tutti",
+	"ru": "Каждый открытый порт даёт +10% всем", "pl": "Każdy otwarty port daje +10% wszystkim",
+	"tr": "Açılan her liman hepsine +%10 verir"},
+"ports.open_name": {
+	"pt_BR": "Abrir o porto de {name}", "en": "Open the port of {name}",
+	"es": "Abrir el puerto de {name}", "fr": "Ouvrir le port de {name}",
+	"de": "Hafen {name} eröffnen", "it": "Apri il porto di {name}",
+	"ru": "Открыть порт {name}", "pl": "Otwórz port {name}", "tr": "{name} limanını aç"},
+"ports.travel_name": {
+	"pt_BR": "Viajar para {name}", "en": "Travel to {name}",
+	"es": "Viajar a {name}", "fr": "Partir pour {name}",
+	"de": "Nach {name} reisen", "it": "Parti per {name}",
+	"ru": "Отправиться в {name}", "pl": "Płyń do {name}", "tr": "{name} limanına git"},
+"ports.opened": {
+	"pt_BR": "Porto aberto: {name}!", "en": "Port opened: {name}!",
+	"es": "¡Puerto abierto: {name}!", "fr": "Port ouvert : {name} !",
+	"de": "Hafen eröffnet: {name}!", "it": "Porto aperto: {name}!",
+	"ru": "Порт открыт: {name}!", "pl": "Port otwarty: {name}!", "tr": "Liman açıldı: {name}!"},
+"ports.voyage.bound": {
+	"pt_BR": "RUMO A", "en": "BOUND FOR", "es": "RUMBO A", "fr": "CAP SUR",
+	"de": "KURS AUF", "it": "ROTTA PER", "ru": "КУРС НА", "pl": "KURS NA", "tr": "ROTA"},
 "routes.close_name": {
 	"pt_BR": "Fechar as rotas", "en": "Close the route chart",
 	"es": "Cerrar las rutas", "fr": "Fermer les routes",
@@ -509,15 +577,15 @@ const STRINGS := {
 	"it": "Apri il negozio del terminal", "ru": "Открыть магазин терминала",
 	"pl": "Otwórz sklep terminalu", "tr": "Terminal mağazasını aç"},
 "rail.routes": {
-	"pt_BR": "ROTAS", "en": "ROUTES", "es": "RUTAS", "fr": "ROUTES",
-	"de": "ROUTEN", "it": "ROTTE", "ru": "МАРШРУТЫ", "pl": "TRASY",
-	"tr": "ROTALAR"},
+	"pt_BR": "PORTOS", "en": "PORTS", "es": "PUERTOS", "fr": "PORTS",
+	"de": "HÄFEN", "it": "PORTI", "ru": "ПОРТЫ", "pl": "PORTY",
+	"tr": "LİMANLAR"},
 "rail.routes.name": {
-	"pt_BR": "Abrir o mapa de rotas", "en": "Open the route chart",
-	"es": "Abrir el mapa de rutas", "fr": "Ouvrir la carte des routes",
-	"de": "Routenkarte öffnen", "it": "Apri la carta delle rotte",
-	"ru": "Открыть карту маршрутов", "pl": "Otwórz mapę tras",
-	"tr": "Rota haritasını aç"},
+	"pt_BR": "Abrir portos e rotas", "en": "Open ports and routes",
+	"es": "Abrir puertos y rutas", "fr": "Ouvrir ports et routes",
+	"de": "Häfen und Routen öffnen", "it": "Apri porti e rotte",
+	"ru": "Открыть порты и маршруты", "pl": "Otwórz porty i trasy",
+	"tr": "Limanları ve rotaları aç"},
 "rail.journal": {
 	"pt_BR": "DESAFIOS", "en": "CHALLENGES", "es": "DESAFÍOS", "fr": "DÉFIS",
 	"de": "AUFGABEN", "it": "SFIDE", "ru": "ЗАДАНИЯ", "pl": "WYZWANIA",
@@ -2047,18 +2115,15 @@ const STRINGS := {
 	"fr": "Contrôle aux rayons X", "de": "Röntgenkontrolle", "it": "Ispezione a raggi X",
 	"ru": "Рентген-досмотр", "pl": "Kontrola RTG", "tr": "Röntgen Denetimi"},
 "xray.hint": {
-	"pt_BR": "Arraste a lupa, troque o filtro e APREENDA o item ilegal. Errar custa tempo!",
-	"en": "Drag the loupe, switch filters and SEIZE the illegal item. Mistakes cost time!",
-	"es": "Arrastra la lupa, cambia el filtro e INCAUTA el objeto ilegal. ¡Fallar cuesta tiempo!",
-	"fr": "Glissez la loupe, changez de filtre et SAISISSEZ l'objet illégal. Une erreur coûte du temps !",
-	"de": "Zieh die Lupe, wechsle den Filter und BESCHLAGNAHME das Verbotene. Fehler kosten Zeit!",
-	"it": "Trascina la lente, cambia filtro e SEQUESTRA l'oggetto illegale. Gli errori costano tempo!",
-	"ru": "Води лупой, меняй фильтр и ИЗЫМИ запрещённое. Ошибка стоит времени!",
-	"pl": "Przesuwaj lupę, zmieniaj filtr i ZAJMIJ nielegalny przedmiot. Pomyłka kosztuje czas!",
-	"tr": "Büyüteci sürükle, filtreyi değiştir ve yasadışı eşyaya EL KOY. Hata zaman kaybettirir!"},
-"xray.mark": {
-	"pt_BR": "APREENDER", "en": "SEIZE", "es": "INCAUTAR", "fr": "SAISIR",
-	"de": "SICHERN", "it": "SEQUESTRA", "ru": "ИЗЪЯТЬ", "pl": "ZAJMIJ", "tr": "EL KOY"},
+	"pt_BR": "Tem contrabando na carga. Ache e TOQUE nele antes do tempo. Errar custa tempo!",
+	"en": "There is contraband in the cargo. Find it and TAP it before time runs out. Misses cost time!",
+	"es": "Hay contrabando en la carga. Búscalo y TÓCALO antes de que acabe el tiempo. ¡Fallar cuesta tiempo!",
+	"fr": "Il y a de la contrebande dans la cargaison. Trouvez-la et TOUCHEZ-la avant la fin du temps. Une erreur coûte du temps !",
+	"de": "In der Ladung ist Schmuggel. Finde ihn und TIPPE drauf, bevor die Zeit abläuft. Fehler kosten Zeit!",
+	"it": "C'è contrabbando nel carico. Trovalo e TOCCALO prima che finisca il tempo. Sbagliare costa tempo!",
+	"ru": "В грузе контрабанда. Найди её и НАЖМИ до конца времени. Ошибка стоит времени!",
+	"pl": "W ładunku jest przemyc. Znajdź go i DOTKNIJ przed końcem czasu. Pomyłka kosztuje czas!",
+	"tr": "Yükte kaçak mal var. Süre bitmeden onu BUL ve DOKUN. Hata zaman kaybettirir!"},
 "xray.rolling": {
 	"pt_BR": "Contêiner passando pelo portal...", "en": "Container rolling through the portal...",
 	"es": "Contenedor pasando por el portal...", "fr": "Le conteneur passe le portique...",
@@ -2125,12 +2190,6 @@ const STRINGS := {
 	"pt_BR": "uma granada", "en": "a grenade", "es": "una granada", "fr": "une grenade",
 	"de": "eine Granate", "it": "una granata", "ru": "граната", "pl": "granat",
 	"tr": "bir el bombası"},
-"xray.legend.organic": {
-	"pt_BR": "ORGÂNICO", "en": "ORGANIC", "es": "ORGÁNICO", "fr": "ORGANIQUE",
-	"de": "ORGANISCH", "it": "ORGANICO", "ru": "ОРГАН.", "pl": "ORGAN.", "tr": "ORGANİK"},
-"xray.legend.metal": {
-	"pt_BR": "METAL", "en": "METAL", "es": "METAL", "fr": "MÉTAL", "de": "METALL",
-	"it": "METALLO", "ru": "МЕТАЛЛ", "pl": "METAL", "tr": "METAL"},
 "xray.panel.title": {
 	"pt_BR": "SCANNER RAIO-X", "en": "X-RAY SCANNER", "es": "ESCÁNER RX", "fr": "SCANNER RX",
 	"de": "RÖNTGENSCANNER", "it": "SCANNER RX", "ru": "РЕНТГЕН", "pl": "SKANER RTG",

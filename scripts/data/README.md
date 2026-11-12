@@ -1,5 +1,23 @@
 # Declarative game data
 
+## Ports
+
+`port_db.gd` is the table of ports and the one piece of global state that says
+which is on screen (`PortDB.active`, set by `SaveManager` before a save is
+applied). A port changes five things and nothing else: `mods` (multipliers on
+the shared machines, applied in `GameState.structure_cps`, plus a tap
+multiplier), `upgrades` (a local trunk, `branch: "porto"`), `names`,
+`palettes` (the liveries at its berth) and `theme` (sprite suffix and water
+colours). `PortDB.set_active` re-points `StructureDB`, `LandDB`, `UpgradeDB`
+and `ShipCatalog` through their `apply_port()`; at home each of those is
+byte-for-byte the table the balance runs were tuned on.
+
+Adding a port is one entry in `PORTS` and, if it has its own look, one block
+in `tools/sprites/gen_ports.py`. A port with `playable: false` is on the chart
+as "em breve" and cannot be bought or sailed to. The trade lanes (`RouteDB`)
+are still one table shared by every port.
+
+
 These files describe achievements, contracts, land, prestige, routes, ships,
 structures and upgrades. Catalog entries are the source of truth for IDs,
 unlock requirements, prices, labels and visual metadata.

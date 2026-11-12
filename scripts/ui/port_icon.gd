@@ -54,7 +54,8 @@ func show_item(key: String) -> void:
 	if not ResourceLoader.exists(path):
 		_sprite.texture = null
 		return
-	var base: Texture2D = load(path)
+	# The shop shows the machine as this port paints it.
+	var base: Texture2D = PortDB.tex(str(_art.sprite))
 	if _art.has("frame"):
 		var at := AtlasTexture.new()
 		at.atlas = base

@@ -30,6 +30,7 @@ func _run() -> void:
 
 	_test_the_catalogue_is_priced_in_the_port_s_own_income()
 	_test_a_charter_is_rare_refusable_and_expires()
+	_test_no_charter_while_another_event_has_the_port()
 	_test_an_accepted_charter_arrives_on_a_hull_nobody_can_roll()
 	_test_the_prize_and_the_forfeit_are_bounded()
 	_test_the_stack_game_can_be_won()
@@ -116,6 +117,36 @@ func _test_a_charter_is_rare_refusable_and_expires() -> void:
 		director.tick(1.0 / 30.0)
 	_expect(director.offer.is_empty(),
 		"an unanswered charter expires (%d offers seen)" % before)
+
+
+func _test_no_charter_while_another_event_has_the_port() -> void:
+	## One event at a time. While `can_run` says the port is busy — an X-ray
+	## inspection up, a minigame on, the tour walking — the director holds its
+	## clock and offers nothing; the first free moment brings the offer.
+	var director := SpecialCallDirector.new()
+	director.setup(null)
+	director.seed_new()
+	GameState.all_time_teus = 1e6
+	director.can_run = func() -> bool: return false
+	var offers: Array[Dictionary] = []
+	director.offer_ready.connect(func(offer: Dictionary) -> void: offers.append(offer))
+	for step in 6000:
+		director.tick(1.0 / 30.0)
+	_expect(offers.is_empty(), "no charter is offered while the port is busy")
+	director.can_run = func() -> bool: return true
+	var elapsed := 0.0
+	while offers.is_empty() and elapsed < 600.0:
+		director.tick(1.0 / 30.0)
+		elapsed += 1.0 / 30.0
+	_expect(offers.size() == 1,
+		"the offer comes the first free moment (%.0fs)" % elapsed)
+	# An offer already on the table still ages out on its own clock, whatever
+	# the gate says — a busy port never told the player to wait forever.
+	director.can_run = func() -> bool: return false
+	for step in int(SpecialCallDirector.OFFER_TIMEOUT * 31.0):
+		director.tick(1.0 / 30.0)
+	_expect(director.offer.is_empty(),
+		"an offer on the table ages out even while the port is busy")
 
 
 func _test_an_accepted_charter_arrives_on_a_hull_nobody_can_roll() -> void:

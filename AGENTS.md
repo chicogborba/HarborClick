@@ -56,6 +56,7 @@ changing cargo, gate, yard, ship, truck, or automation code.
 | World visuals or actors | `scripts/world/README.md` | phase4 ship/water, traffic, capture |
 | UI, title, responsive layout | `scripts/ui/README.md` | ui_p0, a11y, contrast, capture |
 | Save/profile/migration | `scripts/autoload/README.md` | core, backup, profile |
+| Ports (another country's terminal) | `scripts/data/README.md` | ports, profile, core |
 | Economy/data/progression | `scripts/economy/README.md` | phase3, route |
 | Generated art/audio | `tools/README.md` | regenerate, capture |
 

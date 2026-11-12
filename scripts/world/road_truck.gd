@@ -266,7 +266,7 @@ func _build_cab() -> void:
 	_cab.add_child(shadow)
 
 	var cab := Sprite2D.new()
-	cab.texture = preload("res://assets/sprites/veh_truck_cab.png")
+	cab.texture = PortDB.tex("veh_truck_cab")
 	cab.centered = true
 	cab.scale = Vector2(RIG_SCALE, RIG_SCALE)
 	var cab_outline := _outline_for(cab)

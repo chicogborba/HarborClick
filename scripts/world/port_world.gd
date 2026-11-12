@@ -292,6 +292,14 @@ func _build_water() -> void:
 	mat.set_shader_parameter("shore_x", PortLayout.WATER_X0)
 	mat.set_shader_parameter("water_span",
 		PortLayout.WORLD_W - PortLayout.WATER_X0)
+	# Every port's water is its own colour: the Pacific is not Santos bay and
+	# neither is the Yangtze estuary.
+	var sea := PortDB.water_colors()
+	if sea.size() == 4:
+		mat.set_shader_parameter("col_shallow", sea[0])
+		mat.set_shader_parameter("col_mid", sea[1])
+		mat.set_shader_parameter("col_deep", sea[2])
+		mat.set_shader_parameter("col_abyss", sea[3])
 	_water.material = mat
 	add_child(_water)
 	_water_quality = WaterQuality.choose(get_viewport().get_visible_rect().size)

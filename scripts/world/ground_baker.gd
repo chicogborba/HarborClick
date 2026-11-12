@@ -9,10 +9,13 @@ static var _cache: Dictionary = {}
 
 
 static func _img(name: String) -> Image:
-	if not _cache.has(name):
-		var t: Texture2D = load("res://assets/sprites/%s.png" % name)
-		_cache[name] = t.get_image()
-	return _cache[name]
+	# The active port's own ground when it has one (`PortDB.sprite_name`), so
+	# the cache is keyed by what was actually loaded.
+	var key := PortDB.sprite_name(name)
+	if not _cache.has(key):
+		var t: Texture2D = load("res://assets/sprites/%s.png" % key)
+		_cache[key] = t.get_image()
+	return _cache[key]
 
 
 static func bake(world_h: int, rail_owned: bool = true) -> ImageTexture:

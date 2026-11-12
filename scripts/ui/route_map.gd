@@ -38,6 +38,19 @@ var _refresh_timer := 0.0
 ## that it is not a per-frame relayout of the whole list.
 const REFRESH_INTERVAL := 0.25
 
+## Asks Main to sail to another open port. The board never changes scene itself.
+signal travel_requested(port: StringName)
+
+const FLAGS := preload("res://assets/sprites/ui_flags.png")
+const FLAG_SIZE := Vector2(16, 11)
+var _tab := "ports"
+var _tab_buttons: Dictionary = {}
+var _port_list: VBoxContainer
+var _port_cards: Dictionary = {}
+## Each open port's wallet, read once when the board opens — a chart that read
+## three files every refresh would be a chart that stuttered.
+var _port_wallets: Dictionary = {}
+
 
 func _ready() -> void:
 	layer = 12
@@ -74,6 +87,20 @@ func _ready() -> void:
 	_status.clip_text = true
 	column.add_child(_status)
 
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override(&"separation", 2)
+	tabs.custom_minimum_size.y = 22.0
+	column.add_child(tabs)
+	for spec: Array in [["ports", "ports.tab.ports"], ["routes", "ports.tab.routes"]]:
+		var key := Button.new()
+		key.name = "Tab_%s" % str(spec[0])
+		key.clip_text = true
+		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		UiTheme.apply_font(key, UiTheme.SIZE_SMALL)
+		key.pressed.connect(_select_tab.bind(str(spec[0])))
+		tabs.add_child(key)
+		_tab_buttons[str(spec[0])] = key
+
 	var sheet := UiTheme.panel(UiTheme.paper_style(4))
 	sheet.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(sheet)
@@ -90,10 +117,19 @@ func _ready() -> void:
 		int(UiTheme.SCROLL_WIDTH))
 	gutter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(gutter)
+	var lists := VBoxContainer.new()
+	lists.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gutter.add_child(lists)
+	_port_list = VBoxContainer.new()
+	_port_list.name = "Ports"
+	_port_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_port_list.add_theme_constant_override(&"separation", 4)
+	lists.add_child(_port_list)
 	_list = VBoxContainer.new()
+	_list.name = "Lanes"
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override(&"separation", 4)
-	gutter.add_child(_list)
+	lists.add_child(_list)
 
 	# Marks the board stale rather than rebuilding it. `teus_changed` is emitted
 	# every frame the port earns, and answering it directly is what made this
@@ -110,8 +146,11 @@ func _ready() -> void:
 	# the sheet's *width* comes from the safe area alone, so re-laying out cannot
 	# change how the labels wrap.
 	_list.minimum_size_changed.connect(_layout)
+	_port_list.minimum_size_changed.connect(_layout)
 	_apply_language()
+	_build_port_cards()
 	_rebuild_cards()
+	_select_tab(_tab)
 	_refresh()
 	_layout()
 
@@ -124,6 +163,8 @@ func _apply_language() -> void:
 	## The chrome. Everything inside a card is written by `_refresh`, which runs
 	## on the next tick anyway, so this only has to cover what a refresh does not
 	## touch.
+	for key: String in _tab_buttons:
+		(_tab_buttons[key] as Button).text = Loc.t("ports.tab.%s" % key)
 	_title.text = Loc.t("routes.title")
 	UiTheme.fit_title(_title)
 	UiTheme.describe(_close_button, Loc.t("routes.close_name"))
@@ -131,6 +172,7 @@ func _apply_language() -> void:
 
 
 func open() -> void:
+	_read_port_wallets()
 	_open = true
 	_focus_return = get_viewport().gui_get_focus_owner()
 	_refresh_timer = 0.0
@@ -273,12 +315,19 @@ func _refresh() -> void:
 	if _cards.size() != RouteDB.ITEMS.size():
 		_rebuild_cards()
 	_chart.set_routes(GameState.routes)
+	_refresh_ports()
 	var owned := RouteDB.owned(GameState.routes)
 	var next := RouteDB.next_purchase(GameState.routes)
-	_status.text = Loc.t("routes.status", {
-		"count": Loc.tn("routes.count", owned.size()),
-		"rate": "%.2f" % RouteDB.reward_multiplier(GameState.routes),
-	})
+	if _tab == "ports":
+		var count := SaveManager.open_ports().size()
+		_status.text = Loc.t("ports.network.none") if count <= 1 \
+			else Loc.t("ports.network", {"count": str(count),
+				"pct": str(int(round((PortDB.network_multiplier() - 1.0) * 100.0)))})
+	else:
+		_status.text = Loc.t("routes.status", {
+			"count": Loc.tn("routes.count", owned.size()),
+			"rate": "%.2f" % RouteDB.reward_multiplier(GameState.routes),
+		})
 
 	var previous_name := ""
 	for index in RouteDB.ITEMS.size():
@@ -356,6 +405,158 @@ func _apply_card(card: PanelContainer, route: Dictionary,
 			Loc.t("routes.buy_hint", {"cost": GameState.fmt(cost)}))
 
 
+# --------------------------------------------------------------------- ports
+
+func _select_tab(tab: String) -> void:
+	_tab = tab
+	for key: String in _tab_buttons:
+		UiTheme.style_tab(_tab_buttons[key], key == tab)
+	_port_list.visible = tab == "ports"
+	_list.visible = tab == "routes"
+	if _open:
+		AudioManager.play_sfx("ui_tab")
+	_refresh()
+	_layout()
+
+
+func _flag(index: int) -> AtlasTexture:
+	var atlas := AtlasTexture.new()
+	atlas.atlas = FLAGS
+	atlas.region = Rect2(Vector2(index * FLAG_SIZE.x, 0), FLAG_SIZE)
+	return atlas
+
+
+func _build_port_cards() -> void:
+	## One card per port on the chart, built once. Everything on it that can
+	## change is rewritten in place by `_refresh_ports` — the same rule the
+	## lanes follow, for the same reason: this board refreshes while it earns.
+	for port in PortDB.PORTS:
+		var id := StringName(port.id)
+		var card := PanelContainer.new()
+		card.name = "Port_%s" % String(id)
+		card.custom_minimum_size.y = 50.0
+		var row := HBoxContainer.new()
+		row.name = "Row"
+		row.add_theme_constant_override(&"separation", 6)
+		card.add_child(row)
+		var flag := TextureRect.new()
+		flag.name = "Flag"
+		flag.texture = _flag(int(port.get("flag", 0)))
+		flag.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		flag.custom_minimum_size = FLAG_SIZE * 2.0
+		flag.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		flag.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		flag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		flag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(flag)
+		var text := VBoxContainer.new()
+		text.name = "Text"
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		text.add_theme_constant_override(&"separation", 1)
+		text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(text)
+		var title := _clipped("%s - %s" % [str(port.name), str(port.country)],
+			UiTheme.SIZE_SMALL, UiTheme.INK)
+		title.name = "Name"
+		text.add_child(title)
+		var perk := UiTheme.label(str(port.get("perk", "")), UiTheme.SIZE_SMALL,
+			UiTheme.INK_SOFT)
+		perk.name = "Perk"
+		perk.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		perk.custom_minimum_size.x = 0.0
+		text.add_child(perk)
+		var state := _clipped("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+		state.name = "State"
+		text.add_child(state)
+		var go := UiTheme.button("", &"amber", UiTheme.SIZE_SMALL)
+		go.name = "Go"
+		go.custom_minimum_size = Vector2(70, 30)
+		go.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		go.pressed.connect(_on_port_key.bind(id))
+		row.add_child(go)
+		_port_cards[id] = card
+		_port_list.add_child(card)
+
+
+func _refresh_ports() -> void:
+	for port in PortDB.PORTS:
+		var id := StringName(port.id)
+		var card: PanelContainer = _port_cards.get(id)
+		if card == null or not is_instance_valid(card):
+			continue
+		var playable := bool(port.get("playable", false))
+		var here := id == PortDB.active
+		var open := playable and SaveManager.port_open(id)
+		var cost := float(port.get("cost", 0.0))
+		var affordable := playable and not open and GameState.can_afford(cost)
+		UiTheme.apply_panel(card, UiTheme.card_style(
+			&"done" if here else (&"ready" if affordable else
+				(&"normal" if playable else &"locked"))))
+		(card.get_node(^"Row/Flag") as TextureRect).modulate = \
+			Color(1, 1, 1, 1.0 if playable else 0.55)
+		var state := card.get_node(^"Row/Text/State") as Label
+		var go := card.get_node(^"Row/Go") as Button
+		var show_key := playable and not here
+		go.visible = show_key
+		go.disabled = not show_key
+		go.focus_mode = Control.FOCUS_ALL if show_key else Control.FOCUS_NONE
+		if not playable:
+			state.text = Loc.t("ports.soon")
+			state.label_settings.font_color = UiTheme.INK_SOFT
+		elif here:
+			state.text = Loc.t("ports.here")
+			state.label_settings.font_color = UiTheme.TEAL_DEEP
+		elif open:
+			state.text = Loc.t("ports.wallet", {"amount": GameState.fmt(
+				float(_port_wallets[id]))}) if _port_wallets.has(id) \
+				else Loc.t("ports.new")
+			state.label_settings.font_color = UiTheme.TEAL_DEEP
+			go.text = Loc.t("ports.travel")
+			UiTheme.style_button(go, &"amber")
+			UiTheme.describe(go, Loc.t("ports.travel_name", {"name": str(port.name)}))
+		else:
+			state.text = str(port.get("tagline", "")) if affordable \
+				else Loc.t("ports.missing",
+					{"amount": GameState.fmt(cost - GameState.teus)})
+			state.label_settings.font_color = UiTheme.AMBER_DEEP
+			go.text = GameState.fmt(cost)
+			UiTheme.style_button(go, &"amber" if affordable else &"off")
+			UiTheme.describe(go, Loc.t("ports.open_name", {"name": str(port.name)}))
+	_chart.queue_redraw()
+
+
+func _read_port_wallets() -> void:
+	_port_wallets.clear()
+	if SaveManager.active_slot <= 0:
+		return
+	for id: StringName in SaveManager.open_ports():
+		if id == PortDB.active:
+			continue
+		var summary := SaveManager.port_summary(SaveManager.active_slot, id)
+		if bool(summary.get("exists", false)):
+			_port_wallets[id] = float(summary.get("teus", 0.0))
+
+
+func _on_port_key(id: StringName) -> void:
+	if id == PortDB.active or not PortDB.is_playable(id):
+		return
+	if SaveManager.port_open(id):
+		AudioManager.play_sfx("tap")
+		travel_requested.emit(id)
+		return
+	if not SaveManager.buy_port(id):
+		AudioManager.play_sfx("deny")
+		return
+	AudioManager.play_sfx("build")
+	EventBus.notification_requested.emit({
+		"id": "port_%s" % String(id), "kind": &"unlock", "priority": 2,
+		"text": Loc.t("ports.opened",
+			{"name": str(PortDB.get_port(id).get("name", ""))}),
+	})
+	_refresh()
+
+
 func _clipped(text: String, size: int, color: Color) -> Label:
 	var label := UiTheme.label(text, size, color)
 	label.clip_text = true
@@ -420,8 +621,9 @@ func _layout() -> void:
 		# The lane list lives in a ScrollContainer, whose minimum height is
 		# deliberately tiny — so the column's own minimum says nothing about how
 		# many lanes there are. Its content has to be added by hand.
+		var shown: Control = _port_list if _tab == "ports" else _list
 		_sheet.size.y = clampf(_column.get_combined_minimum_size().y
-			+ _list.get_combined_minimum_size().y + 22.0, 220.0, available)
+			+ shown.get_combined_minimum_size().y + 22.0, 220.0, available)
 	_sheet.position = Vector2(safe.position.x + 6.0,
 		safe.end.y - _sheet.size.y - 6.0)
 	_backdrop.visible = _open
@@ -441,11 +643,11 @@ class RouteChart extends Control:
 	## whole multiple that fits and letterboxes the remainder.
 
 	const MAP := preload("res://assets/sprites/map_world.png")
-	const MAP_W := 96
-	const MAP_H := 48
+	const MAP_W := 288
+	const MAP_H := 144
 	## Three whole pixels per map pixel is as tall as the chart may get before it
 	## starts eating the lane list under it.
-	const MAX_SCALE := 3
+	const MAX_SCALE := 1
 
 	var _routes: Dictionary = {}
 	## Where the map actually landed inside the control, so a lane pinned at
@@ -454,6 +656,10 @@ class RouteChart extends Control:
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# The map is 288 wide and a small phone's board is a few pixels
+		# narrower: it loses a sliver of open Pacific at each edge instead of
+		# being resampled.
+		clip_contents = true
 
 	func set_routes(routes: Dictionary) -> void:
 		_routes = routes.duplicate()
@@ -506,6 +712,34 @@ class RouteChart extends Control:
 		draw_rect(Rect2(home - Vector2(3, 3), Vector2(7, 7)), Color8(22, 54, 66))
 		draw_rect(Rect2(home - Vector2(2, 2), Vector2(5, 5)), Color8(255, 112, 62))
 		draw_rect(Rect2(home - Vector2(1, 1), Vector2(3, 3)), Color8(255, 214, 170))
+		# The ports, over everything: where the operator is, where they could
+		# go, and what is only promised.
+		for port in PortDB.PORTS:
+			var at := _pixel(port.chart)
+			var id := StringName(port.id)
+			var playable := bool(port.get("playable", false))
+			var ink := Color8(16, 30, 44)
+			if id == PortDB.active:
+				_diamond(at, 6, ink)
+				_diamond(at, 5, Color8(255, 208, 80))
+				_diamond(at, 2, Color8(255, 250, 220))
+			elif playable and SaveManager.port_open(id):
+				_diamond(at, 5, ink)
+				_diamond(at, 4, Color8(104, 214, 190))
+				_diamond(at, 1, Color8(236, 255, 248))
+			elif playable:
+				_diamond(at, 5, ink)
+				_diamond(at, 4, Color8(246, 238, 214))
+				_diamond(at, 2, ink)
+			else:
+				_diamond(at, 4, ink)
+				_diamond(at, 3, Color8(150, 162, 176))
+
+	func _diamond(at: Vector2, radius: int, color: Color) -> void:
+		## A filled pixel diamond: the one pin shape no lane marker uses.
+		for dy in range(-radius, radius + 1):
+			var half := radius - absi(dy)
+			draw_rect(Rect2(at.x - half, at.y + dy, half * 2 + 1, 1), color)
 
 	func _pixel(point: Vector2) -> Vector2:
 		## 0..1 chart space to a pixel inside the blitted map, not inside the

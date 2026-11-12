@@ -328,31 +328,29 @@ func _test_board_plays_a_scan() -> void:
 	board._set_phase(XrayMinigame.Phase.SCAN)
 	board._img_rect = Rect2(Vector2(10, 10), Vector2(XrayMinigame.IMG) * 1.5)
 	var target: Dictionary = board.game.contraband()
-	# The loupe reveals it: through one of the two filters, the pixels where it
-	# lies are its own false colour, not the ghost of the bales.
-	var revealed := 0
+	# The picture is the whole game: the contraband is drawn on the film in the
+	# sheet's own false colour — visible, not something the player has to
+	# *build a tool* to reveal.
+	var img := board._base_tex.get_image()
+	_expect(img.get_size() == XrayMinigame.IMG, "the scan image is pixel-sized")
 	var centre := XrayMinigame.INNER.position + (target.pos as Vector2) * XrayMinigame.INNER.size
-	for layer: ImageTexture in board._filter_tex:
-		var img := layer.get_image()
-		for dy in range(-6, 7):
-			for dx in range(-6, 7):
-				var c := img.get_pixelv(Vector2i(centre) + Vector2i(dx, dy))
-				if absf(c.r - c.b) > 0.25:
-					revealed += 1
-	_expect(revealed > 6, "the contraband shows through the loupe's filters")
-	_expect(board._base_tex.get_image().get_size() == XrayMinigame.IMG, "the scan image is pixel-sized")
+	var painted := 0
+	var film_px := img.get_pixelv(Vector2i(2, 2))
+	for dy in range(-6, 7):
+		for dx in range(-6, 7):
+			var c := img.get_pixelv(Vector2i(centre) + Vector2i(dx, dy))
+			if absf(c.r - film_px.r) > 0.12 or absf(c.b - film_px.b) > 0.12:
+				painted += 1
+	_expect(painted >= 40, "the contraband is plainly drawn on the film (%d px)" % painted)
 	var legal: Dictionary = {}
 	for item: Dictionary in board.game.items:
 		if not bool(item.contraband):
 			legal = item
-	board._move_lens(board._to_screen(legal.pos))
-	board._on_seize()
-	_expect(board.game.mistakes == 1 and not board.game.over, "seizing an ordinary item costs a mistake")
-	board._move_lens(board._to_screen(target.pos))
-	_expect(board._to_norm(board._lens_centre()).distance_to(target.pos) < 0.01,
-		"screen and rule coordinates round-trip")
-	board._on_seize()
-	_expect(board.game.victory, "seizing the contraband under the crosshair wins")
+	board._seize_at(board._to_screen(legal.pos))
+	_expect(board.game.mistakes == 1 and not board.game.over,
+		"tapping an ordinary crate costs a mistake")
+	board._seize_at(board._to_screen(target.pos))
+	_expect(board.game.victory, "tapping the contraband wins")
 	var deadline := Time.get_ticks_msec() + 4000
 	while results.is_empty() and Time.get_ticks_msec() < deadline:
 		await get_tree().process_frame

@@ -249,7 +249,10 @@ func _test_safe_area_reaches_primary_ui() -> void:
 	_expect(_rect_inside(safe, bell._button.get_global_rect()),
 		"the notice bell stays inside an injected mobile safe area")
 	bell.open_log()
-	await get_tree().process_frame
+	# The log rises from under the counter now, so its rect only rests once
+	# the rise is over — pinning a frame after the open would measure a board
+	# that is still travelling.
+	await get_tree().create_timer(0.4).timeout
 	_expect(_rect_inside(safe, bell._board.get_global_rect()),
 		"the notice log stays inside an injected mobile safe area")
 	_expect(bell._board.get_global_rect().position.y >= safe.position.y + Hud.BAR_H,

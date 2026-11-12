@@ -6,49 +6,56 @@ extends MinigameBoard
 ## red, the beam lit, the scanner beeping); the monitor boots into the Creatus
 ## Security e VWI software; then the scan is up and the clock runs.
 ##
-## The scan is drawn like the real thing: a grey transmission image of the
-## whole trailer seen from the side — chassis, wheels, the container's ribs —
-## with the cargo a dark, lumpy mass of bales filling it. Whatever is hidden in
-## that mass is nearly invisible to the naked eye. The player's tool is the
-## **loupe**: drag it over the image and it shows that spot magnified, through
-## a material filter — ORGANIC (drugs, wood, cloth) or METAL (weapons,
-## electronics) — with the bales stripped away and the goods in false colour.
-## Put the crosshair on the illegal one and press SEIZE. Seizing the wrong
-## thing costs seconds. The image is built pixel by pixel at a low resolution
-## and drawn with nearest filtering, so it reads as pixel art, not a photo.
+## The scan is one picture and one verb. The picture is the container in false
+## colour — a real X-ray's orange organics, blue metals, green glass — with
+## every crate drawn big, outlined and grounded on a shadow, each inside its
+## own cell so no two blur together. The verb is TAP: one crate in the picture
+## is contraband (a pistol, a rifle, taped bricks, a grenade) and the shapes
+## shaped like one (the hair dryer, the drill) are there to make the player
+## look. There is no loupe and no filter: the only hidden thing is *which*
+## crate, never *where* — the skill is recognising the shape, which is exactly
+## the real scanner operator's skill. A wrong tap costs seconds and the same
+## spot costs nothing twice.
 ##
-## The rules are `XrayScan`; this file builds the images, draws and reads input.
+## The image is built pixel by pixel at a low resolution and drawn with nearest
+## filtering, so it reads as pixel art, not a photo.
+##
+## The rules are `XrayScan`; this file builds the image, draws and reads input.
 
 const ITEMS_TEX := preload("res://assets/sprites/ui_xray_items.png")
 const PORTAL := preload("res://assets/sprites/ui_xray_portal.png")
 const CONTAINERS := preload("res://assets/sprites/container_sheet.png")
 const BRAND := "CREATUS SECURITY e VWI"
-const ROLL_TIME := 2.4
-const BOOT_TIME := 1.1
-## The scan image, in its own pixels: the whole trailer from the side.
-const IMG := Vector2i(180, 84)
-## The container's inside, and the rect item centres live in (inset half a
-## sprite, so an item jittered into a corner stays inside the walls).
-const INTERIOR := Rect2i(12, 10, 154, 47)
-const INNER := Rect2(20.0, 18.0, 138.0, 31.0)
-## The loupe: its radius on screen, how much it magnifies, how far above the
-## finger it floats so the finger never covers what it shows.
-const LENS_R := 36.0
-const LENS_ZOOM := 2.2
-const LENS_LIFT := 46.0
+const ROLL_TIME := 1.8
+const BOOT_TIME := 1.0
+## The scan image, in its own pixels: the container from the side, doors open.
+## INNER is the opening the crates show through, and item centres live there
+## normalised by `XrayScan` (0..1 over `INNER`). The drawing clamps each crate
+## into its own cell so two never touch, whatever the deal jittered.
+const IMG := Vector2i(240, 116)
+const INNER := Rect2(14.0, 14.0, 212.0, 88.0)
+## A crate is the sheet's 16px sprite at 2x, so 32px in image pixels.
+const SPRITE := 16
+const SPRITE_SCALE := 2
+## The reticle: a chunky ring that follows finger, mouse or arrow keys. It is
+## a pointer, not a tool — the centre cross is where Space/Enter seizes.
+const RETICLE_R := 22.0
 const BEZEL := Color8(28, 30, 40)
 const BAR := Color8(18, 62, 70)
+const FILM := Color(0.94, 0.97, 0.95)
+const STEEL_DARK := 0.40
+const STEEL_RIB := 0.52
+## The steel band around the opening, in pixels.
+const BAND := 6
 
 enum Phase { ROLL, BOOT, SCAN }
-enum Filter { ORGANIC, METAL }
 
 var game: XrayScan
 var phase := Phase.ROLL
-var filter := Filter.METAL
 var _phase_t := 0.0
 var _screen: Control
 var _img_rect := Rect2()
-var _lens := Vector2(-1, -1)        # centre, in screen coordinates
+var _reticle := Vector2(-1, -1)   # where the finger last pointed, in screen px
 var _marks: Array[Dictionary] = []
 var _beep_t := 0.0
 var _scan_no := 1
@@ -56,9 +63,6 @@ var _found_t := 0.0
 var _portal_atlas: Array[AtlasTexture] = []
 var _box: AtlasTexture
 var _base_tex: ImageTexture
-var _filter_tex: Array[ImageTexture] = []
-var _filter_keys: Array[Button] = []
-var _seize: Button
 
 
 func _build_field(column: VBoxContainer) -> void:
@@ -74,6 +78,8 @@ func _build_field(column: VBoxContainer) -> void:
 	_screen.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_screen.gui_input.connect(_on_screen_input)
 	_screen.draw.connect(_draw_screen)
+	# A screen the instructions have to explain away is an instruction lost:
+	# the accessibility description says the whole rule, verb first.
 	UiTheme.describe(_screen, BRAND, Loc.t("xray.hint"))
 	bezel.add_child(_screen)
 	for index in 2:
@@ -86,30 +92,6 @@ func _build_field(column: VBoxContainer) -> void:
 	_box.region = Rect2(2 * 24, 0, 24, 13)
 
 
-func _build_controls(column: VBoxContainer) -> void:
-	## The console under the monitor: the loupe's two filters and SEIZE.
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 4)
-	column.add_child(row)
-	for index in 2:
-		var key := UiTheme.segment(Loc.t("xray.legend.organic" if index == Filter.ORGANIC
-			else "xray.legend.metal"), index == filter)
-		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		key.custom_minimum_size.y = UiTheme.TOUCH_MIN
-		key.clip_text = true
-		key.pressed.connect(_set_filter.bind(index))
-		row.add_child(key)
-		_filter_keys.append(key)
-	# Steel, not amber: amber is the lit filter, and the two must never be
-	# mistaken for each other.
-	_seize = UiTheme.button(Loc.t("xray.mark"), &"steel", UiTheme.SIZE_SMALL)
-	_seize.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_seize.custom_minimum_size.y = UiTheme.TOUCH_MIN
-	_seize.clip_text = true
-	_seize.pressed.connect(_on_seize)
-	row.add_child(_seize)
-
-
 func _begin(offer: Dictionary) -> void:
 	game = XrayScan.new()
 	game.setup(int(offer.get("seed", 1)), int(offer.get("level", 0)))
@@ -117,7 +99,7 @@ func _begin(offer: Dictionary) -> void:
 	_marks.clear()
 	_found_t = 0.0
 	_beep_t = 0.0
-	_lens = Vector2(-1, -1)
+	_reticle = Vector2(-1, -1)
 	_build_images(int(offer.get("seed", 1)))
 	# A retry after an ad goes straight back to the scan: the box already went
 	# through the portal once.
@@ -130,11 +112,6 @@ func _begin(offer: Dictionary) -> void:
 func _set_phase(next: Phase) -> void:
 	phase = next
 	_phase_t = 0.0
-	var scanning := phase == Phase.SCAN
-	for key in _filter_keys:
-		key.disabled = not scanning
-	if _seize != null:
-		_seize.disabled = not scanning
 	match phase:
 		Phase.ROLL:
 			_hint.text = Loc.t("xray.rolling")
@@ -144,14 +121,6 @@ func _set_phase(next: Phase) -> void:
 		Phase.SCAN:
 			_hint.text = Loc.t("xray.hint")
 			AudioManager.play_sfx("click", 0.04, -4.0)
-
-
-func _set_filter(which: int) -> void:
-	filter = which as Filter
-	for index in _filter_keys.size():
-		UiTheme.style_segment(_filter_keys[index], index == which)
-	AudioManager.play_sfx("ui_tab", 0.03, -4.0)
-	_screen.queue_redraw()
 
 
 func _tick(delta: float) -> void:
@@ -196,7 +165,7 @@ func _on_screen_input(event: InputEvent) -> void:
 		press = true
 	elif drag != null:
 		at = drag.position
-	elif motion != null and (motion.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
+	elif motion != null:
 		at = motion.position
 	else:
 		return
@@ -208,27 +177,16 @@ func _on_screen_input(event: InputEvent) -> void:
 		if press:
 			_set_phase(Phase.SCAN)
 		return
-	# The loupe floats above the finger, inside the image.
-	_move_lens(at - Vector2(0.0, LENS_LIFT))
-
-
-func _move_lens(to: Vector2) -> void:
-	if _img_rect.size.x <= 0.0:
-		return
-	_lens = Vector2(clampf(to.x, _img_rect.position.x, _img_rect.end.x),
-		clampf(to.y, _img_rect.position.y, _img_rect.end.y))
-	_screen.queue_redraw()
-
-
-func _on_seize() -> void:
-	if game == null or _closing or phase != Phase.SCAN:
-		return
-	_seize_at(_lens_centre())
+	# One verb. A press seizes where the finger pressed; a drag only points,
+	# which is enough rehearsal for the press never to feel like a guess.
+	_reticle = _clamp_into_image(at)
+	if press:
+		_seize_at(at)
 
 
 func _seize_at(at: Vector2) -> void:
-	## Seize whatever is under `at` (screen coordinates).
-	if _img_rect.size.x <= 0.0:
+	## Tap the picture at `at`, in screen coordinates.
+	if game == null or _closing or phase != Phase.SCAN or _img_rect.size.x <= 0.0:
 		return
 	var result := game.tap(_to_norm(at))
 	if bool(result.hit):
@@ -245,8 +203,8 @@ func _seize_at(at: Vector2) -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	## Space/Enter skips the intro, then seizes; arrows walk the loupe; 1/2 pick
-	## the filter. Nothing here is only reachable by pointing.
+	## Space/Enter taps where the reticle is; arrows walk the reticle. Nothing
+	## here is only reachable by pointing.
 	if not visible or _closing or game == null:
 		return
 	var key := event as InputEventKey
@@ -260,11 +218,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			if phase != Phase.SCAN:
 				_set_phase(Phase.SCAN)
 			else:
-				_on_seize()
-		KEY_1:
-			_set_filter(Filter.ORGANIC)
-		KEY_2:
-			_set_filter(Filter.METAL)
+				_seize_at(_reticle_point())
 		KEY_LEFT, KEY_A:
 			step = Vector2(-8, 0)
 		KEY_RIGHT, KEY_D:
@@ -276,24 +230,40 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		_:
 			return
 	if step != Vector2.ZERO and phase == Phase.SCAN:
-		_move_lens(_lens_centre() + step)
+		_reticle = _clamp_into_image(_reticle_point() + step * _image_scale())
 	get_viewport().set_input_as_handled()
+	_screen.queue_redraw()
 
 
-func _lens_centre() -> Vector2:
-	return _lens if _lens.x >= 0.0 else _img_rect.get_center()
+func _reticle_point() -> Vector2:
+	## Where the reticle is on screen: where the finger last was, or the middle
+	## of the picture until there is one.
+	if _reticle.x >= 0.0:
+		return _reticle
+	return _img_rect.get_center()
+
+
+func _clamp_into_image(at: Vector2) -> Vector2:
+	if _img_rect.size.x <= 0.0:
+		return Vector2(-1, -1)
+	var inner := _img_rect.grow(-_image_scale() * 4.0)
+	return Vector2(clampf(at.x, inner.position.x, inner.end.x),
+		clampf(at.y, inner.position.y, inner.end.y))
+
+
+func _image_scale() -> float:
+	## Screen pixels per image pixel.
+	return _img_rect.size.x / float(IMG.x) if _img_rect.size.x > 0.0 else 1.0
 
 
 func _to_norm(at: Vector2) -> Vector2:
 	## Screen point -> the rules' normalised coordinates (0..1 over `INNER`).
-	var scale := _img_rect.size.x / float(IMG.x)
-	var img := (at - _img_rect.position) / scale
+	var img := (at - _img_rect.position) / _image_scale()
 	return (img - INNER.position) / INNER.size
 
 
 func _to_screen(norm: Vector2) -> Vector2:
-	var scale := _img_rect.size.x / float(IMG.x)
-	return _img_rect.position + (INNER.position + norm * INNER.size) * scale
+	return _img_rect.position + (INNER.position + norm * INNER.size) * _image_scale()
 
 
 func _refresh() -> void:
@@ -331,143 +301,153 @@ func _closing_hint() -> String:
 	return Loc.t("xray.missed", {"item": Loc.t("xray.item." + id)})
 
 
-# ----------------------------------------------------------- the scan images
+# --------------------------------------------------------------- scan painting
 
 func _build_images(scan_seed: int) -> void:
-	## Three images of the same trailer: what the monitor shows (grey, cargo
-	## dark and lumpy, the goods barely there) and what the loupe shows through
-	## each filter (bales stripped to a ghost, that material's goods in colour).
+	## The picture: a pale film, the container's steel band, and the crates —
+	## each the sheet's own false-colour sprite at 2x, grounded on a shadow,
+	## outlined in navy and clamped inside its own cell so no two touch.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = scan_seed * 31 + 5
 	var base := Image.create_empty(IMG.x, IMG.y, false, Image.FORMAT_RGBA8)
-	var density := PackedFloat32Array()
-	density.resize(IMG.x * IMG.y)
-	# Film: near-white with a little sensor noise.
+	# The film: near-white with a whisper of sensor noise, quantised so it is
+	# pixel art and not a gradient.
 	for y in IMG.y:
 		for x in IMG.x:
-			density[y * IMG.x + x] = rng.randf_range(0.0, 0.04)
-	_paint_trailer(density)
-	var cargo := PackedFloat32Array()
-	cargo.resize(IMG.x * IMG.y)
-	_paint_bales(cargo, rng)
-	# What the goods add, per material, so the filters can pick them apart.
-	var organic := Image.create_empty(IMG.x, IMG.y, false, Image.FORMAT_RGBA8)
-	var metal := Image.create_empty(IMG.x, IMG.y, false, Image.FORMAT_RGBA8)
+			var v := floorf((1.0 + rng.randf_range(-0.02, 0.02)) * 16.0) / 16.0
+			base.set_pixel(x, y, Color(FILM.r * v, FILM.g * v, FILM.b * v))
+	_paint_shell(base)
 	var sheet := ITEMS_TEX.get_image()
 	if sheet.is_compressed():
 		sheet.decompress()
 	for item: Dictionary in game.items:
-		var centre := INNER.position + (item.pos as Vector2) * INNER.size
-		var origin := Vector2i(roundi(centre.x) - 8, roundi(centre.y) - 8)
-		var flip := bool(item.flip)
-		for sy in 16:
-			for sx in 16:
-				var c := sheet.get_pixel(int(item.frame) * 16 + (15 - sx if flip else sx), sy)
-				if c.a < 0.5:
-					continue
-				var p := origin + Vector2i(sx, sy)
-				if p.x < 0 or p.y < 0 or p.x >= IMG.x or p.y >= IMG.y:
-					continue
-				var is_organic := c.r > c.b
-				# Metal is dense: it reads a little darker even to the naked eye.
-				var i := p.y * IMG.x + p.x
-				density[i] += 0.30 if not is_organic else 0.10
-				(organic if is_organic else metal).set_pixel(p.x, p.y, c)
-	var filtered: Array[Image] = []
-	for layer: Image in [organic, metal]:
-		var out := Image.create_empty(IMG.x, IMG.y, false, Image.FORMAT_RGBA8)
-		for y in IMG.y:
-			for x in IMG.x:
-				var i := y * IMG.x + x
-				# The ghost: trailer and bales at a fifth of their weight.
-				var g := 1.0 - clampf(density[i] * 0.35 + cargo[i] * 0.18, 0.0, 1.0)
-				var film := Color(0.90 * g, 0.94 * g, 0.88 * g)
-				var hit := layer.get_pixel(x, y)
-				out.set_pixel(x, y, hit if hit.a > 0.5 else film)
-		filtered.append(out)
+		_paint_item(base, sheet, item)
+	_base_tex = ImageTexture.create_from_image(base)
+
+
+func _paint_shell(img: Image) -> void:
+	## The container seen end-on with its doors open: a corrugated steel band
+	## around the opening, corner castings, and the floor the cargo sits on —
+	## a dark edge so the pale film does not swallow the picture.
+	var opening := Rect2i(int(INNER.position.x), int(INNER.position.y),
+		int(INNER.size.x), int(INNER.size.y))
+	var band := opening.grow(BAND)
 	for y in IMG.y:
 		for x in IMG.x:
-			var i := y * IMG.x + x
-			var v := 1.0 - clampf(density[i] + cargo[i], 0.0, 1.0)
-			# Quantised to a few greys: pixel art, not a gradient.
-			v = floorf(v * 12.0) / 12.0
-			base.set_pixel(x, y, Color(v, v, v * 1.02))
-	_base_tex = ImageTexture.create_from_image(base)
-	_filter_tex = [ImageTexture.create_from_image(filtered[0]),
-		ImageTexture.create_from_image(filtered[1])]
+			var depth := _band_depth(Vector2i(x, y), opening, band)
+			if depth <= 0:
+				continue
+			# depth 1 is the opening's own edge, BAND the far side: the steel
+			# darkens as it reaches the film's rim, and every 8th column is a
+			# corrugation rib.
+			var edge := 1.0 - depth / float(BAND + 1)
+			var shade := lerpf(STEEL_RIB, STEEL_DARK, 0.55 + 0.45 * edge)
+			if depth < BAND and (x % 8 == 0 or x % 8 == 1):
+				shade *= 0.66
+			img.set_pixel(x, y,
+				Color(shade * 0.96, shade * 1.0, shade * 1.04))
+	# Corner castings: the posts the crane lifts the whole container by.
+	for corner: Vector2i in [
+			opening.position - Vector2i(BAND, BAND),
+			Vector2i(opening.end.x, opening.position.y - BAND),
+			Vector2i(opening.position.x - BAND, opening.end.y),
+			Vector2i(opening.end.x, opening.end.y)]:
+		for dy in BAND:
+			for dx in BAND:
+				var q := corner + Vector2i(dx, dy)
+				if q.x < 0 or q.y < 0 or q.x >= IMG.x or q.y >= IMG.y:
+					continue
+				img.set_pixel(q.x, q.y,
+					Color(STEEL_DARK * 0.72, STEEL_DARK * 0.76, STEEL_DARK * 0.8))
+	# The floor: a rail under the crates, so nothing floats.
+	for x in range(opening.position.x + 1, opening.end.x - 1):
+		img.set_pixel(x, opening.end.y - 1, Color(0.74, 0.78, 0.76))
+		img.set_pixel(x, opening.end.y - 2, Color(0.82, 0.86, 0.84))
 
 
-func _paint_trailer(d: PackedFloat32Array) -> void:
-	## The steel: container walls and ribs, the chassis, the wheels, the cab.
-	var box := Rect2i(8, 6, 162, 55)
-	for x in range(box.position.x, box.end.x):
-		_add(d, x, box.position.y, 0.55)
-		_add(d, x, box.position.y + 1, 0.35)
-		_add(d, x, box.end.y - 1, 0.6)
-		_add(d, x, box.end.y - 2, 0.4)
-	for y in range(box.position.y, box.end.y):
-		for k in 3:
-			_add(d, box.position.x + k, y, 0.55 - k * 0.12)
-			_add(d, box.end.x - 1 - k, y, 0.55 - k * 0.12)
-	# Corrugation ribs, faint, and the cross-members every so often.
-	for x in range(box.position.x + 6, box.end.x - 4, 6):
-		for y in range(box.position.y + 2, box.end.y - 2):
-			_add(d, x, y, 0.06)
-	for x in range(box.position.x + 20, box.end.x - 10, 38):
-		for y in range(box.position.y + 2, box.end.y - 2):
-			_add(d, x, y, 0.12)
-	# The chassis beam under the box, and its gear.
-	for x in range(6, 172):
-		for y in range(61, 65):
-			_add(d, x, y, 0.45 if y == 61 or y == 64 else 0.22)
-	for x in range(80, 96):
-		for y in range(65, 70):
-			_add(d, x, y, 0.3)
-	# Wheels: dark rings with a hub, three axles at the back, two under the cab.
-	for cx: int in [30, 50, 70, 146, 164]:
-		for y in range(64, IMG.y):
-			for x in range(cx - 10, cx + 11):
-				var r := Vector2(x - cx, y - 74).length()
-				if r <= 9.5 and r >= 6.5:
-					_add(d, x, y, 0.75)
-				elif r < 2.5:
-					_add(d, x, y, 0.6)
-				elif r < 6.5:
-					_add(d, x, y, 0.12)
-	# The tractor's nose at the right edge.
-	for x in range(171, IMG.x):
-		for y in range(34, 66):
-			_add(d, x, y, 0.4 if x == 171 or y == 34 else 0.18)
+func _band_depth(p: Vector2i, opening: Rect2i, band: Rect2i) -> int:
+	## How deep inside the steel band a point is: 0 outside the band, 1 at the
+	## opening's own edge, BAND at the far rim.
+	if not band.has_point(p) or opening.has_point(p):
+		return 0
+	var dx := mini(p.x - band.position.x, band.end.x - 1 - p.x)
+	var dy := mini(p.y - band.position.y, band.end.y - 1 - p.y)
+	return mini(dx, dy) + 1
 
 
-func _paint_bales(c: PackedFloat32Array, rng: RandomNumberGenerator) -> void:
-	## The cargo: columns of sacks/bales filling the box, each a lumpy dark
-	## stack with a rounded top, so whatever is inside hides in the mass.
-	var x := INTERIOR.position.x + 1
-	while x < INTERIOR.end.x - 2:
-		var w := rng.randi_range(8, 11)
-		var top := INTERIOR.position.y + rng.randi_range(1, 12)
-		var lumps := rng.randf_range(0.0, TAU)
-		for cx in range(x, mini(x + w, INTERIOR.end.x - 1)):
-			var u := float(cx - x) / float(w)
-			var edge := sin(u * PI)
-			var col_top := top + int((1.0 - edge) * 4.0)
-			for y in range(col_top, INTERIOR.end.y):
-				var depth := clampf(float(y - col_top) / 8.0, 0.0, 1.0)
-				# Stacked lumps, like sacks seen edge-on: each band is lighter
-				# at its seam, and the seams wander from column to column.
-				var band := fmod(float(y - col_top) + lumps * 2.0, 6.0) / 6.0
-				var seam := 0.14 * (1.0 - sin(band * PI))
-				var wobble := 0.06 * sin(float(cx) * 1.7 + float(y) * 0.6 + lumps) \
-					+ rng.randf_range(-0.07, 0.07)
-				var v := (0.46 + 0.40 * depth) * (0.72 + 0.28 * edge) - seam + wobble
-				c[y * IMG.x + cx] = clampf(v, 0.0, 0.9)
-		x += w + rng.randi_range(0, 1)
+func _paint_item(img: Image, sheet: Image, item: Dictionary) -> void:
+	## One crate: the sprite at 2x from the sheet, a shadow ellipse under it
+	## and a navy outline around it — and the whole thing clamped inside its
+	## own grid cell, so two crates never visually merge whatever the deal
+	## jittered.
+	var size_i := SPRITE * SPRITE_SCALE
+
+	## Kept as a full-image mask so the outline step can ask "is this film?"
+	var mask := PackedByteArray()
+	mask.resize(IMG.x * IMG.y)
+	# Which cell the rules dealt this crate, and where its centre landed.
+	var cell := Vector2(INNER.size.x / XrayScan.COLS, INNER.size.y / XrayScan.ROWS)
+	var centre := INNER.position + (item.pos as Vector2) * INNER.size
+	var cell_x := clampi(int((centre.x - INNER.position.x) / cell.x),
+		0, XrayScan.COLS - 1)
+	var cell_y := clampi(int((centre.y - INNER.position.y) / cell.y),
+		0, XrayScan.ROWS - 1)
+	var cell_begin := INNER.position + Vector2(cell_x, cell_y) * cell
+	# The sprite (with its 1px outline) must stay inside its own cell.
+	var slack := cell * 0.5 - Vector2(size_i + 3, size_i + 3) * 0.5
+	var clamped := Vector2(
+		clampf(centre.x, cell_begin.x + slack.x, cell_begin.x + cell.x - slack.x),
+		clampf(centre.y, cell_begin.y + slack.y, cell_begin.y + cell.y - slack.y))
+	var origin := Vector2i((clamped - Vector2(size_i, size_i) * 0.5).round())
+
+	# The ground shadow: a darkening band under the crate's bottom edge.
+	for dx in size_i + 4:
+		var sx := origin.x - 2 + dx
+		var falloff := sin(PI * float(dx) / float(size_i + 3))
+		for dy in 3:
+			_dim(img, sx, origin.y + size_i - 1 + dy,
+				0.14 * (1.0 - float(dy) / 3.0) * falloff)
+	# The sprite itself, at 2x, mirroring when the rules dealt it mirrored.
+	var flip := bool(item.flip)
+	for sy in SPRITE:
+		for sx in SPRITE:
+			var c := sheet.get_pixel(int(item.frame) * SPRITE
+				+ (SPRITE - 1 - sx if flip else sx), sy)
+			if c.a < 0.5:
+				continue
+			for by in SPRITE_SCALE:
+				for bx in SPRITE_SCALE:
+					var q := origin + Vector2i(sx * SPRITE_SCALE + bx,
+						sy * SPRITE_SCALE + by)
+					if q.x < 0 or q.y < 0 or q.x >= IMG.x or q.y >= IMG.y:
+						continue
+					mask[q.y * IMG.x + q.x] = 1
+					img.set_pixel(q.x, q.y, Color(c.r, c.g, c.b))
+	# The outline: dark navy where the crate meets the film, so even the
+	# palest shape (the shoe, the ball) pops against it.
+	for y in range(origin.y - 1, origin.y + size_i + 1):
+		for x in range(origin.x - 1, origin.x + size_i + 1):
+			if x < 0 or y < 0 or x >= IMG.x or y >= IMG.y:
+				continue
+			var q := Vector2i(x, y)
+			if mask[q.y * IMG.x + q.x] != 0:
+				continue
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var n := q + d
+				if n.x < 0 or n.y < 0 or n.x >= IMG.x or n.y >= IMG.y:
+					continue
+				if mask[n.y * IMG.x + n.x] != 0:
+					img.set_pixel(q.x, q.y, Color(0.16, 0.18, 0.30))
+					break
 
 
-static func _add(d: PackedFloat32Array, x: int, y: int, v: float) -> void:
-	if x >= 0 and y >= 0 and x < IMG.x and y < IMG.y:
-		d[y * IMG.x + x] += v
+func _dim(img: Image, x: int, y: int, amount: float) -> void:
+	## Darken one pixel by `amount` (0..1).
+	if x < 0 or y < 0 or x >= IMG.x or y >= IMG.y or amount <= 0.005:
+		return
+	var c := img.get_pixel(x, y)
+	img.set_pixel(x, y, Color(c.r * (1.0 - amount), c.g * (1.0 - amount),
+		c.b * (1.0 - amount), c.a))
 
 
 # ---------------------------------------------------------------------- view
@@ -560,7 +540,7 @@ func _draw_boot(w: float, h: float) -> void:
 
 
 func _draw_scan(w: float, h: float) -> void:
-	## The monitor: title bar, the transmission image, the loupe over it.
+	## The monitor: title bar, the X-ray in false colour, the reticle over it.
 	_screen.draw_rect(Rect2(0, 0, w, h), BEZEL)
 	var bar_h := 14.0
 	_screen.draw_rect(Rect2(0, 0, w, bar_h), BAR)
@@ -572,7 +552,7 @@ func _draw_scan(w: float, h: float) -> void:
 	_screen.draw_string(UiTheme.FONT, Vector2(w - tag_w - 4.0, bar_h - 3.0), tag,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, UiTheme.SIZE_SMALL, Color(UiTheme.CREAM, 0.8))
 	var film := Rect2(3.0, bar_h + 3.0, w - 6.0, h - bar_h - 6.0)
-	_screen.draw_rect(film, Color8(236, 238, 232))
+	_screen.draw_rect(film, Color8(238, 244, 242))
 	# The image, as big as fits with its aspect kept; nearest filtering keeps
 	# its pixels square.
 	var scale := minf(film.size.x / IMG.x, film.size.y / IMG.y)
@@ -586,9 +566,9 @@ func _draw_scan(w: float, h: float) -> void:
 		var target := game.contraband()
 		if not target.is_empty() and int(_found_t * 6.0) % 2 == 0:
 			var c := _to_screen(target.pos)
-			var side := 16.0 * scale
-			_screen.draw_rect(Rect2(c - Vector2(side, side) * 0.65,
-				Vector2(side, side) * 1.3), UiTheme.DANGER, false, 2.0)
+			var side := (SPRITE * SPRITE_SCALE + 10.0) * scale
+			_screen.draw_rect(Rect2(c - Vector2(side, side) * 0.5,
+				Vector2(side, side)), UiTheme.DANGER, false, 2.0)
 	for mark: Dictionary in _marks:
 		var fade := clampf(1.4 - float(mark.t), 0.0, 1.0)
 		if fade <= 0.0:
@@ -598,41 +578,21 @@ func _draw_scan(w: float, h: float) -> void:
 		_screen.draw_line(at - Vector2(5, 5), at + Vector2(5, 5), red, 2.0)
 		_screen.draw_line(at + Vector2(-5, 5), at + Vector2(5, -5), red, 2.0)
 	if not game.over:
-		_draw_lens(scale)
+		_draw_reticle(scale)
 
 
-func _draw_lens(scale: float) -> void:
-	## The special loupe: a disc of the filtered image, magnified, in a chunky
-	## steel ring with a handle, a glint and a crosshair.
-	if _filter_tex.size() < 2:
+func _draw_reticle(scale: float) -> void:
+	## Where the next press lands: a chunky ring big enough to hold a crate,
+	## navy outside, amber inside, with a small centre cross.
+	var centre := _reticle_point()
+	if not _img_rect.has_point(centre):
 		return
-	var centre := _lens_centre()
-	var img_centre := (centre - _img_rect.position) / scale
-	var reach := LENS_R / (scale * LENS_ZOOM)    # image pixels under the lens
-	var points := PackedVector2Array()
-	var uvs := PackedVector2Array()
-	for step in 32:
-		var a := TAU * float(step) / 32.0
-		var dir := Vector2(cos(a), sin(a))
-		points.append(centre + dir * LENS_R)
-		uvs.append((img_centre + dir * reach) / Vector2(IMG))
-	# Handle first, so the ring sits over it.
-	var handle_dir := Vector2(0.7, 0.7)
-	_screen.draw_line(centre + handle_dir * (LENS_R + 2.0),
-		centre + handle_dir * (LENS_R + 22.0), Color8(60, 44, 34), 9.0)
-	_screen.draw_line(centre + handle_dir * (LENS_R + 2.0),
-		centre + handle_dir * (LENS_R + 22.0), Color8(120, 86, 58), 5.0)
-	_screen.draw_colored_polygon(points, Color.WHITE, uvs, _filter_tex[filter])
-	var tint := Color8(238, 152, 66) if filter == Filter.ORGANIC else Color8(78, 128, 216)
-	_screen.draw_arc(centre, LENS_R + 1.5, 0.0, TAU, 40, Color8(24, 22, 30), 5.0)
-	_screen.draw_arc(centre, LENS_R - 1.0, 0.0, TAU, 40, tint, 2.0)
-	_screen.draw_arc(centre, LENS_R - 7.0, PI * 1.1, PI * 1.45, 8,
-		Color(1, 1, 1, 0.55), 2.0)
-	var cross := Color(UiTheme.DANGER, 0.85)
-	_screen.draw_line(centre - Vector2(7, 0), centre - Vector2(2, 0), cross, 1.0)
-	_screen.draw_line(centre + Vector2(2, 0), centre + Vector2(7, 0), cross, 1.0)
-	_screen.draw_line(centre - Vector2(0, 7), centre - Vector2(0, 2), cross, 1.0)
-	_screen.draw_line(centre + Vector2(0, 2), centre + Vector2(0, 7), cross, 1.0)
+	var r := maxf(9.0, RETICLE_R * scale)
+	_screen.draw_arc(centre, r + 2.0, 0.0, TAU, 40, Color8(24, 22, 30), 3.0)
+	_screen.draw_arc(centre, r, 0.0, TAU, 40, UiTheme.AMBER, 1.5)
+	var cross := Color(UiTheme.AMBER, 0.9)
+	_screen.draw_line(centre - Vector2(4, 0), centre + Vector2(4, 0), cross, 1.0)
+	_screen.draw_line(centre - Vector2(0, 4), centre + Vector2(0, 4), cross, 1.0)
 
 
 func _draw_scanlines(area: Rect2) -> void:

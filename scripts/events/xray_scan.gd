@@ -45,12 +45,15 @@ const BASE_GOODS := 5
 const MAX_GOODS := COLS * ROWS - 2
 ## Decoys appear from this level on.
 const DECOY_LEVEL := 2
-const BASE_SECONDS := 15.0
-const MIN_SECONDS := 9.0
-const SECONDS_PER_LEVEL := 1.0
+## The clock, by level. Generous on purpose: the scan is a picture to *read*
+## — shapes, not pixels — and a clock tighter than the reading time turns a
+## shape game into a guessing game.
+const BASE_SECONDS := 24.0
+const MIN_SECONDS := 14.0
+const SECONDS_PER_LEVEL := 1.5
 ## A wrong tap costs this much clock. Tapping the same wrong spot twice costs
 ## once: a player who misread is not punished twice for it.
-const WRONG_PENALTY := 2.5
+const WRONG_PENALTY := 2.0
 ## How far from an item's centre a tap still counts, in cells.
 const HIT_RADIUS := 0.5
 const JITTER := 0.18

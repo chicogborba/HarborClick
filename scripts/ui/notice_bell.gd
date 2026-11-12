@@ -58,6 +58,13 @@ var _detail: Label
 ## True while the shut book is dropping out of frame: closed to the game,
 ## still on screen.
 var _closing := false
+## The height settle between tabs, so the book never jolts from one page's
+## height to another's.
+var _fit_tween: Tween
+## True from the key press to the first frame of the rise: the pages are being
+## laid out and measured, still unseen (alpha 0), and an open in this state
+## can still be cancelled by whoever closes it.
+var _opening := false
 
 
 func _ready() -> void:
@@ -191,17 +198,32 @@ func open_log() -> void:
 	# asked to shrink a board that has already been sized by its own wrapped text.
 	_board.size = Vector2(_board.size.x, 90.0)
 	_fill()
+	# Unseen, but present: the layout pass positions the board by visibility,
+	# so the pages are laid out under a cover of alpha 0 until they rise.
+	_board.modulate.a = 0.0
+	_board.visible = true
+	_opening = true
 	_scrim.visible = true
 	open_changed.emit(true)
 	_show_pages()
 
 
 func _show_pages() -> void:
-	_board.visible = true
+	## The book is fitted while it is still under the counter, and only a book
+	## already at its final size ever rises. The fit used to land a frame into
+	## the rise — the notices log grew a visible jump mid-animation — and the
+	## board spent that frame visible at its resting place, which flashed
+	## before the rise. Now it appears and starts rising in the same frame.
 	_set_tab(_tab, false)
 	_layout()
+	if is_inside_tree():
+		await get_tree().process_frame
+		if _closing or not _opening:
+			return
+	_fit_board_now()
+	_opening = false
+	_board.modulate.a = 1.0
 	UiTheme.focus_first(_board)
-	_fit_board()
 	# The pages are laid out under the cover; `BookFx` swings it off them.
 	BookFx.open(_board, _scrim)
 
@@ -210,6 +232,12 @@ func close_log() -> void:
 	if not _board.visible or _closing:
 		return
 	_closing = true
+	_opening = false
+	# A height settling between tabs stops when the book starts dropping:
+	# nothing good ever came from two tweens owning one board.
+	if _fit_tween != null and is_instance_valid(_fit_tween) \
+			and _fit_tween.is_running():
+		_fit_tween.kill()
 	BookFx.close(_board, _scrim, func() -> void:
 		_closing = false
 		_scrim.visible = false
@@ -341,19 +369,50 @@ func _room(area: Rect2) -> float:
 func _fit_board() -> void:
 	## Shrink to the notices once they have actually wrapped. Measuring before the
 	## layout pass is what produced a board several thousand pixels tall, so this
-	## waits a frame and stays clamped to the room either way.
+	## waits a frame and stays clamped to the room either way. Used for a board
+	## that is already up — a tab turn — where the change is *settled* into place
+	## rather than snapped: the notices and the medals want different heights,
+	## and a book that jumps between them mid-leaf looks broken.
 	if not is_inside_tree():
 		return
 	await get_tree().process_frame
 	if not _board.visible or not is_instance_valid(_board):
 		return
+	var to := _fitted_height()
+	if not UserPreferences.can_animate() \
+			or DisplayServer.get_name() == "headless":
+		_board.size.y = to
+		_layout()
+		return
+	if _fit_tween != null and is_instance_valid(_fit_tween) \
+			and _fit_tween.is_running():
+		_fit_tween.kill()
+	var from := _board.size.y
+	if absf(from - to) < 1.0:
+		return
+	_fit_tween = create_tween()
+	# Size only, never position: the board hangs from the bell key at its top
+	# left corner, so extra height grows downward and the pinned edge holds.
+	_fit_tween.tween_property(_board, "size:y", to, 0.16) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_fit_tween.tween_callback(_layout)
+
+
+func _fit_board_now() -> void:
+	## The same measurement, applied at once — for the moment before a rise,
+	## when landing early beats landing smooth (a board must never change size
+	## while it travels).
+	_board.size.y = _fitted_height()
+	_layout()
+
+
+func _fitted_height() -> float:
 	var area := _area()
 	var wanted := _inner.get_combined_minimum_size().y \
 		+ _board.get_combined_minimum_size().y
 	if _tab == "medals":
 		wanted = _room(area)
-	_board.size.y = clampf(wanted, 90.0, _room(area))
-	_layout()
+	return clampf(wanted, 90.0, _room(area))
 
 
 # ------------------------------------------------------------------ medals
@@ -372,7 +431,7 @@ func _set_tab(tab: String, turn: bool = true) -> void:
 	if medals:
 		_refresh_medals()
 	_scroll.scroll_vertical = 0
-	if _board.visible:
+	if _board.visible and not _opening:
 		_fit_board()
 
 

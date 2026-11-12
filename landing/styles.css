@@ -807,7 +807,8 @@ h1, h2, h3 {
 
 .art-map {
   background-image: url("/media/world-map.png");
-  background-size: calc(var(--ai) * 96px) calc(var(--ai) * 48px);
+  /* The chart is authored at 288x144: 1:1 on desktop, an exact half on a phone. */
+  background-size: calc(var(--ai) * 144px) calc(var(--ai) * 72px);
   background-position: center 40%;
   filter: saturate(0.82) brightness(0.94) drop-shadow(0 calc(var(--ai) * 3px) 0 rgba(6, 15, 26, 0.55));
 }

@@ -162,10 +162,16 @@ func show_profile(profile: NpcProfile, dossier: Dictionary = {}) -> void:
 	_layout()
 	open_changed.emit(true)
 	_close.grab_focus()
-	_fit_to_content()
-	# `_fit_to_content` re-places the card a frame later, so this open only
-	# fades the card in; sliding would land on the stale position.
-	UiTheme.pop_open(_card, _scrim, false)
+	# The wrapped task line only reports its true height after a layout pass,
+	# so the fit comes first and the rise waits for the fit: the badge now
+	# comes up like every other board — from below, at its final size — where
+	# it used to fade in and resize a frame later.
+	if is_inside_tree():
+		await get_tree().process_frame
+		if not visible:
+			return
+	_fit_now()
+	UiTheme.pop_open(_card, _scrim, true)
 
 
 func _set_photo(profile: NpcProfile) -> void:
@@ -269,15 +275,11 @@ func _cap_height(safe: Rect2) -> float:
 	return minf(maxf(132.0, safe.size.y * 0.28), safe.size.y - 24.0)
 
 
-func _fit_to_content() -> void:
+func _fit_now() -> void:
 	## Shrink to the task line once it has actually wrapped — one line for most
-	## people, two for a relay leg. Measuring before the layout pass is what
-	## produced a card several thousand pixels tall, so this deliberately waits a
-	## frame and stays clamped to the cap either way.
-	if not is_inside_tree():
-		return
-	await get_tree().process_frame
-	if not visible or _card == null or not is_instance_valid(_card):
+	## people, two for a relay leg — but in the same frame the caller answers
+	## for it, so nothing resizes while the card is in flight.
+	if _card == null or not is_instance_valid(_card):
 		return
 	var safe := _safe()
 	var wanted := _card.get_combined_minimum_size().y

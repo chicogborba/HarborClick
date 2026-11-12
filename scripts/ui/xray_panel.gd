@@ -84,7 +84,9 @@ func open() -> void:
 	_layout()
 	open_changed.emit(true)
 	AudioManager.play_sfx("ui_open", 0.02)
-	UiTheme.pop_open(_board, _scrim, false)
+	# The panel folds to its content synchronously (`reset_size` in `_layout`),
+	# so nothing has to settle first: it rises like every other board.
+	UiTheme.pop_open(_board, _scrim)
 	_action.grab_focus()
 
 

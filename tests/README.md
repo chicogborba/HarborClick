@@ -9,6 +9,7 @@
 | traffic | road-plated machines: lanes, separation and long-run movement |
 | relay | the container's chain of custody, and that no failure in it can stall a transfer |
 | backup | import/export, rejection and storage |
+| ports | a port is paid for, keeps its own books, swaps catalogues and comes home |
 | profile | three isolated save slots |
 | route | route order, fleet, freight and persistence |
 | phase3 economy/progression/UI | balance and career |

@@ -32,6 +32,11 @@ func _ready() -> void:
 	if args.size() > 0 and String(args[0]).begins_with("lang="):
 		Loc.set_language_for_tests(StringName(String(args[0]).substr(5)))
 		args.remove_at(0)
+	# `port=long_beach` photographs another port: its ground, plant, water and
+	# catalogue, on the capture profile.
+	if args.size() > 0 and String(args[0]).begins_with("port="):
+		PortDB.set_active(StringName(String(args[0]).substr(5)))
+		args.remove_at(0)
 	var scenario := String(args[0]) if args.size() > 0 else "world"
 	var zoom := float(args[1]) if args.size() > 1 else 0.0
 	var centre := Vector2(float(args[2]), float(args[3])) if args.size() > 3 \
@@ -49,7 +54,7 @@ func _ready() -> void:
 	# `fresh*` scenarios photograph a brand-new profile: nothing bought, and for
 	# plain `fresh` the tutorial still up — the first thing a new player sees.
 	if not scenario.begins_with("fresh") and not scenario.begins_with("tour"):
-		_furnish()
+		await _furnish()
 	elif scenario != "fresh" and not scenario.begins_with("tour"):
 		for path in [^"TutorialSpotlight", ^"OfflinePopup"]:
 			var node := _main.get_node_or_null(path)
@@ -73,6 +78,11 @@ func _furnish() -> void:
 		var node := _main.get_node_or_null(path)
 		if node != null:
 			node.queue_free()
+	# A queue_free only lands at the end of the frame it was asked in; a
+	# scenario that opens a board right after furnishing (the inspection)
+	# must not be told "the tour is still up" by a node on its way out.
+	await get_tree().process_frame
+	await get_tree().process_frame
 	GameState.teus = 4.2e7
 	GameState.lifetime_teus = 4.2e7
 	GameState.all_time_teus = 4.2e7
@@ -167,6 +177,14 @@ func _stage(scenario: String) -> Vector2:
 			_main.bell._set_tab("medals")
 			await get_tree().create_timer(0.8).timeout
 			return Vector2(-1, -1)
+		"ports", "ports_routes":
+			# The ports chart: the new world map, the pins, and the cards.
+			GameState.teus = 9e9
+			_main.routes.open()
+			if scenario == "ports_routes":
+				_main.routes._select_tab("routes")
+			await get_tree().create_timer(1.0).timeout
+			return Vector2(-1, -1)
 		"shop_rise":
 			# The clipboard on its way up: board and open clip below the mark.
 			_main.shop.toggle()
@@ -244,28 +262,26 @@ func _stage(scenario: String) -> Vector2:
 			var board: XrayMinigame = _main.xray_board
 			match scenario:
 				"xray_roll":
-					await get_tree().create_timer(1.2).timeout
+					await get_tree().create_timer(0.6).timeout
 				"xray_boot":
 					board._set_phase(XrayMinigame.Phase.BOOT)
 					await get_tree().create_timer(0.6).timeout
 				_:
 					board._set_phase(XrayMinigame.Phase.SCAN)
 					await get_tree().create_timer(0.8).timeout
-					# The loupe parked on the contraband through the filter that
-					# shows it (xray_scan), or after seizing a wrong item.
+					# The picture says the whole rule: the reticle parked on
+					# the contraband (xray_scan), or on an ordinary crate a
+					# wrong tap has just cost seconds for (xray_miss).
 					var pick: Dictionary = board.game.contraband()
 					if scenario == "xray_miss":
 						for item: Dictionary in board.game.items:
 							if not bool(item.contraband):
 								pick = item
 								break
-					var metal := StringName(pick.id) != &"bricks"
-					board._set_filter(XrayMinigame.Filter.METAL if metal
-						else XrayMinigame.Filter.ORGANIC)
-					board._move_lens(board._to_screen(pick.pos))
+					board._reticle = board._to_screen(pick.pos)
 					if scenario == "xray_miss":
-						board._on_seize()
-					await get_tree().create_timer(0.3).timeout
+						board._seize_at(board._to_screen(pick.pos))
+						await get_tree().create_timer(0.3).timeout
 			board.set_process(false)
 			return Vector2(-1, -1)
 		"fresh_played":

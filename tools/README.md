@@ -17,6 +17,14 @@
   a quay crane, an RTG and a forklift are visibly the same fleet. Ground tiles
   use `grain` (`gen_ground.py`) instead of full-contrast speckle: half-steps
   and short runs, because one loud pixel in six under everything is noise.
+- `sprites/gen_ports.py` — the flags, and each port's livery: it re-reads the
+  sprites the other generators wrote and moves only the hues that carry
+  identity (crane red, RTG teal, safety yellow, asphalt, soil, roof), writing
+  `<sprite>__<suffix>.png`. `PortDB.sprite_name` picks the themed file when it
+  exists. A machine redrawn in `gen_cranes.py` is therefore redrawn abroad too
+  — rerun this after any generator it reads. `gen_worldmap.py` rasterises
+  lon/lat coastline polygons to the 288x144 chart; `is_land(lon, lat)` is
+  there to check a pin.
 - `sprites/gen_train.py` draws the rake facing east at 1:1 (see the world
   README); `gen_wheel.py` computes the Roda da Sorte disc pixel by pixel at 64
   angles, because a rotated sprite is resampled mush; `gen_bonus.py` is the

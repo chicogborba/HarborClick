@@ -389,6 +389,26 @@ const RAW_ITEMS: Array[Dictionary] = [
 static var ITEMS: Array[Dictionary] = EconomyMath.paced(RAW_ITEMS)
 
 
+static func apply_port() -> void:
+	## The shared tree plus the active port's local trunk (`PortDB.upgrades`,
+	## `branch: "porto"`). At home that trunk is empty and this is exactly the
+	## table every balance run was tuned against.
+	var raw: Array[Dictionary] = []
+	raw.append_array(RAW_ITEMS)
+	raw.append_array(PortDB.upgrades())
+	ITEMS = EconomyMath.paced(raw)
+
+
+static func branches() -> Array[Dictionary]:
+	## The trunks to draw: the six every port has, and the local one when the
+	## active port brings nodes for it.
+	var out: Array[Dictionary] = []
+	out.append_array(BRANCHES)
+	if not PortDB.upgrades().is_empty():
+		out.append(PortDB.BRANCH)
+	return out
+
+
 static func get_item(id: String) -> Dictionary:
 	for item in ITEMS:
 		if item.id == id:
@@ -537,7 +557,7 @@ static func is_valid() -> bool:
 	## cycle. The last one would hang `depth_of` rather than merely look odd.
 	var ids := {}
 	var branch_ids := {}
-	for branch in BRANCHES:
+	for branch in branches():
 		branch_ids[str(branch.get("id", ""))] = true
 	for item in ITEMS:
 		var id := str(item.get("id", ""))

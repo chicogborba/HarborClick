@@ -49,7 +49,15 @@ asked to do the job.
   still to play, because half a burst of input cannot be restored honestly.
 - **A game must be winnable.** The maze is carved with a backtracker, so every
   cell is reachable from the gate — a maze that walls off a crate is a charter
-  that can only ever fine you. The suite checks it over forty seeds.
+  that can only ever fine you. The suite checks it over forty seeds. The X-ray
+  draws every crate in its own cell: contraband that showed only through a
+  tool is a scan that can only be lost by whoever did not find the tool.
+- **One event at a time.** `SpecialCallDirector.can_run` (set by `Main` from
+  `_event_boards_busy`) holds the offer clock while a board or the tour is up,
+  and a charter that berths behind one waits in `Main._queued_charter` and
+  plays the moment the coast is clear. The X-ray clock holds the same way. An
+  offer once on the table still expires on its own — waiting never holds the
+  player hostage either.
 - **The director never touches cargo.** The special hull is a variant handed to
   `BerthCallController.seed_new`, which still mints every UID.
 
@@ -86,9 +94,11 @@ board. Bought, it calls an inspection every five to nine minutes of play.
   comes back to be played. Meta progress — a prestige does not take it back.
   `seed_new` (new profile, and any save from before the scanner) is "not
   bought".
-- `xray_scan.gd` — one scan: a jittered 5x2 grid of goods hidden in the
-  cargo and one contraband (pistol, rifle, taped bricks, grenade), dealt from the
-  inspection's own seed with a local generator. Wrong taps cost
+- `xray_scan.gd` — one scan: a jittered 5x2 grid of goods in the container and
+  one contraband (pistol, rifle, taped bricks, grenade), dealt from the
+  inspection's own seed with a local generator. **One picture, one verb**: the
+  board draws every crate in false colour at reading size — the only hidden
+  thing is *which*, never *where* — and the player taps it. Wrong taps cost
   `WRONG_PENALTY` once per spot; decoys shaped like weapons (hair dryer,
   drill) join from `DECOY_LEVEL`. Items never overlap, so every scan is
   winnable — the suite checks it over forty seeds.

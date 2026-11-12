@@ -390,7 +390,12 @@ func _recovery_path() -> String:
 
 
 func set_save_path_for_tests(path: String) -> void:
-	## Deliberately public so the headless suite can isolate its files.
+	## Deliberately public so the headless suite can isolate its files. A custom
+	## path is always the home port with nothing open abroad.
+	active_port = PortDB.HOME
+	_ledger = {}
+	PortDB.open_count = 1
+	PortDB.set_active(PortDB.HOME)
 	_save_path = path
 	active_slot = 0
 
@@ -407,7 +412,12 @@ func use_profile(slot: int) -> bool:
 	active_slot = clampi(slot, 1, PROFILE_COUNT)
 	DirAccess.make_dir_recursive_absolute(
 		ProjectSettings.globalize_path("%s/%d" % [PROFILE_DIR, active_slot]))
-	_save_path = profile_path(active_slot)
+	# A profile resumes in the port its operator was last standing in.
+	var ledger := port_ledger(active_slot)
+	var port := StringName(ledger.get("active", PortDB.HOME))
+	if not port_open(port):
+		port = PortDB.HOME
+	_set_port(port)
 	_loaded_sections.clear()
 	_pending.clear()
 	_has_loaded_game = false
@@ -440,12 +450,174 @@ func profile_summary(slot: int) -> Dictionary:
 
 
 func delete_profile(slot: int) -> void:
-	var base := profile_path(slot)
-	for path in [base, base + ".tmp", base + ".bak", base + ".recovery"]:
-		if FileAccess.file_exists(path):
-			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	# Every port the profile opened goes with it, and so does the ledger.
+	var bases: Array[String] = [_ledger_path(slot)]
+	for port in PortDB.PORTS:
+		bases.append(port_path(slot, StringName(port.id)))
+	for base: String in bases:
+		for path in [base, base + ".tmp", base + ".bak", base + ".recovery"]:
+			if FileAccess.file_exists(path):
+				DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	if active_slot == clampi(slot, 1, PROFILE_COUNT):
 		active_slot = 0
+
+
+# --------------------------------------------------------------------- ports
+#
+# A port is a save file. The home port is the profile's own `save.json`, which
+# is why no existing profile needed migrating; every other port the operator
+# opens is `port_<id>.json` beside it, a complete envelope with its own core,
+# clock and sections. Switching port is therefore the same operation as
+# switching profile — point the path, reset, load — and every cargo and UID
+# contract holds per port without the cargo code knowing ports exist.
+#
+# `ports.json` is the ledger: which ports are open and which one the operator
+# is in. It is the only thing ports share, and it is small enough to rewrite
+# whole.
+
+var active_port: StringName = PortDB.HOME
+var _ledger: Dictionary = {}
+
+
+func port_path(slot: int, port: StringName) -> String:
+	if port == PortDB.HOME:
+		return profile_path(slot)
+	return "%s/%d/port_%s.json" % [PROFILE_DIR, clampi(slot, 1, PROFILE_COUNT),
+		String(port)]
+
+
+func _ledger_path(slot: int) -> String:
+	return "%s/%d/ports.json" % [PROFILE_DIR, clampi(slot, 1, PROFILE_COUNT)]
+
+
+func port_ledger(slot: int) -> Dictionary:
+	## {open: [ids], active: id}. Missing or unreadable is a profile that has
+	## only ever had its home port — never an error.
+	var ledger := {"open": [String(PortDB.HOME)], "active": String(PortDB.HOME)}
+	var path := _ledger_path(slot)
+	if FileAccess.file_exists(path):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if parsed is Dictionary:
+			var open: Array = []
+			for id: Variant in (parsed as Dictionary).get("open", []):
+				if PortDB.is_playable(StringName(str(id))) and not open.has(str(id)):
+					open.append(str(id))
+			if not open.has(String(PortDB.HOME)):
+				open.push_front(String(PortDB.HOME))
+			ledger.open = open
+			ledger.active = str((parsed as Dictionary).get("active", PortDB.HOME))
+	_ledger = ledger
+	PortDB.open_count = (ledger.open as Array).size()
+	return ledger
+
+
+func _write_ledger() -> bool:
+	if active_slot <= 0:
+		return false
+	var file := FileAccess.open(_ledger_path(active_slot), FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(_ledger))
+	file.close()
+	PortDB.open_count = (_ledger.get("open", []) as Array).size()
+	return true
+
+
+func port_open(port: StringName) -> bool:
+	return port == PortDB.HOME \
+		or (_ledger.get("open", []) as Array).has(String(port))
+
+
+func open_ports() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for id: Variant in _ledger.get("open", [String(PortDB.HOME)]):
+		out.append(StringName(str(id)))
+	return out
+
+
+func buy_port(port: StringName) -> bool:
+	## Opens a port for this profile, paid out of the wallet of the port the
+	## operator is standing in. The ledger is written before the wallet is
+	## saved: a crash between the two leaves a port that was paid for twice
+	## impossible and one that was got for free possible, which is the right
+	## way round for the player.
+	if active_slot <= 0 or port_open(port) or not PortDB.is_playable(port):
+		return false
+	var cost := float(PortDB.get_port(port).get("cost", INF))
+	if not GameState.can_afford(cost):
+		return false
+	var open: Array = _ledger.get("open", [String(PortDB.HOME)])
+	open.append(String(port))
+	_ledger["open"] = open
+	if not _write_ledger():
+		open.erase(String(port))
+		return false
+	GameState.spend(cost)
+	GameState.recompute()
+	save_game(&"port_opened")
+	return true
+
+
+func _set_port(port: StringName) -> void:
+	active_port = port
+	_save_path = port_path(active_slot, port) if active_slot > 0 else _save_path
+	PortDB.set_active(port)
+
+
+func use_port(port: StringName) -> bool:
+	## Walk into another open port: the profile switch, one level down. Call it
+	## with no world alive (the Voyage scene does) — sections registered by a
+	## live world would be restored with another port's cargo on their way out.
+	if active_slot <= 0 or not port_open(port) or not PortDB.is_playable(port):
+		return false
+	_set_port(port)
+	_ledger["active"] = String(port)
+	_write_ledger()
+	_loaded_sections.clear()
+	_pending.clear()
+	_has_loaded_game = false
+	offline_earnings = 0.0
+	offline_report = {}
+	_save_due = -1.0
+	GameState.from_save({})
+	TimeManager.from_save({})
+	if load_game():
+		return true
+	# First arrival. Whoever is still registered (the autoload services) holds
+	# the last port's state, so each is told to start again; the world's own
+	# sections seed themselves when the scene builds.
+	for id: String in _sections:
+		var seed_new: Callable = _sections[id].seed_new
+		if seed_new.is_valid():
+			seed_new.call()
+	_seed_new_port(port)
+	return true
+
+
+func _seed_new_port(port: StringName) -> void:
+	## A second terminal is not a second tutorial. The operator arrives knowing
+	## the job, with the working capital head office sent along.
+	var grant := float(PortDB.get_port(port).get("grant", 0.0))
+	GameState.teus = grant
+	GameState.flags["tutorial_v2_done"] = true
+	GameState.flags["tutorial_done"] = true
+	GameState.flags["port_founded"] = String(port)
+	GameState.recompute()
+	EventBus.teus_changed.emit(GameState.teus)
+
+
+func port_summary(slot: int, port: StringName) -> Dictionary:
+	## Read-only peek at a port's file for the chart: never applies it.
+	var envelope := _read_valid_save(port_path(slot, port))
+	if envelope.is_empty():
+		envelope = _read_valid_save(port_path(slot, port) + ".bak")
+	if envelope.is_empty():
+		return {"exists": false}
+	var core: Dictionary = envelope.get("core", {})
+	return {"exists": true,
+		"teus": float(core.get("teus", 0.0)),
+		"all_time": float(core.get("all_time_teus", 0.0)),
+		"saved_at": float(envelope.get("saved_at_unix", 0.0))}
 
 
 func _migrate_legacy_save() -> void:
