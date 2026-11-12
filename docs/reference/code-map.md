@@ -39,12 +39,12 @@ Inventory: **273 authored code/config/scene files**.
 
 | File | Lines | Symbols | Purpose |
 |---|---:|---|---|
-| `scripts/autoload/ad_service.gd` | 132 | 12 functions | AdService: the one door every rewarded ad goes through. Owns one `AdPolicy` |
-| `scripts/autoload/audio_manager.gd` | 462 | 29 functions | SFX pool + crossfading music. Tracks follow the day/night cycle and weather. |
+| `scripts/autoload/ad_service.gd` | 135 | 12 functions | AdService: the one door every rewarded ad goes through. Owns one `AdPolicy` |
+| `scripts/autoload/audio_manager.gd` | 465 | 29 functions | SFX pool + crossfading music. Tracks follow the day/night cycle and weather. |
 | `scripts/autoload/event_bus.gd` | 47 | 0 functions | Global signal hub. Everything talks through here to stay decoupled. |
 | `scripts/autoload/game_state.gd` | 1478 | 89 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
 | `scripts/autoload/portrait_frame.gd` | 60 | 3 functions | Keeps the game in portrait at any window size. |
-| `scripts/autoload/save_manager.gd` | 705 | 44 functions | Versioned, recoverable persistence.  The public yard/pending_yard API is |
+| `scripts/autoload/save_manager.gd` | 708 | 44 functions | Versioned, recoverable persistence.  The public yard/pending_yard API is |
 | `scripts/autoload/time_manager.gd` | 112 | 9 functions | Day/night cycle + weather. Full lighting arrives in the day/night phase; |
 | `scripts/autoload/user_preferences.gd` | 248 | 18 functions | Player-facing preferences kept separate from the progression save. |
 | `scripts/cargo/berth_call_controller.gd` | 723 | class `BerthCallController`; 37 functions | Authoritative, restart-safe berth workflow. Visual flights are transactions: |
@@ -91,7 +91,7 @@ Inventory: **273 authored code/config/scene files**.
 | `scripts/i18n/loc.gd` | 224 | 16 functions | Which language the port speaks, and every string it says. |
 | `scripts/i18n/strings_content.gd` | 157 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
 | `scripts/i18n/strings_ui.gd` | 2264 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
-| `scripts/main.gd` | 1239 | 47 functions | Root: assembles world, camera and UI. |
+| `scripts/main.gd` | 1272 | 49 functions | Root: assembles world, camera and UI. |
 | `scripts/monetization/ad_policy.gd` | 184 | class `AdPolicy`; 11 functions | The rules of rewarded ads: which placements exist, how many may be watched |
 | `scripts/monetization/ad_provider.gd` | 18 | class `AdProvider`; 1 functions | The seam between the game and a real ad SDK. `AdService` asks the current |
 | `scripts/monetization/placeholder_ad_provider.gd` | 104 | class `PlaceholderAdProvider`; 6 functions | The test stand-in for a real ad SDK: a scrim with a paper board that says |
@@ -142,7 +142,7 @@ Inventory: **273 authored code/config/scene files**.
 | `scripts/ui/tutorial_spotlight.gd` | 784 | class `TutorialSpotlight`; 42 functions | Alisson, on foot. The first minutes, and every "olha isso, chefe!" after. |
 | `scripts/ui/ui_theme.gd` | 1056 | class `UiTheme`; 71 functions | The one place the interface is described. |
 | `scripts/ui/upgrade_map.gd` | 484 | class `UpgradeMap`; 27 functions | The upgrade catalogue as the thing it actually is: a network diagram. |
-| `scripts/ui/voyage_screen.gd` | 111 | 4 functions | The crossing between two ports. |
+| `scripts/ui/voyage_screen.gd` | 112 | 4 functions | The crossing between two ports. |
 | `scripts/ui/wheel_button.gd` | 143 | class `WheelButton`; 8 functions | The Roda da Sorte's key: a small steel key under the gantry's left end, with |
 | `scripts/ui/xray_button.gd` | 129 | class `XrayButton`; 8 functions | The scanner's key: a little X-ray monitor in the HUD column under the wheel |
 | `scripts/ui/xray_minigame.gd` | 601 | class `XrayMinigame`; 32 functions | The Receita Federal's inspection: find the contraband on the X-ray. |
@@ -188,7 +188,7 @@ Inventory: **273 authored code/config/scene files**.
 | `tests/build_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/cargo_test_runner.gd` | 866 | 34 functions | Integration suite for cargo phases 1-2. |
 | `tests/cargo_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/clicks_test_runner.gd` | 320 | 15 functions | Real clicks, end to end. |
+| `tests/clicks_test_runner.gd` | 348 | 16 functions | Real clicks, end to end. |
 | `tests/clicks_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/combo_test_runner.gd` | 108 | 8 functions | The tap combo: steady taps build a multiplier, a pause lets it fall, a skill |
 | `tests/combo_test_runner.tscn` | 6 | 1 nodes | Godot scene |

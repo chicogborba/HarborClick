@@ -29,6 +29,9 @@ var _pending_reward: Callable
 
 
 func _ready() -> void:
+	# Keeps running while the port is frozen behind an open board (Main pauses
+	# the tree): music, saves and the ad panel are not part of the port.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	policy = AdPolicy.new()
 	SaveManager.register_section(SECTION_ID, policy.snapshot, _restore, _seed_new)
 	set_provider(PlaceholderAdProvider.new())

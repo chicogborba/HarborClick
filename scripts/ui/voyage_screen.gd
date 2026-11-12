@@ -23,6 +23,7 @@ var _leaving := false
 
 func _ready() -> void:
 	UiTheme.install_window_theme(get_window())
+	get_tree().paused = false
 	var port := PortDB.get_port(PortDB.destination)
 	var ok := not port.is_empty() and SaveManager.use_port(PortDB.destination)
 	if not ok:

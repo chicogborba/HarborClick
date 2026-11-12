@@ -77,6 +77,9 @@ func set_settings_path_for_tests(path: String) -> void:
 
 
 func _ready() -> void:
+	# Keeps running while the port is frozen behind an open board (Main pauses
+	# the tree): music, saves and the ad panel are not part of the port.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	for i in SFX_POOL_SIZE:
 		var p := AudioStreamPlayer.new()
 		add_child(p)

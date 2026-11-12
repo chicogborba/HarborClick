@@ -94,10 +94,17 @@ func _ready() -> void:
 	shell.name = "ResponsiveShell"
 	add_child(shell)
 
+	# Main and every board it hosts run while the tree is paused; the port
+	# itself, and the services whose clocks are the port's clocks, do not.
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	for frozen: Node in [wheel_service, daily_service, level_service, xray_service]:
+		frozen.process_mode = Node.PROCESS_MODE_PAUSABLE
+	get_tree().paused = false
 	world = PortWorld.new()
 	world.name = "World"
 	add_child(world)
 
+	world.process_mode = Node.PROCESS_MODE_PAUSABLE
 	cam = PortCamera.new()
 	cam.name = "Camera"
 	add_child(cam)
@@ -418,6 +425,10 @@ func _on_any_berth_status(_status: Dictionary) -> void:
 func _exit_tree() -> void:
 	# Do not leak build times into whatever runs next in the same process.
 	GameState.build_times_enabled = false
+	# Nor a frozen tree: the Voyage scene and a wipe both leave from inside a
+	# board, and the next scene must not start paused.
+	if is_inside_tree():
+		get_tree().paused = false
 
 
 func _refresh_level_gates() -> void:
@@ -752,6 +763,27 @@ func _on_overlay_changed(opened: bool, source: String) -> void:
 			or bool(_overlay_state.notices) or bool(_overlay_state.wheel)
 			or bool(_overlay_state.daily) or bool(_overlay_state.roadmap)
 			or bool(_overlay_state.xray))
+	_update_freeze()
+
+
+func is_frozen() -> bool:
+	return get_tree().paused
+
+
+func _update_freeze() -> void:
+	## Any board, minigame, scan or spin freezes the port: income, the clock,
+	## ships, trucks, special calls, the golden gull, the inspection clock.
+	## Nothing can arrive while the player is reading, so nothing can close what
+	## they are reading. The boards themselves run (Main is PROCESS_MODE_ALWAYS);
+	## GameState and TimeManager are autoloads under the paused root, so the
+	## numbers hold still too. Unfreezes the moment the last board closes.
+	var open := false
+	for value: bool in _overlay_state.values():
+		open = open or value
+	if tutorial != null and is_instance_valid(tutorial) and tutorial.is_active():
+		# The tour opens the shop as one of its own steps and waits on the port.
+		open = false
+	get_tree().paused = open
 
 
 func _on_world_input_blocked(blocked: bool) -> void:
@@ -957,6 +989,7 @@ func _rail_key_rect(stem: String) -> Rect2:
 
 
 func _on_tutorial_finished(skipped: bool) -> void:
+	_update_freeze.call_deferred()
 	if world != null:
 		world.gulls_frozen = false
 	GameState.flags["tutorial_done"] = true

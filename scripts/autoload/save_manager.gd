@@ -39,6 +39,9 @@ var _storage_ok := true
 
 
 func _ready() -> void:
+	# Keeps running while the port is frozen behind an open board (Main pauses
+	# the tree): music, saves and the ad panel are not part of the port.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_connect_save_events()
 	probe_storage()
 	# Nothing is loaded at boot any more: the title screen decides which of the

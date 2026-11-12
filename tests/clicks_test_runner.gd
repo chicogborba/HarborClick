@@ -12,7 +12,7 @@ const TEST_SAVE_PATH := "user://harborclick_clicks_test.json"
 ## The roll call: a script error aborts a test silently and the runner would
 ## otherwise print PASSED with the stack trace above it.
 const EXPECTED := ["rail_keys", "wheel", "daily", "ship_tap", "every_tap_counts",
-	"shop_buy", "upgrade_buy"]
+	"shop_buy", "upgrade_buy", "freeze"]
 const OVERLAY_OF := {
 	"rail.shop": "shop", "rail.routes": "routes",
 	"rail.journal": "journal", "rail.settings": "settings",
@@ -51,6 +51,7 @@ func _run() -> void:
 	await _test_every_tap_on_the_ship_counts()
 	await _test_tapping_a_machine_card_buys_it()
 	await _test_tapping_an_upgrade_card_buys_it()
+	await _test_an_open_board_freezes_the_port()
 
 	for name in EXPECTED:
 		_expect(_reached.has(name), "test '%s' ran to its last line" % name)
@@ -68,6 +69,33 @@ func _run() -> void:
 
 
 # ---------------------------------------------------------------- the tests
+
+func _test_an_open_board_freezes_the_port() -> void:
+	## A board freezes the port, so nothing can arrive and close it under the
+	## player: income, the clock, ships and special calls all hold still.
+	GameState.owned["estivador"] = 40
+	GameState.recompute()
+	_expect(GameState.cps > 0.0, "the port is earning before the board opens")
+	_expect(not get_tree().paused, "and is not frozen")
+	_main.shop._on_tab("structures")
+	await get_tree().process_frame
+	_expect(get_tree().paused, "opening the shop freezes the port")
+	var teus := GameState.teus
+	var hour := TimeManager.time_of_day
+	for i in 10:
+		await get_tree().process_frame
+	_expect(is_equal_approx(GameState.teus, teus), "no income while it is open")
+	_expect(is_equal_approx(TimeManager.time_of_day, hour), "and the clock stands still")
+	_expect(_main.shop.is_open(), "while the board itself still works")
+	_main.shop._close()
+	await get_tree().process_frame
+	_expect(not get_tree().paused, "closing it lets the port run again")
+	for i in 10:
+		await get_tree().process_frame
+	_expect(GameState.teus > teus, "and earn again")
+	_reached.append("freeze")
+
+
 
 func _test_every_rail_key_opens_and_escape_closes() -> void:
 	# A new terminal has the shop, the challenges and settings; routes
