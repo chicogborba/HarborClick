@@ -68,7 +68,7 @@ func _build_bunting() -> void:
 	## straight runs the terminal has. Rotated a quarter turn: the sprite is
 	## drawn as a horizontal span because that is how a span is drawn, and both
 	## of this port's runs go north to south.
-	var texture: Texture2D = preload("res://assets/sprites/prop_bunting.png")
+	var texture: Texture2D = PortDB.tex("prop_bunting")
 	var top := PortLayout.TOP_MARGIN + 12.0
 	var bottom := PortLayout.world_bottom() - 12.0
 	for line_x in [PortLayout.QUAY_X0 + 8.0, PortLayout.YARD_X0 + 16.0]:

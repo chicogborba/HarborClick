@@ -113,7 +113,7 @@ Inventory: **276 authored code/config/scene files**.
 | `scripts/ui/boost_chips.gd` | 115 | class `BoostChips`; 8 functions | What is multiplying the port right now, and for how long. |
 | `scripts/ui/build_hud.gd` | 152 | class `BuildHud`; 9 functions | The works, as they happen: one row per build in progress. |
 | `scripts/ui/command_rail.gd` | 419 | class `CommandRail`; 21 functions | The console under the thumb: what to do next, and every key that opens a board. |
-| `scripts/ui/crane_minigame.gd` | 410 | class `CraneMinigame`; 22 functions | The charter, played by hand: a trolley running the well and one tap to let go. |
+| `scripts/ui/crane_minigame.gd` | 409 | class `CraneMinigame`; 22 functions | The charter, played by hand: a trolley running the well and one tap to let go. |
 | `scripts/ui/daily_orders_button.gd` | 124 | class `DailyOrdersButton`; 6 functions | The Missões do Dia key: a clipboard under the wheel's key, with a red count |
 | `scripts/ui/daily_orders_panel.gd` | 304 | class `DailyOrdersPanel`; 16 functions | Missões do Dia: three orders a day, a bonus for all three, and the streak. |
 | `scripts/ui/globe.gd` | 295 | class `Globe`; 16 functions | A planet you can spin with a finger, with the ports on it. |
@@ -121,7 +121,7 @@ Inventory: **276 authored code/config/scene files**.
 | `scripts/ui/level_hud.gd` | 247 | class `LevelHud`; 10 functions | The terminal's level, and the moment it grows. |
 | `scripts/ui/level_roadmap.gd` | 383 | class `LevelRoadmap`; 14 functions | A Rota do Terminal: every level from 1 to 30 on one track, with what each |
 | `scripts/ui/lucky_wheel_panel.gd` | 608 | class `LuckyWheelPanel`; 27 functions | The Roda da Sorte board: the carnival wheel bolted to a clipboard, opened |
-| `scripts/ui/maze_minigame.gd` | 411 | class `MazeMinigame`; 17 functions | The second charter game: a yard you have to find your way out of. |
+| `scripts/ui/maze_minigame.gd` | 410 | class `MazeMinigame`; 17 functions | The second charter game: a yard you have to find your way out of. |
 | `scripts/ui/minigame_board.gd` | 303 | class `MinigameBoard`; 25 functions | The shell every charter minigame is played on: the scrim, the board, the three |
 | `scripts/ui/notice_bell.gd` | 551 | class `NoticeBell`; 25 functions | The port diary (formerly the notice bell). A leather book on the gantry: tap |
 | `scripts/ui/notification_coordinator.gd` | 148 | class `NotificationCoordinator`; 10 functions | One place decides whether something deserves the player's attention. |
@@ -163,8 +163,8 @@ Inventory: **276 authored code/config/scene files**.
 | `scripts/world/port_world.gd` | 1861 | class `PortWorld`; 99 functions | Top-down terminal: yard on the left, quay and berth on the right. |
 | `scripts/world/rail_rake.gd` | 471 | class `RailRake`; 19 functions | The train on the branch, and the shunt that lets it leave. |
 | `scripts/world/rainfall.gd` | 132 | class `Rainfall`; 8 functions | Rain over the terminal: falling streaks, the splash where each one lands, and |
-| `scripts/world/road_truck.gd` | 625 | class `RoadTruck`; 33 functions | A city truck on the terminal's road: a tractor unit and the chassis it pulls. |
-| `scripts/world/ship.gd` | 1066 | class `Ship`; 67 functions | View of the berth manifest.  BerthCallController owns the workflow; this |
+| `scripts/world/road_truck.gd` | 629 | class `RoadTruck`; 33 functions | A city truck on the terminal's road: a tractor unit and the chassis it pulls. |
+| `scripts/world/ship.gd` | 1067 | class `Ship`; 67 functions | View of the berth manifest.  BerthCallController owns the workflow; this |
 | `scripts/world/ship_wake.gd` | 237 | class `ShipWake`; 9 functions | The sea being cut by a hull under way, in the game's own pixels. |
 | `scripts/world/skyscape.gd` | 168 | class `Skyscape`; 9 functions | Weather and sky, expressed the way a top-down camera can actually see them. |
 | `scripts/world/structure_actor.gd` | 2066 | class `StructureActor`; 105 functions | One visible instance of a bought structure. |
@@ -278,7 +278,7 @@ Inventory: **276 authored code/config/scene files**.
 | `tools/export/build_web.sh` | 46 | — | Reproducible web build. |
 | `tools/export/serve_web.py` | 44 | 1 functions | Serve build/web locally for a quick check. |
 | `tools/fonts/build_landing_fonts.py` | 175 | 6 functions | Fetches and repairs the two pixel webfonts the landing page self-hosts. |
-| `tools/generate_all.sh` | 18 | — | Regenerate all HarborClick assets (sprites + audio). |
+| `tools/generate_all.sh` | 21 | — | Regenerate all HarborClick assets (sprites + audio). |
 | `tools/qa/check_landing_strings.py` | 70 | 1 functions | Checks the landing page's markup and its string table agree. |
 | `tools/qa/run_all.sh` | 80 | — | Documentation freshness, import check and every deterministic headless suite. |
 | `tools/qa/shoot_landing.py` | 194 | 6 functions | Screenshot the landing page at honest device metrics, over CDP. |
@@ -299,7 +299,7 @@ Inventory: **276 authored code/config/scene files**.
 | `tools/sprites/gen_landing.py` | 1014 | 31 functions | Generates every pixel asset the public landing page ships. |
 | `tools/sprites/gen_people.py` | 357 | 21 functions | Top-down dock workers, Stardew-ish: hard hat and hi-vis vest seen from above. |
 | `tools/sprites/gen_pixellab.py` | 108 | 6 functions | Turns the cached PixelLab generations into game-ready PNGs. |
-| `tools/sprites/gen_ports.py` | 232 | 12 functions | What makes a port not the last one, in pixels. |
+| `tools/sprites/gen_ports.py` | 590 | 25 functions | What makes a port not the last one, in pixels. |
 | `tools/sprites/gen_props.py` | 741 | 27 functions | Top-down scenery props: lamps, bollards, greenery, wildlife, FX. |
 | `tools/sprites/gen_rail.py` | 205 | 6 functions | Furniture for the branch line: the signal, the level crossing, the boards. |
 | `tools/sprites/gen_ship.py` | 283 | 7 functions | Top-down container ship, bow pointing UP, moored along a vertical quay. |

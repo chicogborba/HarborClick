@@ -14,7 +14,6 @@ extends MinigameBoard
 ## before it goes over. A gauge on the floor reads the same number as a length,
 ## because the thing the player is fighting has to be on screen.
 
-const CONTAINERS := preload("res://assets/sprites/container_sheet.png")
 ## Container art is 24x13. Scaled so a box is `StackGame.BOX_WIDTH` across, which
 ## is what makes it read as freight rather than as a counter.
 const BOX_SCALE := StackGame.BOX_WIDTH / 24.0
@@ -309,7 +308,7 @@ func _centre_x() -> float:
 func _box_sprite(colour: int) -> Sprite2D:
 	var box := Sprite2D.new()
 	var atlas := AtlasTexture.new()
-	atlas.atlas = CONTAINERS
+	atlas.atlas = PortDB.tex("container_sheet")
 	atlas.region = Rect2(posmod(colour, 8) * 24, 0, 24, 13)
 	box.texture = atlas
 	box.centered = true

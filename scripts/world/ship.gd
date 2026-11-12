@@ -83,7 +83,7 @@ var ship_variant: Dictionary = {}
 var _scale_bar_frac := -1.0
 var _scale_label: Label
 var variant_history: Array[String] = []
-@onready var _containers: Texture2D = preload("res://assets/sprites/container_sheet.png")
+@onready var _containers: Texture2D = PortDB.tex("container_sheet")
 
 
 func _ready() -> void:
@@ -601,7 +601,8 @@ func _hull_texture() -> Texture2D:
 	var sprite := str(ship_variant.get("sprite", ""))
 	if sprite.is_empty():
 		return HULL_FALLBACK
-	var path := "res://assets/sprites/%s.png" % sprite
+	# The active port's own deck and house when it has one (`PortDB`).
+	var path := "res://assets/sprites/%s.png" % PortDB.sprite_name(sprite)
 	if not ResourceLoader.exists(path):
 		return HULL_FALLBACK
 	return load(path)

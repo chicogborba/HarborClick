@@ -13,7 +13,6 @@ extends MinigameBoard
 ## not decoration: the whole control is one lever you push, which is what an
 ## arcade cabinet actually gives you and what four separate keys never did.
 
-const CONTAINERS := preload("res://assets/sprites/container_sheet.png")
 const WALL_WIDTH := 2.0
 ## The stick's throw, in pixels, and how far a press has to be from the centre
 ## before it counts as a direction rather than a nudge.
@@ -331,7 +330,7 @@ func _draw_screen() -> void:
 	for crate: Vector2i in game.crates:
 		var crate_pos := origin + Vector2(crate) * cell + Vector2(cell, cell) * 0.5
 		var box := AtlasTexture.new()
-		box.atlas = CONTAINERS
+		box.atlas = PortDB.tex("container_sheet")
 		box.region = Rect2(posmod(crate.x + crate.y, 8) * 24, 0, 24, 13)
 		_screen.draw_texture_rect(box,
 			Rect2(crate_pos - Vector2(cell, cell * 0.55) * 0.42,

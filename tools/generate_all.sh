@@ -7,6 +7,9 @@ for f in gen_*.py; do
   [ "$f" = "gen_landing.py" ] && continue
   "$PY" "$f"
 done
+# The ports re-livery sprites the generators after them in the loop write
+# (ships, props, trains), so they run again once everything else exists.
+"$PY" gen_ports.py
 # The landing composes its art out of the sprites above, so it goes last.
 "$PY" gen_landing.py
 if [ -d ../audio ]; then

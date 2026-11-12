@@ -22,7 +22,7 @@ var _reservations: Dictionary = {} # token -> {slot, level}
 var _reserved_slots: Dictionary = {} # slot -> count
 var _restored_manifest := false
 var _shadow_tex: Texture2D = preload("res://assets/sprites/container_shadow.png")
-var _containers: Texture2D = preload("res://assets/sprites/container_sheet.png")
+var _containers: Texture2D = PortDB.tex("container_sheet")
 
 
 func _ready() -> void:

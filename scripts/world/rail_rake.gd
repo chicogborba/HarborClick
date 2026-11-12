@@ -109,7 +109,7 @@ var _shunt: Shunt = Shunt.DRAW_FORWARD
 var _loco_east := true
 var _wagons: Array[Sprite2D] = []
 var _boxes: Array[Sprite2D] = []
-var _sheet: Texture2D = preload("res://assets/sprites/rail_box_sheet.png")
+var _sheet: Texture2D = PortDB.tex("rail_box_sheet")
 var _wagon_sheet: Texture2D = preload("res://assets/sprites/veh_wagon.png")
 
 ## How fast the locomotive is actually travelling, measured rather than

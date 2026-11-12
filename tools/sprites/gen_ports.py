@@ -3,15 +3,22 @@
 `ui_flags.png`      6 x 16x11  the flags on the ports chart, in `PortDB.flag` order
 `<sprite>__<suffix>.png`       the active port's own painting of a shared sprite
 
-A port does not get a second art set. It gets the *same* drawings re-liveried:
-this reads the sprites the other generators wrote and moves the hues that carry
-identity — the crane red, the RTG teal, the safety yellow, the asphalt, the
-soil, the roof — leaving glass, steel, tyres, hazard tape and outlines alone.
-That keeps every port inside the one palette language, and means a machine
-redrawn in `gen_cranes.py` is redrawn in Long Beach and Shanghai too. So this
-runs after the sprite generators it reads (alphabetical order already does
-that for everything it touches except `gen_vehicles`/`gen_worldmap`, which it
-does not depend on being *newer* than — only on existing).
+A port is meant to look like somewhere else at a glance, so it changes three
+ways:
+
+- **Repainted palettes** (`_pal`): the ground and the hulls are drawn from a
+  handful of palette entries, and a port swaps them entry by entry — Long
+  Beach's pale slab concrete, sand and cobalt water; Shanghai's dark asphalt,
+  deep-green hills and red-oxide decks — leaving paint lines alone.
+- **Hue shifts** (`_shift`) for the machines' identity colours: crane red,
+  RTG teal, safety yellow.
+- **Drawn sprites** (`gen_port_art`) where a recolour cannot do it: palms and
+  agaves, garden pines and boxwood, pennants and lanterns, Long Beach's
+  long-nose tractor, Yangshan's cabless AGV, and each port's own container
+  liveries (yard sheet and rail sheet).
+
+Recolours read the sprites other generators wrote, so `generate_all.sh` runs
+this once more after the loop.
 
 `PortDB.sprite_name` picks `<sprite>__<suffix>` when the file exists and the
 shared sprite when it does not, so adding a themed sprite is adding a line to
@@ -22,7 +29,13 @@ import os
 
 from PIL import Image
 
-from common import new_img, rect, hline, vline, px, save, sheet
+import math
+
+import palette as P
+from common import new_img, rect, hline, vline, px, save, sheet, outline
+import gen_containers
+import gen_train
+from gen_vehicles import body, glass, tyres, beacon, hazard, INK, CHROME
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SPRITES = os.path.join(HERE, "..", "..", "assets", "sprites")
@@ -122,46 +135,116 @@ YELLOW = (28, 52)      # safety yellow, vehicles
 BROWN = (18, 42)       # soil
 GREEN = (70, 140)      # grass
 
+def _pal(pairs, tol=12):
+    """A rule: pixels within `tol` of a source colour take its target. The
+    ground and the hulls are drawn from a handful of palette entries, so a
+    port can repaint them entry by entry — concrete for paving, sand for grass
+    — which no hue shift can do without dragging the paint lines along."""
+    return {"pal": [(tuple(a[:3]), tuple(b[:3])) for a, b in pairs], "tol": tol}
+
+
+# The shared ground's palette entries, darkest first (read off the tiles).
+YARD_SRC = [(96, 87, 93), (96, 88, 92), (108, 98, 100), (109, 100, 104),
+            (122, 114, 116), (134, 127, 128), (146, 138, 138), (146, 140, 139)]
+QUAY_SRC = [(120, 110, 100), (140, 122, 115), (156, 141, 130), (163, 157, 150),
+            (172, 160, 146), (186, 176, 160), (200, 193, 175)]
+GRASS_SRC = [(59, 122, 55), (72, 100, 84), (82, 139, 66), (86, 112, 92),
+             (106, 156, 78), (131, 171, 94), (156, 186, 109)]
+DIRT_SRC = [(122, 70, 50), (137, 92, 63), (152, 114, 76), (167, 136, 92),
+            (182, 159, 108)]
+# The hulls' deck, hatch and house entries (`gen_ship.py`).
+DECK_SRC = [(112, 120, 132), (96, 102, 116), (84, 98, 96), (127, 142, 139),
+            (73, 77, 90)]
+HOUSE_SRC = [(226, 222, 212), (228, 226, 217), (249, 248, 241)]
+
+
+def _map(src, dst):
+    return list(zip(src, dst))
+
+
+GROUND = {
+    # Long Beach: pale Californian concrete in slabs, sand where Santos has
+    # grass, desert dirt, a bright cool apron.
+    "usa": {
+        "yard": _map(YARD_SRC, [(150, 148, 142), (150, 148, 142), (170, 167, 160),
+                                (172, 169, 162), (190, 186, 178), (202, 198, 190),
+                                (214, 210, 202), (214, 210, 202)]),
+        "quay": _map(QUAY_SRC, [(150, 152, 152), (168, 170, 170), (184, 186, 184),
+                                (192, 194, 192), (200, 202, 198), (214, 216, 212),
+                                (230, 232, 228)]),
+        "grass": _map(GRASS_SRC, [(196, 164, 108), (180, 160, 120), (212, 182, 124),
+                                  (196, 176, 136), (226, 200, 144), (236, 214, 162),
+                                  (246, 230, 186)]),
+        "dirt": _map(DIRT_SRC, [(170, 120, 80), (186, 138, 94), (200, 156, 108),
+                                (212, 174, 124), (224, 192, 142)]),
+        "joints": (164, 160, 152),
+    },
+    # Shanghai: new dark asphalt with a blue cast, a grey steel-and-concrete
+    # apron, wet deep-green island hills and red clay.
+    "cn": {
+        "yard": _map(YARD_SRC, [(40, 44, 54), (40, 44, 54), (50, 55, 66), (52, 57, 68),
+                                (60, 66, 78), (72, 78, 92), (86, 92, 106), (86, 92, 106)]),
+        "quay": _map(QUAY_SRC, [(78, 84, 92), (96, 102, 110), (110, 116, 124),
+                                (116, 122, 130), (124, 130, 138), (140, 146, 152),
+                                (158, 164, 170)]),
+        "grass": _map(GRASS_SRC, [(28, 70, 56), (40, 72, 64), (36, 88, 66), (48, 84, 72),
+                                  (46, 106, 76), (62, 126, 88), (84, 148, 100)]),
+        "dirt": _map(DIRT_SRC, [(110, 52, 40), (128, 64, 46), (144, 78, 54),
+                                (160, 96, 66), (176, 116, 80)]),
+        "joints": None,
+    },
+}
+
+HULLS = {
+    # A Pacific liner's green deck and white house; a Chinese yard's red-oxide
+    # deck and pale blue-grey house. The livery paint layer stays as it is.
+    "usa": _map(DECK_SRC, [(70, 96, 72), (60, 84, 64), (56, 74, 58), (96, 120, 98),
+                           (46, 60, 50)]) +
+           _map(HOUSE_SRC, [(240, 242, 244), (244, 246, 248), (255, 255, 255)]),
+    "cn": _map(DECK_SRC, [(132, 72, 58), (116, 62, 52), (100, 52, 44), (156, 92, 74),
+                          (84, 44, 40)]) +
+          _map(HOUSE_SRC, [(196, 212, 224), (204, 218, 230), (230, 240, 248)]),
+}
+
+YARD_TILES = ["gr_yard_0", "gr_yard_1", "gr_yard_2", "gr_yard_3", "gr_yard", "gr_yard_b"]
+QUAY_TILES = ["gr_quay", "gr_quay_edge"]
+GRASS_TILES = ["gr_grass", "gr_seam_tufts"]
+DIRT_TILES = ["gr_dirt_0", "gr_dirt_1", "gr_dirt_2", "gr_dirt", "gr_dirt_edge"]
+SHIPS = ["ship_top", "ship_top_feeder", "ship_top_new_panamax"]
+
+
+def _ground_rules(suffix):
+    g = GROUND[suffix]
+    every = g["yard"] + g["quay"] + g["grass"] + g["dirt"]
+    return [
+        (YARD_TILES, [_pal(g["yard"] + g["grass"])]),
+        (QUAY_TILES, [_pal(g["quay"] + g["grass"])]),
+        (GRASS_TILES, [_pal(g["grass"] + g["yard"])]),
+        (DIRT_TILES, [_pal(g["dirt"] + g["grass"])]),
+        (["gr_curb"], [_pal(every)]),
+        (SHIPS, [_pal(HULLS[suffix], tol=4)]),
+    ]
+
+
 # (sprites, rules). First matching rule wins for a pixel.
 THEMES = {
-    "usa": [
+    "usa": _ground_rules("usa") + [
         # Long Beach: navy-blue quay cranes, white-and-amber yard gantries,
-        # red road tractors, pale Californian concrete, sand and dry grass.
+        # red road tractors.
         (["sts_base", "sts_beam"], [_shift(*RED, hue=214, sat=0.85, val=0.95)]),
         (["rtg", "rtg_trolley"], [_shift(*TEAL, hue=44, sat=0.95, val=1.25)]),
-        (["veh_tt", "veh_truck_cab", "veh_forklift", "veh_reach_stacker"],
+        (["veh_tt", "veh_forklift", "veh_reach_stacker"],
          [_shift(*YELLOW, hue=4, sat=0.95, val=0.90, min_sat=0.5)]),
         (["bld_warehouse"], [_shift(*RED, hue=208, sat=0.45, val=1.05)]),
-        (["gr_yard_0", "gr_yard_1", "gr_yard_2", "gr_yard_3", "gr_yard",
-          "gr_yard_b", "gr_curb"],
-         [_shift(*GREEN, add_hue=-22, sat=0.75, val=1.05),
-          _tone(sat=0.5, val=1.16, tint=(150, 160, 172), amount=0.30)]),
-        (["gr_quay", "gr_quay_edge"],
-         [_tone(sat=0.6, val=1.06, tint=(214, 210, 200), amount=0.25)]),
-        (["gr_dirt_0", "gr_dirt_1", "gr_dirt_2", "gr_dirt", "gr_dirt_edge"],
-         [_shift(*GREEN, add_hue=-25, sat=0.7, val=1.05),
-          _shift(*BROWN, add_hue=8, sat=0.62, val=1.22, min_sat=0.15)]),
-        (["gr_grass"], [_shift(*GREEN, add_hue=-28, sat=0.72, val=1.06)]),
     ],
-    "cn": [
+    "cn": _ground_rules("cn") + [
         # Shanghai: the blue cranes of an automated quay, red yard gantries,
-        # white-and-blue driverless tractors, new dark asphalt, red clay and
-        # wet green.
+        # white-and-blue machines.
         (["sts_base", "sts_beam"], [_shift(*RED, hue=196, sat=0.95, val=0.92)]),
         (["rtg", "rtg_trolley"], [_shift(*TEAL, hue=6, sat=1.0, val=1.0)]),
-        (["veh_tt", "veh_truck_cab", "veh_forklift", "veh_reach_stacker"],
+        (["veh_truck_cab", "veh_forklift", "veh_reach_stacker"],
          [_shift(*YELLOW, hue=204, sat=0.42, val=1.08, min_sat=0.5)]),
         (["bld_warehouse"], [_shift(*RED, hue=152, sat=0.75, val=0.92)]),
-        (["gr_yard_0", "gr_yard_1", "gr_yard_2", "gr_yard_3", "gr_yard",
-          "gr_yard_b", "gr_curb"],
-         [_shift(*GREEN, add_hue=18, sat=1.1, val=0.95),
-          _tone(sat=0.6, val=0.80, tint=(70, 78, 92), amount=0.30)]),
-        (["gr_quay", "gr_quay_edge"],
-         [_tone(sat=0.5, val=0.95, tint=(170, 176, 180), amount=0.30)]),
-        (["gr_dirt_0", "gr_dirt_1", "gr_dirt_2", "gr_dirt", "gr_dirt_edge"],
-         [_shift(*GREEN, add_hue=18, sat=1.1, val=0.95),
-          _shift(*BROWN, add_hue=-14, sat=1.15, val=0.92, min_sat=0.15)]),
-        (["gr_grass"], [_shift(*GREEN, add_hue=22, sat=1.12, val=0.92)]),
     ],
 }
 
@@ -182,6 +265,18 @@ def _recolour(img, rules):
             h, s, v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
             deg = h * 360.0
             for rule in rules:
+                if "pal" in rule:
+                    hit = None
+                    best = rule["tol"] ** 2
+                    for src_c, dst_c in rule["pal"]:
+                        dd = (r - src_c[0]) ** 2 + (g - src_c[1]) ** 2 + (b - src_c[2]) ** 2
+                        if dd <= best:
+                            best = dd
+                            hit = dst_c
+                    if hit is None:
+                        continue
+                    dst[x, y] = hit + (a,)
+                    break
                 if rule.get("grey"):
                     if s > 0.22:
                         continue
@@ -223,10 +318,273 @@ def gen_themes():
                 if not os.path.exists(path):
                     continue
                 img = Image.open(path).convert("RGBA")
-                save(_recolour(img, rules), "%s__%s" % (name, suffix))
+                out = _recolour(img, rules)
+                joints = GROUND[suffix]["joints"]
+                if joints and name in YARD_TILES:
+                    out = _slab_joints(out, joints)
+                save(out, "%s__%s" % (name, suffix))
+
+
+def _slab_joints(img, colour):
+    """Concrete is poured in slabs: a joint along the top and left of every
+    tile turns the paving into a 16px slab grid. Paint is left alone."""
+    out = img.copy()
+    src = img.load()
+    dst = out.load()
+    w, h = img.size
+    for x in range(w):
+        for y in range(h):
+            if x != 0 and y != 0:
+                continue
+            r, g, b, a = src[x, y]
+            if a == 0:
+                continue
+            _h, s, _v = colorsys.rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+            if s < 0.2:
+                dst[x, y] = colour[:3] + (a,)
+    return out
+
+
+# ------------------------------------------------------------- drawn per port
+#
+# Some of what makes a port itself cannot be a recolour: a palm is not a green
+# tree turned yellow, an American tractor has a bonnet, Yangshan's yard
+# tractors have no cab at all. These are drawn here, at the size and anchor of
+# the shared sprite they stand in for, so the code that places them does not
+# know the difference.
+
+PALM_GREEN = [(44, 98, 58, 255), (70, 132, 70, 255), (112, 170, 86, 255)]
+PALM_TRUNK = [(110, 80, 52, 255), (150, 112, 70, 255)]
+
+
+def palm():
+    """A fan palm from above, 22x22 like `prop_tree`: fronds radiating from
+    a crown, each frond a tapered stroke, the trunk's top in the middle."""
+    img = new_img(22, 22)
+    c = 10.5
+    for k in range(9):
+        ang = k * (2 * math.pi / 9) + 0.2
+        for t in range(2, 11):
+            fx = c + math.cos(ang) * t
+            fy = c + math.sin(ang) * t + (t * t) * 0.012
+            col = PALM_GREEN[2] if t < 5 else (PALM_GREEN[1] if t < 8 else PALM_GREEN[0])
+            px(img, int(fx), int(fy), col)
+            if 3 < t < 9:
+                # leaflets either side of the rib
+                px(img, int(fx - math.sin(ang)), int(fy + math.cos(ang)), PALM_GREEN[0])
+                if t % 2:
+                    px(img, int(fx + math.sin(ang)), int(fy - math.cos(ang)), PALM_GREEN[1])
+    rect(img, 9, 9, 3, 3, PALM_TRUNK[0])
+    px(img, 9, 9, PALM_TRUNK[1])
+    return outline(img)
+
+
+def pine():
+    """A Chinese black pine from above, 22x22: tiered flat pads of needles
+    with gaps between them, the shape of a garden pine, not a round tree."""
+    img = new_img(22, 22)
+    pads = [(7, 7, 5), (15, 8, 4), (8, 15, 4), (15, 15, 5), (11, 11, 4)]
+    dark, mid, lit = (28, 74, 60, 255), (42, 100, 72, 255), (78, 136, 88, 255)
+    for (cx, cy, r) in pads:
+        for y in range(cy - r, cy + r + 1):
+            for x in range(cx - r - 1, cx + r + 2):
+                dx, dy = (x - cx) / (r + 1.2), (y - cy) / r
+                if dx * dx + dy * dy <= 1.0:
+                    col = mid
+                    if dx + dy < -0.5:
+                        col = lit
+                    elif dx + dy > 0.6:
+                        col = dark
+                    px(img, x, y, col)
+        # needle texture
+        for i in range(-r, r + 1, 2):
+            px(img, cx + i, cy, dark)
+    px(img, 11, 11, (90, 60, 44, 255))
+    return outline(img)
+
+
+def agave():
+    """A blue agave from above, 14x12 like `prop_bush`: spiky rosette."""
+    img = new_img(14, 12)
+    blue, lit, dark = (96, 150, 140, 255), (150, 196, 176, 255), (60, 104, 100, 255)
+    c = (6.5, 6.0)
+    for k in range(10):
+        ang = k * (2 * math.pi / 10)
+        for t in range(1, 7):
+            x = c[0] + math.cos(ang) * t
+            y = c[1] + math.sin(ang) * t * 0.85
+            px(img, int(x), int(y), lit if t < 3 else (blue if t < 5 else dark))
+    return outline(img)
+
+
+def boxwood():
+    """A clipped boxwood ball in a stone ring, 14x12."""
+    img = new_img(14, 12)
+    for y in range(12):
+        for x in range(14):
+            d = math.hypot(x - 6.5, y - 5.5)
+            if 5.0 < d <= 6.2:
+                px(img, x, y, (150, 150, 146, 255))
+            elif d <= 5.0:
+                col = (52, 110, 66, 255)
+                if (x - 6.5) + (y - 5.5) < -2:
+                    col = (86, 150, 88, 255)
+                elif (x - 6.5) + (y - 5.5) > 3:
+                    col = (34, 80, 52, 255)
+                px(img, x, y, col)
+    return outline(img)
+
+
+def _bunting(colours, kind):
+    """`prop_bunting`'s span (64x14, tiling in X) in another port's colours:
+    `pennant` flags on a line, or `lantern` round paper lanterns."""
+    w, h = 64, 14
+    img = new_img(w, h)
+    for x in range(w):
+        sag = int(2.0 * math.sin(math.pi * x / (w - 1)))
+        px(img, x, 2 + sag, (46, 38, 42, 255))
+        px(img, x, 3 + sag, (86, 74, 76, 255))
+    for index, start in enumerate(range(1, w - 6, 8)):
+        colour = colours[index % len(colours)]
+        shade = tuple(int(c * 0.7) for c in colour[:3]) + (255,)
+        sag = int(2.0 * math.sin(math.pi * (start + 3) / (w - 1)))
+        if kind == "lantern":
+            cx, cy = start + 3, 6 + sag
+            for y in range(-2, 3):
+                half = 3 if abs(y) < 2 else 2
+                hline(img, cx - half, cy + y, half * 2, colour)
+                px(img, cx + half - 1, cy + y, shade)
+            hline(img, cx - 1, cy - 3, 2, (60, 40, 30, 255))
+            hline(img, cx - 1, cy + 3, 2, (230, 190, 60, 255))
+            px(img, cx - 2, cy - 1, (255, 220, 170, 255))
+            px(img, cx, cy + 5, (40, 36, 44, 70))
+        else:
+            for row in range(5):
+                half = 3 - row // 2
+                if half <= 0:
+                    continue
+                span = half * 2
+                left = start + 3 - half
+                hline(img, left, 4 + sag + row, span, colour)
+                px(img, left + span - 1, 4 + sag + row, shade)
+            px(img, start + 3, 10 + sag, (40, 36, 44, 70))
+    return img
+
+
+US_RED = [(130, 36, 40, 255), (186, 52, 52, 255), (226, 92, 84, 255)]
+
+
+def long_nose_cab():
+    """An American conventional tractor, nose up, 18x30: a long bonnet ahead
+    of the cab where Santos' cab-over has none, chrome stacks, a sleeper.
+    `RoadTruck` lines it up by its *bottom* edge, so the fifth wheel sits
+    where the shared 18x24 cab's does (6 px from the tail)."""
+    w, h = 18, 30
+    img = new_img(w, h)
+    tyres(img, 1, 3, 3, 6)
+    tyres(img, 14, 3, 3, 6)
+    tyres(img, 0, 20, 3, 6)
+    tyres(img, 15, 20, 3, 6)
+    # the bonnet: long, narrower than the cab, a chrome grille at the front
+    hline(img, 4, 0, 10, CHROME)
+    body(img, 4, 1, 10, 10, US_RED)
+    for gy in range(2, 10, 2):
+        hline(img, 6, gy, 6, US_RED[2])
+    # fenders either side of the bonnet
+    rect(img, 2, 4, 2, 6, US_RED[0])
+    rect(img, 14, 4, 2, 6, US_RED[0])
+    # the cab and the windscreen behind the bonnet
+    body(img, 2, 11, 14, 8, US_RED)
+    glass(img, 4, 11, 10, 3)
+    # twin chrome stacks at the back of the cab
+    rect(img, 1, 14, 2, 4, CHROME)
+    rect(img, 15, 14, 2, 4, CHROME)
+    px(img, 1, 14, (255, 255, 255, 255))
+    px(img, 15, 14, (255, 255, 255, 255))
+    # sleeper roof
+    rect(img, 4, 19, 10, 3, US_RED[0])
+    hline(img, 4, 19, 10, US_RED[1])
+    # fifth wheel, 6 px from the tail like the shared cab
+    rect(img, 6, 23, 6, 4, P.STEEL_D)
+    hline(img, 6, 23, 6, P.STEEL)
+    px(img, 8, 25, INK)
+    px(img, 9, 25, INK)
+    px(img, 5, 0, P.WINDOW_LIT)
+    px(img, 12, 0, P.WINDOW_LIT)
+    px(img, 6, 12, BEACON_AMBER)
+    px(img, 11, 12, BEACON_AMBER)
+    return outline(img)
+
+
+BEACON_AMBER = (255, 170, 60, 255)
+AGV_WHITE = [(176, 184, 196, 255), (220, 226, 234, 255), (246, 248, 252, 255)]
+AGV_BLUE = (40, 100, 186, 255)
+
+
+def agv():
+    """A Yangshan automated guided vehicle, 20x52 like `veh_tt`: a long flat
+    deck with no cab at all, a sensor bumper and status light at each end,
+    eight wheels under it. The container rides at y=20..44 like the tractor's."""
+    w, h = 20, 52
+    img = new_img(w, h)
+    for ty in (6, 18, 30, 42):
+        tyres(img, 0, ty, 3, 5)
+        tyres(img, 17, ty, 3, 5)
+    body(img, 2, 2, 16, 48, AGV_WHITE)
+    # the deck the box sits on: a recessed steel bed with guide rails
+    rect(img, 4, 8, 12, 36, P.STEEL_D)
+    vline(img, 5, 8, 36, P.STEEL)
+    vline(img, 14, 8, 36, P.STEEL)
+    for cy in (14, 24, 34):
+        hline(img, 6, cy, 8, P.STEEL)
+    # blue stripes and the sensor bumpers at both ends
+    for y0 in (3, 45):
+        rect(img, 3, y0, 14, 3, AGV_BLUE)
+        hline(img, 5, y0 + 1, 10, (20, 24, 34, 255))
+        px(img, 9, y0 + 1, (120, 230, 255, 255))
+        px(img, 10, y0 + 1, (120, 230, 255, 255))
+    beacon(img, 2, 4)
+    beacon(img, 16, 46)
+    return outline(img)
+
+
+# Liveries that call at each port: Santos is earth and rust; the Pacific's
+# boxes are white, grey, navy and signal colours; Shanghai's are the bright
+# blues and oranges of the big Chinese lines.
+CONTAINERS = {
+    "usa": [(226, 228, 230), (150, 156, 164), (48, 66, 116), (190, 46, 46),
+            (222, 182, 54), (52, 112, 76), (60, 62, 70), (110, 168, 214)],
+    "cn": [(36, 96, 178), (238, 122, 36), (200, 44, 44), (232, 232, 228),
+           (24, 142, 140), (28, 46, 108), (132, 136, 142), (96, 176, 226)],
+}
+
+
+def _container_ramps(suffix):
+    return [P.ramp(c + (255,), 5, hue_shift=16.0, dark=0.42, light=0.55)
+            for c in CONTAINERS[suffix]]
+
+
+def gen_port_art():
+    save(palm(), "prop_tree__usa")
+    save(agave(), "prop_bush__usa")
+    save(pine(), "prop_tree__cn")
+    save(boxwood(), "prop_bush__cn")
+    save(_bunting([(190, 46, 46, 255), (244, 244, 244, 255), (48, 66, 128, 255)],
+                  "pennant"), "prop_bunting__usa")
+    save(_bunting([(212, 44, 40, 255), (226, 60, 48, 255)], "lantern"),
+         "prop_bunting__cn")
+    save(long_nose_cab(), "veh_truck_cab__usa")
+    save(agv(), "veh_tt__cn")
+    for suffix in CONTAINERS:
+        ramps = _container_ramps(suffix)
+        save(sheet([gen_containers.container(r) for r in ramps]),
+             "container_sheet__%s" % suffix)
+        save(sheet([gen_train.rail_box(r) for r in ramps]),
+             "rail_box_sheet__%s" % suffix)
 
 
 if __name__ == "__main__":
     print("ports:")
     gen_flags()
     gen_themes()
+    gen_port_art()

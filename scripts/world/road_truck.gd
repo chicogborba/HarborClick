@@ -270,6 +270,10 @@ func _build_cab() -> void:
 	cab.texture = PortDB.tex("veh_truck_cab")
 	cab.centered = true
 	cab.scale = Vector2(RIG_SCALE, RIG_SCALE)
+	# A port's own tractor may be longer than the shared 18x24 cab-over (Long
+	# Beach's has a bonnet). It is anchored by its tail, where the fifth wheel
+	# is, so the extra length goes forward and the hitch does not move.
+	cab.offset.y = -(cab.texture.get_height() - 24.0) * 0.5
 	var cab_outline := _outline_for(cab)
 	_cab.add_child(cab_outline)
 	_outline_parts.append(cab_outline)
@@ -298,7 +302,7 @@ func _build_trailer() -> void:
 	for slot in GateDock.TRUCK_CAPACITY:
 		var box := Sprite2D.new()
 		var atlas := AtlasTexture.new()
-		atlas.atlas = preload("res://assets/sprites/container_sheet.png")
+		atlas.atlas = PortDB.tex("container_sheet")
 		atlas.region = Rect2(0, 0, 24, 13)
 		box.texture = atlas
 		box.centered = true

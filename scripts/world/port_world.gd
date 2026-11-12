@@ -132,7 +132,7 @@ var _gull_hint_shown := false
 var gulls_frozen := false
 
 
-@onready var _containers: Texture2D = preload("res://assets/sprites/container_sheet.png")
+@onready var _containers: Texture2D = PortDB.tex("container_sheet")
 
 ## Every save section this world owns, so it can hand them all back when it goes
 ## away. `SaveManager` holds a `Callable`, and a `Callable` holds an object id
@@ -442,13 +442,13 @@ func _rebuild_decals() -> void:
 	for i in int(PortLayout.world_bottom() / 76.0):
 		var ty := 24.0 + i * 76.0 + rng.randf_range(-14.0, 14.0)
 		var tree := Sprite2D.new()
-		tree.texture = preload("res://assets/sprites/prop_tree.png")
+		tree.texture = PortDB.tex("prop_tree")
 		tree.centered = false
 		tree.position = Vector2(-12.0 + rng.randf_range(0.0, 4.0), ty)
 		_props.add_child(tree)
 		if rng.randf() < 0.55:
 			var bush := Sprite2D.new()
-			bush.texture = preload("res://assets/sprites/prop_bush.png")
+			bush.texture = PortDB.tex("prop_bush")
 			bush.centered = false
 			bush.position = Vector2(-4.0, ty + 34.0)
 			_props.add_child(bush)

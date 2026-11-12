@@ -12,7 +12,7 @@ extends Node2D
 ## two of them can never be sent to the same box. A machine with no crew (a
 ## warehouse, the radar tower) is left exactly as it was: infrastructure.
 
-const CONTAINERS := preload("res://assets/sprites/container_sheet.png")
+
 const HAULERS := ["tt", "empilhadeira", "reach_stacker"]
 ## Where the portainer's trolley sits over the hull and over the quay apron.
 const STS_SHIP_X := 52.0
@@ -995,7 +995,7 @@ func _build_portal() -> void:
 func _container_sprite() -> Sprite2D:
 	var spr := Sprite2D.new()
 	var at := AtlasTexture.new()
-	at.atlas = CONTAINERS
+	at.atlas = PortDB.tex("container_sheet")
 	at.region = Rect2((randi() % 8) * 24, 0, 24, 13)
 	spr.texture = at
 	spr.centered = false

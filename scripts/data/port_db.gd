@@ -51,7 +51,7 @@ const PORTS: Array[Dictionary] = [
 		"traits": {"gate_cadence": 0.5, "rail_gap": 0.5},
 		"theme": {
 			"suffix": "usa",
-			"water": ["#5fb0b8", "#2f7f96", "#17506f", "#0e3350"],
+			"water": ["#3fa8d0", "#1f78b8", "#104c92", "#082c62"],
 		},
 		"names": {
 			"estivador": "Longshoreman", "tt": "Yard Truck",
@@ -111,7 +111,7 @@ const PORTS: Array[Dictionary] = [
 			"fog_free": true},
 		"theme": {
 			"suffix": "cn",
-			"water": ["#8fb39a", "#5f8f80", "#3d6a66", "#274a50"],
+			"water": ["#8e8a5c", "#76734e", "#5e5d43", "#464838"],
 		},
 		"names": {
 			"estivador": "Operador de Cais", "tt": "AGV Automático",

@@ -12,10 +12,21 @@ colours). `PortDB.set_active` re-points `StructureDB`, `LandDB`, `UpgradeDB`
 and `ShipCatalog` through their `apply_port()`; at home each of those is
 byte-for-byte the table the balance runs were tuned on.
 
+A port has to look like somewhere else at a glance, not like Santos in
+another colour. Its `theme.suffix` picks `<sprite>__<suffix>` wherever the
+world asks `PortDB.tex()` / `PortDB.sprite_name()` for a sprite: the ground
+tiles, the verge trees and bushes, the bunting, the road tractor (anchored by
+its tail, so a longer one keeps its hitch), the yard tractor, the container
+sheets (yard, ships, trucks, rail, the charter boards) and the hulls' deck and
+house. Long Beach: pale slab concrete, sand and palms, cobalt water, a
+long-nose tractor, white/grey/navy/signal-colour boxes, green decks. Shanghai:
+dark asphalt, deep-green hills and pines, olive estuary water, cabless AGVs,
+the blues and oranges of the big Chinese lines, red-oxide decks. All of it is
+generated in `tools/sprites/gen_ports.py`.
+
 Adding a port is one entry in `PORTS` and, if it has its own look, one block
-in `tools/sprites/gen_ports.py`. A port with `playable: false` is on the chart
-as "em breve" and cannot be bought or sailed to. The trade lanes (`RouteDB`)
-are still one table shared by every port.
+in `tools/sprites/gen_ports.py`. The trade lanes (`RouteDB`) are still one
+table shared by every port.
 
 
 These files describe achievements, contracts, land, prestige, routes, ships,
