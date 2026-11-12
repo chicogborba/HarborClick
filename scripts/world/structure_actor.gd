@@ -761,6 +761,9 @@ func _build_worker() -> void:
 	_walk.play()
 	_sprite = _walk
 	add_child(_walk)
+	# People on foot open their dossier when tapped (`hit_test`), so they wear
+	# the yard's white "you can touch this" border.
+	ClickOutline.attach(_walk)
 	_ensure_grab_shadow()
 	if profile != null and profile.wears_special_hat():
 		_build_hat()

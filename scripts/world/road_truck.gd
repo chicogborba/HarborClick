@@ -224,8 +224,9 @@ func stage_text() -> String:
 
 
 func set_interaction_state(actionable: bool, hovered: bool) -> void:
+	# White, like every tappable thing in the yard (`ClickOutline`).
 	var color := Color(1.0, 1.0, 1.0, 0.98) if hovered \
-		else Color(0.20, 0.22, 0.26, 0.92)
+		else Color(1.0, 1.0, 1.0, 0.62)
 	var width := 2.0 if hovered else 1.0
 	for part in _outline_parts:
 		part.visible = actionable

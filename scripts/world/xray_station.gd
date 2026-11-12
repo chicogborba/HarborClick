@@ -41,6 +41,9 @@ func _ready() -> void:
 	_sprite.centered = false
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_child(_sprite)
+	# Always tappable: abandoned it opens the repair, working it shows the
+	# next inspection, lit it opens the scan.
+	ClickOutline.attach(_sprite)
 	_bubble = _Bubble.new()
 	_bubble.position = Vector2(FRAME.x * 0.5, -8.0)
 	_bubble.visible = false

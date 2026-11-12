@@ -83,6 +83,12 @@ Major owners:
 
 - `container_yard.gd` — physical slots, reservations, UID stacks and manifest.
 - `ship.gd` — vessel view, bays, phases and interaction presentation.
+- `click_outline.gd` — the soft, breathing white border on everything in the
+  yard the player can tap: the Receita's post, people on foot, the cat, the
+  golden gull (and, through their own outline nodes, hulls that can be worked
+  and lorries at a bay). `ClickOutline.attach(sprite)` parks it behind the
+  sprite and mirrors its frame every tick. Something tappable that looks like
+  scenery is a feature nobody finds.
 - `xray_station.gd` — the Receita's inspection post beside gate bay G3
   (`PortLayout.xray_station_position`): abandoned, repaired, or due (red lamp
   and a "!" bubble). Presentation only — Main sets its state from

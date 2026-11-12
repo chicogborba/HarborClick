@@ -113,6 +113,7 @@ func _build() -> void:
 	_gull_atlas.region = Rect2(0, 0, FRAME_W, FRAME_H)
 	_bird.texture = _gull_atlas
 	add_child(_bird)
+	ClickOutline.attach(_bird)
 
 	for i in TRAIL_POOL:
 		var atlas := AtlasTexture.new()

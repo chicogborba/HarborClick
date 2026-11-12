@@ -8,6 +8,7 @@ const GULL_COUNT := 4
 var world: PortWorld
 var _gulls: Array[Dictionary] = []
 var _cat: AnimatedSprite2D
+var _cat_outline: ClickOutline
 var _t := 0.0
 
 
@@ -58,6 +59,8 @@ func _add_cat() -> void:
 	_cat.centered = false
 	_cat.play()
 	world.entities.add_child(_cat)
+	# The cat can be petted, so it is outlined like everything else tappable.
+	_cat_outline = ClickOutline.attach(_cat)
 	_cat.position = _cat_spot()
 	_cat.set_meta("placed", true)
 

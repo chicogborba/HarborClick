@@ -478,8 +478,10 @@ func set_interaction_state(actionable: bool, hovered: bool) -> void:
 	_outline.visible = actionable
 	if not actionable:
 		return
+	# White, the colour every tappable thing in the yard is outlined in
+	# (`ClickOutline`); brighter and wider under a pointer.
 	var color := Color(1.0, 1.0, 1.0, 0.98) if hovered \
-		else Color(0.20, 0.22, 0.26, 0.92)
+		else Color(1.0, 1.0, 1.0, 0.62)
 	var width := 2.0 if hovered else 1.0
 	for child in _outline.get_children():
 		var copy := child as Sprite2D
