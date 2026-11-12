@@ -136,7 +136,7 @@ Inventory: **273 authored code/config/scene files**.
 | `scripts/ui/route_map.gd` | 768 | class `RouteMap`; 22 functions | The chart on the clipboard: where this terminal trades, and what it would |
 | `scripts/ui/settings_panel.gd` | 718 | class `SettingsPanel`; 39 functions | Options board: sound, language, presentation, backup, and the one |
 | `scripts/ui/shop.gd` | 1572 | class `Shop`; 65 functions | The purchase manifest, presented as the foreman's clipboard. |
-| `scripts/ui/shop_card.gd` | 439 | class `ShopCard`; 18 functions | One line torn off the purchase manifest. |
+| `scripts/ui/shop_card.gd` | 445 | class `ShopCard`; 18 functions | One line torn off the purchase manifest. |
 | `scripts/ui/special_call_alert.gd` | 208 | class `SpecialCallAlert`; 14 functions | The interruption: a charter on the table, with what it pays and what it costs. |
 | `scripts/ui/title_screen.gd` | 1221 | 38 functions | The first thing the game shows. |
 | `scripts/ui/tutorial_spotlight.gd` | 784 | class `TutorialSpotlight`; 42 functions | Alisson, on foot. The first minutes, and every "olha isso, chefe!" after. |
@@ -243,7 +243,7 @@ Inventory: **273 authored code/config/scene files**.
 | `tests/telemetry_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/traffic_test_runner.gd` | 192 | 4 functions | Yard traffic regression suite. |
 | `tests/traffic_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/ui_p0_test_runner.gd` | 602 | 21 functions | Headless UI contract suite. |
+| `tests/ui_p0_test_runner.gd` | 654 | 22 functions | Headless UI contract suite. |
 | `tests/ui_p0_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/wake_test_runner.gd` | 98 | 5 functions | The water's knowledge of the ship. |
 | `tests/wake_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -264,7 +264,7 @@ Inventory: **273 authored code/config/scene files**.
 | `tools/balance/week_report.gd` | 56 | 4 functions | When does a week-long player first own each thing? |
 | `tools/capture/capture.gd` | 960 | 12 functions | Headed screenshot harness. Boots the real game scene, drives the overlays and |
 | `tools/capture/capture.tscn` | 6 | 1 nodes | Godot scene |
-| `tools/capture/closeup.gd` | 333 | 4 functions | One close-up of the running game, for judging art at the pixel. |
+| `tools/capture/closeup.gd` | 340 | 4 functions | One close-up of the running game, for judging art at the pixel. |
 | `tools/capture/closeup.tscn` | 6 | 1 nodes | Godot scene |
 | `tools/capture/perf.gd` | 105 | 4 functions | Frame-time measurement under the worst terminal the game can produce. |
 | `tools/capture/perf.tscn` | 6 | 1 nodes | Godot scene |

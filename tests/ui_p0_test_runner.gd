@@ -30,6 +30,7 @@ func _run() -> void:
 	await _test_pop_open_yields_to_a_layout_mid_slide()
 	await _test_board_motion_never_strands_a_board()
 	await _test_logbook_opens_and_shuts()
+	await _test_shop_never_outgrows_a_small_phone()
 
 	SaveManager.wipe()
 	_expect(not FileAccess.file_exists(TEST_SAVE_PATH), "cleanup removes UI test save")
@@ -471,6 +472,57 @@ func _test_logbook_opens_and_shuts() -> void:
 	_expect(not journal.is_open() and not journal._sheet.visible,
 		"the logbook shuts and is put away")
 	UserPreferences.reduce_motion = true
+	viewport.queue_free()
+	await get_tree().process_frame
+
+
+func _test_shop_never_outgrows_a_small_phone() -> void:
+	## A card's chips ("TROCA" beside "ESCOLHA 1 DE 2") sat in a row that could
+	## not shrink, so on a 320px screen the widest card set the whole board's
+	## minimum width: the shop opened wider than the screen, its close key and
+	## every price off the right edge. The board must fit however wide the
+	## widest card wants to be, on the narrowest screen the game supports.
+	# Everything that opens "Turma de Terra" — the card that carries both a
+	# TROCA chip and an ESCOLHA 1 DE 2 chip, the widest a card ever gets.
+	var owned_upgrades: Array[String] = []
+	var pending: Array[String] = ["sindicato"]
+	while not pending.is_empty():
+		var id: String = pending.pop_back()
+		if not owned_upgrades.has(id):
+			owned_upgrades.append(id)
+			pending.append_array(UpgradeDB.requires_of(UpgradeDB.get_item(id)))
+	GameState.from_save({"owned": {"estivador": 45}, "upgrades": owned_upgrades,
+		"teus": 1e12, "lifetime": 1e12, "all_time_teus": 1e12})
+	GameState.recompute()
+	var view := Vector2i(320, 480)
+	var viewport := _make_viewport(view)
+	var shop := Shop.new()
+	viewport.add_child(shop)
+	await get_tree().process_frame
+	shop._on_tab("upgrades")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	UiTheme.settle_open(shop._board)
+	var board: Control = shop._board
+	_expect(board.get_combined_minimum_size().x <= board.size.x + 0.5,
+		"no card forces the shop wider than its board (%s needs %.0f, has %.0f)"
+			% ["upgrades", board.get_combined_minimum_size().x, board.size.x])
+	_expect(_rect_inside(Rect2(Vector2.ZERO, Vector2(view)), board.get_global_rect()),
+		"the shop stays on a 320px screen (%s)" % board.get_global_rect())
+	# The exclusive pair is the widest thing the tab can show.
+	var chips_seen := 0
+	for id: String in shop._cards:
+		var card: ShopCard = shop._cards[id]
+		if card.is_visible_in_tree() and card._chip_row.visible:
+			chips_seen += 1
+			_expect(card.get_combined_minimum_size().x <= board.size.x,
+				"card %s fits the board" % id)
+	_expect(chips_seen > 0, "the check actually met a card with chips")
+	var two_chips := false
+	for id: String in shop._cards:
+		var card: ShopCard = shop._cards[id]
+		two_chips = two_chips or (card._chips[1].panel as Control).visible
+	_expect(two_chips, "and with two chips on it — the widest case")
 	viewport.queue_free()
 	await get_tree().process_frame
 

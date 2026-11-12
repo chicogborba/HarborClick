@@ -34,7 +34,7 @@ var _lock: TextureRect
 ## Up to two coloured tags under the name saying what kind of thing this card
 ## does (production, the whole port, taps, a swap, the rail) and whether it is
 ## one of an exclusive pair. Built once, rewritten in place.
-var _chip_row: HBoxContainer
+var _chip_row: HFlowContainer
 var _chips: Array[Dictionary] = []   # {panel, style, icon, label}
 var _chip_key := ""
 var _count_stamp: PanelContainer
@@ -114,8 +114,14 @@ func setup(item_id: String, item_kind: String, art_key: String,
 	name_row.add_child(_lock)
 	name_row.add_child(_name_label)
 
-	_chip_row = HBoxContainer.new()
-	_chip_row.add_theme_constant_override(&"separation", 4)
+	# A flow, not a row: "TROCA" beside "ESCOLHA 1 DE 2" is wider than the text
+	# column of a card on a 320px phone, and a row that cannot shrink sets the
+	# whole board's minimum width — the shop opened wider than the screen, with
+	# its close key and every price off the right edge. Chips wrap instead.
+	_chip_row = HFlowContainer.new()
+	_chip_row.add_theme_constant_override(&"h_separation", 4)
+	_chip_row.add_theme_constant_override(&"v_separation", 2)
+	_chip_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_chip_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_chip_row.visible = false
 	text_col.add_child(_chip_row)

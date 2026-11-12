@@ -37,12 +37,19 @@ func _ready() -> void:
 	if args.size() > 0 and String(args[0]).begins_with("port="):
 		PortDB.set_active(StringName(String(args[0]).substr(5)))
 		args.remove_at(0)
+	# `size=1372x1360` photographs another window shape. A desktop window is
+	# nothing like a phone, and the shop once opened wider than the screen in one.
+	var window_size := Vector2i(390, 844)
+	if args.size() > 0 and String(args[0]).begins_with("size="):
+		var parts := String(args[0]).substr(5).split("x")
+		window_size = Vector2i(int(parts[0]), int(parts[1]))
+		args.remove_at(0)
 	var scenario := String(args[0]) if args.size() > 0 else "world"
 	var zoom := float(args[1]) if args.size() > 1 else 0.0
 	var centre := Vector2(float(args[2]), float(args[3])) if args.size() > 3 \
 		else Vector2(-1, -1)
-	DisplayServer.window_set_size(Vector2i(390, 844))
-	get_window().size = Vector2i(390, 844)
+	DisplayServer.window_set_size(window_size)
+	get_window().size = window_size
 
 	_main = load("res://scenes/Main.tscn").instantiate()
 	add_child(_main)
