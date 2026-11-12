@@ -92,7 +92,7 @@ func _test_the_xray_post_is_a_place() -> void:
 	service.policy.ready = true
 	service.state_changed.emit()
 	_expect(station.state == XrayStation.State.DUE, "a waiting container lights it red")
-	GameState.flags.erase("xray_coached")
+	GameState.flags.erase("xray_coached2")
 	_main.world._try_tap(station.centre())
 	for i in 4:
 		await get_tree().process_frame
@@ -105,7 +105,7 @@ func _test_the_xray_post_is_a_place() -> void:
 	_expect(is_equal_approx(board.game.time_left, left),
 		"and the clock does not run while it is up")
 	board._dismiss_coach()
-	_expect(not board.coach_visible() and bool(GameState.flags.get("xray_coached", false)),
+	_expect(not board.coach_visible() and bool(GameState.flags.get("xray_coached2", false)),
 		"one tap puts it away for good")
 	board.visible = false
 	board.open_changed.emit(false)

@@ -220,21 +220,23 @@ Entry points:
   never pre-marked seen, so an old profile still meets him. `dismiss_tip()`
   removes a tip at once; Main calls it whenever a board opens.
 - `xray_minigame.gd` — the Receita Federal inspection on the `MinigameBoard`
-  shell: the container rolls through the portal, the Creatus Security e VWI
-  monitor boots, then the scan. The scan is a 180x84 grey transmission image
-  of the whole trailer built pixel by pixel per seed (walls, ribs, chassis,
-  wheels, a dark mass of banded bales the goods hide in), drawn nearest. The
-  player drags a loupe (it floats above the finger) that shows that spot
-  magnified 2.2x through a material filter — ORGANIC or METAL — with the bales
-  ghosted and the goods in false colour, then presses SEIZE on what is under
-  the crosshair (`XrayScan` rules). The intro is skippable and the clock only
-  runs on the scan. `xray_panel.gd` is
-  the post's board (repair / next inspection / inspect). There is no HUD key:
-  the scanner is the Receita's post in the yard (`world/xray_station.gd`),
-  abandoned until repaired, lit red with a "!" when a container waits; tapping
-  it goes straight into the scan when one is due, and opens the board
-  otherwise. The first scan shows a coach card (the four contraband shapes,
-  one rule) and the clock waits until it is dismissed (`flags.xray_coached`).
+  shell: a lorry drives through the drive-through scanner (portal and lorry
+  side-on, `ui_xray_portal` / `ui_xray_truck`) while the monitor under the
+  scene builds the raw picture column by column, cab first; the Creatus
+  Security e VWI software boots; then the scan. The scan is four pictures of
+  the same lorry, one per view (`XrayScan.Filter`), built per seed with
+  `fill_rect` and drawn nearest: RAW (cartons and machinery, a smudge in every
+  box, nothing seizable), METAL (metal blue), ORGANIC (organics orange, glass
+  green), RAIO+ (machinery see-through). The bar under the monitor (or 1-4)
+  switches view with a wipe; the player taps each contraband in the view that
+  shows it. A lost scan turns to the view that shows what got away.
+  `xray_panel.gd` is the post's board (repair / next inspection / inspect).
+  There is no HUD key: the scanner is a drive-through lane in the yard
+  (`world/xray_station.gd`), abandoned until repaired, a lorry stopped under a
+  red beam with a "!" when an inspection is due; tapping it goes straight into
+  the scan when one is due, and opens the board otherwise. The first scan of
+  these rules shows a coach card (what each view finds) and the clock waits
+  until it is dismissed (`flags.xray_coached2`).
 
 `FloatText` is the game's only answer to "did my tap pay?", so it is deliberately
 loud: a large warm number with a thick dark outline, punched in and risen. Small

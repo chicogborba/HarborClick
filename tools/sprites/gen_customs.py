@@ -10,15 +10,19 @@ Outputs (all nearest-neighbour, shown at integer scale):
                      band every Receita agent wears on a quay, a clipboard
                      under one arm. Where Alisson is blue and orange, he is
                      navy and gold; where Alisson waves, he lifts his stamp.
-- `ui_xray_items`    16 frames of 16x16: cargo as an X-ray scanner shows it,
-                     in false colour (orange organic, blue metal, green
-                     glass/plastic). Order is the `XrayScan.ITEMS` table:
-                     twelve ordinary goods, then four contraband silhouettes.
+- `ui_xray_items`    18 frames of 16x16: cargo silhouettes for the scan. Order is
+                     the `XrayScan.ITEMS` table. The board recolours each by
+                     the view that shows it (metal blue, organic orange, glass
+                     green, RAIO+ violet), reading only the sprite's lightness.
                      Cartoon shapes, nothing graphic.
-- `ui_xray_portal`   2 frames of 44x36: the drive-through scanner portal
-                     (idle lamp green, scanning lamp red with the beam lit).
-- `xray_station`    4 frames of 34x46: the inspection post in the world, beside
-                     gate bay G3 (abandoned, repaired, due, due off-beat).
+- `ui_xray_portal`   4 frames of 76x74: the drive-through container scanner
+                     side-on, in two layers so the lorry drives through it
+                     (back idle, back scanning, front idle, front scanning).
+- `ui_xray_truck`    6 frames of 112x44: a cab-over lorry with a 20ft box,
+                     side-on, facing east (3 box liveries x 2 wheel phases).
+- `xray_station`    4 frames of 42x60: the drive-through lane in the yard,
+                     beside gate bay G3 (abandoned, repaired, a lorry under the
+                     beam, the same on the lamp's off beat).
 - `ui_xray_badge`    2 frames of 24x24: the HUD key, a little scanner monitor;
                      lit, a red beacon and a flagged silhouette on screen.
 """
@@ -26,6 +30,8 @@ from PIL import Image
 
 from common import new_img, rect, hline, vline, px, save, sheet
 from gen_guide import selout, BW, BH, MOUTH
+
+P_GLASS = [(70, 110, 140, 255), (150, 200, 220, 255)]
 
 # ----------------------------------------------------------------- the officer
 
@@ -416,12 +422,49 @@ ITEMS = {
         "......mmmmm.....",
         "................",
         "................"],
+    # ----- added with the filter views: a decoy for the bricks, and the
+    # contraband the Receita seizes most on Brazilian quays after drugs:
+    # rapadura is shaped like a taped brick, the macaw is wildlife traffic
+    "rapadura": [
+        "................",
+        "................",
+        "................",
+        "................",
+        ".....OOOOOO.....",
+        ".....OoooXO.....",
+        ".....OoXooO.....",
+        ".....OOOOOO.....",
+        "..OOOOOOOOOOOO..",
+        "..OooXoOOoooXO..",
+        "..OoooooOooXoO..",
+        "..OXoooOOoXooO..",
+        "..OooXoOOoooXO..",
+        "..OOOOOOOOOOOO..",
+        "................",
+        "................"],
+    "macaw": [
+        "................",
+        ".....OOOO.......",
+        "...OOooooO......",
+        "..OXOoXooO......",
+        "..OO.ooooO......",
+        "..O..oooooO.....",
+        ".....ooooooO....",
+        ".....oooOoooO...",
+        "......ooOOooO...",
+        "......oooOOoO...",
+        ".......ooooOO...",
+        "...MMMMMMMMMMM..",
+        "........OooO....",
+        ".........OoO....",
+        "..........OoO...",
+        "...........OO..."],
 }
 
 # The order is the contract with `XrayScan.ITEMS`: frame index = table index.
 ORDER = ["bear", "guitar", "bike", "shoe", "bottle", "tv", "chair", "laptop",
          "ball", "umbrella", "dryer", "drill",
-         "pistol", "rifle", "bricks", "grenade"]
+         "pistol", "rifle", "bricks", "grenade", "rapadura", "macaw"]
 
 
 def xray_item(name):
@@ -445,59 +488,219 @@ def gen_xray_items():
 STEEL = [(54, 60, 74, 255), (92, 100, 118, 255), (140, 150, 168, 255),
          (196, 204, 218, 255)]
 HAZ = [(246, 196, 40, 255), (24, 22, 30, 255)]
-CURTAIN = (40, 44, 58, 150)
 OUT = (24, 20, 30, 255)
+# The scanner's own paint: Receita navy housing, white panels, yellow trim.
+HOUSE = [(26, 36, 64, 255), (40, 56, 96, 255), (62, 84, 132, 255),
+         (96, 122, 172, 255)]
+PANEL = [(170, 178, 190, 255), (214, 220, 228, 255), (244, 246, 250, 255)]
+BEAM = (120, 236, 255, 255)
+CONCRETE = [(120, 118, 112, 255), (156, 152, 144, 255), (186, 182, 172, 255)]
+
+PT_W, PT_H = 76, 74
+# The lane surface is the frame's last row: the board draws the road there.
+PT_ROAD = 70
 
 
-def portal(scanning):
-    g = new_img(44, 36)
-    # pillars
-    for x0 in (2, 35):
-        rect(g, x0, 8, 7, 26, STEEL[1])
-        vline(g, x0, 8, 26, STEEL[2])
-        vline(g, x0 + 6, 8, 26, STEEL[0])
-        # the emitter windows down each pillar
-        for y in range(12, 31, 4):
-            rect(g, x0 + 2, y, 3, 2, (120, 230, 250, 255) if scanning
-                 else (40, 70, 90, 255))
-        rect(g, x0 - 1, 33, 9, 2, STEEL[0])
-    # the top beam with hazard stripes
-    rect(g, 1, 3, 42, 6, HAZ[1])
-    for x in range(1, 43):
-        for y in range(4, 8):
-            if ((x + y) // 3) % 2 == 0:
-                px(g, x, y, HAZ[0])
-    hline(g, 1, 3, 42, STEEL[3])
-    hline(g, 1, 8, 42, STEEL[0])
-    # a lamp on top
-    lamp = (232, 60, 52, 255) if scanning else (80, 210, 110, 255)
-    rect(g, 19, 0, 6, 3, lamp)
-    px(g, 20, 0, (255, 230, 220, 255) if scanning else (210, 255, 220, 255))
-    hline(g, 18, 2, 8, STEEL[0])
-    # lead curtain strips across the opening (translucent: the box shows through)
-    for x in range(9, 35, 3):
-        rect(g, x, 9, 2, 22, CURTAIN)
+def _trefoil(g, x, y):
+    """The radiation sign: a 5x5 yellow plate with the black trefoil."""
+    rect(g, x, y, 5, 5, HAZ[0])
+    for (dx, dy) in ((2, 2), (1, 1), (3, 1), (2, 3), (1, 3), (3, 3)):
+        if (dx, dy) in ((2, 2), (1, 1), (3, 1), (2, 4)):
+            px(g, x + dx, y + dy, HAZ[1])
+    px(g, x + 2, y + 4, HAZ[1])
+    px(g, x + 2, y + 2, HAZ[1])
+
+
+def portal(layer, scanning):
+    """The drive-through container scanner, seen from the kerb.
+
+    The road runs left to right; the gantry spans it, so from the side the
+    near leg, the far wall and the beam housing on top are what show. Drawn
+    in two layers so the lorry can drive *through* it: `back` (far wall,
+    detector column, the shade inside the tunnel) under the lorry, `front`
+    (near legs, housing, lead curtains, the lit beam, the traffic light)
+    over it."""
+    g = new_img(PT_W, PT_H)
+    x0, x1 = 8, 64              # the tunnel's extent along the road
+    top = 20                    # underside of the housing
+    if layer == "back":
+        # far wall: a pale panel wall with the detector column in the middle
+        rect(g, x0 + 4, top, x1 - x0 - 8, PT_ROAD - top, PANEL[0])
+        for x in range(x0 + 4, x1 - 4, 6):
+            vline(g, x, top, PT_ROAD - top, PANEL[1])
+        rect(g, 33, top, 6, PT_ROAD - top, HOUSE[1])
+        for y in range(top + 3, PT_ROAD - 2, 4):
+            rect(g, 34, y, 4, 2, BEAM if scanning else HOUSE[2])
+        # the tunnel's shade, darker at the top
+        for y in range(top, top + 6):
+            hline(g, x0 + 4, y, x1 - x0 - 8, (60, 66, 84, 160 - (y - top) * 20))
+        return g
+    # --- front layer
+    # the beam housing on top: navy box, white side panel, yellow trim
+    rect(g, x0 - 2, 6, x1 - x0 + 4, top - 6, HOUSE[1])
+    hline(g, x0 - 2, 6, x1 - x0 + 4, HOUSE[3])
+    hline(g, x0 - 2, top - 1, x1 - x0 + 4, HOUSE[0])
+    rect(g, x0 + 2, 9, x1 - x0 - 4, 7, PANEL[1])
+    hline(g, x0 + 2, 9, x1 - x0 - 4, PANEL[2])
+    hline(g, x0 + 2, 15, x1 - x0 - 4, PANEL[0])
+    # a yellow-and-black trim along the underside
+    for x in range(x0 - 2, x1 + 2):
+        px(g, x, top - 2, HAZ[0] if (x // 3) % 2 == 0 else HAZ[1])
+    # the lamp and the bar of warning lights on the roof
+    lamp = (255, 70, 56, 255) if scanning else (80, 210, 110, 255)
+    rect(g, 33, 2, 6, 4, lamp)
+    px(g, 34, 2, (255, 240, 230, 255))
+    hline(g, 31, 5, 10, STEEL[0])
+    _trefoil(g, x0 + 4, 10)
+    _trefoil(g, x1 - 9, 10)
+    # near legs, at the tunnel's mouth and its exit, on concrete plinths
+    for lx in (x0 - 2, x1 - 3):
+        rect(g, lx, top, 5, PT_ROAD - top - 3, HOUSE[1])
+        vline(g, lx, top, PT_ROAD - top - 3, HOUSE[2])
+        vline(g, lx + 4, top, PT_ROAD - top - 3, HOUSE[0])
+        for y in range(top + 4, PT_ROAD - 6, 8):
+            hline(g, lx + 1, y, 3, HAZ[0])
+        rect(g, lx - 2, PT_ROAD - 3, 9, 3, CONCRETE[1])
+        hline(g, lx - 2, PT_ROAD - 3, 9, CONCRETE[2])
+    # lead curtains hanging in both mouths: strips the lorry pushes through
+    for cx in (x0 + 4, x1 - 7):
+        for i in range(3):
+            rect(g, cx + i, top, 1, 22 + (i % 2) * 3, (40, 44, 58, 150))
+    # the beam: a fan of light down the middle when the lorry is in it
     if scanning:
-        for y in (14, 20, 26):
-            hline(g, 9, y, 26, (120, 230, 250, 110))
-    out = g.copy()
-    # outline only the opaque frame, not the curtains
-    src = g.load()
-    w, h = g.size
-    for y in range(h):
-        for x in range(w):
-            if src[x, y][3]:
-                continue
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < w and 0 <= ny < h and src[nx, ny][3] == 255:
-                    out.putpixel((x, y), OUT)
-                    break
-    return out
+        for y in range(top, PT_ROAD):
+            a = 110 if (y // 2) % 2 == 0 else 70
+            hline(g, 34, y, 4, (BEAM[0], BEAM[1], BEAM[2], a))
+            px(g, 33, y, (BEAM[0], BEAM[1], BEAM[2], 40))
+            px(g, 38, y, (BEAM[0], BEAM[1], BEAM[2], 40))
+    # the traffic light past the exit, on its own pole
+    tx = PT_W - 6
+    vline(g, tx + 2, 24, PT_ROAD - 24, STEEL[1])
+    vline(g, tx + 1, 24, PT_ROAD - 24, STEEL[2])
+    rect(g, tx, 16, 5, 11, (30, 30, 36, 255))
+    red = (255, 70, 56, 255) if scanning else (90, 30, 30, 255)
+    green = (60, 60, 50, 255) if scanning else (90, 230, 120, 255)
+    rect(g, tx + 1, 17, 3, 3, red)
+    rect(g, tx + 1, 22, 3, 3, green)
+    return selout(g, OUT)
 
 
 def gen_xray_portal():
-    save(sheet([portal(False), portal(True)]), "ui_xray_portal", preview_scale=6)
+    frames = [portal("back", False), portal("back", True),
+              portal("front", False), portal("front", True)]
+    save(sheet(frames), "ui_xray_portal", preview_scale=5)
+
+
+# ------------------------------------------------------ the lorry, side-on
+
+# `ui_xray_truck`, frames of TR_W x TR_H: a Brazilian cab-over tractor with a
+# 20ft box on a skeletal trailer, facing right (east), as the drive-through
+# sees it. Three box liveries x two wheel phases: frame = livery * 2 + phase.
+TR_W, TR_H = 112, 44
+CAB = [(150, 30, 34, 255), (196, 52, 48, 255), (232, 96, 80, 255)]
+CAB_WHITE = [(176, 180, 188, 255), (222, 226, 232, 255), (248, 250, 252, 255)]
+TYRE = [(26, 24, 30, 255), (52, 50, 58, 255)]
+BOXES = [
+    [(110, 46, 32, 255), (150, 66, 44, 255), (186, 92, 62, 255), (214, 130, 96, 255)],
+    [(32, 60, 104, 255), (48, 86, 140, 255), (72, 116, 172, 255), (120, 160, 210, 255)],
+    [(40, 86, 50, 255), (62, 116, 66, 255), (92, 148, 88, 255), (140, 190, 130, 255)],
+]
+
+
+def _wheel(g, cx, cy, phase):
+    r = 5
+    for y in range(-r, r + 1):
+        for x in range(-r, r + 1):
+            d = x * x + y * y
+            if d <= r * r:
+                px(g, cx + x, cy + y, TYRE[0] if d > 9 else STEEL[1])
+    px(g, cx, cy, STEEL[3])
+    spokes = ((0, -2), (0, 2), (-2, 0), (2, 0)) if phase == 0 else \
+        ((-1, -1), (1, 1), (-1, 1), (1, -1))
+    for (dx, dy) in spokes:
+        px(g, cx + dx, cy + dy, STEEL[0])
+    px(g, cx - 3, cy - 3, TYRE[1])
+
+
+def truck_side(livery, phase):
+    g = new_img(TR_W, TR_H)
+    box = BOXES[livery]
+    road = TR_H - 1
+    axle = road - 5
+    # --- the trailer: a skeletal chassis under the box
+    rect(g, 2, axle - 7, 78, 3, STEEL[0])
+    hline(g, 2, axle - 7, 78, STEEL[1])
+    rect(g, 70, axle - 4, 2, 4, STEEL[1])          # landing leg
+    # --- the box: a twenty-footer, doors at the back (left)
+    bx0, by0, bw, bh = 4, 7, 72, 25
+    rect(g, bx0, by0, bw, bh, box[2])
+    for x in range(bx0 + 2, bx0 + bw - 2, 3):
+        vline(g, x, by0 + 2, bh - 4, box[3])
+        vline(g, x + 1, by0 + 2, bh - 4, box[1])
+    hline(g, bx0, by0, bw, box[3])
+    hline(g, bx0, by0 + 1, bw, box[2])
+    hline(g, bx0, by0 + bh - 1, bw, box[0])
+    hline(g, bx0, by0 + bh - 2, bw, box[1])
+    for cx in (bx0, bx0 + bw - 3):
+        for cy in (by0, by0 + bh - 3):
+            rect(g, cx, cy, 3, 3, STEEL[1])
+            px(g, cx + 1, cy + 1, STEEL[0])
+    # door end: two locking bars and the CSC plate
+    for lx in (bx0 + 4, bx0 + 8):
+        vline(g, lx, by0 + 3, bh - 6, STEEL[2])
+    rect(g, bx0 + 12, by0 + bh - 9, 5, 3, PANEL[2])
+    # the operator's mark, stencilled
+    for i, x in enumerate(range(bx0 + 30, bx0 + 52, 2)):
+        px(g, x, by0 + 6, PANEL[2] if i % 4 != 3 else box[2])
+        px(g, x, by0 + 7, PANEL[1] if i % 4 != 3 else box[2])
+    # trailer wheels: a tandem at the back, mudflaps
+    _wheel(g, 16, axle, phase)
+    _wheel(g, 28, axle, phase)
+    rect(g, 34, axle - 3, 2, 6, TYRE[0])
+    # --- the tractor: a cab-over, red and white, facing right
+    rect(g, 74, axle - 6, 34, 3, STEEL[0])        # its own frame
+    _wheel(g, 86, axle, phase)
+    _wheel(g, 102, axle, phase)
+    # fuel tank and step
+    rect(g, 88, axle - 9, 9, 4, STEEL[2])
+    hline(g, 88, axle - 9, 9, STEEL[3])
+    hline(g, 88, axle - 6, 9, STEEL[1])
+    # the exhaust stack behind the cab
+    rect(g, 80, 8, 2, axle - 14, STEEL[2])
+    px(g, 80, 8, STEEL[3])
+    # cab body: white top, red skirt, a sleeper box behind the doors
+    cx0, cy0, cw, ch = 83, 9, 24, axle - 18
+    rect(g, cx0, cy0, cw, ch, CAB_WHITE[1])
+    hline(g, cx0, cy0, cw, CAB_WHITE[2])
+    vline(g, cx0, cy0, ch, CAB_WHITE[0])
+    rect(g, cx0, cy0 + ch - 8, cw, 8, CAB[1])
+    hline(g, cx0, cy0 + ch - 8, cw, CAB[2])
+    hline(g, cx0, cy0 + ch - 1, cw, CAB[0])
+    # front face: the windscreen leaning back, the grille, the headlamp
+    rect(g, cx0 + cw - 1, cy0 + 1, 2, ch - 1, CAB_WHITE[0])
+    rect(g, cx0 + 13, cy0 + 3, 9, 8, P_GLASS[1])
+    hline(g, cx0 + 13, cy0 + 3, 9, P_GLASS[0])
+    px(g, cx0 + 20, cy0 + 4, (240, 252, 255, 255))
+    px(g, cx0 + 19, cy0 + 5, (240, 252, 255, 255))
+    # the door with its window, handle and mirror arm
+    rect(g, cx0 + 4, cy0 + 3, 7, 6, P_GLASS[1])
+    hline(g, cx0 + 4, cy0 + 3, 7, P_GLASS[0])
+    vline(g, cx0 + 3, cy0 + 2, ch - 3, CAB_WHITE[0])
+    vline(g, cx0 + 12, cy0 + 2, ch - 3, CAB_WHITE[0])
+    px(g, cx0 + 10, cy0 + 11, STEEL[0])
+    rect(g, cx0 + cw + 1, cy0 + 2, 2, 5, STEEL[1])
+    rect(g, cx0 + cw - 1, cy0 + ch - 4, 3, 2, (252, 230, 150, 255))   # headlamp
+    rect(g, cx0 + cw - 2, cy0 + ch - 1, 5, 3, STEEL[1])               # bumper
+    # roof: sun visor and the amber light bar
+    hline(g, cx0 + 12, cy0 - 1, 12, CAB_WHITE[0])
+    for x in (cx0 + 14, cx0 + 17, cx0 + 20):
+        px(g, x, cy0 - 2, (255, 170, 60, 255))
+    return selout(g, OUT)
+
+
+def gen_xray_truck():
+    frames = [truck_side(livery, phase) for livery in range(3) for phase in range(2)]
+    save(sheet(frames), "ui_xray_truck", preview_scale=4)
 
 
 # ---------------------------------------------------------------- HUD badge
@@ -541,114 +744,184 @@ def gen_xray_badge():
 
 # ------------------------------------------------------ the post on the quay
 
-# `xray_station`, 4 frames of 34x46: the Receita's inspection post beside gate
-# bay G3, in the yard's 3/4 view (roof from above, south wall showing).
-#   0  abandoned: the roof patched and holed, the window and door boarded up,
-#      rust running down the wall, weeds at the plinth, the lamp dead
-#   1  repaired and waiting: clean, lit window, green lamp
-#   2  an inspection is due: red lamp, bright
-#   3  the same, the lamp's off beat
-# The gantry on the roof is the scanner itself; the post is somewhere a person
-# sits under it. Repairing it is the purchase, so the abandoned frame has to
-# read as "this could work" at a glance — a shape you recognise, gone to seed.
-ST_W, ST_H = 34, 46
-ROOF = [(40, 52, 74, 255), (58, 74, 102, 255), (82, 100, 132, 255),
-        (112, 132, 164, 255)]
-WALL = [(170, 160, 140, 255), (206, 198, 178, 255), (230, 224, 206, 255)]
+# `xray_station`, 4 frames of ST_W x ST_H, in the yard's top-down view: the
+# Receita's drive-through scanner beside gate bay G3. A short concrete lane runs
+# south to north under a gantry; the source tower stands on its east side with
+# the operator's booth below it, and a barrier closes the exit.
+#   0  abandoned: the lane cracked and weedy, the gantry rusted and missing
+#      panels, cones across the mouth, the barrier snapped, every light dead
+#   1  repaired and waiting: clean lane, green light, barrier up, no lorry
+#   2  an inspection is due: a lorry stopped under the beam, red light, the
+#      beam lit across the box
+#   3  the same on the lamp's off beat
+# Repairing it is the purchase, so frame 0 has to read as "this could work":
+# the same shape, gone to seed.
+ST_W, ST_H = 42, 60
+ROOF = [(26, 36, 64, 255), (40, 56, 96, 255), (62, 84, 132, 255),
+        (96, 122, 172, 255)]
 SIGN = [(28, 40, 70, 255), (246, 204, 52, 255)]
 GLASS = [(70, 110, 140, 255), (150, 200, 220, 255), (252, 230, 150, 255)]
-RUST = [(120, 66, 36, 255), (156, 90, 46, 255)]
-PLANK = [(110, 74, 44, 255), (150, 106, 64, 255)]
+RUST = [(104, 56, 32, 255), (140, 80, 44, 255), (176, 110, 60, 255)]
 WEED = [(60, 104, 52, 255), (92, 140, 70, 255)]
+PAD = [(138, 136, 130, 255), (164, 160, 152, 255), (190, 186, 176, 255)]
+PAD_OLD = [(112, 106, 96, 255), (132, 126, 114, 255), (150, 144, 130, 255)]
+LANE_X0, LANE_W = 3, 24          # the lane, west to east
+BEAM_Y = 24                       # the gantry's beam, north edge
+
+
+def _top_truck(g, x, y, livery):
+    """A lorry from above, facing north: cab-over tractor, a 20ft box."""
+    box = BOXES[livery]
+    # tyres peeking out under the body
+    for ty in (y + 4, y + 22, y + 34):
+        rect(g, x - 1, ty, 2, 5, TYRE[0])
+        rect(g, x + 16, ty, 2, 5, TYRE[0])
+    # the cab: white roof with a red nose and a windscreen
+    rect(g, x + 1, y, 15, 12, CAB_WHITE[1])
+    hline(g, x + 1, y, 15, CAB[1])
+    hline(g, x + 1, y + 1, 15, CAB[2])
+    rect(g, x + 2, y + 2, 13, 3, P_GLASS[1])
+    hline(g, x + 2, y + 2, 13, P_GLASS[0])
+    px(g, x + 12, y + 3, (240, 252, 255, 255))
+    vline(g, x + 1, y, 12, CAB_WHITE[0])
+    vline(g, x + 15, y, 12, CAB_WHITE[0])
+    hline(g, x + 3, y + 7, 11, CAB_WHITE[2])
+    for bx in (x + 5, x + 8, x + 11):
+        px(g, bx, y + 6, (255, 170, 60, 255))
+    px(g, x, y + 3, STEEL[1]); px(g, x + 16, y + 3, STEEL[1])     # mirrors
+    # the box: corrugated roof across, corner castings
+    rect(g, x, y + 13, 17, 30, box[2])
+    for yy in range(y + 15, y + 41, 3):
+        hline(g, x + 1, yy, 15, box[3])
+        hline(g, x + 1, yy + 1, 15, box[1])
+    hline(g, x, y + 13, 17, box[3])
+    vline(g, x + 16, y + 13, 30, box[0])
+    hline(g, x, y + 42, 17, box[0])
+    for (cx, cy) in ((x, y + 13), (x + 15, y + 13), (x, y + 41), (x + 15, y + 41)):
+        rect(g, cx, cy, 2, 2, STEEL[1])
 
 
 def station(state):
     g = new_img(ST_W, ST_H)
     broken = state == 0
-    # --- the roof: a flat slab seen from above, lit north-west
-    rx0, ry0, rw, rh = 2, 10, 30, 16
-    rect(g, rx0, ry0, rw, rh, ROOF[1])
-    hline(g, rx0, ry0, rw, ROOF[3])
-    vline(g, rx0, ry0, rh, ROOF[2])
-    vline(g, rx0 + rw - 1, ry0, rh, ROOF[0])
-    hline(g, rx0, ry0 + rh - 1, rw, ROOF[0])
-    # the roof unit and its vent
-    rect(g, 22, 13, 7, 5, STEEL[2] if not broken else STEEL[1])
-    hline(g, 22, 13, 7, STEEL[3])
-    px(g, 25, 15, STEEL[0])
+    pad = PAD_OLD if broken else PAD
+    # --- the lane: a concrete slab with kerbs and paint
+    rect(g, LANE_X0, 0, LANE_W, ST_H, pad[1])
+    vline(g, LANE_X0, 0, ST_H, pad[0])
+    vline(g, LANE_X0 + LANE_W - 1, 0, ST_H, pad[0])
+    for y in range(0, ST_H, 6):
+        hline(g, LANE_X0 + 1, y, LANE_W - 2, pad[2] if not broken else pad[0])
+    paint = (236, 196, 60, 255) if not broken else (150, 130, 80, 255)
+    for y in range(1, ST_H - 1):
+        if not broken or (y // 3) % 3:
+            px(g, LANE_X0 + 2, y, paint)
+            px(g, LANE_X0 + LANE_W - 3, y, paint)
+    # the stop line under the beam and the chevrons on the approach
+    hline(g, LANE_X0 + 3, BEAM_Y + 12, LANE_W - 6,
+          (244, 244, 240, 255) if not broken else pad[2])
+    if not broken:
+        for i, cy in enumerate((ST_H - 10, ST_H - 5)):
+            for k in range(5):
+                px(g, LANE_X0 + 8 + k, cy - k // 2, (244, 244, 240, 255))
+                px(g, LANE_X0 + 15 - k, cy - k // 2, (244, 244, 240, 255))
+    else:
+        # cracks, a pothole, weeds pushing through
+        for (x, y) in ((6, 8), (7, 9), (8, 9), (9, 10), (18, 40), (19, 41),
+                       (19, 42), (20, 43), (12, 50), (13, 51)):
+            px(g, x, y, pad[0])
+        rect(g, 14, 30, 4, 3, (82, 76, 70, 255))
+        for (x, y, h) in ((5, 20, 2), (24, 14, 3), (10, 46, 2), (22, 54, 3),
+                          (16, 3, 2)):
+            vline(g, x, y, h, WEED[0])
+            px(g, x, y, WEED[1])
+    # --- the lorry, under the beam, when an inspection is due
+    if state >= 2:
+        _top_truck(g, LANE_X0 + 3, 9, 1)
+    # --- the gantry: two footings and a beam across the lane
+    metal = RUST if broken else ROOF
+    for fx in (LANE_X0 - 3, LANE_X0 + LANE_W - 1):
+        rect(g, fx, BEAM_Y - 1, 4, 10, metal[1])
+        hline(g, fx, BEAM_Y - 1, 4, metal[3] if not broken else metal[2])
+        vline(g, fx + 3, BEAM_Y - 1, 10, metal[0])
+    rect(g, LANE_X0 - 3, BEAM_Y, LANE_W + 6, 7, metal[1])
+    hline(g, LANE_X0 - 3, BEAM_Y, LANE_W + 6, metal[3] if not broken else metal[2])
+    hline(g, LANE_X0 - 3, BEAM_Y + 6, LANE_W + 6, metal[0])
+    # the beam's underside trim, and the detector windows along it
+    for x in range(LANE_X0 - 3, LANE_X0 + LANE_W + 3):
+        if broken and 14 <= x <= 20:
+            continue          # a panel missing: the frame shows through
+        px(g, x, BEAM_Y + 5, HAZ[0] if (x // 2) % 2 == 0 else HAZ[1])
+    for x in range(LANE_X0 + 2, LANE_X0 + LANE_W - 2, 4):
+        lit = state >= 2 and (x // 4 + state) % 2 == 0
+        rect(g, x, BEAM_Y + 2, 2, 2, BEAM if lit else (metal[0] if broken else ROOF[2]))
     if broken:
-        # holes, a tarp patch and a water stain
-        rect(g, 6, 18, 4, 3, OUT)
-        px(g, 7, 18, ROOF[0])
-        rect(g, 13, 20, 6, 4, (120, 96, 60, 255))
-        hline(g, 13, 20, 6, (150, 122, 78, 255))
-        for (x, y) in ((4, 13), (5, 14), (18, 12), (27, 22), (28, 23)):
-            px(g, x, y, ROOF[0])
-    # --- the scanner gantry across the roof: two legs, a taped beam
-    for lx in (3, 28):
-        rect(g, lx, 4, 3, 10, STEEL[1])
-        vline(g, lx, 4, 10, STEEL[2])
-    rect(g, 2, 2, 30, 4, HAZ[0])
-    for x in range(2, 32):
-        for y in range(3, 5):
-            if ((x + y) // 2) % 2 == 0:
-                px(g, x, y, HAZ[1])
-    hline(g, 2, 2, 30, (255, 236, 150, 255) if not broken else (200, 170, 70, 255))
+        rect(g, 14, BEAM_Y + 1, 7, 4, RUST[0])
+        hline(g, 15, BEAM_Y + 3, 5, STEEL[0])
+    elif state >= 2:
+        # the beam's light falling across the box
+        for x in range(LANE_X0 + 1, LANE_X0 + LANE_W - 1):
+            px(g, x, BEAM_Y + 7, (BEAM[0], BEAM[1], BEAM[2], 170))
+            px(g, x, BEAM_Y + 8, (BEAM[0], BEAM[1], BEAM[2], 80))
+    # --- the source tower, east of the lane, with the radiation sign
+    tx, ty = LANE_X0 + LANE_W + 1, BEAM_Y - 8
+    rect(g, tx, ty, 11, 18, metal[1])
+    hline(g, tx, ty, 11, metal[3] if not broken else metal[2])
+    vline(g, tx, ty, 18, metal[2])
+    vline(g, tx + 10, ty, 18, metal[0])
+    hline(g, tx, ty + 17, 11, metal[0])
+    rect(g, tx + 2, ty + 3, 7, 5, (228, 232, 238, 255) if not broken else (150, 146, 136, 255))
+    _trefoil(g, tx + 3, ty + 3)
     if broken:
-        # tape faded, one end of the beam sagging
-        for x in range(22, 32):
-            if x % 3 == 0:
-                px(g, x, 4, STEEL[1])
-        px(g, 31, 5, HAZ[0])
-    # the lamp on the beam
+        px(g, tx + 4, ty + 4, RUST[1]); px(g, tx + 7, ty + 6, RUST[1])
+    # the lamp on the tower
     lamp = {0: (70, 70, 80, 255), 1: (80, 210, 110, 255),
             2: (255, 70, 56, 255), 3: (150, 40, 40, 255)}[state]
-    rect(g, 15, 0, 4, 3, lamp)
+    rect(g, tx + 4, ty - 3, 3, 3, lamp)
     if state in (1, 2):
-        px(g, 16, 0, (255, 240, 230, 255))
-    # --- the south wall under the eave
-    wy0 = ry0 + rh
-    rect(g, rx0, wy0, rw, 15, WALL[1])
-    hline(g, rx0, wy0, rw, WALL[0])                # eave shadow
-    hline(g, rx0, wy0 + 14, rw, WALL[0])           # plinth
-    vline(g, rx0 + rw - 1, wy0, 15, WALL[0])
-    # the sign band: RECEITA in gold on navy, as a 1px pattern
-    rect(g, 5, wy0 + 2, 24, 4, SIGN[0])
-    for x in range(7, 27, 2):
-        px(g, x, wy0 + 3, SIGN[1] if not broken or x % 4 else SIGN[0])
-        px(g, x, wy0 + 4, SIGN[1] if not broken or x % 6 else SIGN[0])
-    # window and door
-    wx, wy = 6, wy0 + 7
-    dx = 22
+        px(g, tx + 4, ty - 3, (255, 240, 230, 255))
+    # --- the operator's booth, south of the tower
+    by = ty + 21
+    rect(g, tx, by, 11, 9, ROOF[1] if not broken else (78, 74, 70, 255))
+    hline(g, tx, by, 11, ROOF[3] if not broken else (100, 96, 90, 255))
+    vline(g, tx + 10, by, 9, ROOF[0])
+    rect(g, tx, by + 9, 11, 7, (222, 216, 200, 255) if not broken else (170, 160, 140, 255))
+    hline(g, tx, by + 9, 11, (176, 170, 156, 255))
+    rect(g, tx + 1, by + 10, 9, 2, SIGN[0])
+    for x in range(tx + 2, tx + 9, 2):
+        px(g, x, by + 10, SIGN[1] if not broken or x % 4 else SIGN[0])
     if broken:
-        rect(g, wx, wy, 8, 5, PLANK[0])
-        for i in range(8):
-            px(g, wx + i, wy + i * 5 // 8, PLANK[1])
-            px(g, wx + 7 - i, wy + i * 5 // 8, PLANK[1])
-        rect(g, dx, wy - 1, 6, 8, PLANK[0])
-        hline(g, dx, wy + 1, 6, PLANK[1])
-        hline(g, dx, wy + 4, 6, PLANK[1])
-        # rust bleeding down from the eave and the sign
-        for (x, y0, n) in ((4, wy0 + 1, 6), (12, wy0 + 6, 5), (29, wy0 + 1, 9),
-                           (17, wy0 + 6, 3)):
-            vline(g, x, y0, n, RUST[0])
-            px(g, x, y0, RUST[1])
-        # weeds at the plinth
-        for (x, h) in ((3, 3), (5, 2), (14, 2), (19, 3), (30, 2)):
-            vline(g, x, wy0 + 15 - h, h, WEED[0])
-            px(g, x, wy0 + 15 - h, WEED[1])
+        rect(g, tx + 2, by + 13, 6, 3, (110, 74, 44, 255))
+        px(g, tx + 3, by + 14, (150, 106, 64, 255))
+        px(g, tx + 6, by + 13, (150, 106, 64, 255))
     else:
-        rect(g, wx, wy, 8, 5, GLASS[0])
-        rect(g, wx + 1, wy + 1, 6, 3, GLASS[2] if state else GLASS[1])
+        rect(g, tx + 2, by + 13, 4, 2, GLASS[2] if state else GLASS[1])
         if state >= 2:
-            rect(g, wx + 1, wy + 1, 6, 3, (255, 150, 120, 255))
-        px(g, wx + 6, wy + 1, (255, 255, 255, 255))
-        rect(g, dx, wy - 1, 6, 8, STEEL[1])
-        vline(g, dx, wy - 1, 8, STEEL[2])
-        px(g, dx + 4, wy + 3, SIGN[1])
-        # a striped kerb where a lorry pulls up
-        for x in range(2, 32, 2):
-            px(g, x, wy0 + 15, HAZ[0] if (x // 2) % 2 == 0 else HAZ[1])
+            rect(g, tx + 2, by + 13, 4, 2, (255, 150, 120, 255))
+        rect(g, tx + 7, by + 12, 2, 4, STEEL[1])
+    # --- the exit barrier across the north end
+    if broken:
+        # snapped: a stub on the post, the arm lying on the slab
+        rect(g, LANE_X0 + LANE_W - 1, 2, 3, 3, STEEL[1])
+        for i in range(10):
+            px(g, LANE_X0 + 6 + i, 6 + i // 4,
+               (220, 60, 50, 255) if (i // 2) % 2 == 0 else (240, 236, 230, 255))
+        # cones across the mouth
+        for cx in (LANE_X0 + 4, LANE_X0 + 11, LANE_X0 + 18):
+            rect(g, cx, ST_H - 6, 3, 3, (236, 120, 40, 255))
+            px(g, cx + 1, ST_H - 7, (250, 200, 120, 255))
+            hline(g, cx, ST_H - 5, 3, (244, 240, 230, 255))
+    else:
+        rect(g, LANE_X0 + LANE_W - 1, 1, 3, 3, STEEL[1])
+        if state >= 2:
+            # down: the lorry waits for the scan
+            for i in range(LANE_W - 2):
+                px(g, LANE_X0 + 1 + i, 2,
+                   (220, 60, 50, 255) if (i // 3) % 2 == 0 else (240, 236, 230, 255))
+        else:
+            # up: the arm stands along the kerb
+            for i in range(8):
+                px(g, LANE_X0 + LANE_W, 4 + i,
+                   (220, 60, 50, 255) if (i // 2) % 2 == 0 else (240, 236, 230, 255))
     return selout(g, OUT)
 
 
@@ -660,5 +933,6 @@ if __name__ == "__main__":
     gen_customs_body()
     gen_xray_items()
     gen_xray_portal()
+    gen_xray_truck()
     gen_xray_badge()
     gen_xray_station()

@@ -50,8 +50,10 @@ asked to do the job.
 - **A game must be winnable.** The maze is carved with a backtracker, so every
   cell is reachable from the gate — a maze that walls off a crate is a charter
   that can only ever fine you. The suite checks it over forty seeds. The X-ray
-  draws every crate in its own cell: contraband that showed only through a
-  tool is a scan that can only be lost by whoever did not find the tool.
+  draws every thing in its own cell, and its views are never hidden tools:
+  the bar is always on screen, the first scan's card names what each view
+  finds, and the first two inspections introduce the colour views and RAIO+
+  one at a time.
 - **One event at a time.** `SpecialCallDirector.can_run` (set by `Main` from
   `_event_boards_busy`) holds the offer clock while a board or the tour is up,
   and a charter that berths behind one waits in `Main._queued_charter` and
@@ -94,21 +96,26 @@ board. Bought, it calls an inspection every five to nine minutes of play.
   comes back to be played. Meta progress — a prestige does not take it back.
   `seed_new` (new profile, and any save from before the scanner) is "not
   bought".
-- `xray_scan.gd` — one scan: a jittered 5x2 grid of goods in the container and
-  one contraband (pistol, rifle, taped bricks, grenade), dealt from the
-  inspection's own seed with a local generator. **One picture, one verb**: the
-  board draws every crate in false colour at reading size — the only hidden
-  thing is *which*, never *where* — and the player taps it. Wrong taps cost
-  `WRONG_PENALTY` once per spot; decoys shaped like weapons (hair dryer,
-  drill) join from `DECOY_LEVEL`. Items never overlap, so every scan is
-  winnable — the suite checks it over forty seeds.
+- `xray_scan.gd` — one scan: a lorry's 20ft box as a 5x2 grid of cartons,
+  machinery and one gap, holding goods and one to three contraband (pistol,
+  rifle, grenade, taped bricks, a trafficked macaw), dealt from the
+  inspection's own seed with a local generator. **Four views, one verb**: the
+  raw view shows no contents; METAL shows metal, ORGANIC organics and glass,
+  RAIO+ only what is behind machinery. A thing can be seized only in a view
+  that shows it (`XrayScan.shows`), so the player must switch views — the
+  game the user asked for. Wrong taps cost `WRONG_PENALTY` once per spot and
+  view; a raw tap costs nothing. Level 0 hides its one contraband in a carton,
+  level 1 behind machinery, then anything goes; decoys of the same material
+  (drill, hair dryer, rapadura) join from `DECOY_LEVEL`. Every contraband shows
+  in exactly one view and is the nearest thing there — the suite checks it
+  over forty seeds.
 - `xray_service.gd` — the node: registers the section, ticks the clock while
   `Main._xray_clock_runs` (after the tour, no board open), takes the money and
   grants the benefit. A loss costs nothing; a lost scan may be retried once for
   a `minigame_retry` rewarded ad, like the charters.
 
 Run the `xray` suite after changing anything here, and the `tour_receita`,
-`tour_xray_due`, `xray_panel`, `xray_roll`, `xray_boot`, `xray_scan`,
+`tour_xray_due`, `xray_post`, `xray_post_due`, `xray_panel`, `xray_roll`, `xray_boot`, `xray_coach`, `xray_raw`, `xray_scan`,
 `xray_miss` closeups.
 
 Run the `special` suite plus `cargo` and `phase3_progression_ui` after changing

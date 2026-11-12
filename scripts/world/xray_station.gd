@@ -1,10 +1,12 @@
 class_name XrayStation
 extends Node2D
-## The Receita's inspection post, standing in the yard beside gate bay G3.
+## The Receita's drive-through scanner, standing in the yard beside gate bay G3.
 ##
 ## The scanner used to be a key on the HUD, which made it a menu. It is a place
-## now: an abandoned post the player finds on the quay, repairs (the purchase),
-## and walks back to whenever its lamp turns red. Tapping it is the only way
+## now: a short lane under a scanning gantry, with the source tower and the
+## operator's booth beside it. The player finds it abandoned, repairs it (the
+## purchase), and walks back to it whenever its lamp turns red — which is when
+## a lorry is stopped under the beam waiting to be read. Tapping it is the only way
 ## into the scan, so an inspection is something you go and do, not something
 ## that is done to you.
 ##
@@ -14,7 +16,7 @@ extends Node2D
 enum State { ABANDONED, IDLE, DUE }
 
 const SHEET := preload("res://assets/sprites/xray_station.png")
-const FRAME := Vector2(34, 46)
+const FRAME := Vector2(42, 60)
 
 var state: State = State.ABANDONED
 ## A purchase is within reach: the abandoned post shows a wrench bubble.
@@ -29,8 +31,8 @@ var _t := 0.0
 func _ready() -> void:
 	position = PortLayout.xray_station_position()
 	var shadow := Polygon2D.new()
-	shadow.polygon = PackedVector2Array([Vector2(3, 44), Vector2(36, 44),
-		Vector2(37, 47), Vector2(4, 47)])
+	shadow.polygon = PackedVector2Array([Vector2(28, 4), Vector2(42, 6),
+		Vector2(43, 52), Vector2(28, 52)])
 	shadow.color = Color(0.1, 0.08, 0.14, 0.32)
 	add_child(shadow)
 	_atlas = AtlasTexture.new()

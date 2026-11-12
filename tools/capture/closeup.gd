@@ -267,9 +267,10 @@ func _stage(scenario: String) -> Vector2:
 				_main.tutorial._body.visible_characters = -1
 			await get_tree().create_timer(1.2).timeout
 			return Vector2(-1, -1)
-		"xray_roll", "xray_boot", "xray_scan", "xray_miss":
-			# The inspection board at each beat: the box in the portal, the
-			# Creatus splash, the scan, and the scan after a wrong tap.
+		"xray_roll", "xray_boot", "xray_scan", "xray_miss", "xray_raw", "xray_coach":
+			# The inspection board at each beat: the lorry in the portal with
+			# its picture arriving, the splash, the first-scan card, the raw
+			# view, a filter view, and a filter view after a wrong tap.
 			_main.xray_service.policy.buy()
 			_main.xray_service.policy.ready = true
 			_main._open_xray()
@@ -277,22 +278,32 @@ func _stage(scenario: String) -> Vector2:
 			var board: XrayMinigame = _main.xray_board
 			match scenario:
 				"xray_roll":
-					await get_tree().create_timer(0.6).timeout
+					await get_tree().create_timer(1.6).timeout
 				"xray_boot":
 					board._set_phase(XrayMinigame.Phase.BOOT)
 					await get_tree().create_timer(0.6).timeout
 				_:
 					board._set_phase(XrayMinigame.Phase.SCAN)
 					await get_tree().create_timer(0.8).timeout
-					# The picture says the whole rule: the reticle parked on
-					# the contraband (xray_scan), or on an ordinary crate a
-					# wrong tap has just cost seconds for (xray_miss).
+					# The picture says the whole rule: the view that shows the
+					# contraband with the reticle parked on it (xray_scan), the
+					# raw view nothing can be seized in (xray_raw), or an
+					# ordinary thing a wrong tap has just cost seconds for
+					# (xray_miss).
+					if scenario == "xray_coach":
+						board.set_process(false)
+						return Vector2(-1, -1)
+					GameState.flags["xray_coached2"] = true
+					board._coach.visible = false
 					var pick: Dictionary = board.game.contraband()
 					if scenario == "xray_miss":
 						for item: Dictionary in board.game.items:
-							if not bool(item.contraband):
+							if not bool(item.contraband) and item.behind == &"carton":
 								pick = item
 								break
+					if scenario != "xray_raw":
+						board._pick_filter(XrayScan.filter_for(pick))
+						await get_tree().create_timer(0.4).timeout
 					board._reticle = board._to_screen(pick.pos)
 					if scenario == "xray_miss":
 						board._seize_at(board._to_screen(pick.pos))

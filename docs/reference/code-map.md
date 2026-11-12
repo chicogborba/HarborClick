@@ -85,13 +85,13 @@ Inventory: **276 authored code/config/scene files**.
 | `scripts/events/special_call_director.gd` | 230 | class `SpecialCallDirector`; 15 functions | When a special call turns up, which berth it takes, and what it pays. |
 | `scripts/events/stack_game.gd` | 179 | class `StackGame`; 10 functions | The rules of the stacking minigame, with no nodes in them. |
 | `scripts/events/xray_policy.gd` | 145 | class `XrayPolicy`; 12 functions | The Receita Federal's X-ray scanner as rules: what it costs, when an |
-| `scripts/events/xray_scan.gd` | 197 | class `XrayScan`; 11 functions | The rules of one X-ray inspection, with no nodes in them. |
+| `scripts/events/xray_scan.gd` | 342 | class `XrayScan`; 17 functions | The rules of one X-ray inspection, with no nodes in them. |
 | `scripts/events/xray_service.gd` | 88 | class `XrayService`; 12 functions | The scanner as a live node: owns one `XrayPolicy`, persists it as the |
 | `scripts/fx/float_text.gd` | 58 | class `FloatText`; 2 functions | Floating "+N" feedback text. |
 | `scripts/fx/fx.gd` | 193 | class `Fx`; 9 functions | The port's one VFX library: pooled sprite particles living in the world's |
 | `scripts/i18n/loc.gd` | 224 | 16 functions | Which language the port speaks, and every string it says. |
 | `scripts/i18n/strings_content.gd` | 157 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
-| `scripts/i18n/strings_ui.gd` | 2283 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
+| `scripts/i18n/strings_ui.gd` | 2427 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
 | `scripts/main.gd` | 1282 | 50 functions | Root: assembles world, camera and UI. |
 | `scripts/monetization/ad_policy.gd` | 184 | class `AdPolicy`; 11 functions | The rules of rewarded ads: which placements exist, how many may be watched |
 | `scripts/monetization/ad_provider.gd` | 18 | class `AdProvider`; 1 functions | The seam between the game and a real ad SDK. `AdService` asks the current |
@@ -146,7 +146,7 @@ Inventory: **276 authored code/config/scene files**.
 | `scripts/ui/upgrade_map.gd` | 484 | class `UpgradeMap`; 27 functions | The upgrade catalogue as the thing it actually is: a network diagram. |
 | `scripts/ui/voyage_screen.gd` | 117 | 3 functions | The crossing between two ports, on the globe. |
 | `scripts/ui/wheel_button.gd` | 143 | class `WheelButton`; 8 functions | The Roda da Sorte's key: a small steel key under the gantry's left end, with |
-| `scripts/ui/xray_minigame.gd` | 674 | class `XrayMinigame`; 36 functions | The Receita Federal's inspection: find the contraband on the X-ray. |
+| `scripts/ui/xray_minigame.gd` | 973 | class `XrayMinigame`; 51 functions | The Receita Federal's inspection: read the lorry's X-ray through its views. |
 | `scripts/ui/xray_panel.gd` | 176 | class `XrayPanel`; 10 functions | The scanner's board: buy it, see when the next inspection is due, start |
 | `scripts/world/atmosphere.gd` | 283 | class `Atmosphere`; 14 functions | Day/night lighting for the top-down port: global tint, flood-light masts |
 | `scripts/world/cargo_relay.gd` | 365 | class `CargoRelay`; 20 functions | The visible chain of custody for one container. |
@@ -171,7 +171,7 @@ Inventory: **276 authored code/config/scene files**.
 | `scripts/world/structure_layer.gd` | 282 | class `StructureLayer`; 16 functions | Places the visible copies of bought structures around the terminal. |
 | `scripts/world/water_foam.gd` | 130 | class `WaterFoam`; 10 functions | A tiny sprite layer over the shader: static quay foam and a few ambient |
 | `scripts/world/water_quality.gd` | 26 | class `WaterQuality`; 3 functions | Automatic visual budget. This intentionally does not read or write player |
-| `scripts/world/xray_station.gd` | 127 | class `XrayStation`; 8 functions | The Receita's inspection post, standing in the yard beside gate bay G3. |
+| `scripts/world/xray_station.gd` | 129 | class `XrayStation`; 8 functions | The Receita's drive-through scanner, standing in the yard beside gate bay G3. |
 
 ## tests
 
@@ -252,7 +252,7 @@ Inventory: **276 authored code/config/scene files**.
 | `tests/wake_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/wheel_test_runner.gd` | 548 | 27 functions | The Roda da Sorte: the wheel's rules, its persistence, and the service that |
 | `tests/wheel_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/xray_test_runner.gd` | 361 | 19 functions | The Receita Federal's X-ray scanner: the scan rules (`XrayScan`), the |
+| `tests/xray_test_runner.gd` | 420 | 20 functions | The Receita Federal's X-ray scanner: the scan rules (`XrayScan`), the |
 | `tests/xray_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 
 ## tools
@@ -267,7 +267,7 @@ Inventory: **276 authored code/config/scene files**.
 | `tools/balance/week_report.gd` | 56 | 4 functions | When does a week-long player first own each thing? |
 | `tools/capture/capture.gd` | 960 | 12 functions | Headed screenshot harness. Boots the real game scene, drives the overlays and |
 | `tools/capture/capture.tscn` | 6 | 1 nodes | Godot scene |
-| `tools/capture/closeup.gd` | 348 | 4 functions | One close-up of the running game, for judging art at the pixel. |
+| `tools/capture/closeup.gd` | 359 | 4 functions | One close-up of the running game, for judging art at the pixel. |
 | `tools/capture/closeup.tscn` | 6 | 1 nodes | Godot scene |
 | `tools/capture/perf.gd` | 105 | 4 functions | Frame-time measurement under the worst terminal the game can produce. |
 | `tools/capture/perf.tscn` | 6 | 1 nodes | Godot scene |
@@ -287,7 +287,7 @@ Inventory: **276 authored code/config/scene files**.
 | `tools/sprites/gen_buildings.py` | 348 | 8 functions | Top-down port buildings — roofs with ridges, vents and skylights. |
 | `tools/sprites/gen_containers.py` | 72 | 3 functions | Top-down containers, Stardew style. |
 | `tools/sprites/gen_cranes.py` | 335 | 7 functions | Top-down quay cranes: STS (straddles the quay, boom reaching over the ship) |
-| `tools/sprites/gen_customs.py` | 664 | 10 functions | The Receita Federal at the terminal: the customs auditor and his X-ray scanner. |
+| `tools/sprites/gen_customs.py` | 938 | 15 functions | The Receita Federal at the terminal: the customs auditor and his X-ray scanner. |
 | `tools/sprites/gen_diary.py` | 270 | 13 functions | The port diary: the book that replaced the notice bell. |
 | `tools/sprites/gen_font.py` | 371 | 2 functions | Generates the game's pixel font: a PNG atlas plus a BMFont .fnt descriptor |
 | `tools/sprites/gen_fx.py` | 123 | 6 functions | The port's VFX strips, drawn for the pooled emitter in `scripts/fx/fx.gd`. |

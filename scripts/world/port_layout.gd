@@ -552,11 +552,11 @@ static func gate_bay_rect(bay: int) -> Rect2:
 
 
 static func xray_station_position() -> Vector2:
-	## The Receita's post: east of gate bay G3, clear of both truck routes (the
-	## approach runs along GATE_QUEUE_Y below it, the exit along GATE_EXIT_Y
-	## above), on the gate apron where an inspection belongs.
+	## The Receita's drive-through scanner: a lane east of gate bay G3, between
+	## the exit road (GATE_EXIT_Y) and the approach (GATE_QUEUE_Y), on the gate
+	## apron where an inspection belongs. Its frame is 42x60 (`XrayStation`).
 	var bay := gate_bay_position(GATE_BAY_COUNT - 1)
-	return Vector2(bay.x + GATE_BAY_W + 6.0, GATE_APRON_Y - 4.0)
+	return Vector2(bay.x + GATE_BAY_W + 3.0, GATE_APRON_Y - 10.0)
 
 
 static func gate_entry() -> Vector2:
