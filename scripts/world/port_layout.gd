@@ -551,6 +551,14 @@ static func gate_bay_rect(bay: int) -> Rect2:
 		Vector2(GATE_BAY_W + 8.0, GATE_BAY_H + 8.0))
 
 
+static func xray_station_position() -> Vector2:
+	## The Receita's post: east of gate bay G3, clear of both truck routes (the
+	## approach runs along GATE_QUEUE_Y below it, the exit along GATE_EXIT_Y
+	## above), on the gate apron where an inspection belongs.
+	var bay := gate_bay_position(GATE_BAY_COUNT - 1)
+	return Vector2(bay.x + GATE_BAY_W + 6.0, GATE_APRON_Y - 4.0)
+
+
 static func gate_entry() -> Vector2:
 	## Where anything coming in off the public road appears. Above the camera's
 	## top edge, so a vehicle is only ever seen once it is on the road.

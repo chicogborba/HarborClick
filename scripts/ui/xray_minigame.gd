@@ -63,6 +63,10 @@ var _found_t := 0.0
 var _portal_atlas: Array[AtlasTexture] = []
 var _box: AtlasTexture
 var _base_tex: ImageTexture
+## The first scan teaches itself: a card over the monitor that says what to
+## look for and shows the four contraband shapes. The clock does not run while
+## it is up, and it never comes back once dismissed (`flags.xray_coached`).
+var _coach: PanelContainer
 
 
 func _build_field(column: VBoxContainer) -> void:
@@ -90,6 +94,72 @@ func _build_field(column: VBoxContainer) -> void:
 	_box = AtlasTexture.new()
 	_box.atlas = CONTAINERS
 	_box.region = Rect2(2 * 24, 0, 24, 13)
+	_build_coach(bezel)
+
+
+func _build_coach(over: Control) -> void:
+	_coach = UiTheme.panel(UiTheme.paper_style(6), false)
+	_coach.name = "Coach"
+	_coach.visible = false
+	_coach.mouse_filter = Control.MOUSE_FILTER_STOP
+	over.add_child(_coach)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override(&"separation", 4)
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	_coach.add_child(column)
+	var title := UiTheme.label(Loc.t("xray.coach.title"), UiTheme.SIZE_BODY,
+		UiTheme.AMBER_DEEP)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(title)
+	var body := UiTheme.label(Loc.t("xray.coach.body"), UiTheme.SIZE_SMALL,
+		UiTheme.INK)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.custom_minimum_size.x = 160.0
+	column.add_child(body)
+	# The four shapes to tap, as the scanner draws them.
+	var shapes := HBoxContainer.new()
+	shapes.alignment = BoxContainer.ALIGNMENT_CENTER
+	shapes.add_theme_constant_override(&"separation", 6)
+	column.add_child(shapes)
+	for index in XrayScan.ITEMS.size():
+		if not bool(XrayScan.ITEMS[index].contraband):
+			continue
+		var cell := TextureRect.new()
+		var atlas := AtlasTexture.new()
+		atlas.atlas = ITEMS_TEX
+		atlas.region = Rect2(index * SPRITE, 0, SPRITE, SPRITE)
+		cell.texture = atlas
+		cell.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		cell.custom_minimum_size = Vector2(SPRITE, SPRITE) * 2.0
+		cell.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		cell.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		shapes.add_child(cell)
+	var ok := UiTheme.button(Loc.t("xray.coach.ok"), &"amber", UiTheme.SIZE_SMALL)
+	ok.custom_minimum_size = Vector2(110, 30)
+	ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ok.pressed.connect(_dismiss_coach)
+	column.add_child(ok)
+
+
+func _show_coach() -> bool:
+	if _coach == null or GameState.flags.get("xray_coached", false):
+		return false
+	_coach.visible = true
+	return true
+
+
+func _dismiss_coach() -> void:
+	if _coach == null or not _coach.visible:
+		return
+	_coach.visible = false
+	GameState.flags["xray_coached"] = true
+	AudioManager.play_sfx("tap")
+	_screen.grab_focus()
+
+
+func coach_visible() -> bool:
+	return _coach != null and _coach.visible
 
 
 func _begin(offer: Dictionary) -> void:
@@ -121,6 +191,7 @@ func _set_phase(next: Phase) -> void:
 		Phase.SCAN:
 			_hint.text = Loc.t("xray.hint")
 			AudioManager.play_sfx("click", 0.04, -4.0)
+			_show_coach()
 
 
 func _tick(delta: float) -> void:
@@ -140,7 +211,9 @@ func _tick(delta: float) -> void:
 			if _phase_t >= BOOT_TIME:
 				_set_phase(Phase.SCAN)
 		Phase.SCAN:
-			game.advance(delta)
+			# The clock waits for the player to have read how the game works.
+			if not coach_visible():
+				game.advance(delta)
 	for mark: Dictionary in _marks:
 		mark.t = float(mark.t) + delta
 	_found_t += delta

@@ -239,6 +239,14 @@ func _stage(scenario: String) -> Vector2:
 			_main.tutorial._body.visible_characters = -1
 			await get_tree().create_timer(1.2).timeout
 			return Vector2(-1, -1)
+		"xray_post", "xray_post_due":
+			# The Receita's post in the yard: boarded up, or lit red with a "!".
+			if scenario == "xray_post_due":
+				_main.xray_service.policy.buy()
+				_main.xray_service.policy.ready = true
+			_main.xray_service.state_changed.emit()
+			await get_tree().create_timer(1.0).timeout
+			return _main.world.xray_station.centre()
 		"xray_panel", "tour_xray_due":
 			# The scanner's board before purchase, or Leôncio pointing at its key
 			# with an inspection waiting.

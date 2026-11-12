@@ -35,7 +35,6 @@ var level_service: TerminalLevelService
 ## board, its HUD key and the inspection minigame.
 var xray_service: XrayService
 var xray_panel: XrayPanel
-var xray_button: XrayButton
 var xray_board: XrayMinigame
 ## One "contêiner suspeito!" from Leôncio per due inspection, not one a second.
 var _xray_announced := false
@@ -712,7 +711,7 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		minigame.apply_view_metrics(metrics)
 	if maze != null:
 		maze.apply_view_metrics(metrics)
-	for node: Variant in [xray_panel, xray_button, xray_board]:
+	for node: Variant in [xray_panel, xray_board]:
 		if node != null:
 			node.apply_view_metrics(metrics)
 	var offline := get_node_or_null(^"OfflinePopup")
@@ -874,8 +873,13 @@ func _tutorial_target_rect(target: String) -> Rect2:
 				return daily_button._button.get_global_rect()
 		"routes_key":
 			return _rail_key_rect("rail.routes")
-		"xray_key":
-			return xray_button.button_rect() if xray_button != null else Rect2()
+		"xray_station":
+			# The post in the yard, on screen: Leôncio walks over to it.
+			if world != null and world.xray_station != null and cam != null:
+				var xform := get_viewport().get_canvas_transform()
+				var station: XrayStation = world.xray_station
+				return Rect2(xform * station.global_position,
+					XrayStation.FRAME * xform.get_scale())
 		"rail", "objective", "journal":
 			return rail.head_rect() if rail != null else Rect2()
 		"shop":
@@ -907,7 +911,7 @@ func _guide_tips() -> Array[Dictionary]:
 			"target": "", "seed": false,
 			"ready": func() -> bool: return not xray_service.owned()},
 		{"id": "receita_buy", "who": &"receita", "say": "receita.tip.buy",
-			"target": "xray_key", "seed": false,
+			"target": "xray_station", "seed": false,
 			"ready": func() -> bool:
 				return _guide_seen("receita") and xray_service.can_buy()},
 		{"id": "land", "say": "guide.tip.land", "target": "shop",
@@ -951,6 +955,14 @@ func _seed_guide_tips() -> void:
 	GameState.flags["guide_tips"] = seen
 
 
+func _frame_tip_target(target: String) -> void:
+	## A tip about something in the yard brings the yard to it first, so the
+	## guide is never pointing at a building scrolled off the screen.
+	if target == "xray_station" and world != null and world.xray_station != null \
+			and cam != null:
+		cam.focus_on(world.xray_station.centre().y, 0.5)
+
+
 func _guide_seen(id: String) -> bool:
 	return (GameState.flags.get("guide_tips", {}) as Dictionary).has(id)
 
@@ -969,6 +981,7 @@ func _check_guide_tips() -> void:
 	for tip: Dictionary in _guide_tips():
 		if seen.has(tip.id) or not (tip.ready as Callable).call():
 			continue
+		_frame_tip_target(str(tip.target))
 		if tutorial.tip(str(tip.id), str(tip.say), str(tip.target),
 				StringName(tip.get("who", &"alisson"))):
 			seen[tip.id] = true
@@ -1178,15 +1191,15 @@ func _build_xray() -> void:
 	xray_panel.setup(xray_service)
 	xray_panel.open_changed.connect(_on_overlay_changed.bind("xray"))
 	xray_panel.inspect_requested.connect(_open_xray)
-	xray_button = XrayButton.new()
-	xray_button.name = "XrayButton"
-	add_child(xray_button)
-	xray_button.setup(xray_service)
-	xray_button.pressed.connect(func() -> void:
+	# The scanner is a place, not a key: the Receita's post on the gate apron.
+	# Due, a tap goes straight into the scan; otherwise it opens the post's
+	# board (repair it, or see when the next inspection falls).
+	world.xray_station_tapped.connect(func() -> void:
 		if xray_service.is_due() and xray_service.owned():
 			_open_xray()
 		else:
 			xray_panel.open())
+	xray_service.state_changed.connect(_refresh_xray_key)
 	xray_board = XrayMinigame.new()
 	xray_board.name = "XrayMinigame"
 	add_child(xray_board)
@@ -1235,16 +1248,18 @@ func _xray_clock_runs() -> bool:
 
 
 func _refresh_xray_key() -> void:
-	## The key appears once Leôncio has introduced the scanner, and packs into the
-	## HUD column under whichever of the wheel and daily keys are showing.
-	if xray_button == null:
+	## The post in the yard shows the scanner's state: boarded up, waiting, or
+	## a red lamp and a "!" when a container is waiting. While it is still
+	## abandoned, a wrench bubble appears once the repair is affordable.
+	if world == null or world.xray_station == null:
 		return
-	xray_button.visible = _guide_seen("receita") or xray_service.owned()
-	var slot := 0
-	for key: CanvasLayer in [wheel_button, daily_button]:
-		if key != null and key.visible:
-			slot += 1
-	xray_button.set_slot(slot)
+	var station: XrayStation = world.xray_station
+	if not xray_service.owned():
+		station.set_state(XrayStation.State.ABANDONED, xray_service.can_buy())
+	elif xray_service.is_due():
+		station.set_state(XrayStation.State.DUE)
+	else:
+		station.set_state(XrayStation.State.IDLE)
 
 
 func _announce_inspection() -> void:
@@ -1256,17 +1271,12 @@ func _announce_inspection() -> void:
 	for open: bool in _overlay_state.values():
 		if open:
 			return
-	if tutorial.tip("xray_due", "receita.tip.due", "xray_key", &"receita"):
+	_frame_tip_target("xray_station")
+	if tutorial.tip("xray_due", "receita.tip.due", "xray_station", &"receita"):
 		_xray_announced = true
 
 
-func _on_guide_tip_closed(id: String) -> void:
-	## Leôncio's introduction ends at the scanner's board, so the first thing the
-	## player sees after "we need a scanner" is the scanner and its price.
+func _on_guide_tip_closed(_id: String) -> void:
+	## Leôncio's introduction ends with him standing at the abandoned post, not
+	## with a board: the scanner is a place, and the player goes and taps it.
 	_refresh_xray_key()
-	if id == "receita" and not xray_service.owned():
-		var open_any := false
-		for open: bool in _overlay_state.values():
-			open_any = open_any or open
-		if not open_any:
-			xray_panel.open()

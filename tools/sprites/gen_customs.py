@@ -17,6 +17,8 @@ Outputs (all nearest-neighbour, shown at integer scale):
                      Cartoon shapes, nothing graphic.
 - `ui_xray_portal`   2 frames of 44x36: the drive-through scanner portal
                      (idle lamp green, scanning lamp red with the beam lit).
+- `xray_station`    4 frames of 34x46: the inspection post in the world, beside
+                     gate bay G3 (abandoned, repaired, due, due off-beat).
 - `ui_xray_badge`    2 frames of 24x24: the HUD key, a little scanner monitor;
                      lit, a red beacon and a flagged silhouette on screen.
 """
@@ -537,8 +539,126 @@ def gen_xray_badge():
     save(sheet([badge(False), badge(True)]), "ui_xray_badge", preview_scale=8)
 
 
+# ------------------------------------------------------ the post on the quay
+
+# `xray_station`, 4 frames of 34x46: the Receita's inspection post beside gate
+# bay G3, in the yard's 3/4 view (roof from above, south wall showing).
+#   0  abandoned: the roof patched and holed, the window and door boarded up,
+#      rust running down the wall, weeds at the plinth, the lamp dead
+#   1  repaired and waiting: clean, lit window, green lamp
+#   2  an inspection is due: red lamp, bright
+#   3  the same, the lamp's off beat
+# The gantry on the roof is the scanner itself; the post is somewhere a person
+# sits under it. Repairing it is the purchase, so the abandoned frame has to
+# read as "this could work" at a glance — a shape you recognise, gone to seed.
+ST_W, ST_H = 34, 46
+ROOF = [(40, 52, 74, 255), (58, 74, 102, 255), (82, 100, 132, 255),
+        (112, 132, 164, 255)]
+WALL = [(170, 160, 140, 255), (206, 198, 178, 255), (230, 224, 206, 255)]
+SIGN = [(28, 40, 70, 255), (246, 204, 52, 255)]
+GLASS = [(70, 110, 140, 255), (150, 200, 220, 255), (252, 230, 150, 255)]
+RUST = [(120, 66, 36, 255), (156, 90, 46, 255)]
+PLANK = [(110, 74, 44, 255), (150, 106, 64, 255)]
+WEED = [(60, 104, 52, 255), (92, 140, 70, 255)]
+
+
+def station(state):
+    g = new_img(ST_W, ST_H)
+    broken = state == 0
+    # --- the roof: a flat slab seen from above, lit north-west
+    rx0, ry0, rw, rh = 2, 10, 30, 16
+    rect(g, rx0, ry0, rw, rh, ROOF[1])
+    hline(g, rx0, ry0, rw, ROOF[3])
+    vline(g, rx0, ry0, rh, ROOF[2])
+    vline(g, rx0 + rw - 1, ry0, rh, ROOF[0])
+    hline(g, rx0, ry0 + rh - 1, rw, ROOF[0])
+    # the roof unit and its vent
+    rect(g, 22, 13, 7, 5, STEEL[2] if not broken else STEEL[1])
+    hline(g, 22, 13, 7, STEEL[3])
+    px(g, 25, 15, STEEL[0])
+    if broken:
+        # holes, a tarp patch and a water stain
+        rect(g, 6, 18, 4, 3, OUT)
+        px(g, 7, 18, ROOF[0])
+        rect(g, 13, 20, 6, 4, (120, 96, 60, 255))
+        hline(g, 13, 20, 6, (150, 122, 78, 255))
+        for (x, y) in ((4, 13), (5, 14), (18, 12), (27, 22), (28, 23)):
+            px(g, x, y, ROOF[0])
+    # --- the scanner gantry across the roof: two legs, a taped beam
+    for lx in (3, 28):
+        rect(g, lx, 4, 3, 10, STEEL[1])
+        vline(g, lx, 4, 10, STEEL[2])
+    rect(g, 2, 2, 30, 4, HAZ[0])
+    for x in range(2, 32):
+        for y in range(3, 5):
+            if ((x + y) // 2) % 2 == 0:
+                px(g, x, y, HAZ[1])
+    hline(g, 2, 2, 30, (255, 236, 150, 255) if not broken else (200, 170, 70, 255))
+    if broken:
+        # tape faded, one end of the beam sagging
+        for x in range(22, 32):
+            if x % 3 == 0:
+                px(g, x, 4, STEEL[1])
+        px(g, 31, 5, HAZ[0])
+    # the lamp on the beam
+    lamp = {0: (70, 70, 80, 255), 1: (80, 210, 110, 255),
+            2: (255, 70, 56, 255), 3: (150, 40, 40, 255)}[state]
+    rect(g, 15, 0, 4, 3, lamp)
+    if state in (1, 2):
+        px(g, 16, 0, (255, 240, 230, 255))
+    # --- the south wall under the eave
+    wy0 = ry0 + rh
+    rect(g, rx0, wy0, rw, 15, WALL[1])
+    hline(g, rx0, wy0, rw, WALL[0])                # eave shadow
+    hline(g, rx0, wy0 + 14, rw, WALL[0])           # plinth
+    vline(g, rx0 + rw - 1, wy0, 15, WALL[0])
+    # the sign band: RECEITA in gold on navy, as a 1px pattern
+    rect(g, 5, wy0 + 2, 24, 4, SIGN[0])
+    for x in range(7, 27, 2):
+        px(g, x, wy0 + 3, SIGN[1] if not broken or x % 4 else SIGN[0])
+        px(g, x, wy0 + 4, SIGN[1] if not broken or x % 6 else SIGN[0])
+    # window and door
+    wx, wy = 6, wy0 + 7
+    dx = 22
+    if broken:
+        rect(g, wx, wy, 8, 5, PLANK[0])
+        for i in range(8):
+            px(g, wx + i, wy + i * 5 // 8, PLANK[1])
+            px(g, wx + 7 - i, wy + i * 5 // 8, PLANK[1])
+        rect(g, dx, wy - 1, 6, 8, PLANK[0])
+        hline(g, dx, wy + 1, 6, PLANK[1])
+        hline(g, dx, wy + 4, 6, PLANK[1])
+        # rust bleeding down from the eave and the sign
+        for (x, y0, n) in ((4, wy0 + 1, 6), (12, wy0 + 6, 5), (29, wy0 + 1, 9),
+                           (17, wy0 + 6, 3)):
+            vline(g, x, y0, n, RUST[0])
+            px(g, x, y0, RUST[1])
+        # weeds at the plinth
+        for (x, h) in ((3, 3), (5, 2), (14, 2), (19, 3), (30, 2)):
+            vline(g, x, wy0 + 15 - h, h, WEED[0])
+            px(g, x, wy0 + 15 - h, WEED[1])
+    else:
+        rect(g, wx, wy, 8, 5, GLASS[0])
+        rect(g, wx + 1, wy + 1, 6, 3, GLASS[2] if state else GLASS[1])
+        if state >= 2:
+            rect(g, wx + 1, wy + 1, 6, 3, (255, 150, 120, 255))
+        px(g, wx + 6, wy + 1, (255, 255, 255, 255))
+        rect(g, dx, wy - 1, 6, 8, STEEL[1])
+        vline(g, dx, wy - 1, 8, STEEL[2])
+        px(g, dx + 4, wy + 3, SIGN[1])
+        # a striped kerb where a lorry pulls up
+        for x in range(2, 32, 2):
+            px(g, x, wy0 + 15, HAZ[0] if (x // 2) % 2 == 0 else HAZ[1])
+    return selout(g, OUT)
+
+
+def gen_xray_station():
+    save(sheet([station(i) for i in range(4)]), "xray_station", preview_scale=6)
+
+
 if __name__ == "__main__":
     gen_customs_body()
     gen_xray_items()
     gen_xray_portal()
     gen_xray_badge()
+    gen_xray_station()

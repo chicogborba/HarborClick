@@ -227,8 +227,12 @@ Entry points:
   ghosted and the goods in false colour, then presses SEIZE on what is under
   the crosshair (`XrayScan` rules). The intro is skippable and the clock only
   runs on the scan. `xray_panel.gd` is
-  the scanner's board (buy / next inspection / inspect) and `xray_button.gd`
-  its HUD key, packed into the wheel/daily column by `Main._refresh_xray_key`.
+  the post's board (repair / next inspection / inspect). There is no HUD key:
+  the scanner is the Receita's post in the yard (`world/xray_station.gd`),
+  abandoned until repaired, lit red with a "!" when a container waits; tapping
+  it goes straight into the scan when one is due, and opens the board
+  otherwise. The first scan shows a coach card (the four contraband shapes,
+  one rule) and the clock waits until it is dismissed (`flags.xray_coached`).
 
 `FloatText` is the game's only answer to "did my tap pay?", so it is deliberately
 loud: a large warm number with a thick dark outline, punched in and risen. Small

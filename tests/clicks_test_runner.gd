@@ -12,7 +12,7 @@ const TEST_SAVE_PATH := "user://harborclick_clicks_test.json"
 ## The roll call: a script error aborts a test silently and the runner would
 ## otherwise print PASSED with the stack trace above it.
 const EXPECTED := ["rail_keys", "wheel", "daily", "ship_tap", "every_tap_counts",
-	"shop_buy", "upgrade_buy", "freeze"]
+	"shop_buy", "upgrade_buy", "freeze", "xray_post"]
 const OVERLAY_OF := {
 	"rail.shop": "shop", "rail.routes": "routes",
 	"rail.journal": "journal", "rail.settings": "settings",
@@ -52,6 +52,7 @@ func _run() -> void:
 	await _test_tapping_a_machine_card_buys_it()
 	await _test_tapping_an_upgrade_card_buys_it()
 	await _test_an_open_board_freezes_the_port()
+	await _test_the_xray_post_is_a_place()
 
 	for name in EXPECTED:
 		_expect(_reached.has(name), "test '%s' ran to its last line" % name)
@@ -69,6 +70,48 @@ func _run() -> void:
 
 
 # ---------------------------------------------------------------- the tests
+
+func _test_the_xray_post_is_a_place() -> void:
+	## The scanner is a building in the yard: abandoned until repaired, a red
+	## lamp when a container waits, and the only way into the scan is to tap it.
+	var station: XrayStation = _main.world.xray_station
+	var service: XrayService = _main.xray_service
+	_expect(station != null and station.is_inside_tree(), "the post stands in the yard")
+	_expect(_main.get_node_or_null(^"XrayButton") == null, "and there is no HUD key")
+	service.policy.restore(XrayPolicy.seed_new())
+	service.state_changed.emit()
+	_expect(station.state == XrayStation.State.ABANDONED, "a new port's post is abandoned")
+	_main.world._try_tap(station.centre())
+	await get_tree().process_frame
+	_expect(_main.xray_panel.is_open(), "tapping the abandoned post opens its repair board")
+	_main.xray_panel.close()
+	await get_tree().process_frame
+	GameState.teus = 1e15
+	_expect(service.buy(), "the repair can be paid for")
+	_expect(station.state == XrayStation.State.IDLE, "and the post comes back to life")
+	service.policy.ready = true
+	service.state_changed.emit()
+	_expect(station.state == XrayStation.State.DUE, "a waiting container lights it red")
+	GameState.flags.erase("xray_coached")
+	_main.world._try_tap(station.centre())
+	for i in 4:
+		await get_tree().process_frame
+	var board: XrayMinigame = _main.xray_board
+	_expect(board.is_open(), "tapping the lit post goes straight into the scan")
+	board._set_phase(XrayMinigame.Phase.SCAN)
+	_expect(board.coach_visible(), "the first scan explains itself first")
+	var left: float = board.game.time_left
+	board._tick(1.0)
+	_expect(is_equal_approx(board.game.time_left, left),
+		"and the clock does not run while it is up")
+	board._dismiss_coach()
+	_expect(not board.coach_visible() and bool(GameState.flags.get("xray_coached", false)),
+		"one tap puts it away for good")
+	board.visible = false
+	board.open_changed.emit(false)
+	await get_tree().process_frame
+	_reached.append("xray_post")
+
 
 func _test_an_open_board_freezes_the_port() -> void:
 	## A board freezes the port, so nothing can arrive and close it under the

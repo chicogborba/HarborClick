@@ -83,6 +83,10 @@ Major owners:
 
 - `container_yard.gd` — physical slots, reservations, UID stacks and manifest.
 - `ship.gd` — vessel view, bays, phases and interaction presentation.
+- `xray_station.gd` — the Receita's inspection post beside gate bay G3
+  (`PortLayout.xray_station_position`): abandoned, repaired, or due (red lamp
+  and a "!" bubble). Presentation only — Main sets its state from
+  `XrayService`; a tap emits `PortWorld.xray_station_tapped`.
 - `ship_wake.gd` — the foam a hull throws when it is making way: bow wave,
   the V it sheds, the collar along the plating and the propeller wash, drawn
   as whole pixels over the shader's swell. Patterns are hashed on *world*

@@ -90,8 +90,8 @@ Inventory: **273 authored code/config/scene files**.
 | `scripts/fx/fx.gd` | 193 | class `Fx`; 9 functions | The port's one VFX library: pooled sprite particles living in the world's |
 | `scripts/i18n/loc.gd` | 224 | 16 functions | Which language the port speaks, and every string it says. |
 | `scripts/i18n/strings_content.gd` | 157 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
-| `scripts/i18n/strings_ui.gd` | 2264 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
-| `scripts/main.gd` | 1272 | 49 functions | Root: assembles world, camera and UI. |
+| `scripts/i18n/strings_ui.gd` | 2280 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
+| `scripts/main.gd` | 1282 | 50 functions | Root: assembles world, camera and UI. |
 | `scripts/monetization/ad_policy.gd` | 184 | class `AdPolicy`; 11 functions | The rules of rewarded ads: which placements exist, how many may be watched |
 | `scripts/monetization/ad_provider.gd` | 18 | class `AdProvider`; 1 functions | The seam between the game and a real ad SDK. `AdService` asks the current |
 | `scripts/monetization/placeholder_ad_provider.gd` | 104 | class `PlaceholderAdProvider`; 6 functions | The test stand-in for a real ad SDK: a scrim with a paper board that says |
@@ -144,8 +144,7 @@ Inventory: **273 authored code/config/scene files**.
 | `scripts/ui/upgrade_map.gd` | 484 | class `UpgradeMap`; 27 functions | The upgrade catalogue as the thing it actually is: a network diagram. |
 | `scripts/ui/voyage_screen.gd` | 112 | 4 functions | The crossing between two ports. |
 | `scripts/ui/wheel_button.gd` | 143 | class `WheelButton`; 8 functions | The Roda da Sorte's key: a small steel key under the gantry's left end, with |
-| `scripts/ui/xray_button.gd` | 129 | class `XrayButton`; 8 functions | The scanner's key: a little X-ray monitor in the HUD column under the wheel |
-| `scripts/ui/xray_minigame.gd` | 601 | class `XrayMinigame`; 32 functions | The Receita Federal's inspection: find the contraband on the X-ray. |
+| `scripts/ui/xray_minigame.gd` | 674 | class `XrayMinigame`; 36 functions | The Receita Federal's inspection: find the contraband on the X-ray. |
 | `scripts/ui/xray_panel.gd` | 176 | class `XrayPanel`; 10 functions | The scanner's board: buy it, see when the next inspection is due, start |
 | `scripts/world/atmosphere.gd` | 283 | class `Atmosphere`; 14 functions | Day/night lighting for the top-down port: global tint, flood-light masts |
 | `scripts/world/cargo_relay.gd` | 365 | class `CargoRelay`; 20 functions | The visible chain of custody for one container. |
@@ -157,8 +156,8 @@ Inventory: **273 authored code/config/scene files**.
 | `scripts/world/ground_baker.gd` | 651 | class `GroundBaker`; 25 functions | Bakes the whole ground plane into one texture: grass verge, kerb, paved |
 | `scripts/world/harbour_signals.gd` | 104 | class `HarbourSignals`; 5 functions | The instruments a working port wears: windsocks on the quay and pennants over |
 | `scripts/world/port_camera.gd` | 240 | class `PortCamera`; 17 functions | Responsive terminal camera: touch/mouse drag, wheel zoom and keyboard pan. |
-| `scripts/world/port_layout.gd` | 748 | class `PortLayout`; 58 functions | Pure geometry for the top-down terminal. No nodes, no state — just the |
-| `scripts/world/port_world.gd` | 1850 | class `PortWorld`; 99 functions | Top-down terminal: yard on the left, quay and berth on the right. |
+| `scripts/world/port_layout.gd` | 756 | class `PortLayout`; 59 functions | Pure geometry for the top-down terminal. No nodes, no state — just the |
+| `scripts/world/port_world.gd` | 1861 | class `PortWorld`; 99 functions | Top-down terminal: yard on the left, quay and berth on the right. |
 | `scripts/world/rail_rake.gd` | 471 | class `RailRake`; 19 functions | The train on the branch, and the shunt that lets it leave. |
 | `scripts/world/rainfall.gd` | 132 | class `Rainfall`; 8 functions | Rain over the terminal: falling streaks, the splash where each one lands, and |
 | `scripts/world/road_truck.gd` | 624 | class `RoadTruck`; 33 functions | A city truck on the terminal's road: a tractor unit and the chassis it pulls. |
@@ -169,6 +168,7 @@ Inventory: **273 authored code/config/scene files**.
 | `scripts/world/structure_layer.gd` | 282 | class `StructureLayer`; 16 functions | Places the visible copies of bought structures around the terminal. |
 | `scripts/world/water_foam.gd` | 130 | class `WaterFoam`; 10 functions | A tiny sprite layer over the shader: static quay foam and a few ambient |
 | `scripts/world/water_quality.gd` | 26 | class `WaterQuality`; 3 functions | Automatic visual budget. This intentionally does not read or write player |
+| `scripts/world/xray_station.gd` | 124 | class `XrayStation`; 8 functions | The Receita's inspection post, standing in the yard beside gate bay G3. |
 
 ## tests
 
@@ -188,7 +188,7 @@ Inventory: **273 authored code/config/scene files**.
 | `tests/build_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/cargo_test_runner.gd` | 866 | 34 functions | Integration suite for cargo phases 1-2. |
 | `tests/cargo_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/clicks_test_runner.gd` | 348 | 16 functions | Real clicks, end to end. |
+| `tests/clicks_test_runner.gd` | 391 | 17 functions | Real clicks, end to end. |
 | `tests/clicks_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/combo_test_runner.gd` | 108 | 8 functions | The tap combo: steady taps build a multiplier, a pause lets it fall, a skill |
 | `tests/combo_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -264,7 +264,7 @@ Inventory: **273 authored code/config/scene files**.
 | `tools/balance/week_report.gd` | 56 | 4 functions | When does a week-long player first own each thing? |
 | `tools/capture/capture.gd` | 960 | 12 functions | Headed screenshot harness. Boots the real game scene, drives the overlays and |
 | `tools/capture/capture.tscn` | 6 | 1 nodes | Godot scene |
-| `tools/capture/closeup.gd` | 340 | 4 functions | One close-up of the running game, for judging art at the pixel. |
+| `tools/capture/closeup.gd` | 348 | 4 functions | One close-up of the running game, for judging art at the pixel. |
 | `tools/capture/closeup.tscn` | 6 | 1 nodes | Godot scene |
 | `tools/capture/perf.gd` | 105 | 4 functions | Frame-time measurement under the worst terminal the game can produce. |
 | `tools/capture/perf.tscn` | 6 | 1 nodes | Godot scene |
@@ -284,7 +284,7 @@ Inventory: **273 authored code/config/scene files**.
 | `tools/sprites/gen_buildings.py` | 348 | 8 functions | Top-down port buildings — roofs with ridges, vents and skylights. |
 | `tools/sprites/gen_containers.py` | 72 | 3 functions | Top-down containers, Stardew style. |
 | `tools/sprites/gen_cranes.py` | 335 | 7 functions | Top-down quay cranes: STS (straddles the quay, boom reaching over the ship) |
-| `tools/sprites/gen_customs.py` | 544 | 8 functions | The Receita Federal at the terminal: the customs auditor and his X-ray scanner. |
+| `tools/sprites/gen_customs.py` | 664 | 10 functions | The Receita Federal at the terminal: the customs auditor and his X-ray scanner. |
 | `tools/sprites/gen_diary.py` | 270 | 13 functions | The port diary: the book that replaced the notice bell. |
 | `tools/sprites/gen_font.py` | 371 | 2 functions | Generates the game's pixel font: a PNG atlas plus a BMFont .fnt descriptor |
 | `tools/sprites/gen_fx.py` | 123 | 6 functions | The port's VFX strips, drawn for the pooled emitter in `scripts/fx/fx.gd`. |
