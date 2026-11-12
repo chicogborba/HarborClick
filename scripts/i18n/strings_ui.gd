@@ -411,6 +411,9 @@ const STRINGS := {
 # ---------------------------------------------------------------- ports
 # A port's own name, tagline and perk are catalogue content (`PortDB`), in
 # Portuguese like the rest of the catalogues. These are the chrome around them.
+"ports.title": {
+	"pt_BR": "PORTOS", "en": "PORTS", "es": "PUERTOS", "fr": "PORTS",
+	"de": "HÄFEN", "it": "PORTI", "ru": "ПОРТЫ", "pl": "PORTY", "tr": "LİMANLAR"},
 "ports.tab.ports": {
 	"pt_BR": "PORTOS", "en": "PORTS", "es": "PUERTOS", "fr": "PORTS",
 	"de": "HÄFEN", "it": "PORTI", "ru": "ПОРТЫ", "pl": "PORTY", "tr": "LİMANLAR"},
@@ -1792,7 +1795,7 @@ const STRINGS := {
 "guide.tip.gull": {
 	"pt_BR": "Viu uma gaivota dourada? Toca nela! Dá sorte, juro.", "en": "See a golden gull? Tap it! It's lucky, I swear.", "es": "¿Ves una gaviota dorada? ¡Tócala! Da suerte, lo juro.", "fr": "Tu vois une mouette dorée ? Touche-la ! Ça porte chance, promis.", "de": "Siehst du eine Goldmöwe? Tipp drauf! Bringt Glück, ehrlich.", "it": "Vedi un gabbiano d'oro? Toccalo! Porta fortuna, giuro.", "ru": "Видишь золотую чайку? Жми на неё! На удачу, честно.", "pl": "Widzisz złotą mewę? Stuknij ją! Przynosi szczęście, serio.", "tr": "Altın martı mı gördün? Dokun! Şans getirir, yemin ederim."},
 "guide.tip.routes": {
-	"pt_BR": "Abriram as rotas e o ramal ferroviário! Toca em ROTAS lá embaixo.", "en": "Routes and the rail branch are open! Tap ROUTES down below.", "es": "¡Se abrieron las rutas y el ramal! Toca RUTAS abajo.", "fr": "Les routes et le rail sont ouverts ! Touche ROUTES en bas.", "de": "Routen und Bahn sind offen! Tipp unten auf ROUTEN.", "it": "Rotte e raccordo aperti! Tocca ROTTE qui sotto.", "ru": "Открылись маршруты и ветка! Жми МАРШРУТЫ внизу.", "pl": "Otwarto trasy i bocznicę! Stuknij TRASY na dole.", "tr": "Rotalar ve hat açıldı! Aşağıdan ROTALAR'a dokun."},
+	"pt_BR": "Abriu o mapa dos portos e o ramal ferroviário! Toca em PORTOS: dá pra girar o globo e ver onde mais tem terminal.", "en": "The ports globe and the rail branch are open! Tap PORTS: spin the globe and see where else you could run a terminal.", "es": "¡Se abrió el globo de puertos y el ramal! Toca PUERTOS: gira el globo y mira dónde más hay terminal.", "fr": "Le globe des ports et le rail sont ouverts ! Touche PORTS : fais tourner le globe et vois où ouvrir un terminal.", "de": "Der Hafenglobus und die Bahn sind offen! Tipp auf HÄFEN: Dreh den Globus und sieh, wo es noch Terminals gibt.", "it": "Il globo dei porti e il raccordo sono aperti! Tocca PORTI: gira il globo e guarda dove aprire un terminal.", "ru": "Открылся глобус портов и ветка! Жми ПОРТЫ: крути глобус и смотри, где ещё есть терминалы.", "pl": "Otwarto globus portów i bocznicę! Stuknij PORTY: obróć globus i zobacz, gdzie jeszcze są terminale.", "tr": "Liman küresi ve hat açıldı! LİMANLAR'a dokun: küreyi çevir, başka nerede terminal var gör."},
 "guide.tip.prestige": {
 	"pt_BR": "Dá pra reconstruir o porto e voltar mais forte. Pensa nisso, chefe!", "en": "You can rebuild the port and come back stronger. Think about it, boss!", "es": "Puedes reconstruir el puerto y volver más fuerte. ¡Piénsalo, jefe!", "fr": "Tu peux reconstruire le port et revenir plus fort. Penses-y, chef !", "de": "Du kannst den Hafen neu bauen und stärker zurückkommen. Denk drüber nach!", "it": "Puoi ricostruire il porto e tornare più forte. Pensaci, capo!", "ru": "Можно перестроить порт и вернуться сильнее. Подумай, шеф!", "pl": "Możesz przebudować port i wrócić silniejszy. Przemyśl to, szefie!", "tr": "Limanı yeniden kurup daha güçlü dönebilirsin. Bir düşün patron!"},
 "guide.continue": {
@@ -1892,9 +1895,9 @@ const STRINGS := {
 	"fr": "Défis", "de": "Aufgaben", "it": "Sfide",
 	"ru": "Задания", "pl": "Wyzwania", "tr": "Görevler"},
 "level.feature.routes": {
-	"pt_BR": "Rotas e Ramal", "en": "Routes and Rail", "es": "Rutas y ramal",
-	"fr": "Routes et rail", "de": "Routen und Bahn", "it": "Rotte e raccordo",
-	"ru": "Маршруты и ветка", "pl": "Trasy i bocznica", "tr": "Rotalar ve hat"},
+	"pt_BR": "Portos e Ramal", "en": "Ports and Rail", "es": "Puertos y ramal",
+	"fr": "Ports et rail", "de": "Häfen und Bahn", "it": "Porti e raccordo",
+	"ru": "Порты и ветка", "pl": "Porty i bocznica", "tr": "Limanlar ve hat"},
 "level.feature.charters": {
 	"pt_BR": "Fretamentos", "en": "Charters", "es": "Fletamentos",
 	"fr": "Affrètements", "de": "Charter", "it": "Noleggi",

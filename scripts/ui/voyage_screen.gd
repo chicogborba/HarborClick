@@ -1,5 +1,5 @@
 extends Control
-## The crossing between two ports.
+## The crossing between two ports, on the globe.
 ##
 ## It exists for a mechanical reason and earns its keep as a moment. The
 ## mechanical reason: a port is a save file, and a save must never be applied
@@ -8,15 +8,17 @@ extends Control
 ## time `_ready` runs the old world is gone and the new one does not exist yet,
 ## so `SaveManager.use_port` is exactly the profile switch the title performs.
 ##
-## The moment: a card that says where you are going, a hull steaming across it,
-## the horn. `PortDB.destination` is the only input.
+## The moment: the planet turns from where you were to where you are going,
+## a little hull runs the great circle between them, and the destination's
+## name and flag sit above it. A tap skips. `PortDB.destination` is the input.
 
 const FLAGS := preload("res://assets/sprites/ui_flags.png")
 const FLAG_SIZE := Vector2(16, 11)
-const SHIP := preload("res://assets/sprites/ship_cute.png")
-const HOLD := 1.7
+const HOLD := 2.8
 
-var _ship: TextureRect
+var _globe: Globe
+var _from := Vector2.ZERO
+var _to := Vector2.ZERO
 var _t := 0.0
 var _leaving := false
 
@@ -24,83 +26,86 @@ var _leaving := false
 func _ready() -> void:
 	UiTheme.install_window_theme(get_window())
 	get_tree().paused = false
+	var origin := PortDB.get_port(PortDB.active)
 	var port := PortDB.get_port(PortDB.destination)
 	var ok := not port.is_empty() and SaveManager.use_port(PortDB.destination)
 	if not ok:
 		# Nowhere valid to go: back to wherever the profile already was.
 		port = PortDB.current()
 	PortDB.destination = &""
+	_from = Globe.lonlat(origin if not origin.is_empty() else port)
+	_to = Globe.lonlat(port)
 
-	var sea := ColorRect.new()
-	sea.color = UiTheme.HULL_DEEP
-	sea.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(sea)
+	var space := ColorRect.new()
+	space.color = UiTheme.HULL_EDGE
+	space.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(space)
 
-	var centre := CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(centre)
-	var card := UiTheme.panel(UiTheme.gantry_style())
-	card.custom_minimum_size = Vector2(240, 0)
-	centre.add_child(card)
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override(&"separation", 6)
+	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	card.add_child(column)
+	column.add_theme_constant_override(&"separation", 8)
+	add_child(column)
 
+	var card := UiTheme.panel(UiTheme.gantry_style())
+	card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	column.add_child(card)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 8)
+	card.add_child(row)
 	var flag := TextureRect.new()
 	var atlas := AtlasTexture.new()
 	atlas.atlas = FLAGS
 	atlas.region = Rect2(Vector2(int(port.get("flag", 0)) * FLAG_SIZE.x, 0), FLAG_SIZE)
 	flag.texture = atlas
 	flag.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	flag.custom_minimum_size = FLAG_SIZE * 3.0
+	flag.custom_minimum_size = FLAG_SIZE * 2.0
 	flag.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	flag.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	flag.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	column.add_child(flag)
+	flag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(flag)
+	var words := VBoxContainer.new()
+	words.add_theme_constant_override(&"separation", 1)
+	row.add_child(words)
+	words.add_child(UiTheme.label(Loc.t("ports.voyage.bound"), UiTheme.SIZE_SMALL,
+		UiTheme.STEEL_DIM))
+	words.add_child(UiTheme.label(str(port.get("name", "")).to_upper(),
+		UiTheme.SIZE_TITLE, UiTheme.AMBER))
+	words.add_child(UiTheme.label(str(port.get("country", "")).to_upper(),
+		UiTheme.SIZE_SMALL, UiTheme.STEEL_TEXT))
 
-	var bound := UiTheme.label(Loc.t("ports.voyage.bound"), UiTheme.SIZE_SMALL,
-		UiTheme.STEEL_DIM)
-	bound.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(bound)
-	var where := UiTheme.label(str(port.get("name", "")).to_upper(),
-		UiTheme.SIZE_TITLE, UiTheme.AMBER)
-	where.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(where)
-	var country := UiTheme.label(str(port.get("country", "")).to_upper(),
-		UiTheme.SIZE_SMALL, UiTheme.STEEL_TEXT)
-	country.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(country)
+	_globe = Globe.new()
+	_globe.spin_when_idle = false
+	_globe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_globe.custom_minimum_size = Vector2(Globe.PIXELS * 2, Globe.PIXELS * 2)
+	_globe.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_globe.arc_from = _from
+	_globe.arc_to = _to
+	_globe.arc_t = 0.0
+	_globe.selected = StringName(port.get("id", &""))
+	column.add_child(_globe)
+	_globe.look_at_lonlat(_from, 0.0)
+
 	var tagline := UiTheme.label(str(port.get("tagline", "")), UiTheme.SIZE_SMALL,
 		UiTheme.STEEL_DIM)
 	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tagline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tagline.custom_minimum_size.x = 220.0
 	column.add_child(tagline)
-
-	_ship = TextureRect.new()
-	_ship.texture = SHIP
-	_ship.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_ship.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_ship.scale = Vector2(2, 2)
-	add_child(_ship)
-	_place_ship(0.0)
 	AudioManager.play_sfx("horn", 0.03, -5.0)
-
-
-func _place_ship(progress: float) -> void:
-	var view := get_viewport_rect().size
-	var width := SHIP.get_width() * 2.0
-	_ship.position = Vector2(
-		roundf(lerpf(-width, view.x, progress)),
-		roundf(view.y * 0.72))
 
 
 func _process(delta: float) -> void:
 	_t += delta
 	var hold := HOLD if UserPreferences.can_animate() else 0.4
-	_place_ship(clampf(_t / hold, 0.0, 1.0))
-	if _t >= hold and not _leaving:
+	var k := clampf(_t / hold, 0.0, 1.0)
+	var eased := k * k * (3.0 - 2.0 * k)
+	_globe.arc_t = eased
+	# The camera rides with the hull along the great circle.
+	var a := Globe._unit(_from)
+	var b := Globe._unit(_to)
+	var p := Globe._slerp(a, b, a.angle_to(b), eased)
+	_globe.look_at_lonlat(Vector2(rad_to_deg(atan2(p.x, p.z)),
+		rad_to_deg(asin(clampf(p.y, -1.0, 1.0)))), 0.0)
+	if _t >= hold + 0.5 and not _leaving:
 		_leaving = true
 		get_tree().change_scene_to_file("res://scenes/Main.tscn")
 

@@ -184,13 +184,13 @@ func _stage(scenario: String) -> Vector2:
 			_main.bell._set_tab("medals")
 			await get_tree().create_timer(0.8).timeout
 			return Vector2(-1, -1)
-		"ports", "ports_routes":
-			# The ports chart: the new world map, the pins, and the cards.
+		"ports", "ports_lb":
+			# The PORTOS board: the globe, the pins, the selected port's card.
 			GameState.teus = 9e9
 			_main.routes.open()
-			if scenario == "ports_routes":
-				_main.routes._select_tab("routes")
-			await get_tree().create_timer(1.0).timeout
+			if scenario == "ports_lb":
+				_main.routes._select(&"long_beach")
+			await get_tree().create_timer(1.2).timeout
 			return Vector2(-1, -1)
 		"shop_rise":
 			# The clipboard on its way up: board and open clip below the mark.
