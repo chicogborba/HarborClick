@@ -4,7 +4,7 @@
 compose it; they should not invent unrelated colors, fonts, rounded boxes or
 focus behavior.
 
-The interface is made of two materials, and which one a thing is made of says
+The interface is made of three materials, and which one a thing is made of says
 what kind of thing it is. **Steel** — navy enamel, brushed pinstripe, one amber
 hairline on the edge facing the water — is the terminal's own signage: the
 gantry, the key console, the glass a lit number sits behind (`gantry_style`,
@@ -12,6 +12,29 @@ gantry, the key console, the glass a lit number sits behind (`gantry_style`,
 — clean manifest sheets held in an enamel frame, under a spring clip — is the
 paperwork: every overlay. The frame is the HUD's own navy, so a board reads as
 part of the terminal, and the sheet inside it is plain cream with no fibre.
+**Leather** — a stitched binding with brass corners round a page block — is what
+the port *keeps*: the two diaries (`PortJournal`, `NoticeBell`) and nothing else
+(`book_style`, `book_header_style`, `style_book_tab`).
+
+## Boards move like the objects they are
+
+- **A clipboard is lifted into view.** `UiTheme.pop_open` brings a board up from
+  under the bottom edge of the screen, a few pixels past its mark and back, and
+  its spring clip stands open until the board is nearly home and then bites
+  (`place_clip` registers the clip; `_carry_clip` moves it). `pop_close(board,
+  scrim, done)` drops it back out. `board_up.wav` / `board_down.wav` are one
+  file per gesture, cut to the same clock as the tween.
+- **A book is opened.** `BookFx.open` raises the book shut and swings its cover
+  over on the spine; the page underneath was laid out and focusable the whole
+  time. `BookFx.flip(page)` turns one leaf on a tab change, `BookFx.close` shuts
+  it. The cover and the leaf are textures with no text on them, hung on a
+  `Node2D` holder (a container ignores a non-Control child), because the one
+  thing this scales is `scale.x`.
+- **Closing is never waited on.** `_open`, focus and `open_changed` change the
+  moment close is asked for; the drop is presentation, and `done` runs at once
+  with motion off or no display. Anything that interrupts a board in flight
+  (`settle_open`, a reopen, a close mid-rise) puts it back on its mark first —
+  a rise that starts off-screen cannot be left where a killed tween dropped it.
 
 Every board opens with the same nameplate: `UiTheme.header(title, close, icon)`
 returns `{root, title, close}` — amber title on enamel, steel close key at its
@@ -117,8 +140,8 @@ Entry points:
   board off a phone), and both open() let that settle before `pop_open`
   records the resting position. Rows are built once and rewritten in place.
 - `notice_bell.gd` — the **port diary** (class name kept): a leather book on
-  the gantry (`ui_diary_key.png`) that opens in a five-frame pixel animation
-  (`ui_diary_open.png`, `tools/sprites/gen_diary.py`) onto two bookmarks.
+  the gantry (`ui_diary_key.png`) that opens as one (`BookFx`, binding from
+  `tools/sprites/gen_diary.py`) onto two index tabs.
   AVISOS is the notices log below. MEDALHAS is every `AchievementDB` entry as a
   struck medal (dark until earned, tap for what it asks and pays) under the
   final trophy (`ui_trophy_final.png`), lit for whoever earns them all. The
@@ -175,11 +198,11 @@ Entry points:
   (`flags.guide_tips`), no veil, gone on a tap or after 9 s, 40 s apart, never
   over an open board. Old profiles have what is already true marked seen.
   A tip names its speaker: `tip(id, say, target, who)` with `who` a key of
-  `SPEAKERS` — Alisson, or Neide, the Receita Federal auditor
+  `SPEAKERS` — Alisson, or Leôncio, the Receita Federal auditor
   (`ui_customs_body.png` from `tools/sprites/gen_customs.py`, same seven-frame
-  layout; voice family `voice_rf`; she brings a rubber stamp down while she
+  layout; voice family `voice_rf`; he brings a rubber stamp down while he
   waits where he juggles). Tips marked `seed: false` in `Main._guide_tips` are
-  never pre-marked seen, so an old profile still meets her. `dismiss_tip()`
+  never pre-marked seen, so an old profile still meets him. `dismiss_tip()`
   removes a tip at once; Main calls it whenever a board opens.
 - `xray_minigame.gd` — the Receita Federal inspection on the `MinigameBoard`
   shell: the container rolls through the portal, the Creatus Security e VWI

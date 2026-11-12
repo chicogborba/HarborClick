@@ -74,8 +74,8 @@ Run the `gull` suite after changing anything here.
 
 ## Receita Federal: o scanner de raio-X
 
-Neide, auditora da Receita, takes Alisson's first tip slot after the tour and
-says the port needs an X-ray scanner; her tip closing opens the scanner's
+Leôncio, auditor da Receita, takes Alisson's first tip slot after the tour and
+says the port needs an X-ray scanner; his tip closing opens the scanner's
 board. Bought, it calls an inspection every five to nine minutes of play.
 
 - `xray_policy.gd` — price (seconds of base income, floored), the inspection

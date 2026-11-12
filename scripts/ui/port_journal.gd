@@ -48,7 +48,7 @@ var _open := false
 var _active_tab := "next"
 var _backdrop: ColorRect
 var _sheet: PanelContainer
-var _clip: TextureRect
+var _page: Control
 var _list: VBoxContainer
 var _tab_buttons: Dictionary = {}
 var _focus_return: Control
@@ -68,17 +68,17 @@ func _ready() -> void:
 	add_child(_backdrop)
 
 	_sheet = PanelContainer.new()
-	UiTheme.apply_panel(_sheet, UiTheme.board_style(9))
+	# Leather, not a clipboard: this is the port's logbook (`BookFx`).
+	UiTheme.apply_panel(_sheet, UiTheme.book_style())
 	_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_sheet)
-	_clip = UiTheme.clip_badge()
-	add_child(_clip)
 
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override(&"separation", 4)
 	_sheet.add_child(column)
 
-	var header := UiTheme.header("DIÁRIO DO PORTO", close, UiTheme.Icon.TROPHY)
+	var header := UiTheme.header("DIÁRIO DO PORTO", close, UiTheme.Icon.TROPHY,
+		UiTheme.book_header_style())
 	column.add_child(header.root)
 	(header.close as Button).tooltip_text = Loc.t("common.close_hint")
 
@@ -94,14 +94,18 @@ func _ready() -> void:
 		button.clip_text = true
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		UiTheme.apply_font(button, UiTheme.SIZE_SMALL)
-		UiTheme.style_tab(button, tab[0] == _active_tab)
+		UiTheme.style_book_tab(button, tab[0] == _active_tab)
 		button.pressed.connect(_select_tab.bind(tab[0]))
 		tabs.add_child(button)
 		_tab_buttons[tab[0]] = button
 
-	var sheet := UiTheme.panel(UiTheme.paper_style(4))
+	# The cards lie on the page itself: no tray inside a book.
+	var page_box := StyleBoxEmpty.new()
+	page_box.set_content_margin_all(2)
+	var sheet := UiTheme.panel(page_box)
 	sheet.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(sheet)
+	_page = sheet
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -132,14 +136,14 @@ func open(tab := "next") -> void:
 	_layout()
 	UiTheme.focus_first(_sheet)
 	open_changed.emit(true)
-	UiTheme.pop_open(_sheet, _backdrop)
+	BookFx.open(_sheet, _backdrop)
 
 
 func close() -> void:
 	if not _open:
 		return
 	_open = false
-	_layout()
+	BookFx.close(_sheet, _backdrop, _layout)
 	UiTheme.restore_focus(_focus_return)
 	_focus_return = null
 	open_changed.emit(false)
@@ -446,8 +450,11 @@ func _charter_record() -> Dictionary:
 
 
 func _select_tab(tab: String) -> void:
+	var turned := tab != _active_tab
 	_active_tab = tab
 	_refresh()
+	if turned and _open:
+		BookFx.flip(_page)
 
 
 func _refresh() -> void:
@@ -456,7 +463,7 @@ func _refresh() -> void:
 	for child in _list.get_children():
 		child.queue_free()
 	for key: String in _tab_buttons:
-		UiTheme.style_tab(_tab_buttons[key], key == _active_tab)
+		UiTheme.style_book_tab(_tab_buttons[key], key == _active_tab)
 	if _active_tab == "crew":
 		_build_crew_page()
 	elif _active_tab == "troph":
@@ -619,4 +626,3 @@ func _layout() -> void:
 		safe.end.y - _sheet.size.y - 6.0)
 	_backdrop.visible = _open
 	_sheet.visible = _open
-	UiTheme.place_clip(_clip, _sheet, safe)

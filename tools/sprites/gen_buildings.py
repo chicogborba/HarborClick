@@ -150,6 +150,16 @@ def gen_customs():
                                      door_x=16, windows=(5, 10))
     rect(img, 4, 3, 3, 2, P.SAFETY)          # roof beacon
     px(img, 4, 3, P.SAFETY_L)
+    # an air-conditioning unit on the south slope, and the sign over the door
+    rect(img, 18, 8, 5, 3, P.STEEL)
+    hline(img, 18, 8, 5, P.STEEL_L)
+    px(img, 20, 9, P.STEEL_D)
+    rect(img, 14, 15, 8, 2, (34, 70, 110, 255))
+    for sx in (15, 17, 19):
+        px(img, sx, 15, P.SAFETY_L)
+    # a striped kerb where the lorries stop
+    for kx in range(2, 24, 2):
+        px(img, kx, 20, P.SAFETY if (kx // 2) % 2 == 0 else (52, 46, 54, 255))
     save(img, "bld_customs")
 
     arm = new_img(40, 6)
@@ -161,54 +171,123 @@ def gen_customs():
 
 
 def gen_tower():
-    """Round control tower, 26x26, with a rotating radar exported separately."""
+    """Round control tower, 26x26, with a rotating radar exported separately.
+
+    Seen from straight above, so everything it has to say is in rings: a
+    white parapet lit from the north-west, a band of tinted glass with the
+    mullions showing and the sun on its north-west arc, then the blue roof
+    with its plant, a hatch and the radar's pedestal."""
     w = 26
     img = new_img(w, w)
     c = w / 2.0
+    roof = P.ramp(P.ROOF_BLUE, 5, hue_shift=12.0, dark=0.4, light=0.5)
+    glass = P.ramp(P.GLASS, 5, hue_shift=10.0)
+    wall = P.ramp(P.SUPER_W, 5, hue_shift=10.0, dark=0.3, light=0.5)
     for y in range(w):
         for x in range(w):
-            d = math.hypot(x - c + 0.5, y - c + 0.5)
-            if d <= 11.5:
-                img.putpixel((x, y), P.SUPER_W if d > 8.0 else P.ROOF_BLUE)
-            if 10.0 < d <= 11.5 and (x < c or y < c):
-                img.putpixel((x, y), (242, 236, 224, 255))
-    # glazed ring
-    for a in range(0, 360, 12):
-        rx = int(c + math.cos(math.radians(a)) * 9.6)
-        ry = int(c + math.sin(math.radians(a)) * 9.6)
-        px(img, rx, ry, P.GLASS)
-    rect(img, 10, 10, 6, 6, P.ROOF_BLUE_D)   # rooftop plant
-    save(outline(img), "bld_tower")
+            dx, dy = x - c + 0.5, y - c + 0.5
+            d = math.hypot(dx, dy)
+            if d > 11.5:
+                continue
+            lit = -(dx + dy) / max(d, 0.01)          # +1.4 NW .. -1.4 SE
+            if d > 10.0:                              # parapet
+                tone = wall[4] if lit > 0.5 else (wall[2] if lit > -0.5 else wall[1])
+            elif d > 8.0:                             # the glazed ring
+                a = math.degrees(math.atan2(dy, dx)) % 360
+                if int(a) % 30 < 4:
+                    tone = wall[1]                    # mullion
+                elif lit > 0.9:
+                    tone = glass[4]
+                elif lit > 0.1:
+                    tone = glass[3]
+                else:
+                    tone = glass[1]
+            else:                                     # roof
+                tone = roof[3] if lit > 0.6 and d > 4.5 else \
+                    (roof[1] if lit < -0.8 and d > 4.5 else roof[2])
+            img.putpixel((x, y), tone)
+    # rooftop: plant, hatch, the radar pedestal in the middle, a beacon
+    rect(img, 9, 15, 4, 3, P.STEEL_D)
+    hline(img, 9, 15, 4, P.STEEL_L)
+    rect(img, 15, 9, 3, 3, roof[0])
+    px(img, 15, 9, roof[4])
+    rect(img, 11, 11, 4, 4, P.STEEL)
+    hline(img, 11, 11, 4, P.STEEL_L)
+    px(img, 14, 14, P.STEEL_D)
+    px(img, 9, 9, P.RED_LIGHT)
+    img = outline(img)
+    save(img, "bld_tower")
 
     radar = new_img(16, 16)
-    rect(radar, 7, 2, 2, 12, P.STEEL_D)      # bar antenna
-    rect(radar, 6, 2, 4, 3, P.STEEL_L)
-    px(radar, 7, 7, P.STEEL_L)
+    # bar antenna: a tapered blade with a lit leading edge, on a hub
+    rect(radar, 7, 1, 2, 14, P.STEEL_D)
+    vline(radar, 7, 1, 14, P.STEEL_L)
+    rect(radar, 6, 1, 4, 2, P.STEEL_L)
+    rect(radar, 6, 13, 4, 2, P.STEEL)
+    rect(radar, 6, 6, 4, 4, P.STEEL)
+    px(radar, 7, 7, (214, 220, 228, 255))
+    px(radar, 8, 8, P.STEEL_D)
     save(outline(radar), "bld_tower_radar")
 
 
 def gen_ai_hub():
-    """Automation hub: flat roof with solar panels and cooling units. 38x32."""
+    """Automation hub: flat roof with solar panels and cooling units. 38x32.
+
+    A server hall, so the roof is all equipment: a parapet, a solar array
+    whose cells catch the sky, three chillers with their fans, a cable tray
+    and a mast with a status lamp."""
     w, h = 38, 32
     img = new_img(w, h)
-    rect(img, 2, 2, w - 4, h - 4, (118, 112, 130, 255))
-    hline(img, 2, 2, w - 4, (150, 144, 162, 255))
-    vline(img, 2, 2, h - 4, (150, 144, 162, 255))
-    vline(img, w - 3, 2, h - 4, (86, 82, 98, 255))
-    hline(img, 2, h - 3, w - 4, (86, 82, 98, 255))
-    # solar array
-    for sy in range(5, h - 12, 6):
-        for sx in range(5, w - 8, 9):
-            rect(img, sx, sy, 8, 5, (48, 62, 96, 255))
-            hline(img, sx, sy, 8, (78, 100, 140, 255))
-            vline(img, sx + 4, sy, 5, (40, 52, 82, 255))
-    # cooling units + antenna
-    for cx in (6, 16, 26):
-        rect(img, cx, h - 11, 7, 7, P.STEEL)
-        hline(img, cx, h - 11, 7, P.STEEL_L)
-        px(img, cx + 3, h - 8, P.STEEL_D)
-    px(img, w - 6, 5, P.RED_LIGHT)
-    save(outline(img), "bld_ai_hub")
+    slab = P.ramp((118, 112, 130), 5, hue_shift=10.0, dark=0.35, light=0.45)
+    cell = P.ramp((48, 62, 96), 5, hue_shift=14.0, dark=0.3, light=0.7)
+    steel = P.ramp(P.STEEL, 5, hue_shift=10.0)
+    rect(img, 2, 2, w - 4, h - 4, slab[2])
+    # parapet: lit on the north and west, in shade on the south and east
+    hline(img, 2, 2, w - 4, slab[4])
+    vline(img, 2, 2, h - 4, slab[4])
+    hline(img, 3, 3, w - 6, slab[3])
+    vline(img, w - 3, 2, h - 4, slab[1])
+    hline(img, 2, h - 3, w - 4, slab[1])
+    hline(img, 3, h - 4, w - 6, slab[1])
+    # solar array: framed panels, a cell grid, one glint of sky on each
+    for sy in range(5, h - 13, 6):
+        for sx in range(5, w - 9, 9):
+            rect(img, sx, sy, 8, 5, cell[1])
+            hline(img, sx, sy, 8, cell[3])
+            vline(img, sx, sy, 5, cell[2])
+            vline(img, sx + 4, sy + 1, 4, cell[0])
+            hline(img, sx + 1, sy + 2, 7, cell[0])
+            px(img, sx + 1, sy + 1, cell[4])
+            px(img, sx + 2, sy + 1, cell[3])
+            px(img, sx + 6, sy + 3, cell[2])
+            hline(img, sx, sy + 5, 8, slab[1])            # its shadow
+    # chillers: a casing, a round fan with a hub, a louvre
+    for cx in (5, 15, 25):
+        rect(img, cx, h - 12, 8, 8, steel[2])
+        hline(img, cx, h - 12, 8, steel[4])
+        vline(img, cx, h - 12, 8, steel[3])
+        vline(img, cx + 7, h - 12, 8, steel[1])
+        hline(img, cx, h - 5, 8, steel[0])
+        rect(img, cx + 2, h - 10, 4, 4, steel[0])
+        px(img, cx + 2, h - 10, steel[2])
+        px(img, cx + 5, h - 10, steel[2])
+        px(img, cx + 2, h - 7, steel[2])
+        px(img, cx + 5, h - 7, steel[2])
+        px(img, cx + 3, h - 9, steel[4])
+    # cable tray from the array to the chillers, and the mast
+    vline(img, w - 6, 5, h - 12, slab[1])
+    for ty in range(6, h - 8, 2):
+        px(img, w - 6, ty, P.SAFETY)
+    rect(img, w - 7, 4, 3, 3, steel[1])
+    px(img, w - 6, 5, P.GREEN_LIGHT)
+    img = outline(img)
+    for y in range(4, h - 1):
+        if img.getpixel((w - 1, y))[3] == 0:
+            px(img, w - 1, y, P.SHADOW)
+    for x in range(4, w - 1):
+        if img.getpixel((x, h - 1))[3] == 0:
+            px(img, x, h - 1, P.SHADOW)
+    save(img, "bld_ai_hub")
 
 
 def gen_portal():
@@ -245,6 +324,17 @@ def gen_office():
                                      door_x=13, windows=(5, 20, 25))
     rect(img, 23, 3, 4, 4, (86, 78, 78, 255))   # chimney
     hline(img, 23, 3, 4, (120, 110, 108, 255))
+    px(img, 24, 4, (52, 46, 54, 255))
+    # a skylight on the lit slope, an awning over the door, a flower box
+    glass = P.ramp(P.GLASS, 5, hue_shift=10.0)
+    rect(img, 8, 3, 6, 3, glass[2])
+    hline(img, 8, 3, 6, glass[4])
+    px(img, 13, 5, glass[1])
+    for ax in range(12, 18):
+        px(img, ax, 16, P.CRANE if ax % 2 == 0 else P.SUPER_W)
+    hline(img, 20, 21, 9, P.WOOD_D)
+    for fx in (21, 23, 25, 27):
+        px(img, fx, 20, P.GRASS_L if fx % 4 == 1 else P.RED_LIGHT)
     save(img, "bld_office")
 
 

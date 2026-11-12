@@ -17,15 +17,15 @@ const SILHOUETTES: Array[Dictionary] = [
 	{"id": "coastal_feeder", "title": "Feeder Costeiro", "capacity": 1200,
 		"unlock_blocks": 0, "sprite": "ship_top_feeder",
 		"paint": "ship_paint_feeder", "hull_scale": Vector2.ONE,
-		"hull_offset": Vector2.ZERO, "wake_scale": Vector2(0.92, 0.96)},
+		"hull_offset": Vector2.ZERO},
 	{"id": "panamax", "title": "Panamax", "capacity": 4500,
 		"unlock_blocks": 18, "sprite": "ship_top",
 		"paint": "ship_paint", "hull_scale": Vector2.ONE,
-		"hull_offset": Vector2.ZERO, "wake_scale": Vector2.ONE},
+		"hull_offset": Vector2.ZERO},
 	{"id": "new_panamax", "title": "New Panamax", "capacity": 8000,
 		"unlock_blocks": 21, "sprite": "ship_top_new_panamax",
 		"paint": "ship_paint_new_panamax", "hull_scale": Vector2.ONE,
-		"hull_offset": Vector2.ZERO, "wake_scale": Vector2(1.06, 1.03)},
+		"hull_offset": Vector2.ZERO},
 ]
 
 const COMPATIBILITY_ALIASES := {
@@ -96,7 +96,6 @@ static func compose(silhouette: Dictionary, palette: Dictionary) -> Dictionary:
 		"paint": silhouette.get("paint", "ship_paint"),
 		"hull_scale": silhouette.get("hull_scale", Vector2.ONE),
 		"hull_offset": silhouette.get("hull_offset", Vector2.ZERO),
-		"wake_scale": silhouette.get("wake_scale", Vector2.ONE),
 		"hull_color": palette.hull, "wake_color": palette.wake,
 		"cargo_color": palette.cargo,
 	}

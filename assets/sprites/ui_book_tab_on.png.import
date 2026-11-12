@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b6j6si8y5obxq"
-path="res://.godot/imported/ui_diary_open.png-69b93dc0ab55e90f32c1135f417fd6b2.ctex"
+uid="uid://pspbr0kce7dw"
+path="res://.godot/imported/ui_book_tab_on.png-e18294a8dab21b1d67b2a5cbbcc12d41.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/ui_diary_open.png"
-dest_files=["res://.godot/imported/ui_diary_open.png-69b93dc0ab55e90f32c1135f417fd6b2.ctex"]
+source_file="res://assets/sprites/ui_book_tab_on.png"
+dest_files=["res://.godot/imported/ui_book_tab_on.png-e18294a8dab21b1d67b2a5cbbcc12d41.ctex"]
 
 [params]
 

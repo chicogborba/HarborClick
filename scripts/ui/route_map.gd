@@ -146,7 +146,7 @@ func close() -> void:
 	if not _open:
 		return
 	_open = false
-	_layout()
+	UiTheme.pop_close(_sheet, _backdrop, _layout)
 	UiTheme.restore_focus(_focus_return)
 	_focus_return = null
 	open_changed.emit(false)

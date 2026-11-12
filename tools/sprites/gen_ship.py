@@ -278,23 +278,6 @@ def gen_ship():
     PROFILE = PROFILES["panamax"]
 
 
-def gen_ship_wake():
-    """Bow wake / moored ripple ring, drawn under the hull. 76x40, 4 frames."""
-    frames = []
-    for f in range(4):
-        img = new_img(76, 40)
-        for i in range(3):
-            r = 8 + i * 9 + f * 2
-            for a in range(0, 360, 6):
-                x = int(38 + math.cos(math.radians(a)) * r)
-                y = int(20 + math.sin(math.radians(a)) * r * 0.45)
-                if 0 <= x < 76 and 0 <= y < 40:
-                    px(img, x, y, P.SEA_SPARK if i < 2 else P.FOAM)
-        frames.append(img)
-    save(sheet(frames), "ship_wake")
-
-
 if __name__ == "__main__":
     print("ship:")
     gen_ship()
-    gen_ship_wake()

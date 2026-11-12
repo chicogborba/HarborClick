@@ -37,7 +37,7 @@ var xray_service: XrayService
 var xray_panel: XrayPanel
 var xray_button: XrayButton
 var xray_board: XrayMinigame
-## One "contêiner suspeito!" from Neide per due inspection, not one a second.
+## One "contêiner suspeito!" from Leôncio per due inspection, not one a second.
 var _xray_announced := false
 var _overlay_state := {"roadmap": false, "shop": false, "settings": false, "journal": false,
 	"prestige": false, "routes": false, "crew": false, "special": false,
@@ -800,7 +800,7 @@ func _guide_tips() -> Array[Dictionary]:
 	## `who` picks the speaker (default Alisson); `seed: false` keeps a tip out of
 	## `_seed_guide_tips`, for a character an old profile has never met.
 	return [
-		# Neide from the Receita Federal takes the first slot after the tour:
+		# Leôncio from the Receita Federal takes the first slot after the tour:
 		# the port needs an X-ray scanner. Her tip closing opens its board.
 		{"id": "receita", "who": &"receita", "say": "receita.tip.intro",
 			"target": "", "seed": false,
@@ -1106,7 +1106,7 @@ func _xray_clock_runs() -> bool:
 
 
 func _refresh_xray_key() -> void:
-	## The key appears once Neide has introduced the scanner, and packs into the
+	## The key appears once Leôncio has introduced the scanner, and packs into the
 	## HUD column under whichever of the wheel and daily keys are showing.
 	if xray_button == null:
 		return
@@ -1119,7 +1119,7 @@ func _refresh_xray_key() -> void:
 
 
 func _announce_inspection() -> void:
-	## A due inspection brings Neide back to point at the scanner key — once per
+	## A due inspection brings Leôncio back to point at the scanner key — once per
 	## inspection, never over a board or another guide.
 	if _xray_announced or not xray_service.is_due() or tutorial == null \
 			or tutorial.is_active() or tutorial.tip_active():
@@ -1132,7 +1132,7 @@ func _announce_inspection() -> void:
 
 
 func _on_guide_tip_closed(id: String) -> void:
-	## Neide's introduction ends at the scanner's board, so the first thing the
+	## Leôncio's introduction ends at the scanner's board, so the first thing the
 	## player sees after "we need a scanner" is the scanner and its price.
 	_refresh_xray_key()
 	if id == "receita" and not xray_service.owned():

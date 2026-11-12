@@ -167,6 +167,22 @@ func _stage(scenario: String) -> Vector2:
 			_main.bell._set_tab("medals")
 			await get_tree().create_timer(0.8).timeout
 			return Vector2(-1, -1)
+		"shop_rise":
+			# The clipboard on its way up: board and open clip below the mark.
+			_main.shop.toggle()
+			await get_tree().create_timer(0.11).timeout
+			return Vector2(-1, -1)
+		"journal", "journal_cover", "journal_flip":
+			# The logbook: open and read; its cover mid-swing; a leaf turning.
+			_main.journal.open("next")
+			if scenario == "journal_cover":
+				await get_tree().create_timer(BookFx.SWING_AT + 0.12).timeout
+				return Vector2(-1, -1)
+			await get_tree().create_timer(1.0).timeout
+			if scenario == "journal_flip":
+				_main.journal._select_tab("troph")
+				await get_tree().create_timer(0.09).timeout
+			return Vector2(-1, -1)
 		"shop_upgrades":
 			if not _main.shop.visible:
 				_main.shop.toggle()
@@ -191,7 +207,7 @@ func _stage(scenario: String) -> Vector2:
 			await get_tree().create_timer(3.5).timeout
 			return Vector2(-1, -1)
 		"tour_receita":
-			# Neide's entrance after the tour: the X-ray scanner pitch, read.
+			# Leôncio's entrance after the tour: the X-ray scanner pitch, read.
 			_main.tutorial._finish(true)
 			_main.tutorial.tip("receita", "receita.tip.intro", "", &"receita")
 			await get_tree().create_timer(2.5).timeout
@@ -199,7 +215,7 @@ func _stage(scenario: String) -> Vector2:
 			await get_tree().create_timer(1.2).timeout
 			return Vector2(-1, -1)
 		"xray_panel", "tour_xray_due":
-			# The scanner's board before purchase, or Neide pointing at its key
+			# The scanner's board before purchase, or Leôncio pointing at its key
 			# with an inspection waiting.
 			GameState.flags["tutorial_v2_done"] = true
 			var flags: Dictionary = GameState.flags.get("guide_tips", {})
@@ -257,6 +273,24 @@ func _stage(scenario: String) -> Vector2:
 			# first minute, before the first purchase changes anything.
 			await get_tree().create_timer(8.0).timeout
 			return Vector2(-1, -1)
+		"wake", "wake_stern":
+			# A hull making way up the channel, driven by hand so the wake's
+			# strength comes from real movement and not a forced uniform. The
+			# game's own arrival tween is stopped first or it wins every frame.
+			for running in get_tree().get_processed_tweens():
+				running.kill()
+			var hull: Ship = _main.world.ship
+			hull.visible = true
+			hull._set_phase(Ship.Phase.ARRIVING)
+			hull._under_way = true
+			hull._refresh_wake_state()
+			var stern := scenario == "wake_stern"
+			hull.position = Vector2(PortLayout.FAIRWAY_X, -40.0 if stern else 200.0)
+			for step in 50:
+				hull.position.y -= 1.6
+				await get_tree().process_frame
+			return Vector2(PortLayout.WATER_X0 - 10.0,
+				hull.position.y + (hull.hull_height() + 40.0 if stern else 110.0))
 		"ship":
 			# The laytime clock only runs after the tour.
 			GameState.flags["tutorial_v2_done"] = true

@@ -7,13 +7,40 @@ from common import (new_img, rect, hline, vline, px, save, speckle, patch,
 T = 16   # tile size
 
 
+def grain(img, base, dark, light, density, seed):
+    """A surface's texture, as texture rather than as static.
+
+    The ground used to be speckled with its ramp's full dark and full light at
+    one pixel in six, which at phone size is television snow under everything
+    the player is trying to read. This lays the same information down quieter:
+    mostly half-steps toward dark and light, a few full-contrast pixels for
+    grit, and a handful of two-pixel runs so the eye finds grain, not noise.
+    """
+    import random
+    rng = random.Random(seed)
+    soft_d, soft_l = P.mix(base, dark, 0.5), P.mix(base, light, 0.5)
+    for y in range(T):
+        for x in range(T):
+            r = rng.random()
+            if r < density * 0.55:
+                px(img, x, y, soft_d)
+            elif r < density:
+                px(img, x, y, soft_l)
+            elif r < density * 1.18:
+                px(img, x, y, dark if rng.random() < 0.6 else light)
+    for _ in range(3):
+        x, y = rng.randrange(T - 1), rng.randrange(T)
+        px(img, x, y, soft_d)
+        px(img, x + 1, y, soft_d)
+
+
 def gen_yard():
     """Paved yard: warm asphalt. Four variants, randomised in-game so the
     ground never shows an obvious repeat."""
     for v in range(4):
         img = new_img(T, T)
         rect(img, 0, 0, T, T, P.YARD)
-        speckle(img, 0, 0, T, T, [P.YARD_D, P.YARD_L], 0.15, seed=10 + v)
+        grain(img, P.YARD, P.YARD_D, P.YARD_L, 0.11, seed=10 + v)
         if v in (0, 2):
             patch(img, 3 + v * 4, 10 - v * 2, 4, 3, P.YARD_PATCH, seed=20 + v)
         if v in (1, 3):
@@ -28,7 +55,7 @@ def gen_quay():
     """Concrete apron slabs: lighter, with expansion joints."""
     img = new_img(T, T)
     rect(img, 0, 0, T, T, P.QUAY)
-    speckle(img, 0, 0, T, T, [P.QUAY_D, P.QUAY_L], 0.13, seed=3)
+    grain(img, P.QUAY, P.QUAY_D, P.QUAY_L, 0.09, seed=3)
     hline(img, 0, 0, T, P.QUAY_L)
     vline(img, 0, 0, T, P.QUAY_L)
     hline(img, 0, T - 1, T, P.QUAY_D)
@@ -41,7 +68,7 @@ def gen_dirt():
     for v in range(3):
         img = new_img(T, T)
         rect(img, 0, 0, T, T, P.DIRT)
-        speckle(img, 0, 0, T, T, [P.DIRT_D, P.DIRT_L], 0.20, seed=40 + v)
+        grain(img, P.DIRT, P.DIRT_D, P.DIRT_L, 0.13, seed=40 + v)
         patch(img, 4 + v * 5, 5 + v * 3, 3, 2, P.DIRT_D, seed=50 + v)
         for wx, wy in ((3 + v * 4, 12 - v * 3), (12 - v * 3, 4 + v * 4)):
             px(img, wx, wy, P.GRASS)
@@ -54,7 +81,7 @@ def gen_grass():
     """Grass verge tile."""
     img = new_img(T, T)
     rect(img, 0, 0, T, T, P.GRASS)
-    speckle(img, 0, 0, T, T, [P.GRASS_D, P.GRASS_L], 0.24, seed=8)
+    grain(img, P.GRASS, P.GRASS_D, P.GRASS_L, 0.15, seed=8)
     for bx, by in ((2, 4), (9, 3), (5, 11), (13, 9)):
         px(img, bx, by, P.GRASS_L)
         px(img, bx, by - 1, P.GRASS_L)

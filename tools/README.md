@@ -11,11 +11,17 @@
   one: shadows lean blue, highlights lean yellow. Art direction for all
   generators: one light from the north-west, south faces showing (the yard's
   3/4 view), integer scale only, never a rotation finer than a quarter turn.
+- Machines share one detailing kit, in `sprites/gen_vehicles.py`: `body` (a
+  plate lit from the north-west), `glass` (a pane with one diagonal glint),
+  `beacon`, `hazard` tape and treaded `tyres`. `gen_cranes.py` imports it, so
+  a quay crane, an RTG and a forklift are visibly the same fleet. Ground tiles
+  use `grain` (`gen_ground.py`) instead of full-contrast speckle: half-steps
+  and short runs, because one loud pixel in six under everything is noise.
 - `sprites/gen_train.py` draws the rake facing east at 1:1 (see the world
   README); `gen_wheel.py` computes the Roda da Sorte disc pixel by pixel at 64
   angles, because a rotated sprite is resampled mush; `gen_bonus.py` is the
   golden gull, its sparkle and the Missões do Dia key; `gen_customs.py` is
-  Neide of the Receita Federal and her X-ray scanner (portal, HUD key and the
+  Leôncio of the Receita Federal and his X-ray scanner (portal, HUD key and the
   sixteen false-colour cargo silhouettes, in `XrayScan.ITEMS` order).
 - `sprites/pixellab/` — the handful of *illustrated* assets a loop cannot draw:
   prompts, the model's committed answers and the harmoniser that makes them
@@ -24,7 +30,8 @@
 - `audio/` — deterministic audio generators.
 - `capture/` — headed responsive/visual/performance harness. `lang=pt_BR`
   photographs a language other than the machine's. `closeup.tscn` takes one
-  zoomed shot per process (`rail`, `rail_shunt`, `gull`, `ship`, `yard`, `tour_receita`,
+  zoomed shot per process (`rail`, `rail_shunt`, `gull`, `ship`, `wake`, `wake_stern`,
+  `shop_rise`, `journal`, `journal_cover`, `journal_flip`, `yard`, `tour_receita`,
   `tour_xray_due`, `xray_panel`, `xray_roll`, `xray_boot`, `xray_scan`,
   `xray_miss`) — the
   matrix harness can wedge on a stale frame after its first shot when the

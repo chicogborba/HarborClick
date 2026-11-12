@@ -51,7 +51,7 @@ var _paint: Sprite2D
 var _hull: Sprite2D
 var _shadow: Sprite2D
 var _cargo: Node2D
-var _wake: AnimatedSprite2D
+var _wake: ShipWake
 var _moorings: Node2D
 var _mooring_lines: Array[Line2D] = []
 var _mooring_plan: Array[Dictionary] = []   # {from, to, sag}
@@ -87,21 +87,12 @@ var variant_history: Array[String] = []
 
 
 func _ready() -> void:
-	_wake = AnimatedSprite2D.new()
-	var frames := SpriteFrames.new()
-	var texture: Texture2D = preload("res://assets/sprites/ship_wake.png")
-	frames.set_animation_speed(&"default", 5.0)
-	for i in 4:
-		var atlas := AtlasTexture.new()
-		atlas.atlas = texture
-		atlas.region = Rect2(i * 76, 0, 76, 40)
-		frames.add_frame(&"default", atlas)
-	_wake.sprite_frames = frames
-	_wake.centered = false
-	_wake.position = Vector2(PortLayout.SHIP_W * 0.5 - 38.0, PortLayout.SHIP_H - 30.0)
-	_wake.modulate.a = 0.65
+	# The foam a hull throws when it is making way: bow wave, V, collar and
+	# propeller wash, drawn in whole pixels over the shader's swell.
+	_wake = ShipWake.new()
+	_wake.name = "Wake"
 	_wake.z_index = -1
-	_wake.play()
+	_wake.visible = false
 	add_child(_wake)
 	_build_moorings()
 	# A contact shadow under the hull: the same silhouette, offset and darkened.
@@ -155,6 +146,7 @@ func _process(delta: float) -> void:
 	var driving := 0.0 if not (phase == Phase.ARRIVING or phase == Phase.DEPARTING) \
 		else clampf(travelled / 70.0, 0.0, 1.0)
 	_wake_strength = move_toward(_wake_strength, driving, delta * 1.6)
+	_wake.strength = _wake_strength
 	_t += delta
 	_advance_roll(delta)
 	if is_working():
@@ -165,7 +157,6 @@ func _process(delta: float) -> void:
 		_outline.position = _hull.position
 		_lights_root.position = _hull.position
 		_shadow.position = _hull.position + HULL_SHADOW_OFFSET
-		_wake.position.y = hull_height() - 30.0 + _hull.position.y
 		_update_moorings()
 		_update_navigation_lights()
 	_update_scale_bar()
@@ -593,16 +584,15 @@ func _apply_ship_variant() -> void:
 	_lights_root.position = hull_offset
 	_place_navigation_lights()
 	_plan_moorings()
-	_wake.position = Vector2(PortLayout.SHIP_W * 0.5 - 38.0, hull_height() - 30.0)
-	_wake.scale = ship_variant.get("wake_scale", Vector2.ONE)
+	_wake.fit(texture, hull_scale, hull_offset)
 	# The livery is paint, so it goes on the paint. Tinting the whole hull
 	# sprite multiplied the deck, the white house and the lifeboats by brick red
 	# or bottle green, and every ship in the game came in one muddy colour.
 	_hull.modulate = Color.WHITE
 	_paint.self_modulate = Color(str(ship_variant.get("hull_color", "#ffffff")))
-	var wake_color := Color(str(ship_variant.get("wake_color", "#ffffff")))
-	wake_color.a = 0.65
-	_wake.modulate = wake_color
+	# Foam is white whatever the livery; the palette only leans it a little.
+	_wake.tint = Color.WHITE.lerp(
+		Color(str(ship_variant.get("wake_color", "#ffffff"))), 0.25)
 
 
 func _hull_texture() -> Texture2D:

@@ -19,11 +19,11 @@ extends CanvasLayer
 ##   word — the first parcel affordable, the wheel unlocked. No veil, nothing
 ##   blocked: he hops in, says one line, and hops out on a tap or after a while.
 ##
-## A tip names its speaker (`SPEAKERS`): Alisson, or Neide from the Receita
+## A tip names its speaker (`SPEAKERS`): Alisson, or Leôncio from the Receita
 ## Federal, who arrives right after the tour to announce the X-ray scanner and
 ## comes back whenever a box needs inspecting. Same walk, same bubble; each has
 ## a body sheet with the same seven-frame layout, a Simlish voice family in
-## `AudioManager.VARIANTS`, and an idle habit — his futsal ball, her stamp.
+## `AudioManager.VARIANTS`, and an idle habit — one's futsal ball, the other's stamp.
 ##
 ## Targets come from Main as screen rects, resolved every frame, so he follows
 ## the camera, the shop sliding open and a rotated phone.
@@ -62,7 +62,7 @@ const CUSTOMS_BODY := preload("res://assets/sprites/ui_customs_body.png")
 const SPEAKERS := {
 	&"alisson": {"name": "ALISSON", "role": "guide.role", "body": BODY,
 		"voice": "voice", "habit": &"ball"},
-	&"receita": {"name": "NEIDE", "role": "receita.role", "body": CUSTOMS_BODY,
+	&"receita": {"name": "LEÔNCIO", "role": "receita.role", "body": CUSTOMS_BODY,
 		"voice": "voice_rf", "habit": &"stamp"},
 }
 const BALL := preload("res://assets/sprites/ui_guide_ball.png")

@@ -1322,7 +1322,9 @@ func _close() -> void:
 	if not _open:
 		return
 	_open = false
-	_layout()
+	# The board drops out of frame and `_layout` hides it when it has gone;
+	# everything the game reads (`_open`, focus, the signal) changes now.
+	UiTheme.pop_close(_board, _backdrop, _layout)
 	UiTheme.restore_focus(_focus_return if _focus_return != null else _launcher)
 	_focus_return = null
 	open_changed.emit(false)

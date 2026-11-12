@@ -1,6 +1,6 @@
 # UI and visual architecture
 
-The UI is a physical vocabulary in two materials, implemented by `UiTheme`:
+The UI is a physical vocabulary in three materials, implemented by `UiTheme`:
 generated nine-patches, bitmap typography, amber primary keys and teal service
 accents. Runtime code composes controls; generators own pixels.
 
@@ -10,7 +10,13 @@ navy enamel, brushed pinstripe, one amber hairline on the edge facing the water
 it, the dark glass a lit number sits behind. **Paper** — wood, spring clip,
 manifest sheets — is the paperwork: every overlay. Anything permanently over the
 port is steel so it reads as structure; anything you open is paper so it reads as
-something handed to you.
+something handed to you. **Leather** is the third and the rarest: the logbook,
+which is what the port keeps — only the two diaries are bound in it.
+
+Boards move like what they are. A clipboard is lifted up into view and its clip
+snaps shut (`UiTheme.pop_open` / `pop_close`); a book comes up shut and its
+cover swings open (`BookFx`). Each gesture has one sound file cut to the same
+clock as its tween. See `scripts/ui/README.md` for the contracts.
 
 ## Entry points
 

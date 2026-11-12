@@ -19,7 +19,7 @@ extends RefCounted
 ## around it and does not take it back.
 
 ## The scanner costs this many seconds of the port's base income, and never
-## less than `MIN_PRICE`: Neide offers it in the first minutes, when a whole
+## less than `MIN_PRICE`: Leôncio offers it in the first minutes, when a whole
 ## port makes a few TEU a second, and it must be a purchase, not a gift.
 const PRICE_SECONDS := 480.0
 const MIN_PRICE := 250.0
@@ -124,7 +124,7 @@ func restore(data: Dictionary) -> void:
 
 static func seed_new() -> Dictionary:
 	## A new profile, and an old profile from before the scanner existed: not
-	## bought yet. Neide introduces it the first time she gets a tip slot.
+	## bought yet. Leôncio introduces it the first time he gets a tip slot.
 	return {"version": 1, "owned": false, "until_next": FIRST_DELAY,
 		"ready": false, "played": 0, "won": 0, "streak": 0, "best_streak": 0}
 

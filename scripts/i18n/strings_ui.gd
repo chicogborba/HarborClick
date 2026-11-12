@@ -2002,26 +2002,26 @@ const STRINGS := {
 	"fr": "+1 JETON", "de": "+1 JETON", "it": "+1 GETTONE",
 	"ru": "+1 ФИШКА", "pl": "+1 ŻETON", "tr": "+1 JETON"},
 
-# ------------------------------- Receita Federal: Neide and the X-ray scanner
-# Neide is the customs auditor who arrives right after Alisson's tour. The
+# ------------------------------- Receita Federal: Leôncio and the X-ray scanner
+# Leôncio ("o Leão", as Brazil calls its tax office) is the customs auditor who arrives right after Alisson's tour. The
 # scanner software is "Creatus Security e VWI" in every language (a brand,
 # drawn on the monitor, not translated). The legend labels sit side by side on
 # one status line under the scan, so they stay short.
 
 "receita.role": {
-	"pt_BR": "AUDITORA DA RECEITA", "en": "CUSTOMS AUDITOR", "es": "AUDITORA DE ADUANAS",
-	"fr": "AUDITRICE DES DOUANES", "de": "ZOLLPRÜFERIN", "it": "ISPETTRICE DOGANALE",
-	"ru": "ТАМОЖЕННЫЙ ИНСПЕКТОР", "pl": "AUDYTORKA CELNA", "tr": "GÜMRÜK DENETÇİSİ"},
+	"pt_BR": "O LEÃO DA RECEITA", "en": "CUSTOMS AUDITOR", "es": "AUDITOR DE ADUANAS",
+	"fr": "AUDITEUR DES DOUANES", "de": "ZOLLPRÜFER", "it": "ISPETTORE DOGANALE",
+	"ru": "ТАМОЖЕННЫЙ ИНСПЕКТОР", "pl": "AUDYTOR CELNY", "tr": "GÜMRÜK DENETÇİSİ"},
 "receita.tip.intro": {
-	"pt_BR": "Boa tarde! Neide, Receita Federal. Porto que cresce atrai contrabando, e aqui ninguém confere nada. Vocês precisam de um scanner de raio-X. Pra ontem!",
-	"en": "Good afternoon! Neide, Customs. A growing port attracts smugglers, and nobody checks anything here. You need an X-ray scanner. Yesterday!",
-	"es": "¡Buenas tardes! Neide, Aduanas. Un puerto que crece atrae contrabando, y aquí nadie revisa nada. Necesitan un escáner de rayos X. ¡Para ayer!",
-	"fr": "Bonjour ! Neide, des Douanes. Un port qui grandit attire la contrebande, et ici personne ne vérifie rien. Il vous faut un scanner à rayons X. Pour hier !",
-	"de": "Guten Tag! Neide, Zoll. Ein wachsender Hafen lockt Schmuggler an, und hier prüft niemand etwas. Sie brauchen einen Röntgenscanner. Am besten gestern!",
-	"it": "Buongiorno! Neide, Dogana. Un porto che cresce attira il contrabbando, e qui nessuno controlla niente. Vi serve uno scanner a raggi X. Per ieri!",
-	"ru": "Добрый день! Нейди, таможня. Растущий порт манит контрабандистов, а тут никто ничего не проверяет. Вам нужен рентгеновский сканер. Ещё вчера!",
-	"pl": "Dzień dobry! Neide, służba celna. Rosnący port przyciąga przemytników, a tu nikt niczego nie sprawdza. Potrzebujecie skanera RTG. Na wczoraj!",
-	"tr": "İyi günler! Ben Neide, Gümrük. Büyüyen liman kaçakçı çeker, burada da kimse bir şey kontrol etmiyor. Size bir röntgen tarayıcı lazım. Dün!"},
+	"pt_BR": "Boa tarde! Leôncio, Receita Federal. O Leão chegou ao cais! Porto que cresce atrai contrabando, e aqui ninguém confere nada. Vocês precisam de um scanner de raio-X. Pra ontem!",
+	"en": "Good afternoon! Leôncio, Customs. A growing port attracts smugglers, and nobody checks anything here. You need an X-ray scanner. Yesterday!",
+	"es": "¡Buenas tardes! Leôncio, Aduanas. Un puerto que crece atrae contrabando, y aquí nadie revisa nada. Necesitan un escáner de rayos X. ¡Para ayer!",
+	"fr": "Bonjour ! Leôncio, des Douanes. Un port qui grandit attire la contrebande, et ici personne ne vérifie rien. Il vous faut un scanner à rayons X. Pour hier !",
+	"de": "Guten Tag! Leôncio, Zoll. Ein wachsender Hafen lockt Schmuggler an, und hier prüft niemand etwas. Sie brauchen einen Röntgenscanner. Am besten gestern!",
+	"it": "Buongiorno! Leôncio, Dogana. Un porto che cresce attira il contrabbando, e qui nessuno controlla niente. Vi serve uno scanner a raggi X. Per ieri!",
+	"ru": "Добрый день! Леонсио, таможня. Растущий порт манит контрабандистов, а тут никто ничего не проверяет. Вам нужен рентгеновский сканер. Ещё вчера!",
+	"pl": "Dzień dobry! Leôncio, służba celna. Rosnący port przyciąga przemytników, a tu nikt niczego nie sprawdza. Potrzebujecie skanera RTG. Na wczoraj!",
+	"tr": "İyi günler! Ben Leôncio, Gümrük. Büyüyen liman kaçakçı çeker, burada da kimse bir şey kontrol etmiyor. Size bir röntgen tarayıcı lazım. Dün!"},
 "receita.tip.buy": {
 	"pt_BR": "O caixa já cobre o scanner, hein? Contrabando não espera. Toca aqui.",
 	"en": "Your cash covers the scanner now, you know. Smugglers won't wait. Tap here.",
@@ -2154,15 +2154,15 @@ const STRINGS := {
 	"de": "AUFSTELLEN", "it": "INSTALLA", "ru": "УСТАНОВИТЬ", "pl": "ZAINSTALUJ",
 	"tr": "KUR"},
 "xray.panel.owned": {
-	"pt_BR": "Portal instalado no gate. A Neide avisa quando chegar contêiner suspeito.",
-	"en": "Portal installed at the gate. Neide will call when a suspicious box arrives.",
-	"es": "Portal instalado en la entrada. Neide avisa cuando llegue algo sospechoso.",
-	"fr": "Portique installé au gate. Neide prévient dès qu'un conteneur suspect arrive.",
-	"de": "Portal am Gate aufgestellt. Neide meldet sich, wenn ein verdächtiger Container kommt.",
-	"it": "Portale installato al gate. Neide avvisa quando arriva un container sospetto.",
-	"ru": "Портал стоит у ворот. Нейди позовёт, когда придёт подозрительный контейнер.",
-	"pl": "Bramka stoi przy wjeździe. Neide da znać, gdy przyjdzie podejrzany kontener.",
-	"tr": "Kapı girişe kuruldu. Şüpheli konteyner gelince Neide haber verir."},
+	"pt_BR": "Portal instalado no gate. O Leôncio avisa quando chegar contêiner suspeito.",
+	"en": "Portal installed at the gate. Leôncio will call when a suspicious box arrives.",
+	"es": "Portal instalado en la entrada. Leôncio avisa cuando llegue algo sospechoso.",
+	"fr": "Portique installé au gate. Leôncio prévient dès qu'un conteneur suspect arrive.",
+	"de": "Portal am Gate aufgestellt. Leôncio meldet sich, wenn ein verdächtiger Container kommt.",
+	"it": "Portale installato al gate. Leôncio avvisa quando arriva un container sospetto.",
+	"ru": "Портал стоит у ворот. Леонсио позовёт, когда придёт подозрительный контейнер.",
+	"pl": "Bramka stoi przy wjeździe. Leôncio da znać, gdy przyjdzie podejrzany kontener.",
+	"tr": "Kapı girişe kuruldu. Şüpheli konteyner gelince Leôncio haber verir."},
 "xray.panel.due": {
 	"pt_BR": "Contêiner suspeito esperando inspeção!", "en": "A suspicious container is waiting!",
 	"es": "¡Un contenedor sospechoso espera!", "fr": "Un conteneur suspect attend !",

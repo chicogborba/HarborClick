@@ -1,15 +1,15 @@
-"""The Receita Federal at the terminal: the customs officer and her X-ray scanner.
+"""The Receita Federal at the terminal: the customs auditor and his X-ray scanner.
 
 Outputs (all nearest-neighbour, shown at integer scale):
 
 - `ui_customs_body`  7 frames of 18x22, the same layout as `ui_guide_body`
                      (idle, bob, step A, step B, jump, talk, stamp) so
                      `TutorialSpotlight` animates both guides with one table.
-                     Neide, auditora fiscal: the black tactical vest with the
-                     yellow band every Receita agent wears on a quay, a black
-                     cap with a gold badge, and the sunglasses she never takes
-                     off. Where Alisson is blue and orange, she is black and
-                     yellow; where he waves, she lifts her red rubber stamp.
+                     Leôncio, auditor-fiscal - "o Leão": a tawny mane and
+                     moustache, round glasses, the navy vest with the yellow
+                     band every Receita agent wears on a quay, a clipboard
+                     under one arm. Where Alisson is blue and orange, he is
+                     navy and gold; where Alisson waves, he lifts his stamp.
 - `ui_xray_items`    16 frames of 16x16: cargo as an X-ray scanner shows it,
                      in false colour (orange organic, blue metal, green
                      glass/plastic). Order is the `XrayScan.ITEMS` table:
@@ -23,20 +23,30 @@ Outputs (all nearest-neighbour, shown at integer scale):
 from PIL import Image
 
 from common import new_img, rect, hline, vline, px, save, sheet
-from gen_guide import selout, BW, BH, MOUTH, BLUSH, EYE_DARK
+from gen_guide import selout, BW, BH, MOUTH
 
 # ----------------------------------------------------------------- the officer
 
-SKIN = [(92, 52, 36, 255), (128, 78, 52, 255), (160, 104, 70, 255),
-        (190, 132, 92, 255)]
-HAIR = (30, 20, 22, 255)
-VEST = [(16, 16, 22, 255), (30, 30, 38, 255), (48, 48, 60, 255)]
-BAND = [(196, 150, 20, 255), (246, 204, 52, 255)]
-PANTS = (34, 38, 56, 255)
-SHOES = (14, 14, 18, 255)
-CAP = [(14, 14, 20, 255), (36, 36, 48, 255)]
-GOLD = (246, 204, 52, 255)
-SHADES = [(10, 10, 16, 255), (70, 90, 130, 255)]
+# Leôncio: "o Leão" is what Brazil calls the Receita Federal, so its man on
+# the quay is one. A tawny mane and a moustache that hides his mouth, round
+# glasses, a rolled-sleeve shirt under the navy vest with the yellow band, a
+# lanyard badge in green and yellow, a clipboard that never leaves his left
+# hand. Nothing about him is a policeman: he is the civil servant who reads
+# every line of the manifest, and enjoys it.
+SKIN = [(160, 100, 84, 255), (214, 152, 128, 255), (244, 198, 170, 255),
+        (255, 224, 202, 255)]
+TASH = [(84, 42, 22, 255), (122, 64, 28, 255), (164, 94, 40, 255)]
+MANE = [(132, 70, 24, 255), (192, 114, 36, 255), (232, 160, 60, 255),
+        (252, 206, 112, 255)]
+VEST = [(20, 28, 58, 255), (34, 48, 92, 255), (56, 76, 130, 255)]
+BAND = [(196, 150, 20, 255), (250, 210, 60, 255)]
+SHIRT = [(150, 178, 208, 255), (206, 224, 240, 255), (244, 248, 252, 255)]
+PANTS = [(38, 42, 62, 255), (58, 64, 90, 255)]
+SHOES = (72, 40, 26, 255)
+FRAME = (40, 30, 38, 255)
+LENS = [(150, 196, 222, 255), (232, 246, 252, 255)]
+BADGE = [(246, 248, 250, 255), (40, 150, 84, 255)]
+BOARD = [(120, 78, 44, 255), (246, 238, 214, 255), (170, 150, 120, 255)]
 STAMP = [(150, 30, 34, 255), (214, 58, 52, 255), (120, 80, 50, 255)]
 
 
@@ -47,46 +57,71 @@ def officer_frame(kind):
     jump = kind == "jump"
     lift_l = 1 if kind in ("stepA", "jump") else 0
     lift_r = 1 if kind in ("stepB", "jump") else 0
-    # legs and polished shoes
-    rect(g, 6, 16 - lift_l, 2, 3, PANTS); rect(g, 6, 19 - lift_l, 2, 1, SHOES)
-    rect(g, 10, 16 - lift_r, 2, 3, PANTS); rect(g, 10, 19 - lift_r, 2, 1, SHOES)
+    # legs: pressed trousers, brown office shoes
+    rect(g, 6, 16 - lift_l, 2, 3, PANTS[1]); rect(g, 6, 19 - lift_l, 2, 1, SHOES)
+    rect(g, 10, 16 - lift_r, 2, 3, PANTS[0]); rect(g, 10, 19 - lift_r, 2, 1, SHOES)
     if kind == "stepA":
         px(g, 5, 19 - lift_l, SHOES)
     if kind == "stepB":
         px(g, 12, 19 - lift_r, SHOES)
-    # the black vest with the yellow RECEITA band
-    rect(g, 5, 10 + o, 8, 6, VEST[1]); vline(g, 12, 10 + o, 6, VEST[0])
-    hline(g, 5, 10 + o, 8, VEST[2])
-    hline(g, 5, 13 + o, 8, BAND[1]); px(g, 12, 13 + o, BAND[0])
-    px(g, 6, 11 + o, GOLD)                     # the badge on her chest
-    # arms
+    # torso: the shirt shows down the middle of the open vest
+    rect(g, 5, 10 + o, 8, 6, VEST[1])
+    vline(g, 5, 10 + o, 6, VEST[2]); vline(g, 12, 10 + o, 6, VEST[0])
+    rect(g, 8, 10 + o, 2, 6, SHIRT[1]); px(g, 8, 10 + o, SHIRT[2])
+    # the yellow RECEITA band, broken by the shirt
+    hline(g, 5, 13 + o, 3, BAND[1]); hline(g, 10, 13 + o, 3, BAND[1])
+    px(g, 12, 13 + o, BAND[0])
+    # lanyard and badge
+    px(g, 8, 11 + o, BAND[1]); px(g, 9, 12 + o, BAND[1])
+    px(g, 10, 11 + o, BADGE[0]); px(g, 11, 11 + o, BADGE[1])
+    hline(g, 5, 15 + o, 8, VEST[0])
+    # arms: rolled sleeves, so forearms are skin
     if jump:
-        rect(g, 3, 7, 2, 4, VEST[1]); px(g, 3, 6, S[3]); px(g, 4, 6, S[3])
-        rect(g, 13, 7, 2, 4, VEST[0]); px(g, 13, 6, S[3]); px(g, 14, 6, S[3])
+        rect(g, 3, 8, 2, 3, SHIRT[1]); rect(g, 3, 6, 2, 2, S[2])
+        rect(g, 13, 8, 2, 3, SHIRT[0]); rect(g, 13, 6, 2, 2, S[2])
+        # the clipboard goes up with him
+        rect(g, 1, 3, 4, 3, BOARD[1]); hline(g, 1, 3, 4, BOARD[0])
+        px(g, 2, 5, BOARD[2]); px(g, 3, 5, BOARD[2])
     else:
-        rect(g, 4, 11 + o, 1, 3, VEST[1]); px(g, 4, 14 + o, S[3])
+        # left arm bent across, holding the clipboard against his side
+        px(g, 4, 11 + o, SHIRT[1]); px(g, 4, 12 + o, S[2])
+        rect(g, 1, 11 + o, 3, 5, BOARD[1]); hline(g, 1, 11 + o, 3, BOARD[0])
+        hline(g, 2, 13 + o, 1, BOARD[2]); hline(g, 2, 14 + o, 1, BOARD[2])
+        px(g, 3, 13 + o, S[3])
         if kind == "wave":
             # the rubber stamp, raised: a wooden knob over a red pad
-            rect(g, 13, 7 + o, 1, 4, VEST[0]); px(g, 13, 6 + o, S[3])
-            px(g, 14, 3 + o, STAMP[2])
-            rect(g, 13, 4 + o, 3, 2, STAMP[1]); hline(g, 13, 5 + o, 3, STAMP[0])
+            rect(g, 13, 8 + o, 1, 3, SHIRT[0]); px(g, 13, 7 + o, S[2])
+            px(g, 14, 4 + o, STAMP[2])
+            rect(g, 13, 5 + o, 3, 2, STAMP[1]); hline(g, 13, 6 + o, 3, STAMP[0])
         else:
-            rect(g, 13, 11 + o, 1, 3, VEST[0]); px(g, 13, 14 + o, S[3])
-    # head: a bun at the back, sunglasses, a small firm mouth
-    rect(g, 5, 5 + o, 8, 5, S[3]); vline(g, 12, 5 + o, 5, S[2]); hline(g, 5, 9 + o, 8, S[2])
-    px(g, 4, 6 + o, HAIR); px(g, 4, 7 + o, HAIR); px(g, 5, 5 + o, HAIR)
-    hline(g, 6, 7 + o, 6, SHADES[0])
-    px(g, 6, 7 + o, SHADES[1]); px(g, 10, 7 + o, SHADES[1])
-    px(g, 6, 8 + o, BLUSH); px(g, 11, 8 + o, BLUSH)
+            px(g, 13, 11 + o, SHIRT[0]); rect(g, 13, 12 + o, 1, 2, S[2])
+            # and the stamp, at rest in his fist
+            px(g, 13, 14 + o, STAMP[2]); px(g, 13, 15 + o, STAMP[1])
+    # the mane first: a ragged gold halo, lit from the upper left
+    M = MANE
+    rect(g, 5, 2 + o, 8, 2, M[2]); hline(g, 6, 2 + o, 5, M[3])
+    rect(g, 4, 3 + o, 10, 7, M[1])
+    vline(g, 4, 3 + o, 6, M[2]); vline(g, 13, 4 + o, 6, M[0])
+    for (tx, ty, tone) in ((3, 4, M[2]), (3, 6, M[1]), (3, 8, M[1]),
+                           (14, 5, M[0]), (14, 7, M[0]), (7, 1, M[3]),
+                           (10, 1, M[2]), (5, 10, M[0]), (12, 10, M[0])):
+        px(g, tx, ty + o, tone)
+    # face: fair, so it reads against the mane
+    rect(g, 6, 4 + o, 6, 6, S[2]); hline(g, 6, 4 + o, 5, S[3])
+    vline(g, 11, 5 + o, 5, S[1])
+    # round glasses: two pale lenses with the eyes looking out of them
+    for ex in (6, 10):
+        rect(g, ex, 5 + o, 2, 2, LENS[1])
+        px(g, ex + 1, 5 + o, LENS[0])
+    px(g, 7, 6 + o, FRAME); px(g, 10, 6 + o, FRAME)     # pupils, a little crossed
+    px(g, 8, 5 + o, FRAME); px(g, 9, 5 + o, FRAME)      # the bridge
+    # the moustache: dark, wider than the face, drooping at both ends
+    hline(g, 6, 8 + o, 6, TASH[1]); hline(g, 7, 8 + o, 2, TASH[2])
+    px(g, 5, 8 + o, TASH[0]); px(g, 12, 8 + o, TASH[0])
+    px(g, 5, 9 + o, TASH[0]); px(g, 12, 9 + o, TASH[0])
+    px(g, 6, 9 + o, TASH[1]); px(g, 11, 9 + o, TASH[0])
     if kind in ("talk", "jump", "wave"):
-        px(g, 8, 8 + o, MOUTH[0]); px(g, 9, 8 + o, MOUTH[0])
         px(g, 8, 9 + o, MOUTH[0]); px(g, 9, 9 + o, MOUTH[0])
-    else:
-        px(g, 8, 9 + o, MOUTH[0]); px(g, 9, 9 + o, MOUTH[0])
-    # peaked cap: black crown, gold badge, a visor that sticks out in front
-    rect(g, 6, 2 + o, 6, 1, CAP[1]); rect(g, 5, 3 + o, 8, 2, CAP[0])
-    px(g, 6, 3 + o, CAP[1]); px(g, 9, 3 + o, GOLD)
-    hline(g, 5, 4 + o, 9, CAP[0]); px(g, 13, 4 + o, CAP[1])
     return selout(g)
 
 

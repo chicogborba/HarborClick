@@ -83,6 +83,13 @@ Major owners:
 
 - `container_yard.gd` — physical slots, reservations, UID stacks and manifest.
 - `ship.gd` — vessel view, bays, phases and interaction presentation.
+- `ship_wake.gd` — the foam a hull throws when it is making way: bow wave,
+  the V it sheds, the collar along the plating and the propeller wash, drawn
+  as whole pixels over the shader's swell. Patterns are hashed on *world*
+  rows so foam stays where it was made while the hull moves through it, the
+  outline is read from the hull sprite (`fit`), and nothing is drawn landward
+  of `PortLayout.WATER_X0`. `Ship` drives `visible`, `speed_scale` and
+  `strength`; `closeup.tscn -- wake` / `wake_stern` photograph it.
 - `road_truck.gd` — visible public-road trip and longitudinal bed cargo.
 - `rail_rake.gd` — the train on the branch, and the run-around shunt that gets
   its locomotive to the other end. It owns no cargo: `RailYard` does, and the

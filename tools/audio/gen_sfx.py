@@ -361,6 +361,102 @@ def sfx_ui_tab():
     save_wav(buf, "ui_tab")
 
 
+
+# ------------------------------------------------------- boards and the logbook
+# A board is an object, and it has to sound like one. Each of these is ONE file
+# timed against the motion in `UiTheme.pop_open` / `BookFx`, so a hitch in the
+# frame rate can delay the picture against the sound but never reorder the
+# sound against itself.
+
+def sfx_board_up():
+    """A clipboard pulled up into view: card through air, wood on the desk at
+    0.20 s, the spring clip snapping shut at 0.27 s."""
+    buf = render(0.46)
+    add_noise(buf, 0.0, 0.21, 0.20, env=(0.09, 0.05, 0.5, 0.06), color="pink",
+              highpass=0.10)
+    add_tone(buf, 0.0, 0.20, 190, "triangle", 0.05, sweep=2.1,
+             env=(0.08, 0.04, 0.5, 0.05))
+    add_tone(buf, 0.20, 0.10, 148, "triangle", 0.40, sweep=0.62,
+             env=(0.001, 0.04, 0.25, 0.05))
+    add_noise(buf, 0.20, 0.05, 0.16, env=(0.001, 0.02, 0.2, 0.02), lowpass=0.35)
+    add_tone(buf, 0.27, 0.025, 2300, "square", 0.13, duty=0.25, sweep=0.7,
+             env=(0.001, 0.008, 0.2, 0.012))
+    add_tone(buf, 0.275, 0.13, 3140, "triangle", 0.07,
+             env=(0.001, 0.03, 0.25, 0.09))
+    add_tone(buf, 0.275, 0.10, 4710, "sine", 0.03, env=(0.001, 0.02, 0.2, 0.07))
+    save_wav(reverb(buf, mix=0.08, decay=0.3, room=0.5), "board_up")
+
+
+def sfx_board_down():
+    """The same board let go: the clip springs, the card drops out of frame."""
+    buf = render(0.26)
+    add_tone(buf, 0.0, 0.02, 1900, "square", 0.09, duty=0.25, sweep=1.3,
+             env=(0.001, 0.006, 0.2, 0.01))
+    add_noise(buf, 0.02, 0.17, 0.17, env=(0.02, 0.05, 0.4, 0.09), color="pink",
+              highpass=0.08)
+    add_tone(buf, 0.02, 0.16, 330, "triangle", 0.05, sweep=0.45,
+             env=(0.02, 0.04, 0.5, 0.08))
+    save_wav(buf, "board_down")
+
+
+def _rustle(buf, at, length, gain, seed_step=0.031):
+    """Paper: a run of very short bright bursts, each a little softer."""
+    t = at
+    step = 0
+    while t < at + length:
+        burst = 0.018 + 0.007 * (step % 3)
+        add_noise(buf, t, burst, gain * (1.0 - 0.6 * (t - at) / length),
+                  env=(0.002, 0.006, 0.35, 0.008), highpass=0.34)
+        t += seed_step + 0.006 * ((step * 7) % 4)
+        step += 1
+
+
+def sfx_book_open():
+    """The logbook: set down (0.0), the leather cover creaking over
+    (0.20-0.44), the first leaves settling (0.44-0.62)."""
+    buf = render(0.74)
+    add_noise(buf, 0.0, 0.16, 0.14, env=(0.07, 0.04, 0.5, 0.05), color="pink",
+              highpass=0.08)
+    add_tone(buf, 0.18, 0.14, 96, "triangle", 0.46, sweep=0.6,
+             env=(0.001, 0.05, 0.3, 0.08))
+    add_noise(buf, 0.18, 0.06, 0.18, env=(0.001, 0.02, 0.2, 0.03), lowpass=0.22)
+    # the creak: a slow saw dragged up through a low-pass, with a wobble
+    add_tone(buf, 0.22, 0.22, 62, "saw", 0.10, sweep=2.6, vibrato=0.05,
+             lowpass=0.09, env=(0.04, 0.05, 0.6, 0.08))
+    add_tone(buf, 0.26, 0.16, 430, "triangle", 0.03, sweep=1.5, vibrato=0.04,
+             env=(0.03, 0.04, 0.5, 0.06))
+    _rustle(buf, 0.42, 0.20, 0.22)
+    add_tone(buf, 0.44, 0.06, 210, "triangle", 0.12, sweep=0.7,
+             env=(0.001, 0.02, 0.2, 0.03))
+    save_wav(reverb(buf, mix=0.10, decay=0.35, room=0.6), "book_open")
+
+
+def sfx_book_close():
+    """Shut: leaves, then the cover landing on them."""
+    buf = render(0.36)
+    _rustle(buf, 0.0, 0.12, 0.18)
+    add_tone(buf, 0.12, 0.13, 108, "triangle", 0.42, sweep=0.6,
+             env=(0.001, 0.05, 0.3, 0.07))
+    add_noise(buf, 0.12, 0.07, 0.20, env=(0.001, 0.02, 0.25, 0.04), lowpass=0.28)
+    save_wav(reverb(buf, mix=0.08, decay=0.3, room=0.5), "book_close")
+
+
+## Three takes: a tab is pressed often enough to hear a single flip repeat.
+PAGE_TAKES = [(0.030, 0.20, 1.0), (0.026, 0.17, 1.12), (0.034, 0.22, 0.92)]
+
+
+def sfx_page_flip():
+    """One leaf turned: lifted, across, and flat."""
+    for index, (step, gain, pitch) in enumerate([PAGE_TAKES[0]] + PAGE_TAKES):
+        buf = render(0.24)
+        add_noise(buf, 0.0, 0.14, 0.12, env=(0.05, 0.03, 0.5, 0.05),
+                  color="pink", highpass=0.22)
+        _rustle(buf, 0.03, 0.12, gain, seed_step=step)
+        add_tone(buf, 0.15, 0.04, 260 * pitch, "triangle", 0.10, sweep=0.7,
+                 env=(0.001, 0.015, 0.2, 0.02))
+        save_wav(buf, "page_flip" if index == 0 else "page_flip_%d" % index)
+
+
 def sfx_achievement():
     """A trophy: a bright arpeggio over a bell, with room around it."""
     buf = render(1.4)
@@ -553,24 +649,24 @@ def sfx_voice():
         save_wav(_syllable(onset, vowel, f0, bend, length, rng),
                  "voice_%d" % (index + 1))
 
-## Neide's voice, the Receita Federal auditor: the same Simlish machine, an
+## Leôncio's voice, the Receita Federal auditor: the same Simlish machine, an
 ## octave-ish lower and drier than Alisson. Crisp plosive onsets (t, k, p, d),
 ## round "o"/"e" vowels, formants pulled down a touch for a fuller chest, and
 ## contours that mostly *fall* - the cadence of somebody reading out a
-## regulation. Short takes, so she sounds clipped and official, not bouncy.
+## regulation. Short takes, so he sounds clipped and official, not bouncy.
 VOICE_RF_TAKES = [
-    ("t", "o", 250, 0.86, 0.09), ("k", "e", 270, 0.90, 0.08),
-    ("p", "a", 240, 0.84, 0.10), ("d", "o", 260, 1.06, 0.09),
-    ("m", "e", 235, 0.88, 0.10), ("t", "a", 275, 0.82, 0.08),
-    ("n", "u", 245, 0.92, 0.10), ("k", "o", 265, 0.80, 0.09),
+    ("t", "o", 176, 0.86, 0.10), ("k", "e", 190, 0.90, 0.09),
+    ("p", "a", 168, 0.84, 0.11), ("d", "o", 184, 1.06, 0.10),
+    ("m", "e", 164, 0.88, 0.11), ("t", "a", 194, 0.82, 0.09),
+    ("n", "u", 172, 0.92, 0.11), ("k", "o", 186, 0.80, 0.10),
 ]
 
 
 def sfx_voice_rf():
-    """Neide talking: eight clipped, official Simlish syllables."""
+    """Leôncio talking: eight clipped, official Simlish syllables."""
     rng = random.Random(1964)
     for index, (onset, vowel, f0, bend, length) in enumerate(VOICE_RF_TAKES):
-        save_wav(_syllable(onset, vowel, f0, bend, length, rng, formant=0.86),
+        save_wav(_syllable(onset, vowel, f0, bend, length, rng, formant=0.74),
                  "voice_rf_%d" % (index + 1))
 
 if __name__ == "__main__":
@@ -611,3 +707,11 @@ if __name__ == "__main__":
     sfx_bell()
     sfx_voice()
     sfx_voice_rf()
+    # Last, deliberately: the noise source is one shared LFSR, so a sound
+    # rendered earlier would shift every noisy sound after it by a few samples
+    # and rewrite wavs nobody touched.
+    sfx_board_up()
+    sfx_board_down()
+    sfx_book_open()
+    sfx_book_close()
+    sfx_page_flip()

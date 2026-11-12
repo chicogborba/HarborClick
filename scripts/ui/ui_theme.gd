@@ -263,6 +263,35 @@ static func board_style(content: int = 12) -> StyleBoxTexture:
 	return nine("ui_board", 12, content)
 
 
+static func book_style(content: int = 11) -> StyleBoxTexture:
+	## The third material. Steel is the terminal, paper is what it hands you,
+	## and leather is what the port *keeps*: the logbook. Only the two diaries
+	## are bound in it (`PortJournal`, `NoticeBell`), and `BookFx` is how one
+	## opens.
+	return nine("ui_book", 14, content)
+
+
+static func book_header_style() -> StyleBoxTexture:
+	## The title label pasted on the binding: dark morocco, one gold rule.
+	var box := nine("ui_book_plate", 5, 4)
+	box.content_margin_left = 8
+	box.content_margin_bottom = 5
+	return box
+
+
+static func style_book_tab(node: Button, active: bool) -> void:
+	## Index tabs cut into the fore-edge: the open one is the page's own
+	## cream, the rest are older stock. Ink on both — never steel text.
+	var box := nine("ui_book_tab_on" if active else "ui_book_tab_off", 5, 5)
+	node.add_theme_stylebox_override(&"normal", box)
+	node.add_theme_stylebox_override(&"hover", box)
+	node.add_theme_stylebox_override(&"pressed", nine("ui_book_tab_on", 5, 5))
+	node.add_theme_stylebox_override(&"focus", _focus_style())
+	for key: StringName in [&"font_color", &"font_hover_color",
+			&"font_pressed_color", &"font_focus_color"]:
+		node.add_theme_color_override(key, INK if active else INK_SOFT)
+
+
 static func paper_style(content: int = 5) -> StyleBoxTexture:
 	## A ruled manifest sheet, for regions already inside a board.
 	return nine("ui_paper", 5, content)
@@ -465,11 +494,12 @@ static func header_style() -> StyleBoxTexture:
 
 
 static func header(title: String, close: Callable = Callable(),
-		kind: int = -1) -> Dictionary:
+		kind: int = -1, plate_style: StyleBox = null) -> Dictionary:
 	## One nameplate for every board: optional icon, the title in amber on
 	## enamel, and the close key bolted to its right end. Returns
 	## {root, title, close} so a board can restyle or retitle it later.
-	var plate := panel(header_style(), false)
+	var plate := panel(plate_style if plate_style != null else header_style(),
+		false)
 	plate.custom_minimum_size.y = 34
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 6)
@@ -570,78 +600,182 @@ static func place_clip(clip: TextureRect, board: Control, safe: Rect2) -> void:
 	## Straddles the board's top edge, and stands down entirely when the board
 	## is tall enough to reach the top of the safe area — a clip drawn over the
 	## status bar or the TEU readout is worse than no clip.
-	var top := board.position.y - 11.0
+	var top := board.position.y - CLIP_RISE
 	# It needs real air above it. A clip drawn into the top strip of the screen
 	# lands on the status bar or the TEU readout, which is worse than no clip.
 	clip.visible = board.visible and top >= safe.position.y + 26.0
 	clip.position = Vector2(
 		board.position.x + (board.size.x - CLIP_SIZE.x) * 0.5, top)
+	# The board's motion carries its clip (`_carry_clip`); it finds it here.
+	board.set_meta(&"clip", clip)
+
+
+const CLIP_RISE := 11.0
+
+
+static func _carry_clip(board: Control, lift: float = 0.0) -> void:
+	## Keeps the spring clip on a board that is travelling. `lift` is how far
+	## the jaw stands open above its bite.
+	if not board.has_meta(&"clip"):
+		return
+	var clip := board.get_meta(&"clip") as Control
+	if clip == null or not is_instance_valid(clip):
+		return
+	clip.position = Vector2(
+		board.position.x + (board.size.x - CLIP_SIZE.x) * 0.5,
+		board.position.y - CLIP_RISE - lift).round()
 
 
 # ------------------------------------------------------------------ motion
 
 ## Why overlays move at all: a board that appears in a single frame reads as a
-## glitch; one that rises 10px and settles reads as a thing put down on the
-## desk. `pop_open` is that motion, and it moves `position`, never `scale`, so
-## the pixel font is never resampled while the board travels.
+## glitch. A board is a clipboard somebody lifts into view — so it comes up
+## from below the screen, runs a few pixels past its mark, settles back, and
+## its spring clip snaps shut on the sheet. `pop_open` is that motion, and it
+## moves `position`, never `scale`, so the pixel font is never resampled while
+## the board travels. `board_up.wav` is cut to the same clock: air, wood at
+## 0.20 s, the clip at 0.27 s.
+const RISE_TIME := 0.30
+const RISE_LAND := 0.68       # fraction of RISE_TIME at which the board lands
+const RISE_OVERSHOOT := 5.0
+const DROP_TIME := 0.15
+
+
+static func _rise_offset(t: float, travel: float) -> float:
+	## Cubic out to a small overshoot, then eased back onto the mark.
+	if t < RISE_LAND:
+		var u := 1.0 - t / RISE_LAND
+		return roundf(lerpf(-RISE_OVERSHOOT, travel, u * u * u))
+	var v := (t - RISE_LAND) / (1.0 - RISE_LAND)
+	return roundf(lerpf(-RISE_OVERSHOOT, 0.0, v * v * (3.0 - 2.0 * v)))
+
+
+static func _kill_pop(board: Control) -> void:
+	## Stops a board mid-flight and puts it back on its mark. A killed tween
+	## leaves the board wherever the last frame put it, and with a rise that
+	## starts off-screen "wherever" can be under the bottom edge.
+	# has_meta first: get_meta errors on a missing key even with a default.
+	if board.has_meta(&"pop_tween"):
+		var previous := board.get_meta(&"pop_tween") as Tween
+		if previous != null and previous.is_running():
+			previous.kill()
+	if board.has_meta(&"pop_state"):
+		var state: Dictionary = board.get_meta(&"pop_state")
+		# Only if nothing else has laid the board out since the last frame.
+		if board.position == state.last:
+			board.position = state.final
+		board.remove_meta(&"pop_state")
+
+
 static func pop_open(board: Control, scrim: CanvasItem = null,
-		slide: bool = true) -> void:
+		slide: bool = true, sound: String = "board_up") -> void:
 	## The OPEN animation for every overlay board. Call it at the END of the
 	## open path, after the board has been laid out for this open, so
 	## `board.position` is already final. `scrim`, when given and visible, is
 	## faded in alongside; its colour alpha is never touched. `slide = false`
 	## animates the board's alpha only, for boards an async `_fit_to_content()`
 	## moves a frame later — sliding those would land on a stale position.
+	## `sound` is the wav for the whole gesture ("" when the caller plays its
+	## own, as `BookFx` does).
 	##
-	## If the board is laid out again during the 0.18s (a resize, a rotation),
+	## If the board is laid out again during the rise (a resize, a rotation),
 	## the slide adopts the layout's new position as its resting place instead
 	## of dragging the board back to the one it remembered. It used to do the
 	## latter: a shop laid out for a tall viewport that shrank mid-open ended
 	## 137px low with its bottom off the screen, until the next resize.
-	AudioManager.play_sfx("ui_open", 0.03, -4.0)
+	if not sound.is_empty():
+		if slide:
+			AudioManager.play_sfx(sound, 0.02, -3.0)
+		else:
+			AudioManager.play_sfx("ui_open", 0.03, -4.0)
+	_kill_pop(board)
+	if scrim != null:
+		scrim.modulate.a = 1.0
 	if not UserPreferences.can_animate():
 		board.modulate.a = 1.0
+		_carry_clip(board)
 		return
-	# has_meta first: get_meta errors on a missing key even with a default.
-	var previous: Tween = null
-	if board.has_meta(&"pop_tween"):
-		previous = board.get_meta(&"pop_tween") as Tween
-	if previous != null and previous.is_running():
-		previous.kill()
-	board.modulate.a = 0.0
-	# `final` is where the layout put the board; `last` is where the slide
-	# itself last put it. Any difference between `last` and the board's actual
-	# position means something else moved it — that is the new resting place.
-	var slide_state := {"final": board.position, "last": board.position}
 	var tween := board.create_tween().set_parallel()
 	if slide:
-		slide_state.last = board.position + Vector2(0, 10)
-		board.position = slide_state.last
-		tween.tween_method(func(offset: float) -> void:
+		board.modulate.a = 1.0
+		# From just under the bottom edge of the screen, wherever the board
+		# rests: a dialog in the middle of the screen is lifted further than
+		# a sheet docked at the bottom, in the same time.
+		var travel := maxf(24.0,
+			board.get_viewport_rect().size.y - board.position.y + 16.0)
+		# `final` is where the layout put the board; `last` is where the slide
+		# itself last put it. Any difference between `last` and the board's
+		# actual position means something else moved it — that is the new
+		# resting place.
+		var state := {"final": board.position,
+			"last": board.position + Vector2(0, travel)}
+		board.position = state.last
+		board.set_meta(&"pop_state", state)
+		_carry_clip(board, 6.0)
+		tween.tween_method(func(t: float) -> void:
 			if not is_instance_valid(board):
 				return
-			if board.position != slide_state.last:
-				slide_state.final = board.position
-			slide_state.last = slide_state.final + Vector2(0, offset)
-			board.position = slide_state.last, 10.0, 0.0, 0.18) \
-			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(board, "modulate:a", 1.0, 0.12) \
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			if board.position != state.last:
+				state.final = board.position
+			state.last = state.final + Vector2(0, _rise_offset(t, travel))
+			board.position = state.last
+			# The jaw stands open until the board is nearly home, then bites.
+			_carry_clip(board, 6.0 if t < 0.86 else 0.0), 0.0, 1.0, RISE_TIME)
+	else:
+		board.modulate.a = 0.0
+		tween.tween_property(board, "modulate:a", 1.0, 0.12) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	if scrim != null and scrim.is_visible_in_tree():
 		scrim.modulate.a = 0.0
-		tween.tween_property(scrim, "modulate:a", 1.0, 0.15)
+		tween.tween_property(scrim, "modulate:a", 1.0, 0.18)
+	board.set_meta(&"pop_tween", tween)
+
+
+static func pop_close(board: Control, scrim: CanvasItem, done: Callable,
+		sound: String = "board_down") -> void:
+	## The CLOSE animation: the board drops back out of frame, then `done`
+	## hides it. The overlay is already closed as far as the game is concerned
+	## when this is called — `done` is presentation only, and it is called at
+	## once when there is nothing to animate (motion off, no display, board
+	## already hidden), so no caller ever waits on a tween to change state.
+	## A `pop_open` during the drop kills it; `done` is then never called,
+	## which is right, because the board is open again.
+	_kill_pop(board)
+	if not board.is_visible_in_tree() or not UserPreferences.can_animate() \
+			or DisplayServer.get_name() == "headless":
+		done.call()
+		return
+	if not sound.is_empty():
+		AudioManager.play_sfx(sound, 0.02, -5.0)
+	var state := {"final": board.position, "last": board.position}
+	var travel := board.get_viewport_rect().size.y - board.position.y + 16.0
+	board.set_meta(&"pop_state", state)
+	var tween := board.create_tween().set_parallel()
+	tween.tween_method(func(t: float) -> void:
+		if not is_instance_valid(board):
+			return
+		state.last = state.final + Vector2(0, roundf(travel * t * t))
+		board.position = state.last
+		_carry_clip(board, 6.0), 0.0, 1.0, DROP_TIME)
+	if scrim != null and scrim.is_visible_in_tree():
+		tween.tween_property(scrim, "modulate:a", 0.0, DROP_TIME)
+	tween.chain().tween_callback(func() -> void:
+		if not is_instance_valid(board):
+			return
+		board.position = state.final
+		board.remove_meta(&"pop_state")
+		if scrim != null and is_instance_valid(scrim):
+			scrim.modulate.a = 1.0
+		done.call())
 	board.set_meta(&"pop_tween", tween)
 
 
 static func settle_open(board: Control) -> void:
 	## Lands a board that is mid-`pop_open` right now: kills the stored tween
 	## if it is still running and forces full alpha.
-	var previous: Tween = null
-	if board.has_meta(&"pop_tween"):
-		previous = board.get_meta(&"pop_tween") as Tween
-	if previous != null and previous.is_running():
-		previous.kill()
+	_kill_pop(board)
 	board.modulate.a = 1.0
+	_carry_clip(board)
 
 
 # ------------------------------------------------------------------ controls

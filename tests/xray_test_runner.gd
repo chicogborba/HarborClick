@@ -293,11 +293,11 @@ func _test_speakers() -> void:
 	add_child(guide)
 	await get_tree().process_frame
 	_expect(not guide.tip("x", "receita.tip.intro", "", &"nobody"), "an unknown speaker is refused")
-	_expect(guide.tip("receita", "receita.tip.intro", "", &"receita"), "Neide can take a tip")
-	_expect(guide.speaker() == &"receita", "the speaker is Neide")
+	_expect(guide.tip("receita", "receita.tip.intro", "", &"receita"), "Leôncio can take a tip")
+	_expect(guide.speaker() == &"receita", "the speaker is Leôncio")
 	_expect(guide._walker_atlas.atlas == TutorialSpotlight.CUSTOMS_BODY, "she walks in her own sprite")
-	_expect(guide._name.text == "NEIDE", "her name on the plate")
-	_expect(guide._role.text == Loc.t("receita.role"), "her role on the plate")
+	_expect(guide._name.text == "LEÔNCIO", "his name on the plate")
+	_expect(guide._role.text == Loc.t("receita.role"), "his role on the plate")
 	var closed: Array[String] = []
 	guide.tip_closed.connect(func(id: String) -> void: closed.append(id))
 	guide.dismiss_tip()

@@ -31,6 +31,9 @@ func _test_safe_area_and_journal_close() -> void:
 	journal.apply_view_metrics({"safe_rect": safe, "profile": "portrait"})
 	journal.open()
 	await get_tree().process_frame
+	# The book is still rising from under the screen one frame in; this is a
+	# contract about where it comes to rest.
+	UiTheme.settle_open(journal._sheet)
 	_expect(_inside(safe, journal._sheet.get_global_rect()), "journal mobile sheet remains inside safe area")
 	# The board starts far enough down for its spring clip to be on screen, so
 	# "almost full height" now means the safe area minus that clip and a margin.

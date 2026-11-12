@@ -112,6 +112,21 @@ void fragment() {
 		}
 	}
 
+	// --- glitter: the sun on the chop, out in the open water ---
+	// Single pixels that come and go on a slow clock of their own. Cells are
+	// 6px, one candidate each, and only where the swell is cresting — so the
+	// glitter drifts across the harbour in patches the way it does on real
+	// water, instead of twinkling evenly like a starfield.
+	if (quality_level > 0 && from_shore > 14.0) {
+		vec2 cell = floor(p / 6.0);
+		float pick = hash(cell + vec2(17.0, 5.0));
+		vec2 spot = floor(vec2(hash(cell), hash(cell.yx + 3.0)) * 6.0);
+		float beat = fract(t * (0.35 + pick * 0.4) + pick * 9.0);
+		if (pick > 0.62 && p - cell * 6.0 == spot && swell > 0.05 && beat < 0.30) {
+			col = mix(col, col_spark, beat < 0.12 ? 0.95 : 0.55);
+		}
+	}
+
 	// --- shore: a foam band that breaks up along the quay ---
 	if (from_shore >= 0.0 && from_shore < 6.0) {
 		float edge = 1.0 - from_shore / 6.0;

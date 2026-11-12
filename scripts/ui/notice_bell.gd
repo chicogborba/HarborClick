@@ -45,10 +45,7 @@ var _safe_rect := Rect2()
 var _world_rect := Rect2()
 var _last_focus: Control
 const TEX_KEY := preload("res://assets/sprites/ui_diary_key.png")
-const TEX_OPEN := preload("res://assets/sprites/ui_diary_open.png")
 const TEX_TROPHY := preload("res://assets/sprites/ui_trophy_final.png")
-const OPEN_FRAME := Vector2(64, 48)
-const OPEN_SCALE := 3.0
 const MEDAL_COLUMNS := 4
 var _tab := "notices"
 var _tab_buttons: Dictionary = {}
@@ -58,9 +55,9 @@ var _trophy: TextureRect
 var _trophy_count: Label
 var _trophy_bar: ProgressBar
 var _detail: Label
-var _book: TextureRect
-var _book_atlas: AtlasTexture
-var _book_t := -1.0
+## True while the shut book is dropping out of frame: closed to the game,
+## still on screen.
+var _closing := false
 
 
 func _ready() -> void:
@@ -89,13 +86,14 @@ func _ready() -> void:
 	_scrim.gui_input.connect(_on_scrim_input)
 	add_child(_scrim)
 
-	_board = UiTheme.panel(UiTheme.board_style(8), false)
+	_board = UiTheme.panel(UiTheme.book_style(), false)
 	_board.visible = false
 	add_child(_board)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override(&"separation", 3)
 	_board.add_child(column)
-	var head := UiTheme.header(Loc.t("diary.title"), close_log, UiTheme.Icon.TROPHY)
+	var head := UiTheme.header(Loc.t("diary.title"), close_log,
+		UiTheme.Icon.TROPHY, UiTheme.book_header_style())
 	column.add_child(head.root)
 	# The two bookmarks.
 	var tabs := HBoxContainer.new()
@@ -136,19 +134,6 @@ func _ready() -> void:
 	inner.add_child(_medals)
 	_inner = inner
 
-	# The book that opens before the pages appear.
-	_book_atlas = AtlasTexture.new()
-	_book_atlas.atlas = TEX_OPEN
-	_book_atlas.region = Rect2(Vector2.ZERO, OPEN_FRAME)
-	_book = TextureRect.new()
-	_book.texture = _book_atlas
-	_book.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_book.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_book.stretch_mode = TextureRect.STRETCH_SCALE
-	_book.size = OPEN_FRAME * OPEN_SCALE
-	_book.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_book.visible = false
-	add_child(_book)
 	_layout()
 
 
@@ -187,7 +172,7 @@ func unread() -> int:
 
 
 func is_open() -> bool:
-	return _board.visible or _book.visible
+	return _board.visible and not _closing
 
 
 func toggle() -> void:
@@ -201,52 +186,34 @@ func open_log() -> void:
 		else null
 	_unread = 0
 	_pip.visible = false
+	_closing = false
 	# Opened from a known-small height, so the first layout pass can never be
 	# asked to shrink a board that has already been sized by its own wrapped text.
 	_board.size = Vector2(_board.size.x, 90.0)
 	_fill()
 	_scrim.visible = true
 	open_changed.emit(true)
-	AudioManager.play_sfx("ui_open")
-	if UserPreferences.can_animate():
-		# The book opens first; the pages come up when it lands open.
-		var area := _area()
-		_book.position = (area.get_center() - _book.size * 0.5).round()
-		_book_atlas.region = Rect2(Vector2.ZERO, OPEN_FRAME)
-		_book.visible = true
-		_book_t = 0.0
-		return
 	_show_pages()
 
 
 func _show_pages() -> void:
-	_book.visible = false
-	_book_t = -1.0
 	_board.visible = true
-	_set_tab(_tab)
+	_set_tab(_tab, false)
 	_layout()
 	UiTheme.focus_first(_board)
 	_fit_board()
-	UiTheme.pop_open(_board, _scrim)
-
-
-func _process(delta: float) -> void:
-	if _book_t < 0.0:
-		return
-	_book_t += delta
-	var frame := mini(int(_book_t / 0.075), 4)
-	_book_atlas.region = Rect2(Vector2(frame * OPEN_FRAME.x, 0.0), OPEN_FRAME)
-	if _book_t >= 0.075 * 5.0 + 0.12:
-		_show_pages()
+	# The pages are laid out under the cover; `BookFx` swings it off them.
+	BookFx.open(_board, _scrim)
 
 
 func close_log() -> void:
-	if not _board.visible and not _book.visible:
+	if not _board.visible or _closing:
 		return
-	_book.visible = false
-	_book_t = -1.0
-	_scrim.visible = false
-	_board.visible = false
+	_closing = true
+	BookFx.close(_board, _scrim, func() -> void:
+		_closing = false
+		_scrim.visible = false
+		_board.visible = false)
 	open_changed.emit(false)
 	UiTheme.restore_focus(_last_focus)
 	_last_focus = null
@@ -391,10 +358,13 @@ func _fit_board() -> void:
 
 # ------------------------------------------------------------------ medals
 
-func _set_tab(tab: String) -> void:
+func _set_tab(tab: String, turn: bool = true) -> void:
+	var turned := turn and tab != _tab and _board.visible
 	_tab = tab
 	for key: String in _tab_buttons:
-		UiTheme.style_button(_tab_buttons[key], &"amber" if key == tab else &"steel")
+		UiTheme.style_book_tab(_tab_buttons[key], key == tab)
+	if turned:
+		BookFx.flip(_scroll)
 	var medals := tab == "medals"
 	_list.visible = not medals and _list.get_child_count() > 0
 	_empty.visible = not medals and _list.get_child_count() == 0

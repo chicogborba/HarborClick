@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ch7411fkps3aa"
-path="res://.godot/imported/ship_wake.png-2d66f154a21feb5b3c4e45520f13292d.ctex"
+uid="uid://dloibdfy8mxk6"
+path="res://.godot/imported/ui_book_leaf.png-953ac6bdb45a8a831e1baf636f25bfa1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/ship_wake.png"
-dest_files=["res://.godot/imported/ship_wake.png-2d66f154a21feb5b3c4e45520f13292d.ctex"]
+source_file="res://assets/sprites/ui_book_leaf.png"
+dest_files=["res://.godot/imported/ui_book_leaf.png-953ac6bdb45a8a831e1baf636f25bfa1.ctex"]
 
 [params]
 

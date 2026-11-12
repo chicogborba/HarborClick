@@ -4,7 +4,15 @@ and RTG (straddles a container block in the yard).
 Layout convention: X runs yard -> water, Y runs along the quay.
 """
 import palette as P
-from common import new_img, rect, hline, vline, px, outline, save, speckle
+from common import new_img, rect, hline, vline, px, outline, save
+from gen_vehicles import (body, glass, beacon, hazard, INK, CHROME, GLINT,
+                          BEACON)
+
+CRANE_XD = (108, 40, 38, 255)
+CRANE_RAMP = (P.CRANE_D, P.CRANE, P.CRANE_L)
+TEAL_XD = (26, 70, 70, 255)
+TEAL_RAMP = (P.TEAL_D, P.TEAL, P.TEAL_L)
+WHEEL = (34, 32, 38, 255)
 
 
 # ------------------------------------------------------------------ STS
@@ -13,26 +21,47 @@ STS_BASE_X = 26          # where the portal legs sit inside the beam sprite
 
 
 def gen_sts_beam():
-    """Boom + backreach seen from above: a lattice girder running in X."""
+    """Boom + backreach seen from above: a lattice girder running in X.
+
+    Two box chords with the trolley rails on them, K-bracing between, a
+    grated walkway down the landward half and a hazard-taped tip with its
+    aircraft lamp — the boom is the longest thing on the screen, so it is the
+    one that most needs to read as engineering rather than as a red ribbon."""
     img = new_img(STS_BEAM_W, STS_BEAM_H)
-    # two main chords
-    hline(img, 0, 3, STS_BEAM_W, P.CRANE)
-    hline(img, 0, 4, STS_BEAM_W, P.CRANE_L)
-    hline(img, 0, 11, STS_BEAM_W, P.CRANE)
-    hline(img, 0, 12, STS_BEAM_W, P.CRANE_D)
-    # lattice bracing between the chords
-    for x in range(2, STS_BEAM_W - 2, 8):
+    W = STS_BEAM_W
+    # the web between the chords, in shade, so the bracing has something to sit on
+    rect(img, 0, 5, W, 6, CRANE_XD)
+    # two main chords, each a lit top and a dark underside
+    for y0 in (2, 11):
+        hline(img, 0, y0, W, P.CRANE_L)
+        hline(img, 0, y0 + 1, W, P.CRANE)
+        hline(img, 0, y0 + 2, W, P.CRANE_D)
+    # trolley rails riding the chords
+    hline(img, 0, 2, W, P.STEEL_L)
+    hline(img, 0, 13, W, P.STEEL_D)
+    # K-bracing: one diagonal pair per 8px panel, a batten at every node
+    for x in range(1, W - 8, 8):
         for i in range(6):
-            px(img, x + i, 5 + i, P.CRANE_D)
+            px(img, x + i, 5 + i, P.CRANE)
             px(img, x + 7 - i, 5 + i, P.CRANE_D)
-    # trolley rails on the top chord
-    hline(img, 0, 2, STS_BEAM_W, P.STEEL_L)
-    hline(img, 0, 13, STS_BEAM_W, P.STEEL_D)
-    # tapered boom tip (seaward end, right)
+        vline(img, x + 7, 5, 6, P.CRANE)
+        px(img, x + 7, 5, P.CRANE_L)
+    # grated walkway along the backreach (landward of the legs)
+    for x in range(2, STS_BASE_X - 2, 2):
+        px(img, x, 7, P.STEEL)
+        px(img, x + 1, 8, P.STEEL_D)
+    # hinge where the boom lifts, just seaward of the legs
+    rect(img, STS_BASE_X + 30, 1, 3, 14, P.STEEL_D)
+    vline(img, STS_BASE_X + 30, 1, 14, P.STEEL_L)
+    px(img, STS_BASE_X + 31, 7, CHROME)
+    # tapered boom tip (seaward end, right), taped, with its lamp
     for i in range(6):
         for y in range(0, 16):
             if y < 3 + i or y > 12 - i:
-                px(img, STS_BEAM_W - 1 - i, y, P.TRANSPARENT)
+                px(img, W - 1 - i, y, P.TRANSPARENT)
+    hazard(img, W - 14, 7, 8, 2)
+    px(img, W - 4, 7, P.RED_LIGHT)
+    px(img, W - 4, 8, P.RED_LIGHT)
     save(outline(img), "sts_beam")
 
 
@@ -43,60 +72,77 @@ def gen_sts_base():
     it is mostly *structure*: two sill beams on the quay rails, four bogies
     under them, a lattice portal joining them and the machinery house bridging
     the top. The first version drew a flat slab with a hatch on it, which read
-    as a shipping container with a lid.
-    """
+    as a shipping container with a lid; the second speckled it, which read as
+    rust. This one is clean plate with seams, and the detail is equipment."""
     w, h = 30, 46
     img = new_img(w, h)
+    # Four bogies first, each a truck of two wheels on the rail.
+    for y in (1, h - 10):
+        for bx in (1, w - 9):
+            rect(img, bx, y, 8, 9, P.STEEL_D)
+            hline(img, bx, y, 8, P.STEEL_L)
+            vline(img, bx, y, 9, P.STEEL)
+            for wy in (y + 2, y + 6):
+                rect(img, bx + 1, wy, 6, 2, WHEEL)
+                px(img, bx + 1, wy, P.TIRE_L)
     # Sill beams running along the quay, with lit top edges.
     for sx in (2, w - 8):
-        rect(img, sx, 1, 6, h - 2, P.CRANE_D)
-        vline(img, sx, 1, h - 2, P.CRANE)
-        vline(img, sx + 5, 1, h - 2, (110, 42, 40, 255))
-    # Four bogies, each a truck of two wheels on the rail.
-    for y in (2, h - 10):
-        for bx in (1, w - 9):
-            rect(img, bx, y, 8, 8, P.STEEL_D)
-            hline(img, bx, y, 8, P.STEEL_L)
-            for wy in (y + 1, y + 5):
-                rect(img, bx + 1, wy, 6, 2, (34, 32, 38, 255))
-    # Lattice portal between the sills: the crane's own legs, braced.
-    rect(img, 8, 8, w - 16, h - 16, P.CRANE_D)
-    for y in range(9, h - 9, 4):
-        hline(img, 8, y, w - 16, (108, 40, 38, 255))
-    for i in range(0, h - 18, 3):
-        px(img, 9 + i % (w - 18), 9 + i, (150, 60, 58, 255))
-    # Machinery house bridging the legs, with a lit control room.
-    rect(img, 5, 13, w - 10, 20, P.CRANE)
-    hline(img, 5, 13, w - 10, P.CRANE_L)
-    vline(img, 5, 13, 20, P.CRANE_L)
-    vline(img, w - 6, 13, 20, P.CRANE_D)
-    hline(img, 5, 32, w - 10, P.CRANE_D)
-    speckle(img, 6, 14, w - 12, 18, [P.CRANE_D], 0.06, seed=2)
-    # Roof walkway, hatch and two vents: the detail that gives it scale.
-    rect(img, 7, 16, w - 14, 3, (108, 40, 38, 255))
-    rect(img, 10, 21, 10, 7, P.STEEL_D)
-    hline(img, 10, 21, 10, P.STEEL_L)
-    rect(img, 12, 23, 6, 3, P.WINDOW_LIT)
-    for vy in (29, 31):
-        hline(img, 9, vy, 12, (108, 40, 38, 255))
-    # Safety chevrons on the seaward sill, as every quay crane wears.
-    for cy in range(4, h - 6, 6):
-        px(img, w - 4, cy, P.SAFETY)
-        px(img, w - 3, cy + 1, P.SAFETY)
+        body(img, sx, 9, 6, h - 18, CRANE_RAMP)
+        for sy in range(13, h - 12, 6):
+            hline(img, sx + 1, sy, 4, P.CRANE_D)        # plate seams
+    # Portal between the sills: braced legs, seen down through the frame.
+    rect(img, 8, 8, w - 16, h - 16, CRANE_XD)
+    for i in range(0, w - 16):
+        px(img, 8 + i, 9 + (i * 2) % (h - 18), P.CRANE_D)
+        px(img, w - 9 - i, 9 + (i * 2) % (h - 18), P.CRANE_D)
+    # Machinery house bridging the legs.
+    body(img, 5, 12, w - 10, 22, CRANE_RAMP)
+    for sx in (11, 18):
+        vline(img, sx, 13, 20, P.CRANE_D)               # roof sheet seams
+        vline(img, sx + 1, 13, 20, P.CRANE_L)
+    # walkway with a handrail round the landward side, and the access ladder
+    hline(img, 6, 14, w - 12, CRANE_XD)
+    for rx in range(6, w - 6, 2):
+        px(img, rx, 14, P.STEEL_L)
+    vline(img, 6, 15, 18, CRANE_XD)
+    for ly in range(16, 32, 2):
+        px(img, 6, ly, P.STEEL_L)
+    # roof hatch with the lit control room showing through
+    rect(img, 12, 18, 7, 6, P.STEEL_D)
+    hline(img, 12, 18, 7, P.STEEL_L)
+    rect(img, 13, 20, 5, 3, P.WINDOW_LIT)
+    px(img, 13, 20, (255, 244, 200, 255))
+    # hoist-motor vents, two louvred panels
+    for vy in (26, 28, 30):
+        hline(img, 9, vy, 5, CRANE_XD)
+        hline(img, 16, vy, 5, CRANE_XD)
+    beacon(img, 20, 15)
+    # Hazard tape down the seaward sill, as every quay crane wears.
+    for cy in range(10, h - 11, 1):
+        px(img, w - 4, cy, P.SAFETY_L if (cy // 2) % 2 == 0 else INK)
     save(outline(img), "sts_base")
 
 
 def gen_sts_trolley():
     """Trolley + operator cab that runs out along the beam."""
     img = new_img(18, 20)
-    rect(img, 2, 2, 14, 10, P.SAFETY)
-    hline(img, 2, 2, 14, P.SAFETY_L)
-    vline(img, 15, 2, 10, P.SAFETY_D)
-    hline(img, 2, 11, 14, P.SAFETY_D)
-    # cab glass looking down at the hold
-    rect(img, 5, 13, 8, 5, P.GLASS)
-    hline(img, 5, 13, 8, P.GLASS_D)
-    px(img, 11, 14, (200, 236, 244, 255))
+    # machinery deck: hoist drums under a lifted cover
+    body(img, 2, 2, 14, 10)
+    rect(img, 4, 4, 10, 6, P.SAFETY_D)
+    hline(img, 4, 4, 10, P.SAFETY)
+    for dx in (5, 10):
+        rect(img, dx, 5, 3, 4, P.STEEL_D)               # the two rope drums
+        vline(img, dx, 5, 4, P.STEEL_L)
+        px(img, dx + 1, 6, INK)
+        px(img, dx + 1, 8, INK)
+    # wheels on the boom rails
+    for wx in (2, 13):
+        px(img, wx, 1, CHROME)
+        px(img, wx + 2, 1, CHROME)
+    beacon(img, 13, 3)
+    # cab hung below, glass floor looking down at the hold
+    rect(img, 4, 12, 10, 7, INK)
+    glass(img, 5, 13, 8, 5)
     save(outline(img), "sts_trolley")
 
 
@@ -105,13 +151,20 @@ def gen_spreader():
     img = new_img(24, 13)
     rect(img, 1, 2, 22, 9, P.SAFETY)
     hline(img, 1, 2, 22, P.SAFETY_L)
+    vline(img, 1, 2, 9, P.SAFETY_L)
     hline(img, 1, 10, 22, P.SAFETY_D)
+    vline(img, 22, 2, 9, P.SAFETY_D)
     # open middle so the container shows through when carried
     rect(img, 4, 4, 16, 5, P.TRANSPARENT)
+    # headblock in the middle of each long side, where the ropes land
+    for hy in (2, 9):
+        rect(img, 10, hy, 4, 2, P.STEEL_D)
+        hline(img, 10, hy, 4, P.STEEL_L)
     # twistlocks at the corners
     for cx in (1, 21):
         for cy in (2, 9):
             rect(img, cx, cy, 2, 2, P.STEEL_D)
+            px(img, cx, cy, CHROME)
     save(outline(img), "spreader")
 
 
@@ -119,58 +172,71 @@ def gen_spreader():
 def gen_rtg():
     """Rubber-tyred gantry straddling a yard block, portal running in X.
 
-    Redrawn with the things that make an RTG recognisable from above: a lattice
-    top beam with real cross-bracing rather than tick marks, eight tyres in four
-    bogies with the steering pair called out, a cab on an arm off the near leg,
-    and safety chevrons on both legs. The first version was two blocks and a
-    bar, which read as a bench.
-    """
+    The things that make an RTG recognisable from above: a lattice top beam
+    with real cross-bracing, eight tyres in four bogies, a cab on an arm off
+    the near leg, a ladder and a power cabinet on the far one, hazard tape on
+    both sills. Same plate-and-seam language as the quay crane, in teal."""
     w, h = 72, 34
     img = new_img(w, h)
-    # Top beam: two chords with a braced web between them.
-    rect(img, 4, 3, w - 8, 10, P.TEAL_D)
-    hline(img, 4, 3, w - 8, P.TEAL_L)
-    hline(img, 4, 4, w - 8, P.TEAL)
-    hline(img, 4, 11, w - 8, P.TEAL)
-    hline(img, 4, 12, w - 8, (26, 70, 70, 255))
-    for x in range(6, w - 10, 8):
-        for i in range(6):
-            px(img, x + i, 5 + i, P.TEAL)
-            px(img, x + 7 - i, 5 + i, P.TEAL)
-    # Legs at both ends, running down in Y, with a lit inner face.
-    for lx in (0, w - 12):
-        rect(img, lx, 1, 12, h - 2, P.TEAL_D)
-        rect(img, lx + 1, 2, 10, h - 4, P.TEAL)
-        hline(img, lx + 1, 2, 10, P.TEAL_L)
-        vline(img, lx + 11, 1, h - 2, (26, 70, 70, 255))
-        # Four tyres a side, in two bogies. The forward pair is the steering
-        # one, so it is drawn turned a pixel out of line.
-        for index, ty in enumerate((2, h - 11)):
+    # Top beam: two box chords with a braced web between them.
+    rect(img, 4, 3, w - 8, 10, TEAL_XD)
+    for y0 in (3, 10):
+        hline(img, 4, y0, w - 8, P.TEAL_L)
+        hline(img, 4, y0 + 1, w - 8, P.TEAL)
+        hline(img, 4, y0 + 2, w - 8, P.TEAL_D)
+    hline(img, 12, 3, w - 24, P.STEEL_L)                # trolley rail
+    for x in range(13, w - 20, 8):
+        for i in range(4):
+            px(img, x + i, 6 + i, P.TEAL)
+            px(img, x + 7 - i, 6 + i, P.TEAL_D)
+        vline(img, x + 7, 6, 4, P.TEAL)
+    # Legs at both ends, running down in Y.
+    for index, lx in enumerate((0, w - 12)):
+        # Four tyres a side, in two bogies.
+        for ty in (1, h - 10):
             for tx in (lx + 1, lx + 7):
                 rect(img, tx, ty, 4, 9, P.TIRE)
-                hline(img, tx, ty, 4, P.TIRE_L)
-                px(img, tx + 1, ty + 4, P.TIRE_L)
-                if index == 0:
-                    px(img, tx + 3, ty, P.TIRE_L)
-        # Safety chevrons up the leg.
-        for cy in range(13, h - 13, 4):
-            px(img, lx + 4, cy, P.SAFETY)
-            px(img, lx + 5, cy + 1, P.SAFETY)
+                vline(img, tx, ty, 9, P.TIRE_L)
+                for by in range(ty + 1, ty + 9, 2):
+                    px(img, tx + 3, by, INK)
+        body(img, lx + 1, 4, 10, h - 8, TEAL_RAMP)
+        for sy in (11, 22):
+            hline(img, lx + 2, sy, 8, P.TEAL_D)         # plate seams
+        # hazard tape along the sill's outer edge
+        ox = lx + 2 if index == 0 else lx + 9
+        for cy in range(6, h - 6):
+            px(img, ox, cy, P.SAFETY_L if (cy // 2) % 2 == 0 else INK)
+    # far leg: access ladder and the diesel/power cabinet
+    for ly in range(13, 21, 2):
+        hline(img, 5, ly, 3, P.STEEL_L)
+    rect(img, 4, 23, 6, 5, P.STEEL_D)
+    hline(img, 4, 23, 6, P.STEEL_L)
+    px(img, 6, 25, P.GREEN_LIGHT)
+    px(img, 8, 25, INK)
+    beacon(img, 6, 6)
     # Operator cab on an arm off the near leg, glazed and lit.
     rect(img, w - 20, 19, 6, 3, P.TEAL_D)
-    rect(img, w - 22, 17, 11, 11, P.SAFETY_D)
-    rect(img, w - 21, 18, 9, 9, P.SAFETY)
-    hline(img, w - 21, 18, 9, P.SAFETY_L)
-    rect(img, w - 20, 20, 7, 5, P.GLASS)
-    px(img, w - 15, 21, (200, 236, 244, 255))
+    body(img, w - 23, 16, 12, 12)
+    rect(img, w - 21, 18, 8, 8, INK)
+    glass(img, w - 20, 19, 7, 6)
+    beacon(img, w - 14, 17)
     save(outline(img), "rtg")
 
 
 def gen_rtg_trolley():
+    """The RTG's trolley: a hoist deck with two drums and a service hatch."""
     img = new_img(20, 12)
-    rect(img, 2, 2, 16, 8, P.TEAL)
-    hline(img, 2, 2, 16, P.TEAL_L)
-    hline(img, 2, 9, 16, P.TEAL_D)
+    body(img, 2, 2, 16, 8, TEAL_RAMP)
+    for dx in (4, 12):
+        rect(img, dx, 4, 4, 4, P.STEEL_D)
+        hline(img, dx, 4, 4, P.STEEL_L)
+        px(img, dx + 1, 6, INK)
+        px(img, dx + 2, 6, INK)
+    rect(img, 9, 4, 2, 4, P.TEAL_D)
+    px(img, 9, 4, P.SAFETY_L)
+    for wx in (2, 16):
+        px(img, wx, 1, CHROME)
+        px(img, wx + 1, 10, CHROME)
     save(outline(img), "rtg_trolley")
 
 

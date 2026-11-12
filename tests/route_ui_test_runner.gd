@@ -63,6 +63,10 @@ func _fresh_port(teus: float) -> RouteMap:
 	map.open()
 	await get_tree().process_frame
 	await get_tree().process_frame
+	# The chart is lifted into view over 0.30 s. These tests are about a tap on
+	# a board that has arrived, so land it: a tap aimed at a key that is still
+	# travelling misses for a reason that has nothing to do with rebuilds.
+	UiTheme.settle_open(map._sheet)
 	return map
 
 

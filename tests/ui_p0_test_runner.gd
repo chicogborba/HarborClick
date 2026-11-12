@@ -15,7 +15,7 @@ func _run() -> void:
 	SaveManager.set_save_path_for_tests(TEST_SAVE_PATH)
 	SaveManager.wipe()
 	GameState.from_save({})
-	# Overlay open animations move boards for 0.18s; the layout contracts
+	# Overlay open animations move boards for 0.30s; the layout contracts
 	# below assert final geometry, so motion is off for the whole run.
 	UserPreferences.reduce_motion = true
 
@@ -28,6 +28,8 @@ func _run() -> void:
 	await _test_upgrade_map_is_a_navigable_graph()
 	await _test_upgrade_list_sells_in_sections()
 	await _test_pop_open_yields_to_a_layout_mid_slide()
+	await _test_board_motion_never_strands_a_board()
+	await _test_logbook_opens_and_shuts()
 
 	SaveManager.wipe()
 	_expect(not FileAccess.file_exists(TEST_SAVE_PATH), "cleanup removes UI test save")
@@ -379,7 +381,7 @@ func _card_screen_drag(card: ShopCard, position: Vector2) -> void:
 
 func _test_pop_open_yields_to_a_layout_mid_slide() -> void:
 	## The open slide used to remember where the board was when it started and
-	## drag it back there at the end. A resize during those 0.18s re-laid the
+	## drag it back there at the end. A resize during the slide re-laid the
 	## board correctly and the tween then undid it: the capture matrix caught the
 	## shop at 360x800 ending 137px low, its bottom off the screen.
 	UserPreferences.reduce_motion = false
@@ -399,6 +401,74 @@ func _test_pop_open_yields_to_a_layout_mid_slide() -> void:
 	_expect(is_equal_approx(board.modulate.a, 1.0), "and fully opaque")
 	UserPreferences.reduce_motion = true
 	layer.queue_free()
+	await get_tree().process_frame
+
+
+func _test_board_motion_never_strands_a_board() -> void:
+	## A board now rises from under the bottom edge of the screen, so a tween
+	## stopped half way would leave it off-screen rather than ten pixels low.
+	## Anything that interrupts the motion has to put the board on its mark,
+	## and the clip has to go with it.
+	UserPreferences.reduce_motion = false
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	var board := PanelContainer.new()
+	board.size = Vector2(200, 100)
+	board.position = Vector2(6, 275)
+	layer.add_child(board)
+	var clip := UiTheme.clip_badge()
+	layer.add_child(clip)
+	board.visible = true
+	UiTheme.place_clip(clip, board, Rect2(0, 0, 400, 800))
+	UiTheme.pop_open(board)
+	_expect(board.position.y > 275.0 + 100.0,
+		"the rise starts well below the mark (%s)" % board.position)
+	await get_tree().process_frame
+	UiTheme.settle_open(board)
+	_expect(board.position.is_equal_approx(Vector2(6, 275)),
+		"a rise cut short lands on the mark (%s)" % board.position)
+	_expect(is_equal_approx(clip.position.y, 275.0 - UiTheme.CLIP_RISE),
+		"and its clip is shut on the board (%s)" % clip.position)
+	# Closing never makes the caller wait where nothing can be drawn.
+	var hidden := [false]
+	UiTheme.pop_close(board, null, func() -> void: hidden[0] = true)
+	_expect(hidden[0], "pop_close finishes at once without a display")
+	_expect(board.position.is_equal_approx(Vector2(6, 275)),
+		"and leaves the board where the layout put it")
+	UserPreferences.reduce_motion = true
+	layer.queue_free()
+	await get_tree().process_frame
+
+
+func _test_logbook_opens_and_shuts() -> void:
+	## The diary is a book (`BookFx`): bound in leather, opened under a cover,
+	## and a tab turns a leaf. None of that may leave anything behind — a cover
+	## still parked over the page is a board nobody can read.
+	var viewport := _make_viewport(Vector2i(390, 844))
+	var journal := PortJournal.new()
+	viewport.add_child(journal)
+	await get_tree().process_frame
+	UserPreferences.reduce_motion = false
+	journal.open("next")
+	_expect(journal.is_open() and journal._sheet.visible, "the logbook opens")
+	_expect(journal._sheet.has_meta(&"book_fx"), "under its cover")
+	journal._select_tab("troph")
+	_expect(journal._page.has_meta(&"book_fx"), "a tab turns a leaf")
+	await get_tree().create_timer(BookFx.SWING_AT + BookFx.SWING_TIME + 0.2).timeout
+	for holder_owner: Control in [journal._sheet, journal._page]:
+		_expect(not holder_owner.has_meta(&"book_fx"),
+			"the cover and the leaf are gone once they have turned")
+	# Opening again over a cover that has already freed itself is the path
+	# that used to cast a freed object.
+	journal.open("next")
+	await get_tree().create_timer(BookFx.SWING_AT + BookFx.SWING_TIME + 0.2).timeout
+	_expect(_rect_inside(Rect2(Vector2.ZERO, Vector2(390, 844)),
+		journal._sheet.get_global_rect()), "and the book is on its mark")
+	journal.close()
+	_expect(not journal.is_open() and not journal._sheet.visible,
+		"the logbook shuts and is put away")
+	UserPreferences.reduce_motion = true
+	viewport.queue_free()
 	await get_tree().process_frame
 
 

@@ -14,7 +14,7 @@ const SETTINGS_PATH := "user://audio.cfg"
 ## bag, so no take is ever heard twice running and all of them are used before
 ## any repeats.
 const VARIANTS := {"thunk": 6, "click": 4, "horn": 4, "tap": 3, "voice": 10,
-	"voice_rf": 8}
+	"voice_rf": 8, "page_flip": 3}
 ## The pitch ladder a family walks, on top of `play_sfx`'s own jitter. Drawn from
 ## its own bag for the same reason: two consecutive plays never share a step.
 const PITCH_STEPS := [0.94, 0.97, 1.0, 1.04, 1.08]
