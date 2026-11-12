@@ -168,11 +168,6 @@ func _build_body() -> void:
 	_content.add_child(_wipe_btn)
 	_content.add_child(_note(Loc.t("settings.wipe.hint")))
 
-	var menu_btn := _wide_button(Loc.t("settings.leave"), &"ghost")
-	UiTheme.describe(menu_btn, Loc.t("settings.leave.name"),
-		Loc.t("settings.leave.hint"))
-	menu_btn.pressed.connect(_on_leave)
-	_content.add_child(menu_btn)
 
 	_content.add_child(UiTheme.spacer(2.0))
 	var close_btn := _wide_button(Loc.t("common.close"), &"amber")

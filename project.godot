@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="HarborClick"
-run/main_scene="res://scenes/Title.tscn"
+run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [autoload]

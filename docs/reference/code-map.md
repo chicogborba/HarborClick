@@ -91,7 +91,7 @@ Inventory: **273 authored code/config/scene files**.
 | `scripts/i18n/loc.gd` | 224 | 16 functions | Which language the port speaks, and every string it says. |
 | `scripts/i18n/strings_content.gd` | 157 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
 | `scripts/i18n/strings_ui.gd` | 2264 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
-| `scripts/main.gd` | 1234 | 47 functions | Root: assembles world, camera and UI. |
+| `scripts/main.gd` | 1239 | 47 functions | Root: assembles world, camera and UI. |
 | `scripts/monetization/ad_policy.gd` | 184 | class `AdPolicy`; 11 functions | The rules of rewarded ads: which placements exist, how many may be watched |
 | `scripts/monetization/ad_provider.gd` | 18 | class `AdProvider`; 1 functions | The seam between the game and a real ad SDK. `AdService` asks the current |
 | `scripts/monetization/placeholder_ad_provider.gd` | 104 | class `PlaceholderAdProvider`; 6 functions | The test stand-in for a real ad SDK: a scrim with a paper board that says |
@@ -134,7 +134,7 @@ Inventory: **273 authored code/config/scene files**.
 | `scripts/ui/readout.gd` | 289 | class `Readout`; 11 functions | The TEU tally: a lit counter behind glass, with the rate on a tag beside it. |
 | `scripts/ui/responsive_shell.gd` | 81 | class `ResponsiveShell`; 6 functions | Single source of viewport metrics for UI, world framing and save lifecycle. |
 | `scripts/ui/route_map.gd` | 768 | class `RouteMap`; 22 functions | The chart on the clipboard: where this terminal trades, and what it would |
-| `scripts/ui/settings_panel.gd` | 718 | class `SettingsPanel`; 39 functions | Options board: sound, language, presentation, backup, and the one |
+| `scripts/ui/settings_panel.gd` | 713 | class `SettingsPanel`; 39 functions | Options board: sound, language, presentation, backup, and the one |
 | `scripts/ui/shop.gd` | 1572 | class `Shop`; 65 functions | The purchase manifest, presented as the foreman's clipboard. |
 | `scripts/ui/shop_card.gd` | 445 | class `ShopCard`; 18 functions | One line torn off the purchase manifest. |
 | `scripts/ui/special_call_alert.gd` | 208 | class `SpecialCallAlert`; 14 functions | The interruption: a charter on the table, with what it pays and what it costs. |

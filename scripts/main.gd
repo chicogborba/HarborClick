@@ -79,8 +79,13 @@ func _ready() -> void:
 	# Normally the title screen has already chosen a slot. Running this scene
 	# directly — F6, the capture harness, the dev probe — falls back to the
 	# first terminal so the game is never left with no save path at all.
+	# The game boots straight into the port: no title screen. The terminal is
+	# the one the player last ran (or the first, on a new install).
 	if SaveManager.active_slot == 0:
-		SaveManager.use_profile(1)
+		var last := int(UserPreferences.last_profile)
+		var slot := last if last >= 1 and last <= SaveManager.PROFILE_COUNT else 1
+		UserPreferences.set_last_profile(slot)
+		SaveManager.use_profile(slot)
 	# Running this scene directly skips the title, so the engine-drawn chrome is
 	# themed here too rather than only on the way in.
 	UiTheme.install_window_theme(get_window())
