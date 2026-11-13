@@ -313,3 +313,8 @@ and asserts the box still lands promptly.
 `land_works_site.gd` draws a parcel under construction south of the pavement
 (`PortLayout.land_works_rect`). `xray_station.gd` stands on the band the second
 parcel adds (`PortLayout.scanner_band_h`), hidden until that parcel is paved.
+That band is threaded into the yard like the railway, at the head of the second
+parcel (`PortLayout.scanner_row`), so the post never moves once it is there:
+later parcels grow the yard past it. While an inspection waits the post draws
+alarm rings and a beam (`XrayStation._Beacon`), and `ui/xray_beacon.gd` puts a
+red tag on the edge of the view when the post is scrolled off screen.

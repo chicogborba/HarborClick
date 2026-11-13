@@ -36,6 +36,8 @@ var level_service: TerminalLevelService
 var xray_service: XrayService
 var xray_panel: XrayPanel
 var xray_board: XrayMinigame
+## The red tag on the edge of the view that leads back to a waiting scan.
+var xray_beacon: XrayBeacon
 ## One "contêiner suspeito!" from Leôncio per due inspection, not one a second.
 var _xray_announced := false
 var _overlay_state := {"roadmap": false, "shop": false, "settings": false, "journal": false,
@@ -708,6 +710,8 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		wheel_panel.apply_view_metrics(metrics)
 	if wheel_button != null:
 		wheel_button.apply_view_metrics(metrics)
+	if xray_beacon != null:
+		xray_beacon.apply_view_metrics(metrics)
 	if boost_chips != null:
 		boost_chips.apply_view_metrics(metrics)
 	if build_hud != null:
@@ -1257,6 +1261,15 @@ func _build_xray() -> void:
 					"s": str(int(benefit.seconds))}),
 			}))
 	xray_service.inspection_ready.connect(func() -> void: _xray_announced = false)
+	xray_beacon = XrayBeacon.new()
+	xray_beacon.name = "XrayBeacon"
+	add_child(xray_beacon)
+	xray_beacon.setup(world.xray_station,
+		func() -> bool: return xray_service.owned() and xray_service.is_due(),
+		_xray_clock_runs)
+	xray_beacon.pressed.connect(func() -> void:
+		if world != null and world.xray_station != null and cam != null:
+			cam.focus_on(world.xray_station.centre().y, 0.6))
 	_refresh_xray_key()
 
 

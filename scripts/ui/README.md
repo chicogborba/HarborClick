@@ -248,6 +248,9 @@ Entry points:
   switches view with a wipe; the player taps each contraband in the view that
   shows it. A lost scan turns to the view that shows what got away.
   `xray_panel.gd` is the post's board (repair / next inspection / inspect).
+  `xray_beacon.gd` is the red "! RAIO-X" tag that stands on the top or bottom
+  edge of the view while an inspection waits and the post is off screen;
+  tapping it pans the camera to the post.
   There is no HUD key: the scanner is a drive-through lane in the yard
   (`world/xray_station.gd`), abandoned until repaired, a lorry stopped under a
   red beam with a "!" when an inspection is due; tapping it goes straight into

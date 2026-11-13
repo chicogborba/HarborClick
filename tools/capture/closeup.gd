@@ -293,6 +293,25 @@ func _stage(scenario: String) -> Vector2:
 			_main.xray_service.state_changed.emit()
 			await get_tree().create_timer(1.0).timeout
 			return _main.world.xray_station.centre()
+		"xray_beacon_top", "xray_beacon_bottom":
+			# A lorry waiting under the beam with the camera elsewhere: the red
+			# tag on the edge of the view that leads back to it.
+			GameState.flags["tutorial_v2_done"] = true
+			for index in 2:
+				var id := str(LandDB.ITEMS[index].id)
+				if not GameState.land.has(id):
+					GameState.land[id] = true
+					EventBus.land_bought.emit(id)
+			_main.cam.set_world_bottom(_main.world.visible_bottom())
+			_main.xray_service.policy.buy()
+			_main.xray_service.policy.ready = true
+			_main.xray_service.state_changed.emit()
+			# After the pan the new ground sets off, or that pan wins.
+			await get_tree().create_timer(1.5).timeout
+			var y := 0.0 if scenario == "xray_beacon_top" else PortLayout.world_bottom()
+			_main.cam.focus_on(y, 0.1)
+			await get_tree().create_timer(1.5).timeout
+			return Vector2(-1, -1)
 		"xray_panel", "tour_xray_due":
 			# The scanner's board before purchase, or Leôncio pointing at its key
 			# with an inspection waiting.

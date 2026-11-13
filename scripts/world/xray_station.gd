@@ -32,6 +32,7 @@ var _sprite: Sprite2D
 var _loop: _Loop
 var _atlas: AtlasTexture
 var _bubble: Node2D
+var _beacon: _Beacon
 var _t := 0.0
 
 
@@ -39,6 +40,10 @@ func _ready() -> void:
 	position = PortLayout.xray_station_position()
 	_loop = _Loop.new()
 	add_child(_loop)
+	# Under the post: the alarm rings spread over the lane, not over the art.
+	_beacon = _Beacon.new()
+	_beacon.visible = false
+	add_child(_beacon)
 	EventBus.land_bought.connect(_on_land_changed)
 	var shadow := Polygon2D.new()
 	shadow.polygon = PackedVector2Array([Vector2(28, 4), Vector2(42, 6),
@@ -66,9 +71,14 @@ func _ready() -> void:
 func set_state(next: State, can_repair: bool = false) -> void:
 	if next == state and can_repair == repairable:
 		return
+	var newly_due := next == State.DUE and state != State.DUE
 	state = next
 	repairable = can_repair
 	_apply()
+	if newly_due and visible:
+		# One chime when a lorry pulls in under the beam, so a player looking at
+		# the quay still hears that the post wants them.
+		AudioManager.play_sfx("bell")
 
 
 func _on_land_changed(_id: String = "") -> void:
@@ -104,6 +114,7 @@ func _apply() -> void:
 	_bubble.visible = show_bubble
 	(_bubble as _Bubble).kind = &"alert" if state == State.DUE else &"wrench"
 	_bubble.queue_redraw()
+	_beacon.visible = state == State.DUE
 	# No parcel, no post — unless it was repaired back when it stood at the gate.
 	visible = on_parcel() or state != State.ABANDONED
 	_loop.visible = on_parcel()
@@ -126,8 +137,16 @@ func _process(delta: float) -> void:
 	_t += delta
 	if state == State.DUE:
 		_frame()
+		_beacon.t = _t
+		_beacon.queue_redraw()
 	if _bubble.visible and UserPreferences.can_animate():
-		_bubble.position.y = -8.0 + roundf(sin(_t * 4.0) * 1.5)
+		if state == State.DUE:
+			# A hop, not a sway: up fast, a beat in the air, down — the "!"
+			# reads as calling out rather than as idle decoration.
+			var hop := absf(sin(_t * 5.0))
+			_bubble.position.y = -10.0 - roundf(hop * 5.0)
+		else:
+			_bubble.position.y = -8.0 + roundf(sin(_t * 4.0) * 1.5)
 
 
 class _Loop extends Node2D:
@@ -177,6 +196,47 @@ class _Loop extends Node2D:
 					draw_rect(Rect2(roundf(gx), roundf(gy), 1.0, 2.0), Color8(92, 140, 70))
 					draw_rect(Rect2(roundf(gx) + 1.0, roundf(gy) + 1.0, 1.0, 1.0),
 						Color8(70, 112, 58))
+
+
+class _Beacon extends Node2D:
+	## What a waiting inspection looks like from across the yard: a red glow on
+	## the lane, alarm rings spreading off the post, and a beam standing up out
+	## of the booth's lamp. The post itself is 42 pixels wide; at the zoom a
+	## phone plays at, a red lamp that size is easy to scroll past. This is the
+	## part that is not.
+	var t := 0.0
+
+	func _draw() -> void:
+		var frame := XrayStation.FRAME
+		var centre := frame * 0.5
+		var red := Color8(232, 58, 46)
+		var animate := UserPreferences.can_animate()
+		var pulse := 0.5 + 0.5 * sin(t * 6.0) if animate else 1.0
+		# The lane under the beam, lit.
+		draw_rect(Rect2(-6, -4, frame.x + 12, frame.y + 8),
+			Color(red, 0.10 + 0.10 * pulse))
+		# Rings: two, half a beat apart, growing off the post and fading out.
+		var phases: Array[float] = [0.35]
+		if animate:
+			phases = [fmod(t * 0.7, 1.0), fmod(t * 0.7 + 0.5, 1.0)]
+		for phase in phases:
+			var radius := 30.0 + phase * 34.0
+			var alpha := (1.0 - phase) * 0.85
+			draw_arc(centre, radius, 0.0, TAU, 40, Color(red, alpha), 2.0, false)
+			draw_arc(centre, radius + 2.0, 0.0, TAU, 40,
+				Color(1.0, 0.86, 0.4, alpha * 0.5), 1.0, false)
+		# The beam: from the lamp on the booth's roof straight up, wide at the
+		# top like a searchlight in haze.
+		var lamp := Vector2(34.0, 6.0)
+		var beam_h := 70.0
+		var beam := Color(1.0, 0.36, 0.26, 0.18 + 0.20 * pulse)
+		draw_colored_polygon(PackedVector2Array([
+			lamp + Vector2(-2, 0), lamp + Vector2(2, 0),
+			lamp + Vector2(9, -beam_h), lamp + Vector2(-9, -beam_h)]), beam)
+		draw_colored_polygon(PackedVector2Array([
+			lamp + Vector2(-1, 0), lamp + Vector2(1, 0),
+			lamp + Vector2(3, -beam_h), lamp + Vector2(-3, -beam_h)]),
+			Color(1.0, 0.8, 0.6, 0.22 + 0.25 * pulse))
 
 
 class _Bubble extends Node2D:

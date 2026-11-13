@@ -2278,6 +2278,9 @@ const STRINGS := {
 	"pt_BR": "Inspeção de Raio-X", "en": "X-ray Inspection", "es": "Inspección de rayos X",
 	"fr": "Contrôle aux rayons X", "de": "Röntgenkontrolle", "it": "Ispezione a raggi X",
 	"ru": "Рентген-досмотр", "pl": "Kontrola RTG", "tr": "Röntgen Denetimi"},
+"xray.beacon": {
+	"pt_BR": "RAIO-X", "en": "X-RAY", "es": "RAYOS X", "fr": "RAYONS X",
+	"de": "RÖNTGEN", "it": "RAGGI X", "ru": "РЕНТГЕН", "pl": "RTG", "tr": "RÖNTGEN"},
 "xray.hint": {
 	"pt_BR": "Troque o FILTRO para ver dentro das caixas e TOQUE em cada ilegal antes do tempo acabar.",
 	"en": "Switch FILTERS to see inside the cartons and TAP every illegal item before time runs out.",

@@ -91,6 +91,23 @@ func _test_the_xray_post_is_a_place() -> void:
 		EventBus.land_bought.emit(id)
 	await get_tree().process_frame
 	_expect(station.visible and station.on_parcel(), "the parcel brings the post with it")
+	# It stands at the head of the second parcel and stays there: more ground
+	# grows the yard past it rather than pushing it down the map.
+	var home := station.position
+	_expect(home.y < PortLayout.service_y(), "the post stands in the yard, above the workshops")
+	var third := str(LandDB.ITEMS[2].id)
+	GameState.land[third] = true
+	EventBus.land_bought.emit(third)
+	await get_tree().process_frame
+	_expect(station.position == home, "buying more ground does not move the post")
+	var band := PortLayout.scanner_band_rect()
+	for block in PortLayout.block_count():
+		var rect := Rect2(PortLayout.block_origin(block),
+			Vector2(PortLayout.BLOCK_W, PortLayout.BLOCK_H))
+		_expect(not rect.intersects(band), "no container block stands on the scanner's loop")
+	GameState.land.erase(third)
+	EventBus.land_bought.emit(third)
+	await get_tree().process_frame
 	_main.world._try_tap(station.centre())
 	await get_tree().process_frame
 	_expect(_main.xray_panel.is_open(), "tapping the abandoned post opens its repair board")

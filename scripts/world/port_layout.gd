@@ -303,6 +303,8 @@ static func block_row_y(row: int) -> float:
 	var y := YARD_Y0 + float(row) * block_row_pitch()
 	if row >= RAIL_ROW:
 		y += RAIL_BAND_H
+	if row >= scanner_row():
+		y += scanner_band_h()
 	return y
 
 
@@ -340,20 +342,53 @@ static func service_y() -> float:
 	return maxf(yard_bottom(), rail_corridor_bottom()) + SERVICE_GAP
 
 
-## The Receita's inspection loop: a band of pavement south of the workshops
-## that the second parcel brings with it, with room for a drive-through lane
-## and the two feeder lanes that join it to the road.
+## The Receita's inspection loop: a band of pavement the second parcel brings
+## with it, with room for a drive-through lane and the two feeder lanes that
+## join it to the road.
+##
+## It is threaded into the yard like the railway — at the head of the second
+## parcel, before that parcel's block rows — so it stands at the same place for
+## the rest of the game. It used to hang below the workshops, at the very
+## bottom of the pavement, which slid it further south every time ground was
+## bought: the post a player had to keep walking back to was always the one
+## thing at the far end of the map, and never where they last left it.
 const SCANNER_BAND_H := 116.0
 const SCANNER_FEEDER_H := 24.0
+
+
+static func scanner_row() -> int:
+	## The block row the scanner's band is threaded *before*: the first row the
+	## second parcel adds. Read from the parcels' declared slots, the same way
+	## `block_rows` counts them, so the two can never disagree.
+	var slots := 0
+	for item in LandDB.ITEMS:
+		if str(item.id) == LandDB.SCANNER_PARCEL:
+			break
+		slots += int(item.get("slots", 0))
+	return BASE_BLOCK_ROWS + ceili(float(slots) / 2.0)
 
 
 static func scanner_band_h() -> float:
 	return SCANNER_BAND_H if GameState.land.has(LandDB.SCANNER_PARCEL) else 0.0
 
 
+static func scanner_band_y() -> float:
+	## Top edge of the scanner's band: just past the driving lane of the last
+	## row before it, so it is fixed by rows that are never removed.
+	var y := YARD_Y0 + float(scanner_row()) * block_row_pitch()
+	if scanner_row() >= RAIL_ROW:
+		y += RAIL_BAND_H
+	return y
+
+
+static func scanner_band_rect() -> Rect2:
+	## Empty when the parcel is not paved yet.
+	return Rect2(YARD_X0, scanner_band_y(), QUAY_X0 - YARD_X0, scanner_band_h())
+
+
 static func paved_bottom() -> float:
 	## Where the terminal's pavement ends and the unbought ground begins.
-	return service_y() + slot_rows() * SLOT_ROW_H + scanner_band_h()
+	return service_y() + slot_rows() * SLOT_ROW_H
 
 
 static func world_bottom() -> float:
@@ -574,14 +609,13 @@ static func gate_bay_rect(bay: int) -> Rect2:
 
 static func xray_station_position() -> Vector2:
 	## The Receita's drive-through scanner. It stands on the second parcel, in
-	## the band that parcel adds south of the workshops: a lane parallel to the
+	## the band threaded into the yard at its head (`scanner_row`): a lane parallel to the
 	## road, joined to it by a feeder at each end, so a lorry leaves the road,
 	## goes under the beam and comes back. It used to be a lane beside gate bay
 	## G3 that began and ended on bare apron — a piece of road going nowhere.
 	## Its frame is 42x60 (`XrayStation`); the lane is the left 24 of it.
 	if GameState.land.has(LandDB.SCANNER_PARCEL):
-		return Vector2(ROAD_X1 + 38.0,
-			paved_bottom() - SCANNER_BAND_H + 4.0 + SCANNER_FEEDER_H)
+		return Vector2(ROAD_X1 + 38.0, scanner_band_y() + 4.0 + SCANNER_FEEDER_H)
 	# A scanner bought before the parcel existed stays where it was.
 	var bay := gate_bay_position(GATE_BAY_COUNT - 1)
 	return Vector2(bay.x + GATE_BAY_W + 3.0, GATE_APRON_Y - 10.0)

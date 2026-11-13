@@ -148,7 +148,11 @@ static func bake(world_h: int, rail_owned: bool = true) -> ImageTexture:
 
 	# --- RTG runway paint down each gap between block columns ---
 	for runway_x in PortLayout.runway_xs():
+		var band := PortLayout.scanner_band_rect()
 		for ty in range(int(PortLayout.YARD_Y0) - 8, int(PortLayout.yard_bottom()), TILE):
+			# No runway through the scanner's loop: nothing stacks there.
+			if band.size.y > 0.0 and ty + TILE > band.position.y and ty < band.end.y:
+				continue
 			_blend(img, solid, int(runway_x) - 3, ty)
 			_blend(img, solid, int(runway_x), ty)
 	_paint_yard_details(img)
