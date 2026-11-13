@@ -29,6 +29,28 @@ in `tools/sprites/gen_ports.py`. The trade lanes (`RouteDB`) are still one
 table shared by every port.
 
 
+## The fleet
+
+`fleet_db.gd` is the named fleet: 47 ships, each with a hull (five natively
+drawn 66x232 hulls — coaster, feeder, panamax, new panamax, ULCV), three
+livery colours (hull, trim on one of four patterns, house), a flag of registry
+(`FleetDB.FLAGS`, the frame order of `ui_flags.png`), a rarity weight and, for
+some, the one port it calls at. `ShipCatalog.SILHOUETTES` are still the three
+berth *classes* lanes and unlocks reason about; `ShipCatalog.select_variant`
+rolls a fleet ship whose class is allowed and whose port matches, weighted by
+rarity, and `compose_ship` turns it into the variant `Ship` wears. Every hull
+keeps the 24-bay deck.
+
+The album lives in `Progression.album`, keyed by fleet id. `legacy` maps a ship
+to the "class:palette" key the album recorded before the fleet existed, so an
+old save keeps what it had seen. Milestone prizes (every
+`FleetDB.MILESTONE_STEP` ships, and the whole album) are
+`Progression.claim_album_milestone`. Adding a ship is one entry in `SHIPS`;
+adding a hull is a profile and a `SIDE` row in `tools/sprites/gen_ship.py` and
+an entry in `HULLS`; adding a flag is a maker in `gen_ports.py` appended to
+`FLAG_MAKERS` and its code appended to `FLAGS`, never inserted (the chart's
+`PortDB.flag` indices are the first six).
+
 These files describe achievements, contracts, land, prestige, routes, ships,
 structures and upgrades. Catalog entries are the source of truth for IDs,
 unlock requirements, prices, labels and visual metadata.

@@ -19,6 +19,14 @@ extends CanvasLayer
 ##    key kept beside it because a mute that remembers your level is worth having
 ##    on its own.
 ##
+## 3. **One long scroll was the whole board.** Sound, language, display, save
+##    data and the wipe key were a single column you scrolled through to find
+##    anything, on a board that opened at the top every time. It is four pages
+##    now behind icon tabs (SOM, TELA, IDIOMA, DADOS), each option on its own
+##    card, and the title and tabs stay put while a page scrolls. The language
+##    page is a grid of flags with each language's name in that language —
+##    two-letter codes were a puzzle for exactly the player who needed them.
+##
 ## Everything is stacked — caption, then a full-width control — rather than laid
 ## out as label-left/value-right. At 320 logical pixels, with the interface scale
 ## at 115% and a language whose word for "interface scale" is longer than the
@@ -30,11 +38,33 @@ signal tutorial_replay_requested
 
 const ROW_HEIGHT := 26.0
 const SEGMENT_HEIGHT := 24.0
+## Tallest the board grows. Pages differ in length; the board does not change
+## size as you flip between them, so it is a fixed height, capped by the phone.
+const BOARD_MAX_H := 560.0
+const TAB_HEIGHT := 40.0
+const TILE_HEIGHT := 46.0
+const LANGUAGE_COLUMNS := 3
+## page id, tab label key, icon
+const TABS := [
+	[&"sound", "settings.tab.sound", UiTheme.Icon.SOUND],
+	[&"display", "settings.tab.display", UiTheme.Icon.GEAR],
+	[&"language", "settings.tab.language", UiTheme.Icon.GLOBE],
+	[&"data", "settings.tab.data", UiTheme.Icon.LOCK],
+]
+const FLAGS := preload("res://assets/sprites/ui_flags.png")
+## Flags at 2x, cut once: the language grid is rebuilt on every language change.
+static var _flag_cache: Dictionary = {}
 
 var _dim: ColorRect
 var _panel: PanelContainer
+var _column: VBoxContainer
+## Nameplate and tabs: outside the scroll, so they never scroll away.
+var _top: VBoxContainer
 var _scroll: ScrollContainer
 var _content: VBoxContainer
+var _tab: StringName = &"sound"
+var _tab_keys: Dictionary = {}   # page id -> Button
+var _pages: Dictionary = {}      # page id -> VBoxContainer
 var _confirm_wipe := false
 var _confirm_import := false
 var _wipe_btn: Button
@@ -76,11 +106,19 @@ func _build() -> void:
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 
+	_column = VBoxContainer.new()
+	_column.add_theme_constant_override(&"separation", 4)
+	_panel.add_child(_column)
+	_top = VBoxContainer.new()
+	_top.add_theme_constant_override(&"separation", 4)
+	_column.add_child(_top)
+
 	_scroll = ScrollContainer.new()
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	UiTheme.style_scroll(_scroll)
-	_panel.add_child(_scroll)
+	_column.add_child(_scroll)
 
 	# The scrollbar is drawn inside the scroll container's own rect, and with the
 	# horizontal mode disabled the child is stretched to the container's full
@@ -107,73 +145,155 @@ func _build_body() -> void:
 	## three parallel bookkeeping tasks whose failure mode is a screen that is
 	## half translated. A settings board is opened by hand and never refreshed
 	## per frame, so rebuilding it is free where it would be a bug elsewhere.
-	for child in _content.get_children():
-		_content.remove_child(child)
-		child.queue_free()
+	for holder: Node in [_top, _content]:
+		for child in holder.get_children():
+			holder.remove_child(child)
+			child.queue_free()
 	_segments.clear()
 	_sliders.clear()
 	_mutes.clear()
 	_levels.clear()
+	_tab_keys.clear()
+	_pages.clear()
 
-	_content.add_child(_header())
+	_top.add_child(_header())
+	_top.add_child(_tabs_row())
 
-	_content.add_child(_caption(Loc.t("settings.section.sound"),
-		UiTheme.Icon.SOUND))
-	_content.add_child(_volume_row(&"music", Loc.t("settings.music")))
-	_content.add_child(_volume_row(&"sfx", Loc.t("settings.sfx")))
+	for spec: Array in TABS:
+		var page := VBoxContainer.new()
+		page.add_theme_constant_override(&"separation", 6)
+		page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_content.add_child(page)
+		_pages[spec[0]] = page
 
-	_content.add_child(_caption(Loc.t("settings.section.language"),
-		UiTheme.Icon.GLOBE))
-	_content.add_child(_language_row())
+	# SOM
+	var sound: VBoxContainer = _pages[&"sound"]
+	sound.add_child(_card(_volume_row(&"music", Loc.t("settings.music"))))
+	sound.add_child(_card(_volume_row(&"sfx", Loc.t("settings.sfx"))))
 
-	_content.add_child(_caption(Loc.t("settings.section.display"),
-		UiTheme.Icon.GEAR))
-	_content.add_child(_motion_row())
-	_content.add_child(_numbers_row())
-	_content.add_child(_telemetry_row())
-	_content.add_child(_ui_scale_row())
+	# TELA
+	var display: VBoxContainer = _pages[&"display"]
+	display.add_child(_card(_motion_row()))
+	display.add_child(_card(_numbers_row()))
+	display.add_child(_card(_ui_scale_row()))
 	if _fullscreen_supported():
-		_content.add_child(_fullscreen_row())
+		display.add_child(_card(_fullscreen_row()))
 
-	_content.add_child(_caption(Loc.t("settings.section.port"),
-		UiTheme.Icon.CRANE))
+	# IDIOMA
+	_pages[&"language"].add_child(_language_row())
+
+	# DADOS
+	var data: VBoxContainer = _pages[&"data"]
+	data.add_child(_caption(Loc.t("settings.section.port"), UiTheme.Icon.CRANE))
+	var port := VBoxContainer.new()
+	port.add_theme_constant_override(&"separation", 4)
 	var tutorial := _wide_button(Loc.t("settings.tutorial"), &"ghost")
 	UiTheme.describe(tutorial, Loc.t("settings.tutorial"),
 		Loc.t("settings.tutorial.hint"))
 	tutorial.pressed.connect(func() -> void: tutorial_replay_requested.emit())
-	_content.add_child(tutorial)
-	_content.add_child(_note(Loc.t("settings.day_note",
+	port.add_child(tutorial)
+	port.add_child(_note(Loc.t("settings.day_note",
 		{"minutes": roundi(TimeManager.DAY_LENGTH / 60.0)})))
 	# The cap has to be readable *before* the player leaves. Announcing it only
 	# on return turns a designed limit into production that vanished overnight.
-	_content.add_child(_note(Loc.t("settings.offline_note", {
+	port.add_child(_note(Loc.t("settings.offline_note", {
 		"percent": roundi(GameState.offline_efficiency() * 100.0),
 		"duration": OfflinePopup.format_duration(GameState.offline_cap_seconds()),
 	})))
+	data.add_child(_card(port))
+	data.add_child(_card(_telemetry_row()))
 
-	_content.add_child(_caption(Loc.t("settings.section.save"),
-		UiTheme.Icon.LOCK))
-	_content.add_child(_backup_row())
+	data.add_child(_caption(Loc.t("settings.section.save"), UiTheme.Icon.LOCK))
+	var backup := VBoxContainer.new()
+	backup.add_theme_constant_override(&"separation", 4)
+	backup.add_child(_backup_row())
 	_backup_status = _note("")
-	_content.add_child(_backup_status)
+	backup.add_child(_backup_status)
+	data.add_child(_card(backup))
 
-	_content.add_child(_caption(Loc.t("settings.section.danger"),
-		UiTheme.Icon.CLOSE))
+	data.add_child(_caption(Loc.t("settings.section.danger"), UiTheme.Icon.CLOSE,
+		UiTheme.DANGER))
 	# The only irreversible action on the board carries the only warning colour
 	# and needs a second press to arm.
+	var danger := VBoxContainer.new()
+	danger.add_theme_constant_override(&"separation", 4)
 	_wipe_btn = _wide_button(Loc.t("settings.wipe"), &"danger")
 	UiTheme.describe(_wipe_btn, Loc.t("settings.wipe"),
 		Loc.t("settings.wipe.hint"))
 	_wipe_btn.pressed.connect(_on_wipe)
-	_content.add_child(_wipe_btn)
-	_content.add_child(_note(Loc.t("settings.wipe.hint")))
+	danger.add_child(_wipe_btn)
+	danger.add_child(_note(Loc.t("settings.wipe.hint")))
+	data.add_child(_card(danger, &"locked"))
 
-
-	_content.add_child(UiTheme.spacer(2.0))
-	var close_btn := _wide_button(Loc.t("common.close"), &"amber")
-	close_btn.pressed.connect(close)
-	_content.add_child(close_btn)
+	_show_tab(_tab, false)
 	_refresh()
+
+
+func _tabs_row() -> Control:
+	## Four index keys under the nameplate. Icon over word: side by side, the
+	## longest word in the longest language ran out of key before it ran out of
+	## letters on a 320-pixel phone.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 3)
+	for spec: Array in TABS:
+		var id: StringName = spec[0]
+		var key := Button.new()
+		key.text = Loc.t(str(spec[1]))
+		key.icon = UiTheme.icon_texture(spec[2])
+		key.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		key.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		key.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		key.clip_text = true
+		key.focus_mode = Control.FOCUS_ALL
+		key.custom_minimum_size = Vector2(0.0, TAB_HEIGHT)
+		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		UiTheme.apply_font(key, UiTheme.SIZE_SMALL)
+		UiTheme.describe(key, key.text)
+		key.pressed.connect(func() -> void:
+			AudioManager.play_sfx("tap")
+			_show_tab(id))
+		row.add_child(key)
+		_tab_keys[id] = key
+	return row
+
+
+func _show_tab(id: StringName, animate: bool = true) -> void:
+	if not _pages.has(id):
+		id = &"sound"
+	var turned := animate and id != _tab and visible
+	_tab = id
+	for page_id: StringName in _pages:
+		(_pages[page_id] as Control).visible = page_id == id
+	for key_id: StringName in _tab_keys:
+		var key: Button = _tab_keys[key_id]
+		var active := key_id == id
+		UiTheme.style_tab(key, active)
+		# The lit tab is the only one whose glyph is coloured, and the only one
+		# whose accessible name says so: never colour alone.
+		for slot: StringName in [&"icon_normal_color", &"icon_hover_color",
+				&"icon_focus_color", &"icon_pressed_color"]:
+			key.add_theme_color_override(slot,
+				UiTheme.TEAL_DEEP if active else UiTheme.INK_SOFT)
+		key.accessibility_name = "%s%s" % [key.text,
+			(", %s" % Loc.t("common.on")) if active else ""]
+	_scroll.scroll_vertical = 0
+	_layout()
+	# Wrapped notes only know their height once they have their width.
+	_layout.call_deferred()
+	if turned and UserPreferences.can_animate():
+		var page: Control = _pages[id]
+		page.modulate.a = 0.0
+		var tween := page.create_tween()
+		tween.tween_property(page, "modulate:a", 1.0, 0.14)
+
+
+func _card(child: Control, state: StringName = &"normal") -> Control:
+	## One option, one label: a slip of manifest paper on the board.
+	var card := UiTheme.panel(UiTheme.card_style(state), false)
+	card.mouse_filter = Control.MOUSE_FILTER_PASS
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.add_child(child)
+	return card
 
 
 # ------------------------------------------------------------------- pieces
@@ -189,7 +309,8 @@ func _header() -> Control:
 	return header.root
 
 
-func _caption(text: String, glyph: UiTheme.Icon) -> Control:
+func _caption(text: String, glyph: UiTheme.Icon,
+		tone: Color = UiTheme.TEAL_DEEP) -> Control:
 	## A section heading with a picture on it. The icon is what makes the board
 	## scannable: six identical teal words down the left edge are six things you
 	## have to read before you know which one you wanted.
@@ -201,10 +322,10 @@ func _caption(text: String, glyph: UiTheme.Icon) -> Control:
 	row.add_theme_constant_override(&"separation", 4)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var badge := UiTheme.icon(glyph)
-	badge.modulate = UiTheme.TEAL_DEEP
+	badge.modulate = tone
 	badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(badge)
-	var label := UiTheme.label(text, UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+	var label := UiTheme.label(text, UiTheme.SIZE_SMALL, tone)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(label)
@@ -239,7 +360,6 @@ func _field(name_text: String, control: Control,
 		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		note.custom_minimum_size.x = 0.0
 		block.add_child(note)
-	block.add_child(UiTheme.spacer(2.0))
 	return block
 
 
@@ -289,6 +409,10 @@ func _volume_row(channel: StringName, name_text: String) -> Control:
 
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override(&"separation", 4)
+	var glyph := UiTheme.icon(UiTheme.Icon.SOUND)
+	glyph.modulate = UiTheme.TEAL_DEEP
+	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(glyph)
 	var label := UiTheme.label(name_text, UiTheme.SIZE_SMALL, UiTheme.INK)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(label)
@@ -326,7 +450,6 @@ func _volume_row(channel: StringName, name_text: String) -> Control:
 	_sliders[channel] = slider
 	row.add_child(slider)
 	block.add_child(row)
-	block.add_child(UiTheme.spacer(2.0))
 	return block
 
 
@@ -376,33 +499,83 @@ func _set_channel_muted(channel: StringName, muted: bool) -> void:
 # --------------------------------------------------------------- language
 
 func _language_row() -> Control:
-	var options: Array = [{
-		"value": Loc.FOLLOW_DEVICE,
-		"text": Loc.t("settings.language.auto_tag"),
-		"name": Loc.t("settings.language.auto"),
-		"hint": Loc.t("settings.language.auto_hint"),
-	}]
-	for entry in Loc.LANGUAGES:
-		options.append({
-			"value": StringName(entry.code),
-			"text": str(entry.tag),
-			# The picker names each language *in that language*. A player who
-			# cannot read the current one is exactly the player who needs this
-			# control, and "Portuguese" spelled in Spanish does not help them.
-			"name": str(entry.native),
-		})
-	# No repeated name label: the caption above already says IDIOMA, and a
-	# settings board that says the same word twice in eleven pixels of height is
-	# spending the one thing it does not have.
+	## A tile per language: its flag, and its name written in itself. A player
+	## who cannot read the current language can still find their own flag, and
+	## "Deutsch" is a word a German reads before "DE" is a code they decode.
+	## Following the device gets the full width on top, because it is the one
+	## choice that is not a language and its name is the longest.
 	var block := VBoxContainer.new()
-	block.add_theme_constant_override(&"separation", 2)
-	block.add_child(_segmented(&"language", options, _on_pick_language))
+	block.add_theme_constant_override(&"separation", 6)
+	var entries: Array = []
+
+	# Its picture is the flag of whatever the phone itself is set to, which is
+	# what "automatic" will actually pick.
+	var device: Dictionary = Loc.entry(Loc.device_language())
+	var auto := _language_tile(Loc.t("settings.language.auto"),
+		_flag_texture(StringName(device.get("flag", &"gb"))), true)
+	UiTheme.describe(auto, Loc.t("settings.language.auto"),
+		Loc.t("settings.language.auto_hint"))
+	auto.pressed.connect(_on_pick_language.bind(Loc.FOLLOW_DEVICE))
+	block.add_child(auto)
+	entries.append({"button": auto, "value": Loc.FOLLOW_DEVICE})
+
+	var grid := GridContainer.new()
+	grid.columns = LANGUAGE_COLUMNS
+	grid.add_theme_constant_override(&"h_separation", 4)
+	grid.add_theme_constant_override(&"v_separation", 4)
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	block.add_child(grid)
+	for entry in Loc.LANGUAGES:
+		var code := StringName(entry.code)
+		var tile := _language_tile(str(entry.native),
+			_flag_texture(StringName(entry.get("flag", &""))), false)
+		# The picker names each language *in that language*. A player who
+		# cannot read the current one is exactly the player who needs this
+		# control, and "Portuguese" spelled in Spanish does not help them.
+		UiTheme.describe(tile, str(entry.native))
+		tile.pressed.connect(_on_pick_language.bind(code))
+		grid.add_child(tile)
+		entries.append({"button": tile, "value": code})
+	_segments[&"language"] = entries
+
 	_language_note = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	_language_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_language_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_language_note.custom_minimum_size.x = 0.0
-	block.add_child(_language_note)
-	block.add_child(UiTheme.spacer(2.0))
+	block.add_child(_card(_language_note))
 	return block
+
+
+func _language_tile(text: String, picture: Texture2D, wide: bool) -> Button:
+	var tile := UiTheme.segment(text, false)
+	tile.icon = picture
+	tile.expand_icon = false
+	tile.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tile.icon_alignment = HORIZONTAL_ALIGNMENT_LEFT if wide \
+		else HORIZONTAL_ALIGNMENT_CENTER
+	tile.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER if wide \
+		else VERTICAL_ALIGNMENT_TOP
+	tile.add_theme_constant_override(&"h_separation", 6)
+	tile.custom_minimum_size = Vector2(0.0, 34.0 if wide else TILE_HEIGHT)
+	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Flags keep their own colours whatever the key's text colour is.
+	for slot: StringName in [&"icon_normal_color", &"icon_hover_color",
+			&"icon_focus_color", &"icon_pressed_color"]:
+		tile.add_theme_color_override(slot, Color.WHITE)
+	return tile
+
+
+static func _flag_texture(code: StringName) -> Texture2D:
+	if not _flag_cache.has(code):
+		var image := FLAGS.get_image()
+		if image == null:
+			return null
+		if image.is_compressed():
+			image.decompress()
+		var cut := image.get_region(Rect2i(FleetDB.flag_region(code)))
+		cut.resize(cut.get_width() * 2, cut.get_height() * 2, Image.INTERPOLATE_NEAREST)
+		_flag_cache[code] = ImageTexture.create_from_image(cut)
+	return _flag_cache[code]
 
 
 func _on_pick_language(code: Variant) -> void:
@@ -577,14 +750,19 @@ func _layout() -> void:
 	# still looks like a word.
 	var inner := width - 22.0 - UiTheme.SCROLL_WIDTH
 	_content.custom_minimum_size.x = inner
-	var desired_height := _content.get_combined_minimum_size().y + 22.0
-	var height := minf(desired_height, maxf(180.0, safe.size.y - 24.0))
-	_scroll.custom_minimum_size = Vector2(width - 22.0, height - 22.0)
+	# The board is as tall as the page it is open at, up to the tallest it may
+	# be — but it hangs from the same top edge whatever the page, so the
+	# nameplate and the tabs never move under a finger that is changing tabs.
+	var most := minf(BOARD_MAX_H, maxf(220.0, safe.size.y - 24.0))
+	var wanted := _top.get_combined_minimum_size().y + 4.0 \
+		+ _content.get_combined_minimum_size().y + 22.0
+	var height := clampf(wanted, 160.0, most)
+	_scroll.custom_minimum_size = Vector2(width - 22.0, 0.0)
 	_panel.custom_minimum_size = Vector2(width, height)
 	_panel.size = Vector2(width, height)
 	_panel.position = safe.position + Vector2(
 		(safe.size.x - width) * 0.5,
-		(safe.size.y - _panel.size.y) * 0.5)
+		(safe.size.y - most) * 0.5)
 
 
 func apply_view_metrics(metrics: Dictionary) -> void:

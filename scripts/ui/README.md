@@ -138,6 +138,13 @@ Entry points:
     station from panning, and `_station_at` picks the *nearest* station rather
     than the first hit — two stations can be a lane apart at low zoom and the one
     whose circle you technically landed in is not always the one you aimed at.
+- `settings_panel.gd` — the options board, four pages behind icon tabs (SOM,
+  TELA, IDIOMA, DADOS) under a nameplate that never scrolls. Each option is
+  its own card; every fixed set of answers is a segmented control
+  (`_segments`). IDIOMA is a grid of flag tiles, each language named in
+  itself (`Loc.LANGUAGES[].flag`), with "automatic" across the top wearing the
+  device language's flag. The board's height follows the page, but it hangs
+  from the same top edge on every page so the tabs never move.
 - `route_map.gd`, `port_journal.gd`, `settings_panel.gd`,
   `prestige_dialog.gd` — overlays. The journal's EQUIPE tab is the whole shift in
   one list, which the per-person dossier cannot give.
@@ -159,6 +166,14 @@ Entry points:
 - `notice_bell.gd` — the **port diary** (class name kept): a leather book on
   the gantry (`ui_diary_key.png`) that opens as one (`BookFx`, binding from
   `tools/sprites/gen_diary.py`) onto two index tabs.
+  NAVIOS is the fleet album (`FleetDB`): one card per ship, size order, the
+  side-on portrait (`ship_portrait.gd`, layers of `ship_side_<hull>` tinted
+  with the livery) over its flag, name, type and TEU. A ship not yet seen is
+  its silhouette and "???" — the outline already says how big it is — and its
+  card names the one port it calls at, if it has one. Tap for the record (or,
+  unseen, where to look). The tally on top pays a milestone prize every
+  `FleetDB.MILESTONE_STEP` ships. A notice landing while the book is open at
+  another page refills the log without showing it there.
   AVISOS is the notices log below. MEDALHAS is every `AchievementDB` entry as a
   struck medal (dark until earned, tap for what it asks and pays) under the
   final trophy (`ui_trophy_final.png`), lit for whoever earns them all. The

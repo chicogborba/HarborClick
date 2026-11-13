@@ -34,9 +34,25 @@ var album: Dictionary = {}
 var album_claimed: Array[String] = []
 
 
+## A named ship reached the album for the first time (`FleetDB` id).
+signal album_ship_added(fleet_id: String)
+
+
 func record_ship_variant(variant: Dictionary) -> void:
-	## Called when a call is seeded: the album records what *arrived*, and a
-	# page (one silhouette in every livery) pays a lump once, when complete.
+	## Called when a call is seeded: the album records what *arrived*. A named
+	# ship (`fleet_id`) is recorded by name; a hull from before the fleet by its
+	# old "class:palette" key, which `FleetDB.legacy` still maps to a ship.
+	var fleet_id := str(variant.get("fleet_id", ""))
+	if not fleet_id.is_empty():
+		if album.has(fleet_id):
+			return
+		var legacy_seen := _legacy_key_for(variant)
+		album[fleet_id] = true
+		album_changed.emit()
+		if not legacy_seen:
+			album_ship_added.emit(fleet_id)
+		_request_save(&"album")
+		return
 	var key := "%s:%s" % [str(variant.get("silhouette_id", "")),
 		str(variant.get("palette_id", ""))]
 	if key.contains(":") and not key.begins_with(":") and not key.ends_with(":") \
@@ -44,6 +60,32 @@ func record_ship_variant(variant: Dictionary) -> void:
 		album[key] = true
 		album_changed.emit()
 		_request_save(&"album")
+
+
+func _legacy_key_for(variant: Dictionary) -> bool:
+	## True when the old album already held this ship under its legacy key, so
+	## a save from before the fleet does not announce a ship it had seen.
+	var legacy := str(variant.get("legacy", ""))
+	return not legacy.is_empty() and album.has(legacy)
+
+
+func album_has(key: String) -> bool:
+	return album.has(key)
+
+
+func album_milestone_claimed(milestone: int) -> bool:
+	return album_claimed.has("milestone_%d" % milestone)
+
+
+func claim_album_milestone(milestone: int, seen: int) -> bool:
+	## One prize per milestone (every `FleetDB.MILESTONE_STEP` ships). The count
+	# is the caller's — this class cannot see the fleet — and so is the payment.
+	if milestone <= 0 or seen < milestone or album_milestone_claimed(milestone):
+		return false
+	album_claimed.append("milestone_%d" % milestone)
+	album_changed.emit()
+	_request_save(&"album")
+	return true
 
 
 func album_seen(silhouette_id: String, palette_id: String) -> bool:

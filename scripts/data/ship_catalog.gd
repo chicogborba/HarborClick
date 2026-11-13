@@ -1,10 +1,12 @@
 class_name ShipCatalog
-## GitHub's single-source visual fleet.
+## Berth classes, and the bridge from them to the named fleet.
 ##
-## Every call uses the same 66x232 `ship_top.png` and the same 24 physical bays.
-## The three catalogue silhouettes vary only by scale, offset and livery, as they
-## do on `origin/main`. Compatibility aliases keep newer routes and saved special
-## calls readable without creating more hull textures.
+## `SILHOUETTES` are the three classes a berth and a lane reason about. Which
+## ship of that class actually calls is `FleetDB`'s: `select_variant` rolls a
+## named ship there and `compose_ship` turns it into what `Ship` wears. Every
+## hull keeps the same 24 physical bays. `PALETTES`/`compose` remain for saves
+## and tests written before the fleet — a hull saved as "class:palette" still
+## restores — and compatibility aliases keep older routes readable.
 
 const SOURCE_SPRITE := "ship_top"
 const FIXED_BAY_ROWS := PortLayout.SHIP_BAY_ROWS
@@ -64,30 +66,96 @@ static func unlocked_silhouettes(blocks: int) -> Array[Dictionary]:
 static func select_variant(variant_seed: int, call_index: int,
 		history: Array[String] = [], blocks: int = 9999,
 		lane_classes: Array[String] = []) -> Dictionary:
-	var candidates: Array[Dictionary] = []
+	## One named ship from `FleetDB`, weighted by rarity. The berth class still
+	## decides who may call (unlocked by blocks, allowed by the lane); the fleet
+	## decides which ship of that class it is. Deterministic per seed and call.
 	var blocked := ""
 	if history.size() >= 2 and history[history.size() - 1] == history[history.size() - 2]:
 		blocked = history[history.size() - 1]
-	for silhouette in unlocked_silhouettes(blocks):
-		if not lane_classes.is_empty() and not lane_classes.has(str(silhouette.id)):
+	var allowed := _allowed_classes(blocks, lane_classes)
+	var candidates: Array[Dictionary] = []
+	var weights: Array[int] = []
+	for ship in FleetDB.SHIPS:
+		if bool(ship.get("special", false)) or str(ship.id) == blocked:
 			continue
-		for palette in PALETTES:
-			var variant_id := "%s:%s" % [String(silhouette.id), String(palette.id)]
-			if variant_id != blocked:
-				candidates.append(compose(silhouette, palette))
-	if candidates.is_empty():
-		# A compatibility-only class may be the sole class on an old lane. Map it
-		# to its GitHub source silhouette rather than withholding the ship call.
-		for requested in lane_classes:
-			var silhouette := get_silhouette(StringName(requested))
-			if silhouette.is_empty() \
-					or int(silhouette.get("unlock_blocks", 0)) > blocks:
-				continue
-			for palette in PALETTES:
-				candidates.append(compose(silhouette, palette))
+		if not allowed.has(FleetDB.ship_class(ship)):
+			continue
+		var port := StringName(ship.get("port", &""))
+		if port != &"" and port != PortDB.active:
+			continue
+		candidates.append(ship)
+		weights.append(int(FleetDB.RARITY_WEIGHT.get(str(ship.rarity), 1)))
 	if candidates.is_empty():
 		return {}
-	return candidates[posmod(_roll(variant_seed, call_index), candidates.size())].duplicate(true)
+	var total := 0
+	for weight in weights:
+		total += weight
+	var pick := posmod(_roll(variant_seed, call_index), total)
+	for index in candidates.size():
+		pick -= weights[index]
+		if pick < 0:
+			return compose_ship(candidates[index])
+	return compose_ship(candidates[candidates.size() - 1])
+
+
+static func _allowed_classes(blocks: int, lane_classes: Array[String]) -> Dictionary:
+	## Class ids a call may sail as. A lane may still name a compatibility alias
+	## (`barge`, `ulcv`...) from an old save: it counts as the class it aliases.
+	var unlocked := {}
+	for silhouette in unlocked_silhouettes(blocks):
+		unlocked[str(silhouette.id)] = true
+	if lane_classes.is_empty():
+		return unlocked
+	var allowed := {}
+	for requested in lane_classes:
+		var base := requested
+		if COMPATIBILITY_ALIASES.has(requested):
+			base = str(COMPATIBILITY_ALIASES[requested].base)
+		if unlocked.has(base):
+			allowed[base] = true
+	return allowed
+
+
+static func compose_ship(ship: Dictionary, class_id: String = "") -> Dictionary:
+	## The variant a `Ship` wears for one fleet entry. `class_id` overrides the
+	## class (and so the hull) — only the charter does that, because it sails as
+	## whatever class the charter booked.
+	var hull := str(ship.hull)
+	var klass := FleetDB.ship_class(ship)
+	if not class_id.is_empty() and class_id != klass:
+		klass = class_id
+		hull = {"coastal_feeder": "feeder", "panamax": "panamax",
+			"new_panamax": "new_panamax"}.get(class_id, hull)
+	var silhouette := get_silhouette(StringName(klass))
+	var suffix := "" if hull == "panamax" else "_" + hull
+	var special := bool(ship.get("special", false))
+	return {
+		"id": str(ship.id), "fleet_id": str(ship.id), "name": str(ship.name),
+		"silhouette_id": klass,
+		"palette_id": str(SPECIAL_PALETTE.id) if special else str(ship.id),
+		"capacity": int(ship.capacity),
+		"title": str(silhouette.get("title", FleetDB.hull_type(ship))),
+		"bay_rows": FIXED_BAY_ROWS,
+		"hull": hull,
+		"sprite": "ship_top" + suffix, "paint": "ship_paint" + suffix,
+		"trim_sprite": "ship_trim_" + hull, "trim_frame": FleetDB.trim_index(ship),
+		"hull_scale": Vector2.ONE, "hull_offset": Vector2.ZERO,
+		"hull_color": str(ship.hull_color), "trim_color": str(ship.trim_color),
+		"house_color": str(ship.house_color), "flag": str(ship.flag),
+		"wake_color": str(SPECIAL_PALETTE.wake) if special else "#d0eaf0",
+		"cargo_color": "#ffffff", "special": special, "legacy": str(ship.get("legacy", "")),
+	}
+
+
+static func restore_ship(raw: Dictionary) -> Dictionary:
+	## A saved fleet variant, rebuilt from the catalogue rather than trusted.
+	var ship := FleetDB.get_ship(str(raw.get("fleet_id", "")))
+	if ship.is_empty():
+		return {}
+	var variant := compose_ship(ship, str(raw.get("silhouette_id", "")))
+	if bool(raw.get("special", false)):
+		variant["special"] = true
+	return variant
 
 
 static func compose(silhouette: Dictionary, palette: Dictionary) -> Dictionary:
@@ -106,10 +174,14 @@ static func compose(silhouette: Dictionary, palette: Dictionary) -> Dictionary:
 
 
 static func special_variant(silhouette_id: StringName = &"panamax") -> Dictionary:
-	var silhouette := get_silhouette(silhouette_id)
-	if silhouette.is_empty():
-		silhouette = SILHOUETTES[1]
-	var variant := compose(silhouette, SPECIAL_PALETTE)
+	## The charter's own ship, sailing as the class the charter booked.
+	var class_id := String(silhouette_id)
+	if get_silhouette(silhouette_id).is_empty():
+		class_id = "panamax"
+	var alias: Dictionary = COMPATIBILITY_ALIASES.get(class_id, {})
+	if not alias.is_empty():
+		class_id = str(alias.base)
+	var variant := compose_ship(FleetDB.special_ship(), class_id)
 	variant["special"] = true
 	return variant
 
@@ -166,7 +238,7 @@ static func is_valid() -> bool:
 				or String(palette.get("hull", "")).is_empty():
 			return false
 		palettes[id] = true
-	return silhouettes.size() == 3 and palettes.size() == 4
+	return silhouettes.size() == 3 and palettes.size() == 4 and FleetDB.is_valid()
 
 
 static func _roll(variant_seed: int, call_index: int) -> int:

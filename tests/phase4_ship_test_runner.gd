@@ -19,6 +19,7 @@ func _run() -> void:
 	test_moorings_follow_berth_state()
 	test_tug_escort_follows_maneuver()
 	await test_fleet_uses_three_native_hulls_at_1x1()
+	await test_named_fleet_is_drawn_and_rolled()
 	if failures.is_empty():
 		print("PHASE 4 SHIP TESTS PASSED")
 		get_tree().quit(0)
@@ -62,6 +63,68 @@ func test_fleet_uses_three_native_hulls_at_1x1() -> void:
 	_expect(seen_sprites.size() == ShipCatalog.SILHOUETTES.size(),
 		"every silhouette has its own sprite (%d of %d)"
 		% [seen_sprites.size(), ShipCatalog.SILHOUETTES.size()])
+
+
+func test_named_fleet_is_drawn_and_rolled() -> void:
+	## The album's fleet: at least thirty named ships, every one drawable (hull,
+	# paint, trim and portrait sheets exist), every one keeping the 24-box deck,
+	# and the roll never handing out a ship that belongs to another port or to
+	# the charter.
+	_expect(FleetDB.is_valid() and FleetDB.SHIPS.size() >= 30,
+		"the fleet is a valid catalogue of at least thirty ships (%d)" % FleetDB.SHIPS.size())
+	var hulls := {}
+	for ship: Dictionary in FleetDB.SHIPS:
+		var variant := ShipCatalog.compose_ship(ship)
+		for key in ["sprite", "paint", "trim_sprite"]:
+			_expect(ResourceLoader.exists("res://assets/sprites/%s.png" % str(variant[key])),
+				"%s has its %s (%s)" % [ship.id, key, variant[key]])
+		_expect(ResourceLoader.exists("res://assets/sprites/ship_side_%s.png" % str(ship.hull)),
+			"%s has its album portrait" % ship.id)
+		_expect(not ShipCatalog.get_silhouette(StringName(variant.silhouette_id)).is_empty(),
+			"%s sails as a real berth class" % ship.id)
+		hulls[str(ship.hull)] = true
+	_expect(hulls.size() == FleetDB.HULLS.size(), "every hull is used by some ship")
+	var flags := preload("res://assets/sprites/ui_flags.png")
+	_expect(flags.get_width() == int(FleetDB.FLAG_SIZE.x) * FleetDB.FLAGS.size(),
+		"the flag sheet has one frame per registry (%d px)" % flags.get_width())
+
+	var hull := Ship.new()
+	add_child(hull)
+	await get_tree().process_frame
+	var ship := FleetDB.get_ship("hanbit_star")
+	hull.apply_variant(ShipCatalog.compose_ship(ship))
+	_expect(hull.bay_capacity() == 24 and (hull._hull as Sprite2D).scale == Vector2.ONE,
+		"an ULCV still works the same 24 bays at 1:1")
+	_expect(hull._trim.visible and hull._ensign.visible and hull.ship_name() == "Hanbit Star",
+		"a named ship wears its trim and its flag")
+	_expect(hull._ensign.region_rect == FleetDB.flag_region(&"kr"),
+		"and the flag is its own registry's")
+	var saved := hull.snapshot()
+	var restored := Ship.new()
+	add_child(restored)
+	await get_tree().process_frame
+	restored.restore(saved)
+	_expect(restored.variant_id() == &"hanbit_star" and restored.ship_name() == "Hanbit Star",
+		"a named ship survives a save")
+	hull.free()
+	restored.free()
+
+	var was := PortDB.active
+	PortDB.active = PortDB.HOME
+	var history: Array[String] = []
+	for call_index in 200:
+		var rolled := ShipCatalog.select_variant(31, call_index, history)
+		var entry := FleetDB.get_ship(str(rolled.get("fleet_id", "")))
+		_expect(not entry.is_empty(), "every routine call is a named ship")
+		_expect(not bool(entry.get("special", false)), "the charter's ship is never rolled")
+		var port := StringName(entry.get("port", &""))
+		_expect(port == &"" or port == PortDB.HOME,
+			"%s only calls at its own port (%s)" % [entry.get("id", "?"), port])
+		history.append(str(rolled.id))
+	var feeders := ShipCatalog.select_variant(5, 3, [], 0)
+	_expect(str(feeders.silhouette_id) == "coastal_feeder",
+		"a port with no blocks only sees the smallest class")
+	PortDB.active = was
 
 
 func test_catalogue_and_deterministic_rotation() -> void:

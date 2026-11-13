@@ -16,6 +16,7 @@ func _run() -> void:
 	test_contract_determinism_frozen_reward_and_single_active()
 	test_paused_time_and_events_do_not_advance_contract()
 	test_ship_album_records_and_claims_once()
+	test_fleet_album_records_by_name_and_keeps_old_saves()
 	if failures.is_empty():
 		print("PHASE 3 PROGRESSION TESTS PASSED")
 		quit(0)
@@ -141,6 +142,33 @@ func test_ship_album_records_and_claims_once() -> void:
 	_expect(loaded.album.size() == total, "the album survives a snapshot round trip")
 	_expect(loaded.album_claimed.has("panamax"), "the claim survives a snapshot round trip")
 	_expect(not loaded.claim_album_page("panamax", total), "a reloaded page still never claims twice")
+	loaded.free()
+	manager.free()
+
+
+func test_fleet_album_records_by_name_and_keeps_old_saves() -> void:
+	## A named ship is recorded by its fleet id and announced once; a ship the
+	# old album already held under its "class:palette" key is recorded but not
+	# announced again; milestone prizes claim once and only when reached.
+	var manager := ProgressionManager.new()
+	var announced: Array[String] = []
+	manager.album_ship_added.connect(func(id: String) -> void: announced.append(id))
+	manager.album["panamax:harbor_blue"] = true
+	manager.record_ship_variant({"fleet_id": "atlantico_azul",
+		"legacy": "panamax:harbor_blue", "silhouette_id": "panamax"})
+	manager.record_ship_variant({"fleet_id": "nordlys", "silhouette_id": "coastal_feeder"})
+	manager.record_ship_variant({"fleet_id": "nordlys", "silhouette_id": "coastal_feeder"})
+	_expect(manager.album.has("atlantico_azul") and manager.album.has("nordlys"),
+		"named ships are recorded by fleet id")
+	_expect(announced == ["nordlys"],
+		"only a ship the album had never seen is announced, once (%s)" % [announced])
+	_expect(not manager.claim_album_milestone(10, 9), "a milestone not reached does not claim")
+	_expect(manager.claim_album_milestone(10, 10), "a reached milestone claims")
+	_expect(not manager.claim_album_milestone(10, 12), "and never twice")
+	var loaded := ProgressionManager.new()
+	loaded.restore(manager.snapshot())
+	_expect(loaded.album_milestone_claimed(10) and loaded.album.has("nordlys"),
+		"the album and its prizes survive a reload")
 	loaded.free()
 	manager.free()
 

@@ -254,6 +254,14 @@ the livery (`_paint.self_modulate`); the hull sprite itself stays white. Tinting
 the whole hull, as it once did, multiplied the deck, the white house and the
 lifeboats by brick red or bottle green, and every ship was one muddy colour.
 
+A fleet ship (`FleetDB`) adds three more children of the hull, all on the same
+canvas: `Trim` (a frame of `ship_trim_<hull>` — band, stripe, bow or stern —
+tinted with the second colour), `House` (`ship_house.png`, drawn only when the
+house is not white, so a port's own house drawing survives) and `Ensign` (the
+flag of registry, painted on the clear forecastle at `Ship.FLAG_POS`, the one
+patch of deck no box ever covers). Five hulls are drawn natively now
+(coaster and ULCV joined the three); none of them is scaled.
+
 ## The branch-line rake is drawn at its shown size
 
 `gen_train.py` draws the loco, the three wagons and the eight rail-box liveries

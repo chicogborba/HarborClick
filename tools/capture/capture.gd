@@ -613,6 +613,28 @@ func _run(size: Vector2i) -> void:
 		await _shot("notices")
 		bell.close_log()
 		await get_tree().create_timer(0.2).timeout
+	if _wants("album"):
+		# The fleet album, half filled: lit cards next to silhouettes, so both
+		# states are on one picture. The album is restored afterwards — a
+		# capture never leaves ships in a save it did not earn.
+		var bell: NoticeBell = _main.bell
+		var kept: Dictionary = Progression.album.duplicate(true)
+		var order := FleetDB.album_order()
+		for index in order.size():
+			if index % 3 != 2:
+				Progression.album[str(order[index].id)] = true
+		bell._tab = "ships"
+		bell.open_log()
+		await get_tree().create_timer(0.35).timeout
+		_check("album", bell._board, size)
+		await _shot("album")
+		bell._scroll.scroll_vertical = 420
+		await get_tree().create_timer(0.15).timeout
+		await _shot("album_scrolled")
+		bell.close_log()
+		bell._tab = "notices"
+		Progression.album = kept
+		await get_tree().create_timer(0.2).timeout
 	if _wants("shop"):
 		_main.shop._on_tab("structures")
 		await get_tree().create_timer(0.4).timeout
@@ -714,6 +736,13 @@ func _run(size: Vector2i) -> void:
 		await get_tree().create_timer(0.3).timeout
 		_check("settings", _main.settings._panel, size)
 		await _shot("settings")
+		# Every page of the board, not just the first one it opens on.
+		for page: StringName in [&"display", &"language", &"data"]:
+			_main.settings._show_tab(page, false)
+			await get_tree().create_timer(0.15).timeout
+			_check("settings_%s" % page, _main.settings._panel, size)
+			await _shot("settings_%s" % page)
+		_main.settings._show_tab(&"sound", false)
 		_main.settings.close()
 		await get_tree().create_timer(0.2).timeout
 	if _wants("routes"):

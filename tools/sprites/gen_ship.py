@@ -13,6 +13,13 @@ Two images, one coordinate system:
   neutral grey here.
 - `ship_paint.png` — only the painted hull and the funnel band, as a white-to-
   grey ramp. `Ship` lays it over the hull and tints it with the livery.
+- `ship_trim_<hull>.png` — four 66x232 frames, one per `TRIM_PATTERNS` entry:
+  the second livery colour (always with the funnel band).
+- `ship_house.png` — the white of the house alone, for non-white houses.
+- `ship_side_<hull>.png` — the album portrait, side-on on a 112x34 canvas, as
+  seven frames: base, paint, house, then the four trim patterns.
+
+Five hulls (`PROFILES`): coaster, feeder, panamax, new panamax and ULCV.
 
 The catalogue used to tint the *whole* hull sprite with its livery, which
 multiplied the deck, the bridge and the lifeboats by brick red or bottle green:
@@ -56,7 +63,16 @@ PROFILES = {
     "feeder": (0.75, 22.0),
     "panamax": (0.55, 12.0),
     "new_panamax": (0.28, 3.0),
+    # The album's two extra hulls: a coaster with a knife of a bow and a stern
+    # pinched almost to a point, and an ultra-large box ship that is a brick
+    # with a rounded end.
+    "coaster": (1.0, 26.0),
+    "ulcv": (0.16, 0.0),
 }
+
+## The second livery colour goes on one of these, picked per ship in
+## `FleetDB` (`trim`). Every pattern carries the funnel band.
+TRIM_PATTERNS = ("band", "stripe", "bow", "stern")
 
 
 def _half_beam(y):
@@ -243,6 +259,217 @@ def details(img):
     px(img, 33, 226, P.WINDOW_LIT)
 
 
+def _funnel_band(img):
+    top = HOUSE_TOP
+    rect(img, 26, top + 20, 14, 3, PAINT[3])
+    rect(img, 26, top + 22, 14, 1, PAINT[1])
+
+
+def _is_funnel_band(x, y):
+    return HOUSE_TOP + 20 <= y <= HOUSE_TOP + 22 and 26 <= x < 40
+
+
+def _trim(pattern, deck_cut):
+    """The second livery colour, top-down: one pattern, white-to-grey so the
+    tint has a ramp to multiply, cut wherever the deck or the house covers it."""
+    img = new_img(W, H)
+    rows = _hull_mask()
+    for y, (x0, x1) in rows.items():
+        inset = 5 if y >= 30 else 4
+        for x in range(x0, x1 + 1):
+            ring = x < x0 + inset or x > x1 - inset
+            if not ring:
+                continue
+            t = (x - x0) / max(1, x1 - x0)
+            shade = 3 if t < 0.12 else 2 if t < 0.8 else 1
+            if pattern == "stripe":
+                # the two ring columns nearest the deck: a sheer stripe
+                hit = 12 <= y <= H - 10 and (x0 + inset - 2 <= x < x0 + inset
+                                            or x1 - inset < x <= x1 - inset + 2)
+            elif pattern == "bow":
+                hit = y < 60
+            elif pattern == "stern":
+                hit = y > 168
+            else:
+                hit = False
+            if hit:
+                px(img, x, y, PAINT[min(4, shade + 1)])
+    dp, tp = deck_cut.load(), img.load()
+    for y in range(H):
+        for x in range(W):
+            if dp[x, y][3] == 255:
+                tp[x, y] = (0, 0, 0, 0)
+    for y in range(H - 4, H - 1):            # the boot-topping stays antifouling red
+        for x in range(W):
+            tp[x, y] = (0, 0, 0, 0)
+    _funnel_band(img)
+    return img
+
+
+def _house_layer():
+    """Only the white of the house and bridge wings, for `Ship` to tint cream,
+    sky blue or ochre. Identical on every hull: the house is not shaped by the
+    bow."""
+    probe = new_img(W, H)
+    superstructure(probe)
+    out = new_img(W, H)
+    whites = set(WHITE)
+    pp, op = probe.load(), out.load()
+    for y in range(H):
+        for x in range(W):
+            if pp[x, y] in whites:
+                op[x, y] = pp[x, y]
+    return out
+
+
+# ------------------------------------------------------------------- side view
+#
+# The album shows each ship side-on, bow to the right, on one 112x34 canvas so
+# the cards line up: the length, the height of the stack and the place of the
+# house are what tell a coaster from an ULCV at a glance. Seven frames per hull,
+# in a horizontal sheet: base, paint, house, then the four trim patterns.
+
+SIDE_W, SIDE_H = 112, 34
+SIDE_WL = 28                 # waterline
+SIDE = {
+    #               length, hull height, tiers, house at (0 = stern, 1 = bow)
+    "coaster":      (60, 6, 2, 0.0),
+    "feeder":       (72, 7, 3, 0.0),
+    "panamax":      (86, 8, 4, 0.0),
+    "new_panamax":  (98, 9, 5, 0.0),
+    "ulcv":         (110, 10, 6, 0.62),
+}
+SIDE_BOXES = [P.CONTAINER_RAMPS[n] for n in P.CONTAINER_NAMES]
+
+
+def _side_geometry(hull_id):
+    length, hull_h, tiers, house_at = SIDE[hull_id]
+    xs = (SIDE_W - length) // 2
+    xb = xs + length - 1
+    deck_y = SIDE_WL - hull_h
+    return length, hull_h, tiers, house_at, xs, xb, deck_y
+
+
+def _side_rows(hull_id):
+    """x-extent of the hull per row, deck to keel: a transom stern, a raked
+    stem, and a bulb under the waterline."""
+    length, hull_h, _t, _h, xs, xb, deck_y = _side_geometry(hull_id)
+    rows = {}
+    bottom = SIDE_WL + 2
+    for y in range(deck_y, bottom + 1):
+        t = (y - deck_y) / max(1, bottom - deck_y)
+        left = xs + round(3 * t)
+        right = xb - round(5 * t)
+        if y >= SIDE_WL:
+            right = xb - 4                # the bulb pushes back out
+        rows[y] = (left, right)
+    return rows
+
+
+def _side_frames(hull_id):
+    length, hull_h, tiers, house_at, xs, xb, deck_y = _side_geometry(hull_id)
+    rows = _side_rows(hull_id)
+    base, paint, house = (new_img(SIDE_W, SIDE_H) for _ in range(3))
+    trims = {p: new_img(SIDE_W, SIDE_H) for p in TRIM_PATTERNS}
+
+    # hull: paint between the deck edge and the waterline, red below it
+    for y, (x0, x1) in rows.items():
+        for x in range(x0, x1 + 1):
+            if y == deck_y:
+                px(base, x, y, STEEL[3])
+            elif y < SIDE_WL:
+                shade = 3 if y == deck_y + 1 else 2 if y < SIDE_WL - 2 else 1
+                px(base, x, y, PAINT[shade])
+                px(paint, x, y, PAINT[shade])
+                if y == deck_y + 2 and x0 + 1 < x < x1 - 1:
+                    px(trims["stripe"], x, y, PAINT[4])
+                if x > xb - length * 0.26:
+                    px(trims["bow"], x, y, PAINT[shade + 1])
+                if x < xs + length * 0.2:
+                    px(trims["stern"], x, y, PAINT[shade + 1])
+            else:
+                px(base, x, y, BOOT[2] if y == SIDE_WL else BOOT[1])
+    # a forecastle step up at the bow, painted like the hull
+    for x in range(xb - 7, xb - 1):
+        px(base, x, deck_y - 1, PAINT[3])
+        px(paint, x, deck_y - 1, PAINT[3])
+        px(trims["bow"], x, deck_y - 1, PAINT[4])
+    # hawse pipe and a draught mark
+    px(base, xb - 4, deck_y + 2, INK)
+    px(paint, xb - 4, deck_y + 2, (0, 0, 0, 0))
+
+    # where the house stands
+    hw = 9 + tiers
+    if house_at <= 0.0:
+        hx = xs + 4
+    else:
+        hx = xs + int(length * house_at) - hw // 2
+    house_h = tiers * 3 + 6
+    htop = deck_y - house_h
+
+    # containers: everything forward of the forecastle step and clear of the house
+    import random
+    rng = random.Random(hull_id)
+    fore = xb - 9
+    aft_limit = xs + 3 if house_at > 0.0 else hx + hw + 1
+    x = fore - 5
+    while x >= aft_limit:
+        if house_at > 0.0 and hx - 2 < x + 5 and x < hx + hw + 1:
+            x = hx - 7
+            continue
+        stack = tiers - (1 if rng.random() < 0.18 else 0)
+        for k in range(stack):
+            ramp = SIDE_BOXES[rng.randrange(len(SIDE_BOXES))]
+            y = deck_y - 3 * (k + 1)
+            rect(base, x, y, 5, 3, ramp[2])
+            rect(base, x, y, 5, 1, ramp[3])
+            px(base, x + 4, y + 1, ramp[1])
+            px(base, x + 4, y + 2, ramp[1])
+        x -= 6
+
+    # the house: white tiers, a dark band of bridge windows, wings one px proud
+    for y in range(htop, deck_y):
+        for xx in range(hx, hx + hw):
+            c = WHITE[3] if xx == hx else WHITE[1] if xx == hx + hw - 1 else WHITE[2]
+            px(base, xx, y, c)
+            px(house, xx, y, c)
+    for xx in range(hx - 1, hx + hw + 1):
+        px(base, xx, htop, WHITE[4])
+        px(house, xx, htop, WHITE[4])
+    for xx in range(hx, hx + hw):
+        px(base, xx, htop + 2, GLASS[1] if xx % 2 else GLASS[3])
+    for y in range(htop + 5, deck_y - 1, 3):          # cabin portholes
+        for xx in range(hx + 2, hx + hw - 2, 3):
+            px(base, xx, y, GLASS[2])
+    # lifeboat hung on the house's flank
+    rect(base, hx + hw - 1, deck_y - 4, 3, 2, ORANGE[3])
+
+    # funnel: on the house aft end, or on its own near the stern of an ULCV
+    fx = hx + 1 if house_at <= 0.0 else xs + 6
+    ftop = htop - 4 if house_at <= 0.0 else deck_y - tiers * 3 - 4
+    rect(base, fx, ftop, 4, (htop if house_at <= 0.0 else deck_y) - ftop,
+         P.mix(WHITE[1], STEEL[1], 0.5))
+    rect(base, fx, ftop, 4, 1, (38, 34, 40, 255))
+    for layer in [paint] + list(trims.values()):
+        rect(layer, fx, ftop + 1, 4, 2, PAINT[3])
+    rect(base, fx, ftop + 1, 4, 2, PAINT[3])
+
+    # foremast and the jackstaff
+    for y in range(deck_y - 6, deck_y - 1):
+        px(base, xb - 4, y, STEEL[2])
+    px(base, xb - 4, deck_y - 7, P.WINDOW_LIT)
+
+    # one outline round the lot, on the base layer
+    whole = base.copy()
+    ringed = outline(whole)
+    bp, rp = base.load(), ringed.load()
+    for yy in range(SIDE_H):
+        for xx in range(SIDE_W):
+            if bp[xx, yy][3] == 0 and rp[xx, yy][3]:
+                bp[xx, yy] = rp[xx, yy]
+    return [base, paint, house] + [trims[p] for p in TRIM_PATTERNS]
+
+
 def gen_ship():
     global PROFILE
     for name, profile in PROFILES.items():
@@ -267,7 +494,7 @@ def gen_ship():
         pp, dp = paint.load(), deck_cut.load()
         for y in range(H):
             for x in range(W):
-                if dp[x, y][3] == 255 and not (HOUSE_TOP + 20 <= y <= HOUSE_TOP + 22 and 26 <= x < 40):
+                if dp[x, y][3] == 255 and not _is_funnel_band(x, y):
                     pp[x, y] = (0, 0, 0, 0)
         # keep the boot-topping red: it is antifouling, not livery
         for y in range(H - 4, H - 1):
@@ -275,7 +502,18 @@ def gen_ship():
                 if pp[x, y][3] and pp[x, y][0] != pp[x, y][1]:
                     pp[x, y] = (0, 0, 0, 0)
         save(paint, "ship_paint" + suffix)
+
+        # trim sheet: one 66x232 frame per pattern, same order as TRIM_PATTERNS
+        clean_cut = new_img(W, H)
+        deck(clean_cut)
+        superstructure(clean_cut)
+        save(sheet([_trim(p, clean_cut) for p in TRIM_PATTERNS]),
+             "ship_trim_" + name, preview_scale=2)
+
+        # the album's side-on portrait
+        save(sheet(_side_frames(name)), "ship_side_" + name, preview_scale=4)
     PROFILE = PROFILES["panamax"]
+    save(_house_layer(), "ship_house")
 
 
 if __name__ == "__main__":

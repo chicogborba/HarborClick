@@ -1,6 +1,7 @@
 """What makes a port not the last one, in pixels.
 
-`ui_flags.png`      6 x 16x11  the flags on the ports chart, in `PortDB.flag` order
+`ui_flags.png`      30 x 16x11 the chart's flags first (`PortDB.flag`), then
+                               the fleet's and the language picker's (`FleetDB.FLAGS`)
 `<sprite>__<suffix>.png`       the active port's own painting of a shared sprite
 
 A port is meant to look like somewhere else at a glance, so it changes three
@@ -102,9 +103,203 @@ def _flag_ae():
     return g
 
 
+# The rest of the world's ensigns: the fleet's registries (`FleetDB.FLAGS`) and
+# the language picker. The frame is painted over the outer pixel afterwards, so
+# the field below is the 14x9 inside it, x 1..14, y 1..9.
+WHITE_F = (244, 244, 244, 255)
+RED_F = (204, 46, 52, 255)
+BLUE_F = (40, 66, 140, 255)
+GOLD_F = (250, 208, 56, 255)
+GREEN_F = (36, 140, 76, 255)
+BLACK_F = (34, 32, 38, 255)
+
+
+def _tricolour_h(top, mid, bottom, split=(4, 7)):
+    g = new_img(16, 11)
+    rect(g, 0, 0, 16, split[0], top)
+    rect(g, 0, split[0], 16, split[1] - split[0], mid)
+    rect(g, 0, split[1], 16, 11 - split[1], bottom)
+    return g
+
+
+def _tricolour_v(left, mid, right):
+    g = new_img(16, 11)
+    rect(g, 0, 0, 6, 11, left)
+    rect(g, 6, 0, 5, 11, mid)
+    rect(g, 11, 0, 5, 11, right)
+    return g
+
+
+def _nordic(field, cross, inner=None):
+    g = new_img(16, 11)
+    rect(g, 0, 0, 16, 11, field)
+    if inner is None:
+        rect(g, 5, 0, 2, 11, cross)
+        rect(g, 0, 4, 16, 2, cross)
+    else:
+        rect(g, 4, 0, 4, 11, cross)
+        rect(g, 0, 3, 16, 4, cross)
+        rect(g, 5, 0, 2, 11, inner)
+        rect(g, 0, 4, 16, 2, inner)
+    return g
+
+
+def _flag_pa():
+    g = new_img(16, 11)
+    rect(g, 0, 0, 8, 5, WHITE_F); rect(g, 8, 0, 8, 5, RED_F)
+    rect(g, 0, 5, 8, 6, BLUE_F); rect(g, 8, 5, 8, 6, WHITE_F)
+    for (x, y, c) in ((4, 2, BLUE_F), (11, 7, RED_F)):
+        px(g, x, y, c); px(g, x - 1, y, c); px(g, x + 1, y, c); px(g, x, y - 1, c); px(g, x, y + 1, c)
+    return g
+
+
+def _flag_lr():
+    g = new_img(16, 11)
+    for y in range(11):
+        hline(g, 0, y, 16, RED_F if y % 2 else WHITE_F)
+    rect(g, 1, 1, 5, 5, BLUE_F)
+    px(g, 3, 3, WHITE_F); px(g, 2, 3, WHITE_F); px(g, 4, 3, WHITE_F); px(g, 3, 2, WHITE_F)
+    return g
+
+
+def _flag_mh():
+    g = new_img(16, 11)
+    rect(g, 0, 0, 16, 11, (34, 62, 136, 255))
+    for i in range(16):
+        y = 10 - (i * 10) // 15
+        px(g, i, y, (240, 140, 52, 255)); px(g, i, y - 1, (240, 140, 52, 255))
+        px(g, i, y - 2, WHITE_F)
+    px(g, 3, 3, WHITE_F); px(g, 2, 3, WHITE_F); px(g, 4, 3, WHITE_F); px(g, 3, 2, WHITE_F); px(g, 3, 4, WHITE_F)
+    return g
+
+
+def _flag_mt():
+    g = new_img(16, 11)
+    rect(g, 0, 0, 8, 11, WHITE_F); rect(g, 8, 0, 8, 11, RED_F)
+    grey = (150, 150, 158, 255)
+    rect(g, 3, 2, 1, 3, grey); rect(g, 2, 3, 3, 1, grey)
+    return g
+
+
+def _flag_gr():
+    g = new_img(16, 11)
+    for y in range(11):
+        hline(g, 0, y, 16, (34, 96, 176, 255) if y % 2 else WHITE_F)
+    rect(g, 1, 1, 5, 5, (34, 96, 176, 255))
+    rect(g, 3, 1, 1, 5, WHITE_F); rect(g, 1, 3, 5, 1, WHITE_F)
+    return g
+
+
+def _flag_gb():
+    g = new_img(16, 11)
+    rect(g, 0, 0, 16, 11, (30, 50, 118, 255))
+    for i in range(16):
+        y = round(i * 10 / 15)
+        for dy in (-1, 0, 1):
+            px(g, i, y + dy, WHITE_F); px(g, i, 10 - y + dy, WHITE_F)
+        px(g, i, y, RED_F); px(g, i, 10 - y, RED_F)
+    rect(g, 6, 0, 4, 11, WHITE_F); rect(g, 0, 4, 16, 3, WHITE_F)
+    rect(g, 7, 0, 2, 11, RED_F); rect(g, 0, 5, 16, 1, RED_F)
+    return g
+
+
+def _flag_es():
+    g = _tricolour_h(RED_F, GOLD_F, RED_F, (3, 8))
+    rect(g, 3, 4, 2, 3, (176, 40, 44, 255))
+    return g
+
+
+def _flag_jp():
+    g = new_img(16, 11)
+    rect(g, 0, 0, 16, 11, WHITE_F)
+    rect(g, 6, 3, 4, 5, (196, 30, 46, 255)); rect(g, 5, 4, 6, 3, (196, 30, 46, 255))
+    return g
+
+
+def _flag_kr():
+    g = new_img(16, 11)
+    rect(g, 0, 0, 16, 11, WHITE_F)
+    rect(g, 6, 3, 4, 2, (196, 40, 52, 255)); rect(g, 5, 4, 6, 1, (196, 40, 52, 255))
+    rect(g, 6, 6, 4, 2, (34, 70, 150, 255)); rect(g, 5, 5, 6, 1, (34, 70, 150, 255))
+    for (x, y) in ((2, 2), (12, 2), (2, 7), (12, 7)):
+        rect(g, x, y, 2, 2, BLACK_F)
+    return g
+
+
+def _flag_pt():
+    g = new_img(16, 11)
+    rect(g, 0, 0, 6, 11, (34, 120, 60, 255)); rect(g, 6, 0, 10, 11, RED_F)
+    rect(g, 5, 3, 3, 5, GOLD_F); rect(g, 4, 4, 5, 3, GOLD_F)
+    px(g, 6, 5, WHITE_F)
+    return g
+
+
+def _flag_in():
+    g = _tricolour_h((240, 140, 52, 255), WHITE_F, (30, 130, 60, 255))
+    px(g, 7, 5, (30, 50, 140, 255)); px(g, 8, 5, (30, 50, 140, 255))
+    return g
+
+
+def _flag_ar():
+    sky = (108, 172, 224, 255)
+    g = _tricolour_h(sky, WHITE_F, sky)
+    px(g, 7, 5, GOLD_F); px(g, 8, 5, GOLD_F)
+    return g
+
+
+def _flag_mx():
+    g = _tricolour_v((0, 110, 70, 255), WHITE_F, (200, 30, 44, 255))
+    rect(g, 7, 4, 2, 3, (140, 96, 50, 255))
+    return g
+
+
+def _flag_tr():
+    g = new_img(16, 11)
+    rect(g, 0, 0, 16, 11, (214, 30, 40, 255))
+    rect(g, 4, 3, 1, 5, WHITE_F); rect(g, 5, 2, 2, 1, WHITE_F); rect(g, 5, 8, 2, 1, WHITE_F)
+    px(g, 7, 3, WHITE_F); px(g, 7, 7, WHITE_F)
+    px(g, 10, 5, WHITE_F); px(g, 9, 5, WHITE_F); px(g, 11, 5, WHITE_F); px(g, 10, 4, WHITE_F); px(g, 10, 6, WHITE_F)
+    return g
+
+
+def _flag_cl():
+    g = new_img(16, 11)
+    rect(g, 0, 0, 16, 6, WHITE_F); rect(g, 0, 6, 16, 5, RED_F)
+    rect(g, 1, 1, 5, 5, (32, 62, 156, 255))
+    px(g, 3, 3, WHITE_F)
+    return g
+
+
+def _flag_ca():
+    g = new_img(16, 11)
+    rect(g, 0, 0, 16, 11, WHITE_F)
+    rect(g, 0, 0, 4, 11, RED_F); rect(g, 12, 0, 4, 11, RED_F)
+    rect(g, 7, 3, 2, 6, RED_F); rect(g, 6, 4, 4, 2, RED_F); px(g, 5, 4, RED_F); px(g, 10, 4, RED_F)
+    return g
+
+
+## Same order as `FleetDB.FLAGS`: the six chart flags first (their indices are
+## `PortDB.flag`), then the registries and the language picker's.
+FLAG_MAKERS = (
+    _flag_br, _flag_us, _flag_cn, _flag_nl, _flag_sg, _flag_ae,
+    _flag_pa, _flag_lr, _flag_mh, _flag_mt, _flag_gr,
+    lambda: _nordic(RED_F, WHITE_F),                                  # DK
+    lambda: _tricolour_h(BLACK_F, (214, 36, 40, 255), GOLD_F),        # DE
+    lambda: _tricolour_v((36, 64, 150, 255), WHITE_F, RED_F),         # FR
+    lambda: _tricolour_v((0, 140, 70, 255), WHITE_F, (206, 40, 46, 255)),  # IT
+    _flag_es, _flag_gb, _flag_jp, _flag_kr,
+    lambda: _nordic((196, 36, 46, 255), WHITE_F, (36, 52, 120, 255)),  # NO
+    _flag_pt, _flag_in, _flag_ar, _flag_mx,
+    lambda: _tricolour_h(WHITE_F, (36, 72, 160, 255), RED_F),         # RU
+    lambda: _tricolour_h(WHITE_F, WHITE_F, RED_F, (3, 6)),            # PL
+    _flag_tr, _flag_cl, _flag_ca,
+    lambda: _nordic((40, 100, 180, 255), GOLD_F),                     # SE
+)
+
+
 def gen_flags():
     frames = []
-    for make in (_flag_br, _flag_us, _flag_cn, _flag_nl, _flag_sg, _flag_ae):
+    for make in FLAG_MAKERS:
         g = make()
         # a one-pixel dark frame so a white stripe never bleeds into paper
         ink = (40, 34, 44, 255)

@@ -228,6 +228,17 @@ func _ready() -> void:
 			"text": "Conquista: %s" % str(item.get("title", "meta cumprida")),
 		}))
 	Progression.album_changed.connect(func() -> void: journal.refresh())
+	# A ship the album had never seen is worth a line in the diary: it is the
+	# moment a silhouette there turns into a picture.
+	Progression.album_ship_added.connect(func(fleet_id: String) -> void:
+		var ship := FleetDB.get_ship(fleet_id)
+		if ship.is_empty():
+			return
+		EventBus.notification_requested.emit({
+			"id": "album_%s" % fleet_id, "kind": &"unlock", "priority": 2,
+			"icon": UiTheme.Icon.SHIP,
+			"text": Loc.t("album.new", {"name": str(ship.name)}),
+		}))
 
 	routes = RouteMap.new()
 	routes.name = "RouteMap"

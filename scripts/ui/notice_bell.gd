@@ -57,6 +57,16 @@ var _trophy: TextureRect
 var _trophy_count: Label
 var _trophy_bar: ProgressBar
 var _detail: Label
+## NAVIOS: the fleet album (`FleetDB`), built once and recoloured on open.
+const SHIP_COLUMNS := 2
+const FLAGS := preload("res://assets/sprites/ui_flags.png")
+var _album: VBoxContainer
+var _ship_cells: Array[Dictionary] = []   # {ship, card, portrait, flag, name, line}
+var _album_count: Label
+var _album_bar: ProgressBar
+var _album_prize: Label
+var _album_claim: Button
+var _album_detail: Label
 ## True while the shut book is dropping out of frame: closed to the game,
 ## still on screen.
 var _closing := false
@@ -105,7 +115,8 @@ func _ready() -> void:
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override(&"separation", 4)
 	column.add_child(tabs)
-	for spec in [["notices", "diary.tab.notices"], ["medals", "diary.tab.medals"]]:
+	for spec in [["notices", "diary.tab.notices"], ["medals", "diary.tab.medals"],
+			["ships", "diary.tab.ships"]]:
 		var key := UiTheme.button(Loc.t(str(spec[1])), &"steel", UiTheme.SIZE_SMALL)
 		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		key.custom_minimum_size.y = 26.0
@@ -138,6 +149,11 @@ func _ready() -> void:
 	_medals.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_medals.visible = false
 	inner.add_child(_medals)
+	_album = VBoxContainer.new()
+	_album.add_theme_constant_override(&"separation", 6)
+	_album.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_album.visible = false
+	inner.add_child(_album)
 	_inner = inner
 
 	_layout()
@@ -253,8 +269,11 @@ func _fill() -> void:
 			break
 		_list.add_child(_row(notice))
 		shown += 1
-	_empty.visible = shown == 0
-	_list.visible = shown > 0
+	# A notice that lands while the book is open at another page refills the
+	# log without turning to it.
+	var on_notices := _tab == "notices"
+	_empty.visible = on_notices and shown == 0
+	_list.visible = on_notices and shown > 0
 
 
 func _history() -> Array:
@@ -388,11 +407,16 @@ func _set_tab(tab: String, turn: bool = true) -> void:
 	if turned:
 		BookFx.flip(_scroll)
 	var medals := tab == "medals"
-	_list.visible = not medals and _list.get_child_count() > 0
-	_empty.visible = not medals and _list.get_child_count() == 0
+	var ships := tab == "ships"
+	var notices := not medals and not ships
+	_list.visible = notices and _list.get_child_count() > 0
+	_empty.visible = notices and _list.get_child_count() == 0
 	_medals.visible = medals
+	_album.visible = ships
 	if medals:
 		_refresh_medals()
+	if ships:
+		_refresh_album()
 	_scroll.scroll_vertical = 0
 
 
@@ -510,3 +534,236 @@ func _on_medal_input(event: InputEvent, item: Dictionary) -> void:
 		int(reward.get("amount", 0))]
 	_detail.label_settings.font_color = UiTheme.TEAL_DEEP if earned else UiTheme.INK
 	AudioManager.play_sfx("tap")
+
+
+# ------------------------------------------------------------------- album
+
+func _build_album() -> void:
+	## Once: the tally with its prize key, the detail line, one card per ship.
+	var card := UiTheme.panel(UiTheme.card_style(&"normal"))
+	_album.add_child(card)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override(&"separation", 3)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(col)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override(&"separation", 6)
+	col.add_child(head)
+	var glyph := UiTheme.icon(UiTheme.Icon.SHIP, 2)
+	glyph.modulate = UiTheme.TEAL_DEEP
+	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(glyph)
+	var texts := VBoxContainer.new()
+	texts.add_theme_constant_override(&"separation", 2)
+	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(texts)
+	texts.add_child(UiTheme.label(Loc.t("album.title"), UiTheme.SIZE_BODY,
+		UiTheme.AMBER_DEEP))
+	_album_count = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+	texts.add_child(_album_count)
+	_album_bar = ProgressBar.new()
+	var styles := UiTheme.bar_styles()
+	_album_bar.add_theme_stylebox_override(&"background", styles[0])
+	_album_bar.add_theme_stylebox_override(&"fill", styles[1])
+	_album_bar.show_percentage = false
+	_album_bar.custom_minimum_size = Vector2(0, 8)
+	_album_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(_album_bar)
+	var prize_row := HBoxContainer.new()
+	prize_row.add_theme_constant_override(&"separation", 6)
+	col.add_child(prize_row)
+	_album_prize = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	_album_prize.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_album_prize.custom_minimum_size.x = 80.0
+	_album_prize.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_album_prize.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	prize_row.add_child(_album_prize)
+	_album_claim = UiTheme.button(Loc.t("album.claim"), &"amber", UiTheme.SIZE_SMALL)
+	_album_claim.custom_minimum_size = Vector2(0, 28)
+	_album_claim.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_album_claim.pressed.connect(_on_album_claim)
+	prize_row.add_child(_album_claim)
+
+	_album_detail = UiTheme.label(Loc.t("album.tap"), UiTheme.SIZE_SMALL,
+		UiTheme.INK_SOFT)
+	_album_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_album_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_album_detail.custom_minimum_size.x = 120.0
+	_album.add_child(_album_detail)
+
+	var grid := GridContainer.new()
+	grid.columns = SHIP_COLUMNS
+	grid.add_theme_constant_override(&"h_separation", 4)
+	grid.add_theme_constant_override(&"v_separation", 4)
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_album.add_child(grid)
+	for ship: Dictionary in FleetDB.album_order():
+		var cell := PanelContainer.new()
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.mouse_filter = Control.MOUSE_FILTER_STOP
+		cell.focus_mode = Control.FOCUS_ALL
+		grid.add_child(cell)
+		var body := VBoxContainer.new()
+		body.add_theme_constant_override(&"separation", 2)
+		body.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(body)
+		var portrait := ShipPortrait.new()
+		portrait.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		body.add_child(portrait)
+		var name_row := HBoxContainer.new()
+		name_row.add_theme_constant_override(&"separation", 3)
+		name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		body.add_child(name_row)
+		var flag := TextureRect.new()
+		var atlas := AtlasTexture.new()
+		atlas.atlas = FLAGS
+		atlas.region = FleetDB.flag_region(StringName(ship.flag))
+		flag.texture = atlas
+		flag.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		flag.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+		flag.custom_minimum_size = FleetDB.FLAG_SIZE
+		flag.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		flag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		name_row.add_child(flag)
+		var title := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK)
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		title.max_lines_visible = 2
+		title.custom_minimum_size.x = 40.0
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		name_row.add_child(title)
+		var line := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+		line.clip_text = true
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		body.add_child(line)
+		cell.gui_input.connect(_on_ship_input.bind(ship))
+		_ship_cells.append({"ship": ship, "card": cell, "portrait": portrait,
+			"flag": flag, "title": title, "line": line, "style": &""})
+
+
+func _refresh_album() -> void:
+	if _ship_cells.is_empty():
+		_build_album()
+	var album: Dictionary = Progression.album
+	var seen := 0
+	for cell: Dictionary in _ship_cells:
+		var ship: Dictionary = cell.ship
+		var known := FleetDB.is_seen(ship, album)
+		if known:
+			seen += 1
+		(cell.portrait as ShipPortrait).set_ship(ship, known)
+		var style: StringName = (&"ready" if str(ship.rarity) == "legend" else &"normal") \
+			if known else &"locked"
+		if style != cell.style:
+			UiTheme.apply_panel(cell.card, UiTheme.card_style(style))
+			cell.style = style
+		(cell.flag as TextureRect).modulate = Color.WHITE if known \
+			else Color(0.16, 0.15, 0.2, 0.55)
+		var title: Label = cell.title
+		title.text = str(ship.name) if known else "???"
+		title.label_settings.font_color = UiTheme.INK if known else UiTheme.INK_SOFT
+		var line: Label = cell.line
+		var port := StringName(ship.get("port", &""))
+		if known:
+			line.text = "%s • %d TEU" % [FleetDB.hull_type(ship), int(ship.capacity)]
+		elif bool(ship.get("special", false)):
+			line.text = Loc.t("album.charter_short")
+		elif port != &"":
+			line.text = str(PortDB.get_port(port).get("name", ""))
+		else:
+			line.text = FleetDB.hull_type(ship)
+		UiTheme.describe(cell.card, title.text, line.text)
+	var total := _ship_cells.size()
+	_album_bar.max_value = total
+	_album_bar.value = seen
+	_album_count.text = Loc.t("album.count", {"n": str(seen), "total": str(total)})
+	var claimable := _claimable_milestone(seen, total)
+	_album_claim.visible = claimable > 0
+	var next := _next_milestone(seen, total)
+	if claimable > 0:
+		_album_prize.text = Loc.t("album.prize_ready", {"n": str(claimable)})
+		_album_prize.label_settings.font_color = UiTheme.AMBER_DEEP
+	elif next > 0:
+		_album_prize.text = Loc.t("album.prize_next", {"n": str(next)})
+		_album_prize.label_settings.font_color = UiTheme.INK_SOFT
+	else:
+		_album_prize.text = Loc.t("album.complete")
+		_album_prize.label_settings.font_color = UiTheme.TEAL_DEEP
+
+
+func _milestones(total: int) -> Array[int]:
+	var out: Array[int] = []
+	var step := FleetDB.MILESTONE_STEP
+	var at := step
+	while at < total:
+		out.append(at)
+		at += step
+	out.append(total)
+	return out
+
+
+func _claimable_milestone(seen: int, total: int) -> int:
+	for milestone in _milestones(total):
+		if seen >= milestone and not Progression.album_milestone_claimed(milestone):
+			return milestone
+	return 0
+
+
+func _next_milestone(seen: int, total: int) -> int:
+	for milestone in _milestones(total):
+		if seen < milestone:
+			return milestone
+	return 0
+
+
+func _on_album_claim() -> void:
+	var total := _ship_cells.size()
+	var seen := FleetDB.seen_count(Progression.album)
+	var milestone := _claimable_milestone(seen, total)
+	if milestone <= 0 or not Progression.claim_album_milestone(milestone, seen):
+		return
+	# Minutes of production, more for each milestone: the last ships are the
+	# rare ones and the far ports.
+	var minutes := Progression.ALBUM_PAGE_SECONDS \
+		* maxf(1.0, float(milestone) / float(FleetDB.MILESTONE_STEP))
+	var amount := GameState.cps * minutes
+	GameState.grant_nonproductive_reward(amount)
+	EventBus.notification_requested.emit({
+		"id": "album_prize_%d" % milestone, "kind": &"unlock", "priority": 2,
+		"icon": UiTheme.Icon.SHIP,
+		"text": Loc.t("album.prize_paid", {"n": str(milestone),
+			"amount": GameState.fmt(amount)}),
+	})
+	AudioManager.play_sfx("coins")
+	_refresh_album()
+
+
+func _on_ship_input(event: InputEvent, ship: Dictionary) -> void:
+	var released: bool = (event is InputEventMouseButton and not event.pressed
+		and event.button_index == MOUSE_BUTTON_LEFT) \
+		or (event is InputEventScreenTouch and not event.pressed) \
+		or (event is InputEventKey and event.pressed
+			and (event.keycode == KEY_ENTER or event.keycode == KEY_SPACE))
+	if not released:
+		return
+	_album_detail.text = ship_detail(ship, FleetDB.is_seen(ship, Progression.album))
+	_album_detail.label_settings.font_color = UiTheme.INK
+	AudioManager.play_sfx("tap")
+
+
+static func ship_detail(ship: Dictionary, known: bool) -> String:
+	## The record printed under the tally when a card is tapped. An unseen ship
+	## says where to look for it rather than nothing: a silhouette with no hint
+	## is a wall, one with a hint is a goal.
+	var rarity := Loc.t("album.rarity.%s" % str(ship.rarity))
+	var port := StringName(ship.get("port", &""))
+	if not known:
+		var hint := Loc.t("album.unseen")
+		if bool(ship.get("special", false)):
+			hint = Loc.t("album.charter")
+		elif port != &"":
+			hint = Loc.t("album.only_port",
+				{"port": str(PortDB.get_port(port).get("name", ""))})
+		return "??? • %s • %s. %s" % [FleetDB.hull_type(ship), rarity, hint]
+	return "%s • %s • %d TEU • %s • %s" % [str(ship.name), FleetDB.hull_type(ship),
+		int(ship.capacity), Loc.t("country.%s" % str(ship.flag)), rarity]

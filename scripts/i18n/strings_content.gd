@@ -154,4 +154,114 @@ const STRINGS := {
 	"pl": "Zawsze trasa, która wraca najszybciej. Małe kadłuby, stała praca, bonus za odjazd częściej.",
 	"tr": "Her zaman en çabuk dönen rota. Küçük gemiler, sürekli iş, kalkış bonusu daha sık."},
 
+
+# --------------------------------------------------------- flags of registry
+# The fleet's flags (`FleetDB.FLAGS`), named for the album card.
+
+"country.br": {
+	"pt_BR": "Brasil", "en": "Brazil", "es": "Brasil", "fr": "Brésil",
+	"de": "Brasilien", "it": "Brasile", "ru": "Бразилия", "pl": "Brazylia",
+	"tr": "Brezilya"},
+"country.us": {
+	"pt_BR": "EUA", "en": "USA", "es": "EE. UU.", "fr": "États-Unis", "de": "USA",
+	"it": "USA", "ru": "США", "pl": "USA", "tr": "ABD"},
+"country.cn": {
+	"pt_BR": "China", "en": "China", "es": "China", "fr": "Chine", "de": "China",
+	"it": "Cina", "ru": "Китай", "pl": "Chiny", "tr": "Çin"},
+"country.nl": {
+	"pt_BR": "Países Baixos", "en": "Netherlands", "es": "Países Bajos",
+	"fr": "Pays-Bas", "de": "Niederlande", "it": "Paesi Bassi", "ru": "Нидерланды",
+	"pl": "Holandia", "tr": "Hollanda"},
+"country.sg": {
+	"pt_BR": "Singapura", "en": "Singapore", "es": "Singapur", "fr": "Singapour",
+	"de": "Singapur", "it": "Singapore", "ru": "Сингапур", "pl": "Singapur",
+	"tr": "Singapur"},
+"country.ae": {
+	"pt_BR": "Emirados Árabes", "en": "UAE", "es": "Emiratos Árabes",
+	"fr": "Émirats arabes unis", "de": "VAE", "it": "Emirati Arabi", "ru": "ОАЭ",
+	"pl": "ZEA", "tr": "BAE"},
+"country.pa": {
+	"pt_BR": "Panamá", "en": "Panama", "es": "Panamá", "fr": "Panama", "de": "Panama",
+	"it": "Panama", "ru": "Панама", "pl": "Panama", "tr": "Panama"},
+"country.lr": {
+	"pt_BR": "Libéria", "en": "Liberia", "es": "Liberia", "fr": "Liberia",
+	"de": "Liberia", "it": "Liberia", "ru": "Либерия", "pl": "Liberia", "tr": "Liberya"},
+"country.mh": {
+	"pt_BR": "Ilhas Marshall", "en": "Marshall Islands", "es": "Islas Marshall",
+	"fr": "Îles Marshall", "de": "Marshallinseln", "it": "Isole Marshall",
+	"ru": "Маршалловы Острова", "pl": "Wyspy Marshalla", "tr": "Marshall Adaları"},
+"country.mt": {
+	"pt_BR": "Malta", "en": "Malta", "es": "Malta", "fr": "Malte", "de": "Malta",
+	"it": "Malta", "ru": "Мальта", "pl": "Malta", "tr": "Malta"},
+"country.gr": {
+	"pt_BR": "Grécia", "en": "Greece", "es": "Grecia", "fr": "Grèce",
+	"de": "Griechenland", "it": "Grecia", "ru": "Греция", "pl": "Grecja",
+	"tr": "Yunanistan"},
+"country.dk": {
+	"pt_BR": "Dinamarca", "en": "Denmark", "es": "Dinamarca", "fr": "Danemark",
+	"de": "Dänemark", "it": "Danimarca", "ru": "Дания", "pl": "Dania",
+	"tr": "Danimarka"},
+"country.de": {
+	"pt_BR": "Alemanha", "en": "Germany", "es": "Alemania", "fr": "Allemagne",
+	"de": "Deutschland", "it": "Germania", "ru": "Германия", "pl": "Niemcy",
+	"tr": "Almanya"},
+"country.fr": {
+	"pt_BR": "França", "en": "France", "es": "Francia", "fr": "France",
+	"de": "Frankreich", "it": "Francia", "ru": "Франция", "pl": "Francja",
+	"tr": "Fransa"},
+"country.it": {
+	"pt_BR": "Itália", "en": "Italy", "es": "Italia", "fr": "Italie", "de": "Italien",
+	"it": "Italia", "ru": "Италия", "pl": "Włochy", "tr": "İtalya"},
+"country.es": {
+	"pt_BR": "Espanha", "en": "Spain", "es": "España", "fr": "Espagne",
+	"de": "Spanien", "it": "Spagna", "ru": "Испания", "pl": "Hiszpania",
+	"tr": "İspanya"},
+"country.gb": {
+	"pt_BR": "Reino Unido", "en": "United Kingdom", "es": "Reino Unido",
+	"fr": "Royaume-Uni", "de": "Vereinigtes Königreich", "it": "Regno Unito",
+	"ru": "Великобритания", "pl": "Wielka Brytania", "tr": "Birleşik Krallık"},
+"country.jp": {
+	"pt_BR": "Japão", "en": "Japan", "es": "Japón", "fr": "Japon", "de": "Japan",
+	"it": "Giappone", "ru": "Япония", "pl": "Japonia", "tr": "Japonya"},
+"country.kr": {
+	"pt_BR": "Coreia do Sul", "en": "South Korea", "es": "Corea del Sur",
+	"fr": "Corée du Sud", "de": "Südkorea", "it": "Corea del Sud",
+	"ru": "Южная Корея", "pl": "Korea Płd.", "tr": "Güney Kore"},
+"country.no": {
+	"pt_BR": "Noruega", "en": "Norway", "es": "Noruega", "fr": "Norvège",
+	"de": "Norwegen", "it": "Norvegia", "ru": "Норвегия", "pl": "Norwegia",
+	"tr": "Norveç"},
+"country.pt": {
+	"pt_BR": "Portugal", "en": "Portugal", "es": "Portugal", "fr": "Portugal",
+	"de": "Portugal", "it": "Portogallo", "ru": "Португалия", "pl": "Portugalia",
+	"tr": "Portekiz"},
+"country.in": {
+	"pt_BR": "Índia", "en": "India", "es": "India", "fr": "Inde", "de": "Indien",
+	"it": "India", "ru": "Индия", "pl": "Indie", "tr": "Hindistan"},
+"country.ar": {
+	"pt_BR": "Argentina", "en": "Argentina", "es": "Argentina", "fr": "Argentine",
+	"de": "Argentinien", "it": "Argentina", "ru": "Аргентина", "pl": "Argentyna",
+	"tr": "Arjantin"},
+"country.mx": {
+	"pt_BR": "México", "en": "Mexico", "es": "México", "fr": "Mexique",
+	"de": "Mexiko", "it": "Messico", "ru": "Мексика", "pl": "Meksyk", "tr": "Meksika"},
+"country.ru": {
+	"pt_BR": "Rússia", "en": "Russia", "es": "Rusia", "fr": "Russie",
+	"de": "Russland", "it": "Russia", "ru": "Россия", "pl": "Rosja", "tr": "Rusya"},
+"country.pl": {
+	"pt_BR": "Polônia", "en": "Poland", "es": "Polonia", "fr": "Pologne",
+	"de": "Polen", "it": "Polonia", "ru": "Польша", "pl": "Polska", "tr": "Polonya"},
+"country.tr": {
+	"pt_BR": "Turquia", "en": "Türkiye", "es": "Turquía", "fr": "Turquie",
+	"de": "Türkei", "it": "Turchia", "ru": "Турция", "pl": "Turcja", "tr": "Türkiye"},
+"country.cl": {
+	"pt_BR": "Chile", "en": "Chile", "es": "Chile", "fr": "Chili", "de": "Chile",
+	"it": "Cile", "ru": "Чили", "pl": "Chile", "tr": "Şili"},
+"country.ca": {
+	"pt_BR": "Canadá", "en": "Canada", "es": "Canadá", "fr": "Canada", "de": "Kanada",
+	"it": "Canada", "ru": "Канада", "pl": "Kanada", "tr": "Kanada"},
+"country.se": {
+	"pt_BR": "Suécia", "en": "Sweden", "es": "Suecia", "fr": "Suède",
+	"de": "Schweden", "it": "Svezia", "ru": "Швеция", "pl": "Szwecja", "tr": "İsveç"},
+
 }

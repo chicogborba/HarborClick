@@ -92,6 +92,26 @@ const STRINGS := {
 	"fr": "ZONE DANGEREUSE", "de": "GEFAHRENZONE", "it": "ZONA PERICOLOSA",
 	"ru": "ОПАСНАЯ ЗОНА", "pl": "STREFA RYZYKA", "tr": "TEHLİKELİ BÖLGE"},
 
+"settings.tab.sound": {
+	"pt_BR": "SOM", "en": "SOUND", "es": "SONIDO", "fr": "SON", "de": "TON",
+	"it": "AUDIO", "ru": "ЗВУК", "pl": "DŹWIĘK", "tr": "SES"},
+
+"settings.tab.display": {
+	"pt_BR": "TELA", "en": "SCREEN", "es": "PANTALLA", "fr": "ÉCRAN", "de": "ANZEIGE",
+	"it": "SCHERMO", "ru": "ЭКРАН", "pl": "EKRAN", "tr": "EKRAN"},
+
+"settings.tab.language": {
+	"pt_BR": "IDIOMA", "en": "LANGUAGE", "es": "IDIOMA", "fr": "LANGUE",
+	"de": "SPRACHE", "it": "LINGUA", "ru": "ЯЗЫК", "pl": "JĘZYK", "tr": "DİL"},
+
+"settings.tab.data": {
+	"pt_BR": "DADOS", "en": "DATA", "es": "DATOS", "fr": "DONNÉES", "de": "DATEN",
+	"it": "DATI", "ru": "ДАННЫЕ", "pl": "DANE", "tr": "VERİ"},
+
+"settings.language.device": {
+	"pt_BR": "Do aparelho", "en": "Device", "es": "Del equipo", "fr": "Appareil",
+	"de": "Gerät", "it": "Dispositivo", "ru": "Как в системе", "pl": "Urządzenie",
+	"tr": "Cihaz"},
 "settings.music": {
 	"pt_BR": "Música", "en": "Music", "es": "Música", "fr": "Musique",
 	"de": "Musik", "it": "Musica", "ru": "Музыка", "pl": "Muzyka",
@@ -860,6 +880,104 @@ const STRINGS := {
 	"pt_BR": "{n} / {total} medalhas", "en": "{n} / {total} medals", "es": "{n} / {total} medallas", "fr": "{n} / {total} médailles", "de": "{n} / {total} Medaillen", "it": "{n} / {total} medaglie", "ru": "{n} / {total} медалей", "pl": "{n} / {total} medali", "tr": "{n} / {total} madalya"},
 "diary.tap_medal": {
 	"pt_BR": "Toque numa medalha para ver o que ela pede.", "en": "Tap a medal to see what it asks for.", "es": "Toca una medalla para ver qué pide.", "fr": "Touche une médaille pour voir ce qu'elle demande.", "de": "Tippe auf eine Medaille, um zu sehen, was sie verlangt.", "it": "Tocca una medaglia per vedere cosa chiede.", "ru": "Нажми на медаль, чтобы увидеть условие.", "pl": "Stuknij medal, aby zobaczyć, czego wymaga.", "tr": "Ne istediğini görmek için bir madalyaya dokun."},
+"diary.tab.ships": {
+	"pt_BR": "NAVIOS", "en": "SHIPS", "es": "BARCOS", "fr": "NAVIRES",
+	"de": "SCHIFFE", "it": "NAVI", "ru": "СУДА", "pl": "STATKI", "tr": "GEMİLER"},
+"album.title": {
+	"pt_BR": "ÁLBUM DE NAVIOS", "en": "SHIP ALBUM", "es": "ÁLBUM DE BARCOS",
+	"fr": "ALBUM DES NAVIRES", "de": "SCHIFFSALBUM", "it": "ALBUM DELLE NAVI",
+	"ru": "АЛЬБОМ СУДОВ", "pl": "ALBUM STATKÓW", "tr": "GEMİ ALBÜMÜ"},
+"album.count": {
+	"pt_BR": "{n} / {total} navios vistos", "en": "{n} / {total} ships seen",
+	"es": "{n} / {total} barcos vistos", "fr": "{n} / {total} navires vus",
+	"de": "{n} / {total} Schiffe gesehen", "it": "{n} / {total} navi viste",
+	"ru": "Замечено судов: {n} / {total}", "pl": "Widziane statki: {n} / {total}",
+	"tr": "{n} / {total} gemi görüldü"},
+"album.tap": {
+	"pt_BR": "Cada navio que atraca entra no álbum. Toque num para ver a ficha.",
+	"en": "Every ship that berths goes in the album. Tap one for its record.",
+	"es": "Cada barco que atraca entra en el álbum. Toca uno para ver su ficha.",
+	"fr": "Chaque navire qui accoste entre dans l'album. Touche-en un pour sa fiche.",
+	"de": "Jedes Schiff, das anlegt, kommt ins Album. Tippe eins an für seine Daten.",
+	"it": "Ogni nave che attracca entra nell'album. Toccane una per la scheda.",
+	"ru": "Каждое судно у причала попадает в альбом. Нажми, чтобы увидеть карточку.",
+	"pl": "Każdy statek, który przybije, trafia do albumu. Stuknij, by zobaczyć kartę.",
+	"tr": "Yanaşan her gemi albüme girer. Künyesi için birine dokun."},
+"album.claim": {
+	"pt_BR": "RESGATAR", "en": "CLAIM", "es": "RECLAMAR", "fr": "RÉCUPÉRER",
+	"de": "ABHOLEN", "it": "RISCATTA", "ru": "ЗАБРАТЬ", "pl": "ODBIERZ", "tr": "AL"},
+"album.prize_ready": {
+	"pt_BR": "Prêmio de {n} navios pronto!", "en": "{n}-ship prize ready!",
+	"es": "¡Premio de {n} barcos listo!", "fr": "Prix des {n} navires prêt !",
+	"de": "Preis für {n} Schiffe bereit!", "it": "Premio per {n} navi pronto!",
+	"ru": "Награда за {n} судов готова!", "pl": "Nagroda za {n} statków gotowa!",
+	"tr": "{n} gemi ödülü hazır!"},
+"album.prize_next": {
+	"pt_BR": "Próximo prêmio com {n} navios.", "en": "Next prize at {n} ships.",
+	"es": "Próximo premio con {n} barcos.", "fr": "Prochain prix à {n} navires.",
+	"de": "Nächster Preis bei {n} Schiffen.", "it": "Prossimo premio a {n} navi.",
+	"ru": "Следующая награда: {n} судов.",
+	"pl": "Następna nagroda przy {n} statkach.", "tr": "Sonraki ödül {n} gemide."},
+"album.complete": {
+	"pt_BR": "Álbum completo. Todo navio do mundo já passou por aqui.",
+	"en": "Album complete. Every ship in the world has called here.",
+	"es": "Álbum completo. Todos los barcos del mundo ya pasaron por aquí.",
+	"fr": "Album complet. Tous les navires du monde sont passés ici.",
+	"de": "Album komplett. Jedes Schiff der Welt hat hier angelegt.",
+	"it": "Album completo. Ogni nave del mondo è passata di qui.",
+	"ru": "Альбом собран. Здесь побывали все суда мира.",
+	"pl": "Album pełny. Każdy statek świata już tu był.",
+	"tr": "Albüm tamam. Dünyadaki her gemi buraya uğradı."},
+"album.prize_paid": {
+	"pt_BR": "Álbum: {n} navios! +{amount} TEU",
+	"en": "Album: {n} ships! +{amount} TEU",
+	"es": "Álbum: ¡{n} barcos! +{amount} TEU",
+	"fr": "Album : {n} navires ! +{amount} TEU",
+	"de": "Album: {n} Schiffe! +{amount} TEU", "it": "Album: {n} navi! +{amount} TEU",
+	"ru": "Альбом: {n} судов! +{amount} TEU",
+	"pl": "Album: {n} statków! +{amount} TEU", "tr": "Albüm: {n} gemi! +{amount} TEU"},
+"album.new": {
+	"pt_BR": "Navio novo no álbum: {name}", "en": "New ship in the album: {name}",
+	"es": "Barco nuevo en el álbum: {name}",
+	"fr": "Nouveau navire dans l'album : {name}",
+	"de": "Neues Schiff im Album: {name}", "it": "Nave nuova nell'album: {name}",
+	"ru": "Новое судно в альбоме: {name}", "pl": "Nowy statek w albumie: {name}",
+	"tr": "Albümde yeni gemi: {name}"},
+"album.unseen": {
+	"pt_BR": "Ainda não atracou aqui.", "en": "Has not berthed here yet.",
+	"es": "Aún no ha atracado aquí.", "fr": "N'a pas encore accosté ici.",
+	"de": "Hat hier noch nicht angelegt.", "it": "Non ha ancora attraccato qui.",
+	"ru": "Ещё не швартовалось здесь.", "pl": "Jeszcze tu nie przybił.",
+	"tr": "Henüz buraya yanaşmadı."},
+"album.only_port": {
+	"pt_BR": "Só atraca em {port}.", "en": "Only calls at {port}.",
+	"es": "Solo atraca en {port}.", "fr": "N'accoste qu'à {port}.",
+	"de": "Legt nur in {port} an.", "it": "Attracca solo a {port}.",
+	"ru": "Заходит только в {port}.", "pl": "Zawija tylko do {port}.",
+	"tr": "Yalnızca {port} limanına uğrar."},
+"album.charter": {
+	"pt_BR": "Só vem num fretamento especial.",
+	"en": "Only comes on a special charter.",
+	"es": "Solo viene en un flete especial.",
+	"fr": "Ne vient qu'en affrètement spécial.",
+	"de": "Kommt nur bei einer Sondercharter.",
+	"it": "Arriva solo con un noleggio speciale.",
+	"ru": "Приходит только по спецфрахту.",
+	"pl": "Przypływa tylko na specjalny czarter.",
+	"tr": "Yalnızca özel kiralamada gelir."},
+"album.charter_short": {
+	"pt_BR": "Fretamento", "en": "Charter", "es": "Flete", "fr": "Affrètement",
+	"de": "Charter", "it": "Noleggio", "ru": "Фрахт", "pl": "Czarter", "tr": "Kiralama"},
+"album.rarity.common": {
+	"pt_BR": "Comum", "en": "Common", "es": "Común", "fr": "Commun", "de": "Häufig",
+	"it": "Comune", "ru": "Обычное", "pl": "Zwykły", "tr": "Yaygın"},
+"album.rarity.rare": {
+	"pt_BR": "Raro", "en": "Rare", "es": "Raro", "fr": "Rare", "de": "Selten",
+	"it": "Raro", "ru": "Редкое", "pl": "Rzadki", "tr": "Nadir"},
+"album.rarity.legend": {
+	"pt_BR": "Lendário", "en": "Legendary", "es": "Legendario", "fr": "Légendaire",
+	"de": "Legendär", "it": "Leggendario", "ru": "Легендарное", "pl": "Legendarny",
+	"tr": "Efsanevi"},
 "shop.requires": {
 	"pt_BR": "Requer: {name}", "en": "Needs: {name}", "es": "Requiere: {name}",
 	"fr": "Nécessite : {name}", "de": "Erfordert: {name}",

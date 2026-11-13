@@ -19,6 +19,12 @@ const HULL_FALLBACK := preload("res://assets/sprites/ship_top.png")
 ## The livery layer: only the painted hull and the funnel band, on the same
 ## 66x232 canvas as `ship_top.png`. The livery tints this and nothing else.
 const HULL_PAINT := preload("res://assets/sprites/ship_paint.png")
+## The house alone, for the ships whose accommodation is not white.
+const HULL_HOUSE := preload("res://assets/sprites/ship_house.png")
+const FLAGS := preload("res://assets/sprites/ui_flags.png")
+## Where the ensign is painted: the clear forecastle between the windlasses and
+## the breakwater, the one patch of deck no box ever stands on.
+const FLAG_POS := Vector2(25.0, 23.0)
 const ROPE := preload("res://assets/sprites/prop_rope.png")
 const ROPE_KNOT := preload("res://assets/sprites/prop_rope_knot.png")
 ## One line forward, one aft. Four — with springs — read as spaghetti at this
@@ -48,6 +54,9 @@ var phase: Phase = Phase.AWAY
 var berth_index := 0
 var _outline: Node2D
 var _paint: Sprite2D
+var _house: Sprite2D
+var _trim: Sprite2D
+var _ensign: Sprite2D
 var _hull: Sprite2D
 var _shadow: Sprite2D
 var _cargo: Node2D
@@ -120,6 +129,26 @@ func _ready() -> void:
 	_paint.texture = HULL_PAINT
 	_paint.centered = false
 	_hull.add_child(_paint)
+	_house = Sprite2D.new()
+	_house.name = "House"
+	_house.texture = HULL_HOUSE
+	_house.centered = false
+	_house.visible = false
+	_hull.add_child(_house)
+	_trim = Sprite2D.new()
+	_trim.name = "Trim"
+	_trim.centered = false
+	_trim.region_enabled = true
+	_trim.visible = false
+	_hull.add_child(_trim)
+	_ensign = Sprite2D.new()
+	_ensign.name = "Ensign"
+	_ensign.texture = FLAGS
+	_ensign.centered = false
+	_ensign.region_enabled = true
+	_ensign.position = FLAG_POS
+	_ensign.visible = false
+	_hull.add_child(_ensign)
 	_cargo = Node2D.new()
 	add_child(_cargo)
 	_build_navigation_lights()
@@ -592,9 +621,36 @@ func _apply_ship_variant() -> void:
 	# or bottle green, and every ship in the game came in one muddy colour.
 	_hull.modulate = Color.WHITE
 	_paint.self_modulate = Color(str(ship_variant.get("hull_color", "#ffffff")))
+	_apply_fleet_layers()
 	# Foam is white whatever the livery; the palette only leans it a little.
 	_wake.tint = Color.WHITE.lerp(
 		Color(str(ship_variant.get("wake_color", "#ffffff"))), 0.25)
+
+
+func _apply_fleet_layers() -> void:
+	## A named ship's second colour, its house and its flag. A variant from
+	## before the fleet (a bare "class:palette") has none of them and shows none.
+	var trim_sprite := str(ship_variant.get("trim_sprite", ""))
+	var trim_path := "res://assets/sprites/%s.png" % trim_sprite
+	_trim.visible = not trim_sprite.is_empty() and ResourceLoader.exists(trim_path)
+	if _trim.visible:
+		_trim.texture = load(trim_path)
+		var frame := int(ship_variant.get("trim_frame", 0))
+		_trim.region_rect = Rect2(frame * 66.0, 0.0, 66.0, 232.0)
+		_trim.self_modulate = Color(str(ship_variant.get("trim_color", "#ffffff")))
+	# Only a house that is not white is painted over: a port's own drawing of
+	# the house (`ship_top__cn`) is left alone for the white ones.
+	var house := Color(str(ship_variant.get("house_color", "#ffffff")))
+	_house.visible = not house.is_equal_approx(Color.WHITE)
+	_house.self_modulate = house
+	var flag := str(ship_variant.get("flag", ""))
+	_ensign.visible = not flag.is_empty()
+	if _ensign.visible:
+		_ensign.region_rect = FleetDB.flag_region(StringName(flag))
+
+
+func ship_name() -> String:
+	return str(ship_variant.get("name", ""))
 
 
 func _hull_texture() -> Texture2D:
@@ -1026,6 +1082,10 @@ func restore(data: Dictionary) -> void:
 func _restore_variant(raw: Variant) -> Dictionary:
 	if not raw is Dictionary:
 		return {}
+	if not str(raw.get("fleet_id", "")).is_empty():
+		var fleet := ShipCatalog.restore_ship(raw)
+		if not fleet.is_empty():
+			return fleet
 	var silhouette_id := StringName(raw.get("silhouette_id", ""))
 	var palette_id := StringName(raw.get("palette_id", ""))
 	var silhouette := ShipCatalog.get_silhouette(silhouette_id)

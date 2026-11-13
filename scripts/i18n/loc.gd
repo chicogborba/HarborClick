@@ -31,17 +31,18 @@ const FOLLOW_DEVICE := &"auto"
 
 ## Every language the game is actually translated into. `native` is what the
 ## picker shows: a language list written in the language you are looking for is
-## the one list a person who cannot read the current one can still use.
+## the one list a person who cannot read the current one can still use. `flag`
+## is the `FleetDB.FLAGS` code its tile in the settings shows (English: the UK).
 const LANGUAGES: Array[Dictionary] = [
-	{"code": &"pt_BR", "native": "Português", "tag": "PT"},
-	{"code": &"en", "native": "English", "tag": "EN"},
-	{"code": &"es", "native": "Español", "tag": "ES"},
-	{"code": &"fr", "native": "Français", "tag": "FR"},
-	{"code": &"de", "native": "Deutsch", "tag": "DE"},
-	{"code": &"it", "native": "Italiano", "tag": "IT"},
-	{"code": &"ru", "native": "Русский", "tag": "RU"},
-	{"code": &"pl", "native": "Polski", "tag": "PL"},
-	{"code": &"tr", "native": "Türkçe", "tag": "TR"},
+	{"code": &"pt_BR", "native": "Português", "tag": "PT", "flag": &"br"},
+	{"code": &"en", "native": "English", "tag": "EN", "flag": &"gb"},
+	{"code": &"es", "native": "Español", "tag": "ES", "flag": &"es"},
+	{"code": &"fr", "native": "Français", "tag": "FR", "flag": &"fr"},
+	{"code": &"de", "native": "Deutsch", "tag": "DE", "flag": &"de"},
+	{"code": &"it", "native": "Italiano", "tag": "IT", "flag": &"it"},
+	{"code": &"ru", "native": "Русский", "tag": "RU", "flag": &"ru"},
+	{"code": &"pl", "native": "Polski", "tag": "PL", "flag": &"pl"},
+	{"code": &"tr", "native": "Türkçe", "tag": "TR", "flag": &"tr"},
 ]
 
 ## What an untranslated key falls back to. English rather than the original

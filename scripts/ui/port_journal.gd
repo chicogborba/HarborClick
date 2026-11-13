@@ -21,8 +21,10 @@ signal objective_pinned(id: StringName)
 ## come on their own.
 signal arcade_requested
 
+## The ship album moved to the port diary (`NoticeBell`, NAVIOS), next to the
+## medals: it is a collection, and the diary is where the port keeps those.
 const TABS := [["next", "PRÓXIMAS"], ["all", "TODAS"], ["troph", "TROFÉUS"],
-	["crew", "EQUIPE"], ["album", "ÁLBUM"]]
+	["crew", "EQUIPE"]]
 
 ## The trophy board's twelve branches, in the order they are shown, with the
 ## medallion struck for each and the word the player reads.
@@ -450,58 +452,6 @@ class _Cup extends Control:
 					float(dot[2]) * k, float(dot[3]) * k), Color8(196, 56, 48))
 
 
-func _build_album_page() -> void:
-	## C7 — the ship album: one card per silhouette, a chip per livery, lit when
-	# that hull×paint has actually arrived. A complete page pays a lump once.
-	var heading := UiTheme.label("ÁLBUM DE NAVIOS", UiTheme.SIZE_BODY, UiTheme.BOOK_INK)
-	_list.add_child(heading)
-	_list.add_child(UiTheme.divider())
-	for silhouette in ShipCatalog.SILHOUETTES:
-		var sid := String(silhouette.id)
-		var page: Dictionary = Progression.album_page(sid, ShipCatalog.PALETTES.size())
-		var card := PanelContainer.new()
-		UiTheme.apply_panel(card, UiTheme.card_style(
-			&"done" if page.complete and page.claimed else &"normal"))
-		_list.add_child(card)
-		var col := VBoxContainer.new()
-		col.add_theme_constant_override(&"separation", 3)
-		card.add_child(col)
-		var head := HBoxContainer.new()
-		head.add_theme_constant_override(&"separation", 6)
-		col.add_child(head)
-		var title := UiTheme.label(str(silhouette.title), UiTheme.SIZE_BODY, UiTheme.INK)
-		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		title.clip_text = true
-		head.add_child(title)
-		head.add_child(UiTheme.stamp("%d/%d" % [int(page.seen), int(page.total)],
-			UiTheme.AMBER if page.complete else UiTheme.STEEL_DIM, UiTheme.SIZE_SMALL))
-		if page.complete and not page.claimed:
-			var claim := UiTheme.button("RESGATAR", &"amber", UiTheme.SIZE_SMALL)
-			claim.custom_minimum_size.y = UiTheme.TOUCH_MIN
-			claim.pressed.connect(func() -> void:
-				if Progression.claim_album_page(sid, ShipCatalog.PALETTES.size()):
-					var amount := GameState.cps * Progression.ALBUM_PAGE_SECONDS
-					GameState.grant_nonproductive_reward(amount)
-					EventBus.notification_requested.emit({
-						"id": "album_%s" % sid, "kind": &"unlock", "priority": 2,
-						"text": "%s completo: +%s TEU" % [str(silhouette.title),
-							GameState.fmt(amount)],
-					})
-					AudioManager.play_sfx("coins")
-				_refresh())
-			head.add_child(claim)
-		var chips := HBoxContainer.new()
-		chips.add_theme_constant_override(&"separation", 4)
-		col.add_child(chips)
-		for palette in ShipCatalog.PALETTES:
-			var chip := ColorRect.new()
-			chip.custom_minimum_size = Vector2(26.0, 18.0)
-			chip.color = Color(str(palette.hull))
-			if not Progression.album_seen(sid, String(palette.id)):
-				chip.modulate = Color(1, 1, 1, 0.25)
-			chips.add_child(chip)
-
-
 func _build_crew_page() -> void:
 	## Who works here, what each of them is on right now, and the charter record.
 	## The whole crew in one place was the thing the individual dossiers could not
@@ -613,8 +563,6 @@ func _refresh() -> void:
 		_build_crew_page()
 	elif _active_tab == "troph":
 		_build_trophy_page()
-	elif _active_tab == "album":
-		_build_album_page()
 	else:
 		if _active_tab == "next" and FeatureGate.unlocked(&"charters"):
 			_list.add_child(_arcade_row())
