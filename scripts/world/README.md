@@ -299,3 +299,9 @@ priced. Both exist because the berth counts a transfer as in flight until it
 lands — so a box that waits is a ship that cannot change phase and a tap that
 does nothing. `tests/relay_test_runner.gd` books a tractor that never turns up
 and asserts the box still lands promptly.
+
+## Land works and the scanner's parcel
+
+`land_works_site.gd` draws a parcel under construction south of the pavement
+(`PortLayout.land_works_rect`). `xray_station.gd` stands on the band the second
+parcel adds (`PortLayout.scanner_band_h`), hidden until that parcel is paved.

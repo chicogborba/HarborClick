@@ -64,6 +64,21 @@ const RAW_ITEMS: Array[Dictionary] = [
 ]
 static var ITEMS: Array[Dictionary] = EconomyMath.paced(RAW_ITEMS)
 
+## Minutes of works per parcel, in ladder order. Ground is not bought, it is
+## *made*: paying starts the works and the parcel joins the terminal when they
+## finish. The first is a coffee break; the last is an afternoon. An ad skips
+## whatever is left (`GameState.finish_land_works`).
+const BUILD_MINUTES: Array[float] = [5.0, 10.0, 15.0, 20.0, 30.0, 45.0, 60.0, 90.0]
+## Where the abandoned scanner stands: the second parcel, once it is paved.
+const SCANNER_PARCEL := "patio_sul"
+
+
+static func build_seconds(id: String) -> float:
+	for index in ITEMS.size():
+		if str(ITEMS[index].id) == id:
+			return BUILD_MINUTES[mini(index, BUILD_MINUTES.size() - 1)] * 60.0
+	return 0.0
+
 
 static func apply_port() -> void:
 	## The same parcels, under the names the active port gives its ground.

@@ -38,6 +38,8 @@ var _tab_buttons: Dictionary = {}
 var _buy_buttons: Dictionary = {}
 var _teaser: ShopCard
 var _land_empty: Label
+## The parcel being paved: its name, a clock, a bar and the key that skips it.
+var _works: Dictionary = {}
 var _open := false
 var _active := "structures"
 var _refresh_timer := 0.0
@@ -94,6 +96,7 @@ func _ready() -> void:
 	EventBus.structure_bought.connect(func(_a: String, _b: int) -> void: _refresh())
 	EventBus.upgrade_bought.connect(func(_a: String) -> void: _refresh_upgrades())
 	EventBus.land_bought.connect(func(_a: String) -> void: _refresh())
+	EventBus.land_works_changed.connect(func() -> void: _dirty = true)
 	_refresh()
 	_layout()
 
@@ -675,6 +678,7 @@ func _rebuild_land() -> void:
 	var list: VBoxContainer = _lists["land"]
 	for child in list.get_children():
 		child.queue_free()
+	_build_works_card(list)
 	for item in LandDB.ITEMS:
 		var card := ShopCard.new()
 		card.setup(item.id, "land", "_land", item.name, item.desc)
@@ -689,6 +693,63 @@ func _rebuild_land() -> void:
 	_land_empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_land_empty.visible = false
 	list.add_child(_land_empty)
+
+
+func _build_works_card(list: VBoxContainer) -> void:
+	## Ground is made, not bought: paying for a parcel starts the works, and
+	## this is where they are watched — and skipped, for an advertisement.
+	var card := UiTheme.panel(UiTheme.card_style(&"ready"), false)
+	card.visible = false
+	list.add_child(card)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override(&"separation", 4)
+	card.add_child(col)
+	var title := UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.AMBER_DEEP)
+	title.clip_text = true
+	col.add_child(title)
+	var bar := ProgressBar.new()
+	var styles := UiTheme.bar_styles()
+	bar.add_theme_stylebox_override(&"background", styles[0])
+	bar.add_theme_stylebox_override(&"fill", styles[1])
+	bar.show_percentage = false
+	bar.max_value = 1.0
+	bar.custom_minimum_size = Vector2(0.0, 10.0)
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(bar)
+	var left := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK)
+	left.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	left.custom_minimum_size.x = 120.0
+	col.add_child(left)
+	var skip := UiTheme.button(Loc.t("shop.land.skip"), &"amber", UiTheme.SIZE_SMALL)
+	skip.icon = UiTheme.icon16_texture(UiTheme.Icon16.AD)
+	skip.custom_minimum_size.y = UiTheme.TOUCH_MIN
+	skip.pressed.connect(_on_skip_land_works)
+	col.add_child(skip)
+	_works = {"card": card, "title": title, "bar": bar, "left": left, "skip": skip}
+
+
+func _refresh_works_card() -> void:
+	if _works.is_empty() or not is_instance_valid(_works.card):
+		return
+	var works := GameState.land_works
+	(_works.card as Control).visible = not works.is_empty()
+	if works.is_empty():
+		return
+	var total := maxf(1.0, float(works.total))
+	var left := maxf(0.0, float(works.left))
+	(_works.title as Label).text = Loc.t("shop.land.works",
+		{"name": str(LandDB.get_item(str(works.id)).get("name", ""))})
+	(_works.bar as ProgressBar).value = 1.0 - left / total
+	(_works.left as Label).text = Loc.t("shop.land.works.left",
+		{"time": "%d:%02d" % [int(left) / 60, int(left) % 60]})
+	(_works.skip as Button).visible = AdService.available(&"land_skip")
+
+
+func _on_skip_land_works() -> void:
+	if GameState.land_works.is_empty():
+		return
+	if not AdService.show_rewarded(&"land_skip", GameState.finish_land_works):
+		AudioManager.play_sfx("deny")
 
 
 func _build_cosmetics() -> void:
@@ -1381,7 +1442,7 @@ func has_affordable() -> bool:
 		if not GameState.has_upgrade(item.id) and GameState.upgrade_available(item) \
 				and GameState.can_afford(UpgradeDB.price_for(item, GameState.upgrades)):
 			return true
-	var parcel := LandDB.next_parcel(GameState.land)
+	var parcel := GameState.next_land()
 	return not parcel.is_empty() and GameState.can_afford(float(parcel.cost))
 
 
@@ -1406,7 +1467,7 @@ func next_purchase_eta() -> float:
 	for item in UpgradeDB.ITEMS:
 		if not GameState.has_upgrade(item.id) and GameState.upgrade_available(item):
 			cheapest = minf(cheapest, UpgradeDB.price_for(item, GameState.upgrades))
-	var parcel := LandDB.next_parcel(GameState.land)
+	var parcel := GameState.next_land()
 	if not parcel.is_empty():
 		cheapest = minf(cheapest, float(parcel.cost))
 	if is_inf(cheapest):
@@ -1514,19 +1575,13 @@ func _on_buy_upgrade(id: String) -> void:
 
 func _on_buy_land(id: String) -> void:
 	var card: ShopCard = _cards.get("land_" + id)
-	var item := LandDB.get_item(id)
 	if GameState.land.has(id):
 		return
-	var next := LandDB.next_parcel(GameState.land)
-	if next.is_empty() or next.id != id or not GameState.spend(item.cost):
+	if not GameState.start_land_works(id):
 		if card != null:
 			card.shake_deny()
 		AudioManager.play_sfx("deny")
 		return
-	GameState.land[id] = true
-	EventBus.land_bought.emit(id)
-	if card != null:
-		card.flash_ok()
 	AudioManager.play_sfx("build")
 	_refresh()
 
@@ -1574,7 +1629,7 @@ func _refresh() -> void:
 
 	_refresh_upgrades()
 
-	var next := LandDB.next_parcel(GameState.land)
+	var next := GameState.next_land()
 	for item in LandDB.ITEMS:
 		var card: ShopCard = _cards.get("land_" + item.id)
 		if card == null:
@@ -1584,8 +1639,9 @@ func _refresh() -> void:
 		card.visible = owned or is_next
 		card.refresh(item.cost, 0,
 			is_next and GameState.can_afford(item.cost), owned)
+	_refresh_works_card()
 	if _land_empty != null:
-		_land_empty.visible = next.is_empty()
+		_land_empty.visible = next.is_empty() and GameState.land_works.is_empty()
 
 
 func _refresh_teaser(item: Dictionary) -> void:

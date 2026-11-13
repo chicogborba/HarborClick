@@ -215,6 +215,37 @@ func _stage(scenario: String) -> Vector2:
 			_main.shop._on_tab("upgrades")
 			await get_tree().create_timer(1.0).timeout
 			return Vector2(-1, -1)
+		"landworks":
+			# Two parcels paved (so the abandoned scanner is on its band) and
+			# the third half built: the works site, the roller and the clock.
+			GameState.land_works = {}
+			for index in 2:
+				var id := str(LandDB.ITEMS[index].id)
+				if not GameState.land.has(id):
+					GameState.land[id] = true
+					EventBus.land_bought.emit(id)
+			var third := str(LandDB.ITEMS[2].id)
+			if not GameState.land.has(third):
+				var total := LandDB.build_seconds(third)
+				GameState.land_works = {"id": third, "left": total * 0.45, "total": total}
+				EventBus.land_works_changed.emit()
+			_main.cam.set_world_bottom(_main.world.visible_bottom())
+			# Long enough for any camera move the new ground set off to end.
+			await get_tree().create_timer(2.5).timeout
+			return Vector2(150.0, PortLayout.paved_bottom() - 30.0)
+		"landshop":
+			GameState.land_works = {}
+			var next := LandDB.next_parcel(GameState.land)
+			if not next.is_empty():
+				var total := LandDB.build_seconds(str(next.id))
+				GameState.land_works = {"id": str(next.id), "left": total * 0.6, "total": total}
+				EventBus.land_works_changed.emit()
+			if not _main.shop.visible:
+				_main.shop.toggle()
+			await get_tree().create_timer(0.6).timeout
+			_main.shop._on_tab("land")
+			await get_tree().create_timer(1.0).timeout
+			return Vector2(-1, -1)
 		"roadmap":
 			_main.roadmap.open()
 			await get_tree().create_timer(1.2).timeout

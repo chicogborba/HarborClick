@@ -797,6 +797,23 @@ const STRINGS := {
 	"ru": "Переместите всего {amount} TEU, чтобы открыть.",
 	"pl": "Przenieś łącznie {amount} TEU, aby odblokować.",
 	"tr": "Kilidi açmak için toplam {amount} TEU taşıyın."},
+"shop.land.works": {
+	"pt_BR": "EM OBRA: {name}", "en": "IN WORKS: {name}", "es": "EN OBRA: {name}",
+	"fr": "EN TRAVAUX: {name}", "de": "IM BAU: {name}", "it": "IN CANTIERE: {name}",
+	"ru": "СТРОИТСЯ: {name}", "pl": "W BUDOWIE: {name}", "tr": "İNŞAATTA: {name}"},
+"shop.land.works.left": {
+	"pt_BR": "A equipe termina em {time}", "en": "The crew is done in {time}",
+	"es": "El equipo termina en {time}", "fr": "L'équipe finit dans {time}",
+	"de": "Die Crew ist fertig in {time}", "it": "La squadra finisce tra {time}",
+	"ru": "Бригада закончит через {time}", "pl": "Ekipa skończy za {time}",
+	"tr": "Ekip {time} sonra bitirir"},
+"shop.land.skip": {
+	"pt_BR": "TERMINAR AGORA", "en": "FINISH NOW", "es": "TERMINAR YA",
+	"fr": "FINIR MAINTENANT", "de": "JETZT FERTIG", "it": "FINISCI ORA",
+	"ru": "ЗАКОНЧИТЬ СЕЙЧАС", "pl": "ZAKOŃCZ TERAZ", "tr": "ŞİMDİ BİTİR"},
+"land.works.sign": {
+	"pt_BR": "OBRA", "en": "WORKS", "es": "OBRA", "fr": "TRAVAUX", "de": "BAU",
+	"it": "CANTIERE", "ru": "СТРОЙКА", "pl": "BUDOWA", "tr": "İNŞAAT"},
 "shop.land.done": {
 	"pt_BR": "Todo o terreno em volta do porto ja e seu.",
 	"en": "All the land around the port is already yours.",
@@ -1807,7 +1824,17 @@ const STRINGS := {
 	"fr": "PASSER", "de": "SKIP", "it": "SALTA",
 	"ru": "ПРОПУСК", "pl": "POMIŃ", "tr": "GEÇ"},
 "roadmap.title": {
-	"pt_BR": "ROTA DO TERMINAL", "en": "TERMINAL ROADMAP", "es": "RUTA DEL PUERTO", "fr": "FEUILLE DE ROUTE", "de": "HAFEN-ROADMAP", "it": "PERCORSO DEL PORTO", "ru": "ПУТЬ ТЕРМИНАЛА", "pl": "ŚCIEŻKA PORTU", "tr": "LİMAN YOLU"},
+	"pt_BR": "PASSE DO PORTO", "en": "TERMINAL PASS", "es": "PASE DEL PUERTO", "fr": "PASSE DU PORT", "de": "HAFENPASS", "it": "PASS DEL PORTO", "ru": "ПРОПУСК ПОРТА", "pl": "KARNET PORTU", "tr": "LİMAN BİLETİ"},
+"pass.claim_all": {
+	"pt_BR": "RESGATAR TUDO ({n})", "en": "CLAIM ALL ({n})", "es": "RECLAMAR TODO ({n})", "fr": "TOUT RÉCLAMER ({n})", "de": "ALLES EINLÖSEN ({n})", "it": "RITIRA TUTTO ({n})", "ru": "ЗАБРАТЬ ВСЁ ({n})", "pl": "ODBIERZ WSZYSTKO ({n})", "tr": "HEPSİNİ AL ({n})"},
+"pass.reward.cash": {
+	"pt_BR": "{min} MIN DE CARGA", "en": "{min} MIN OF CARGO", "es": "{min} MIN DE CARGA", "fr": "{min} MIN DE FRET", "de": "{min} MIN FRACHT", "it": "{min} MIN DI CARICO", "ru": "{min} МИН ГРУЗА", "pl": "{min} MIN ŁADUNKU", "tr": "{min} DK YÜK"},
+"pass.reward.tokens": {
+	"pt_BR": "{n} FICHA DA RODA", "en": "{n} WHEEL TOKEN", "es": "{n} FICHA DE RULETA", "fr": "{n} JETON DE ROUE", "de": "{n} RAD-CHIP", "it": "{n} GETTONE RUOTA", "ru": "{n} ФИШКА КОЛЕСА", "pl": "{n} ŻETON KOŁA", "tr": "{n} ÇARK JETONU"},
+"pass.reward.surge": {
+	"pt_BR": "TURBO x{mult} {min} MIN", "en": "TURBO x{mult} {min} MIN", "es": "TURBO x{mult} {min} MIN", "fr": "TURBO x{mult} {min} MIN", "de": "TURBO x{mult} {min} MIN", "it": "TURBO x{mult} {min} MIN", "ru": "ТУРБО x{mult} {min} МИН", "pl": "TURBO x{mult} {min} MIN", "tr": "TURBO x{mult} {min} DK"},
+"pass.start": {
+	"pt_BR": "INÍCIO", "en": "START", "es": "INICIO", "fr": "DÉPART", "de": "START", "it": "INIZIO", "ru": "СТАРТ", "pl": "START", "tr": "BAŞLA"},
 "roadmap.level": {
 	"pt_BR": "NÍVEL {n}", "en": "LEVEL {n}", "es": "NIVEL {n}", "fr": "NIVEAU {n}", "de": "STUFE {n}", "it": "LIVELLO {n}", "ru": "УРОВЕНЬ {n}", "pl": "POZIOM {n}", "tr": "SEVİYE {n}"},
 "roadmap.current": {

@@ -45,12 +45,18 @@ func price() -> float:
 	return policy.price(GameState.base_cps)
 
 
+func on_site() -> bool:
+	## The abandoned post comes with the second parcel: until that ground is
+	## paved there is nothing to repair.
+	return GameState.land.has(LandDB.SCANNER_PARCEL)
+
+
 func can_buy() -> bool:
-	return not policy.owned and GameState.can_afford(price())
+	return not policy.owned and on_site() and GameState.can_afford(price())
 
 
 func buy() -> bool:
-	if policy.owned or not GameState.spend(price()):
+	if policy.owned or not on_site() or not GameState.spend(price()):
 		return false
 	policy.buy()
 	Telemetry.track(&"xray_bought", {})

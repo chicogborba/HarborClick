@@ -14,6 +14,8 @@ signal xp_changed
 signal leveled_up(level: int, features: Array)
 ## How many levels the last grant crossed — Main pays one wheel token each.
 signal levels_gained(count: int)
+## A pass tier was collected and its reward paid: {tier, kind, ...reward}.
+signal reward_claimed(reward: Dictionary)
 
 const SECTION_ID := &"terminal_level"
 ## A legacy save from before this section existed has no level at all. A
@@ -23,6 +25,7 @@ const LEGACY_FULL_UNLOCK_TEUS := 1000.0
 const LEGACY_FULL_UNLOCK_LEVEL := 18
 
 var rules: TerminalLevel
+var _wheel_service: WheelService
 
 
 func _ready() -> void:
@@ -44,6 +47,59 @@ func _exit_tree() -> void:
 	EventBus.upgrade_bought.disconnect(_on_upgrade_bought)
 	EventBus.achievement_completed.disconnect(_on_achievement_completed)
 	SaveManager.unregister_section(SECTION_ID)
+
+
+func setup(wheel_service: WheelService) -> void:
+	## The wheel that pass tokens are paid into.
+	_wheel_service = wheel_service
+
+
+func claimable_count() -> int:
+	return rules.claimable_tiers().size()
+
+
+func claim(tier: int) -> Dictionary:
+	## Collect one pass tier; a non-empty reward has been paid for real.
+	var reward := rules.claim(tier)
+	if reward.is_empty():
+		return {}
+	reward = reward.duplicate()
+	reward["tier"] = tier
+	_pay(reward)
+	Telemetry.track(&"pass_claimed", {"tier": tier})
+	reward_claimed.emit(reward)
+	xp_changed.emit()
+	SaveManager.request_save(&"pass")
+	return reward
+
+
+func claim_all() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for tier in rules.claimable_tiers():
+		var reward := claim(tier)
+		if not reward.is_empty():
+			out.append(reward)
+	return out
+
+
+func cash_for(minutes: int) -> float:
+	## Minutes of the port as it stands, with a floor so the first crates of a
+	## new terminal are not a handful of boxes.
+	return maxf(60.0 * float(minutes), GameState.base_cps * 60.0 * float(minutes))
+
+
+func _pay(reward: Dictionary) -> void:
+	var tokens := _as_int(reward.get("tokens", 0), 0)
+	if tokens > 0 and _wheel_service != null:
+		_wheel_service.grant_token(tokens)
+	match StringName(reward.get("kind", &"")):
+		&"cash":
+			var amount := cash_for(_as_int(reward.get("minutes", 0), 0))
+			reward["amount"] = amount
+			GameState.grant_nonproductive_reward(amount)
+		&"surge":
+			GameState.grant_surge(float(reward.get("mult", 1.0)),
+				float(reward.get("seconds", 0.0)))
 
 
 func note_mission() -> void:

@@ -335,3 +335,11 @@ unreachable, and it stayed in the tree for a week — tested, maintained, and
 described in the roadmap as delivered, while carrying the *only* way to reach the
 prestige dialog. It is deleted. Do not add a layout the game cannot open: put the
 feature in the console and let the console grow.
+
+## Hand-made and pass boards
+
+`daily_orders_panel.gd` is a clipboard checklist drawn by hand (no container
+board); `level_roadmap.gd` is the horizontal Passe do Porto with claimable
+tiers; `book_fx.gd` turns the logbook's cover and leaves in perspective, and
+`notice_bell.gd` keeps the book at one height on every page. See
+`docs/architecture/ui-and-visuals.md`.

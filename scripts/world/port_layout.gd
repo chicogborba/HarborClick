@@ -340,8 +340,29 @@ static func service_y() -> float:
 	return maxf(yard_bottom(), rail_corridor_bottom()) + SERVICE_GAP
 
 
+## The Receita's inspection loop: a band of pavement south of the workshops
+## that the second parcel brings with it, with room for a drive-through lane
+## and the two feeder lanes that join it to the road.
+const SCANNER_BAND_H := 116.0
+const SCANNER_FEEDER_H := 24.0
+
+
+static func scanner_band_h() -> float:
+	return SCANNER_BAND_H if GameState.land.has(LandDB.SCANNER_PARCEL) else 0.0
+
+
+static func paved_bottom() -> float:
+	## Where the terminal's pavement ends and the unbought ground begins.
+	return service_y() + slot_rows() * SLOT_ROW_H + scanner_band_h()
+
+
 static func world_bottom() -> float:
-	return service_y() + slot_rows() * SLOT_ROW_H + SOUTH_MARGIN
+	return paved_bottom() + SOUTH_MARGIN
+
+
+static func land_works_rect() -> Rect2:
+	## The strip of bare ground the crew paves while a parcel is in works.
+	return Rect2(YARD_X0, paved_bottom(), QUAY_X0 - YARD_X0, 58.0)
 
 
 static func rail_y() -> float:
@@ -552,9 +573,16 @@ static func gate_bay_rect(bay: int) -> Rect2:
 
 
 static func xray_station_position() -> Vector2:
-	## The Receita's drive-through scanner: a lane east of gate bay G3, between
-	## the exit road (GATE_EXIT_Y) and the approach (GATE_QUEUE_Y), on the gate
-	## apron where an inspection belongs. Its frame is 42x60 (`XrayStation`).
+	## The Receita's drive-through scanner. It stands on the second parcel, in
+	## the band that parcel adds south of the workshops: a lane parallel to the
+	## road, joined to it by a feeder at each end, so a lorry leaves the road,
+	## goes under the beam and comes back. It used to be a lane beside gate bay
+	## G3 that began and ended on bare apron — a piece of road going nowhere.
+	## Its frame is 42x60 (`XrayStation`); the lane is the left 24 of it.
+	if GameState.land.has(LandDB.SCANNER_PARCEL):
+		return Vector2(ROAD_X1 + 38.0,
+			paved_bottom() - SCANNER_BAND_H + 4.0 + SCANNER_FEEDER_H)
+	# A scanner bought before the parcel existed stays where it was.
 	var bay := gate_bay_position(GATE_BAY_COUNT - 1)
 	return Vector2(bay.x + GATE_BAY_W + 3.0, GATE_APRON_Y - 10.0)
 

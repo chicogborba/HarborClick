@@ -15,6 +15,9 @@ var lifetime_teus: float:
 var owned: Dictionary = {}      # structure id -> count
 var upgrades: Dictionary = {}   # upgrade id -> true
 var land: Dictionary = {}       # parcel id -> true
+## The parcel being built right now: {id, left, total}, or {} when no works are
+## under way. One at a time — parcels are a ladder.
+var land_works: Dictionary = {}
 var routes: Dictionary = {}     # route id -> true (the free home lane is implicit)
 var cps: float = 0.0
 var click_power: float = 1.0
@@ -145,6 +148,7 @@ func _process(delta: float) -> void:
 	if cps > 0.0:
 		_earn(cps * delta)
 	_tick_builds(delta)
+	_tick_land_works(delta)
 	_tick_foreman(delta)
 
 
@@ -603,6 +607,78 @@ func advance_builds(seconds: float) -> void:
 			builds[i].left = float(builds[i].left) - step
 		left_over -= step
 		_complete_finished_builds()
+
+
+# ---------------------------------------------------------------- land works
+
+func next_land() -> Dictionary:
+	## The parcel that can be bought now: the next on the ladder, and none
+	## while the crew is still paving the last one.
+	if not land_works.is_empty():
+		return {}
+	return LandDB.next_parcel(land)
+
+
+func start_land_works(id: String) -> bool:
+	## Pay for parcel `id` and break ground. It joins `land` when the works end.
+	var next := next_land()
+	if next.is_empty() or str(next.id) != id or not spend(float(next.cost)):
+		return false
+	var total := LandDB.build_seconds(id)
+	land_works = {"id": id, "left": total, "total": total}
+	EventBus.land_works_changed.emit()
+	if total <= 0.0:
+		_complete_land_works()
+	return true
+
+
+func finish_land_works() -> void:
+	## The rewarded ad (and the tools): done at once.
+	if not land_works.is_empty():
+		_complete_land_works()
+
+
+func advance_land_works(seconds: float) -> void:
+	## Time spent away: the crew kept paving.
+	if land_works.is_empty():
+		return
+	land_works.left = float(land_works.left) - maxf(0.0, seconds)
+	if float(land_works.left) <= 0.0:
+		_complete_land_works()
+
+
+func _tick_land_works(delta: float) -> void:
+	if land_works.is_empty():
+		return
+	land_works.left = float(land_works.left) - delta
+	if float(land_works.left) <= 0.0:
+		_complete_land_works()
+
+
+func _complete_land_works() -> void:
+	var id := str(land_works.get("id", ""))
+	land_works = {}
+	EventBus.land_works_changed.emit()
+	if id.is_empty() or land.has(id) or LandDB.get_item(id).is_empty():
+		return
+	land[id] = true
+	EventBus.land_bought.emit(id)
+
+
+static func _normalise_land_works(raw: Variant, owned_land: Dictionary) -> Dictionary:
+	## A saved works entry read back; anything that is not the next parcel on
+	## the ladder with a sane clock is dropped rather than trusted.
+	if not raw is Dictionary:
+		return {}
+	var id := str((raw as Dictionary).get("id", ""))
+	var next := LandDB.next_parcel(owned_land)
+	if next.is_empty() or str(next.id) != id:
+		return {}
+	var total := LandDB.build_seconds(id)
+	var left := float((raw as Dictionary).get("left", total))
+	if not is_finite(left):
+		left = total
+	return {"id": id, "left": clampf(left, 0.0, total), "total": total}
 
 
 func _tick_builds(delta: float) -> void:
@@ -1438,6 +1514,7 @@ func to_save() -> Dictionary:
 		"manual_quotes": _manual_quotes,
 		"manual_commits": _manual_commits.keys(),
 		"builds": builds,
+		"land_works": land_works.duplicate(),
 	}
 
 
@@ -1497,6 +1574,7 @@ func from_save(data: Dictionary) -> void:
 	_grant_routes(false)
 	for lid in data.get("land", []):
 		land[lid] = true
+	land_works = _normalise_land_works(data.get("land_works", {}), land)
 	_manual_quotes = data.get("manual_quotes", {}).duplicate()
 	_manual_commits.clear()
 	for tx_id in data.get("manual_commits", []):

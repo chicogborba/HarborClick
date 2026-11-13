@@ -162,6 +162,7 @@ func _ready() -> void:
 	add_child(boost_chips)
 	level_hud = LevelHud.new()
 	level_hud.name = "LevelHud"
+	level_service.setup(wheel_service)
 	level_hud.setup(level_service)
 	add_child(level_hud)
 	roadmap = LevelRoadmap.new()
@@ -929,14 +930,15 @@ func _guide_tips() -> Array[Dictionary]:
 		# the port needs an X-ray scanner. Her tip closing opens its board.
 		{"id": "receita", "who": &"receita", "say": "receita.tip.intro",
 			"target": "", "seed": false,
-			"ready": func() -> bool: return not xray_service.owned()},
+			"ready": func() -> bool:
+				return not xray_service.owned() and xray_service.on_site()},
 		{"id": "receita_buy", "who": &"receita", "say": "receita.tip.buy",
 			"target": "xray_station", "seed": false,
 			"ready": func() -> bool:
 				return _guide_seen("receita") and xray_service.can_buy()},
 		{"id": "land", "say": "guide.tip.land", "target": "shop",
 			"ready": func() -> bool:
-				var parcel := LandDB.next_parcel(GameState.land)
+				var parcel := GameState.next_land()
 				return FeatureGate.unlocked(&"land") and GameState.land.is_empty() \
 					and not parcel.is_empty() and GameState.can_afford(float(parcel.cost))},
 		{"id": "upgrade", "say": "guide.tip.upgrade", "target": "shop",
@@ -1102,10 +1104,11 @@ func _dev_probe() -> void:
 	# --- expand the port twice ---
 	var bottom_before := PortLayout.world_bottom()
 	for n in 2:
-		var parcel := LandDB.next_parcel(GameState.land)
+		var parcel := GameState.next_land()
 		if parcel.is_empty():
 			break
 		shop._on_buy_land(parcel.id)
+		GameState.finish_land_works()
 		await get_tree().create_timer(0.4).timeout
 	if PortLayout.world_bottom() <= bottom_before:
 		printerr("[probe] FAIL: buying land did not grow the world")
@@ -1220,6 +1223,11 @@ func _build_xray() -> void:
 		else:
 			xray_panel.open())
 	xray_service.state_changed.connect(_refresh_xray_key)
+	EventBus.land_bought.connect(func(_id: String) -> void: _refresh_xray_key())
+	world.land_works_tapped.connect(func() -> void:
+		if not shop.visible:
+			shop.toggle()
+		shop._on_tab("land"))
 	xray_board = XrayMinigame.new()
 	xray_board.name = "XrayMinigame"
 	add_child(xray_board)

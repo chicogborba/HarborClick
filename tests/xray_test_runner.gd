@@ -312,6 +312,10 @@ func _test_reload_keeps_scanner() -> void:
 	var service := XrayService.new()
 	add_child(service)
 	_expect(not service.owned(), "seeded without a scanner")
+	# The abandoned post comes with the second parcel: no ground, no repair.
+	_expect(not service.buy(), "nothing to repair before the parcel is paved")
+	_expect(is_equal_approx(GameState.teus, 1.0e6), "and nothing is charged for it")
+	GameState.land[LandDB.SCANNER_PARCEL] = true
 	_expect(service.buy(), "bought with enough TEU")
 	_expect(GameState.teus < 1.0e6, "the scanner was paid for")
 	service.policy.ready = true

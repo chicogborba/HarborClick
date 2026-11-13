@@ -47,6 +47,7 @@ signal golden_gull_caught(prize: Dictionary, world_pos: Vector2)
 ## The Receita's post was tapped. What that means (repair, scan, status) is
 ## Main's call: the world does not know the scanner's rules.
 signal xray_station_tapped
+signal land_works_tapped
 
 ## Every berth on the quay, north to south, and the controller that works it.
 ## `ship` and `berth` are berth 0 — the names the rest of the game and every
@@ -71,6 +72,7 @@ var signals: HarbourSignals
 var berth: BerthCallController
 var gate: GateDock
 var xray_station: XrayStation
+var land_site: LandWorksSite
 var rail: RailYard
 var traffic: TrafficCoordinator
 var _gate_view: Node2D
@@ -243,6 +245,11 @@ func _ready() -> void:
 	xray_station = XrayStation.new()
 	xray_station.name = "XrayStation"
 	entities.add_child(xray_station)
+
+	land_site = LandWorksSite.new()
+	land_site.name = "LandWorksSite"
+	add_child(land_site)
+	land_site.setup(self)
 
 	critters = Critters.new()
 	add_child(critters)
@@ -1335,6 +1342,9 @@ func _try_tap(world_pos: Vector2) -> void:
 		AudioManager.play_sfx("click", 0.12)
 	elif xray_station != null and xray_station.hit_test(world_pos):
 		xray_station_tapped.emit()
+		AudioManager.play_sfx("tap", 0.10)
+	elif land_site != null and land_site.hit_test(world_pos):
+		land_works_tapped.emit()
 		AudioManager.play_sfx("tap", 0.10)
 	elif _inspect_npc(world_pos):
 		AudioManager.play_sfx("tap", 0.10)

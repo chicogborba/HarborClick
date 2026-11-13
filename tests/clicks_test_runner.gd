@@ -81,6 +81,16 @@ func _test_the_xray_post_is_a_place() -> void:
 	service.policy.restore(XrayPolicy.seed_new())
 	service.state_changed.emit()
 	_expect(station.state == XrayStation.State.ABANDONED, "a new port's post is abandoned")
+	# It is not there at all until the second parcel is paved; then it turns
+	# up with the ground, on its own loop off the road.
+	_expect(not station.visible and not station.hit_test(station.centre()),
+		"and it does not exist before its parcel does")
+	for index in 2:
+		var id := str(LandDB.ITEMS[index].id)
+		GameState.land[id] = true
+		EventBus.land_bought.emit(id)
+	await get_tree().process_frame
+	_expect(station.visible and station.on_parcel(), "the parcel brings the post with it")
 	_main.world._try_tap(station.centre())
 	await get_tree().process_frame
 	_expect(_main.xray_panel.is_open(), "tapping the abandoned post opens its repair board")

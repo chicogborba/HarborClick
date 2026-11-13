@@ -350,6 +350,7 @@ func _run(size: Vector2i) -> void:
 				break
 			GameState.teus = 1e18
 			_main.shop._on_buy_land(parcel.id)
+			GameState.finish_land_works()
 			guard += 1
 			await get_tree().create_timer(0.25).timeout
 		_main.shop._close()
@@ -649,6 +650,7 @@ func _run(size: Vector2i) -> void:
 				break
 			GameState.teus = 1e18
 			_main.shop._on_buy_land(parcel.id)
+			GameState.finish_land_works()
 			guard += 1
 			await get_tree().create_timer(0.25).timeout
 		_main.shop._on_tab("orders")

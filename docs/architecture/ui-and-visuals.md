@@ -129,3 +129,34 @@ happens to be Brazilian Portuguese.
 - Touch targets use the shared `UiTheme` controls.
 
 Run ui_p0, a11y, contrast, notification and the capture matrix after UI work.
+
+## Boards that are not containers
+
+Three boards deliberately break the container material, because they are a
+different kind of object:
+
+- **Missões do Dia** (`DailyOrdersPanel`) is the foreman's own list: a clipboard
+  with ruled paper, pen-drawn boxes, a highlighter over whatever is ready and a
+  tick the player makes. The row is the key — claiming *is* ticking the box.
+  Everything hand-made is drawn in whole pixels from a seed (`stroke`,
+  `wobble`), so it never shimmers between frames.
+- **Passe do Porto** (`LevelRoadmap`) is the level as a pass: a horizontal
+  track of thirty tiers, each with a prize collected by hand.
+  `TerminalLevel.reward_for` decides the prize, `TerminalLevelService.claim`
+  pays it, and the level badge on the HUD lights a pip while one is waiting.
+  Features and cosmetics still open by themselves on reaching the level.
+- **The logbook** (`NoticeBell`, `BookFx`) has one height whatever page it is
+  open at, and its cover and leaves turn in perspective (`BookFx._Flap`): the
+  free edge grows as it lifts and throws a shadow on the page. Shutting plays
+  the cover back before the book drops.
+
+## Land is built, not bought
+
+Paying for a parcel starts works (`GameState.land_works`, minutes per parcel in
+`LandDB.BUILD_MINUTES`, 5 for the first). The parcel joins `GameState.land` —
+and `land_bought` fires — when they end; time away counts, and the `land_skip`
+rewarded ad finishes them. `LandWorksSite` shows the works in the yard (the
+asphalt laid so far is the progress) and the shop's land tab carries the clock
+and the skip key. The X-ray scanner stands on the second parcel
+(`LandDB.SCANNER_PARCEL`): it appears abandoned when that ground is paved, on a
+band of its own with a loop off the road (`XrayStation._Loop`).

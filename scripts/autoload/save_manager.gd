@@ -58,6 +58,7 @@ func _connect_save_events() -> void:
 	EventBus.structure_bought.connect(func(_id: String, _count: int) -> void: save_game(&"structure_bought"))
 	EventBus.upgrade_bought.connect(func(_id: String) -> void: save_game(&"upgrade_bought"))
 	EventBus.land_bought.connect(func(_id: String) -> void: save_game(&"land_bought"))
+	EventBus.land_works_changed.connect(func() -> void: request_save(&"land_works"))
 	EventBus.route_bought.connect(func(_id: String) -> void: save_game(&"route_bought"))
 	# `prestige_committed` is emitted after the career tracker has observed the
 	# reset, so the immediate snapshot contains both economy and journal state.
@@ -241,6 +242,9 @@ func _apply_offline_progress(saved_at: float) -> void:
 		# The works go on while the game is shut — a build is not lost by closing
 		# the app, nor made instant by it beyond the time that really passed.
 		GameState.advance_builds(maxf(0.0, Time.get_unix_time_from_system() - saved_at))
+	if saved_at > 0.0:
+		GameState.advance_land_works(
+			maxf(0.0, Time.get_unix_time_from_system() - saved_at))
 	if saved_at <= 0.0 or GameState.cps <= 0.0:
 		return
 	var cap_seconds := GameState.offline_cap_seconds() if GameState.has_method("offline_cap_seconds") \

@@ -73,8 +73,14 @@ const UNLOCKS: Dictionary = {
 	&"orders": 18,
 }
 
+## From this level a pass reward may include a wheel token: the wheel itself
+## opens at 6, and a token for a wheel the player cannot see is a riddle.
+const TOKENS_FROM_LEVEL := 6
+
 ## The level the terminal is at, 1..MAX_LEVEL.
 var level: int = 1
+## The pass: level -> true for every tier whose reward has been collected.
+var claimed: Dictionary = {}
 ## Cumulative XP earned, ever (within this profile — prestige does not reset it).
 var xp: int = 0
 
@@ -133,13 +139,61 @@ func unlocks_at(at_level: int) -> Array[StringName]:
 	return out
 
 
+# ------------------------------------------------------------------ the pass
+#
+# The level is also a pass. Reaching a tier *earns* its reward; the player
+# collects it by hand on the track (`LevelRoadmap`), which is the whole point
+# of a pass — a row of things waiting with your name on them. Features and
+# cosmetics still open by themselves the moment the level is reached: nobody
+# should have to find a button to be allowed to use the shop.
+
+static func reward_for(tier: int) -> Dictionary:
+	## What tier `tier` pays when collected. Level 1 is where everyone starts
+	## and pays nothing. {kind: cash|tokens|surge, minutes?, tokens?, mult?,
+	## seconds?} — deciding it is this class's job, paying it the service's.
+	if tier <= 1 or tier > MAX_LEVEL:
+		return {}
+	if tier % 5 == 0:
+		# The milestone: a rush on the whole port, and a token once there is
+		# a wheel to spend it on.
+		return {"kind": &"surge", "mult": 3.0, "seconds": 300.0,
+			"tokens": 1 if tier >= 10 else 0}
+	if tier % 2 == 0 and tier >= TOKENS_FROM_LEVEL:
+		return {"kind": &"tokens", "tokens": 1}
+	# A crate of cargo: minutes of the port's own output, more with the tier.
+	return {"kind": &"cash", "minutes": 4 + tier / 2}
+
+
+func can_claim(tier: int) -> bool:
+	return tier >= 2 and tier <= level and not claimed.has(tier)
+
+
+func claimable_tiers() -> Array[int]:
+	var out: Array[int] = []
+	for tier in range(2, level + 1):
+		if not claimed.has(tier):
+			out.append(tier)
+	return out
+
+
+func claim(tier: int) -> Dictionary:
+	## Collect tier `tier`: its reward, or {} when it is not there to collect.
+	if not can_claim(tier):
+		return {}
+	claimed[tier] = true
+	return reward_for(tier)
+
+
 # ----------------------------------------------------------------- persistence
 
 func snapshot() -> Dictionary:
+	var tiers: Array = claimed.keys()
+	tiers.sort()
 	return {
 		"version": 1,
 		"level": level,
 		"xp": xp,
+		"claimed": tiers,
 	}
 
 
@@ -153,6 +207,16 @@ func restore(data: Dictionary) -> void:
 	else:
 		xp = xp_for_level(clampi(_as_int(data.get("level", 1), 1), 1, MAX_LEVEL))
 	level = level_for_xp(xp)
+	# A tier above the level cannot have been collected, whatever the file says.
+	# A save from before the pass has no list at all: every tier it already
+	# reached is waiting on the track, which is the nicest way to meet it.
+	claimed.clear()
+	var raw: Variant = data.get("claimed", [])
+	if raw is Array:
+		for entry: Variant in raw:
+			var tier := _as_int(entry, 0)
+			if tier >= 2 and tier <= level:
+				claimed[tier] = true
 
 
 static func seed_new() -> Dictionary:

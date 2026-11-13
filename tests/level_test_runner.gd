@@ -19,7 +19,7 @@ const TEST_SAVE_PATH := "user://harborclick_level_test.json"
 const EXPECTED := [
 	"curve_monotonic", "minute_table", "unlock_table", "add_xp_multi_level",
 	"snapshot_roundtrip", "garbage_restore", "service_counts_events",
-	"legacy_migration", "survives_prestige",
+	"legacy_migration", "survives_prestige", "pass_rules", "land_works",
 ]
 
 ## The assumed active-player rate the curve is documented against:
@@ -53,6 +53,8 @@ func _run() -> void:
 	_test_service_counts_events()
 	_test_legacy_migration()
 	_test_survives_prestige()
+	_test_pass_rules()
+	_test_land_works()
 
 	for label in EXPECTED:
 		_expect(_finished.has(label), "the '%s' test ran to the end" % label)
@@ -84,6 +86,62 @@ func _done(label: String) -> void:
 func _expect(condition: bool, label: String) -> void:
 	if not condition:
 		failures.append(label)
+
+
+# ------------------------------------------------------------------- the pass
+
+func _test_pass_rules() -> void:
+	_expect(TerminalLevel.reward_for(1).is_empty(), "level 1 pays nothing")
+	_expect(TerminalLevel.reward_for(TerminalLevel.MAX_LEVEL + 1).is_empty(),
+		"nor does a tier past the last")
+	for tier in range(2, TerminalLevel.MAX_LEVEL + 1):
+		var reward := TerminalLevel.reward_for(tier)
+		_expect(not reward.is_empty(), "tier %d has a prize" % tier)
+		if tier < TerminalLevel.TOKENS_FROM_LEVEL:
+			_expect(int(reward.get("tokens", 0)) == 0,
+				"tier %d pays no token before the wheel exists" % tier)
+	var t := TerminalLevel.new()
+	_expect(t.claim(2).is_empty(), "a tier not reached cannot be collected")
+	t.add_xp(TerminalLevel.xp_for_level(4))
+	_expect(t.claimable_tiers() == [2, 3, 4], "tiers 2-4 wait at level 4")
+	_expect(not t.claim(3).is_empty(), "a reached tier pays")
+	_expect(t.claim(3).is_empty(), "and only once")
+	_expect(t.claimable_tiers() == [2, 4], "the rest still wait")
+	var copy := TerminalLevel.new()
+	copy.restore(t.snapshot())
+	_expect(copy.claimed.has(3) and not copy.can_claim(3) and copy.can_claim(2),
+		"what was collected survives a save")
+	copy.restore({"xp": 0, "claimed": [2, 9, "x"]})
+	_expect(copy.claimed.is_empty(), "a tier above the level is not trusted")
+	_done("pass_rules")
+
+
+func _test_land_works() -> void:
+	GameState.from_save({})
+	var first: Dictionary = LandDB.ITEMS[0]
+	_expect(LandDB.build_seconds(str(first.id)) == 300.0, "the first parcel takes 5 min")
+	_expect(LandDB.build_seconds(str(LandDB.ITEMS[1].id))
+		> LandDB.build_seconds(str(first.id)), "and the next takes longer")
+	_expect(not GameState.start_land_works(str(first.id)), "no money, no works")
+	GameState.teus = float(first.cost) * 3.0
+	_expect(GameState.start_land_works(str(first.id)), "paying breaks ground")
+	_expect(not GameState.land.has(first.id), "the parcel is not there yet")
+	_expect(GameState.next_land().is_empty(), "and nothing else is for sale meanwhile")
+	var saved := GameState.to_save()
+	GameState.advance_land_works(120.0)
+	_expect(is_equal_approx(float(GameState.land_works.left), 180.0),
+		"time away counts")
+	GameState.from_save(saved)
+	_expect(str(GameState.land_works.get("id", "")) == str(first.id)
+		and is_equal_approx(float(GameState.land_works.left), 300.0),
+		"works in progress survive a save")
+	GameState.finish_land_works()
+	_expect(GameState.land.has(first.id) and GameState.land_works.is_empty(),
+		"finishing hands the parcel over")
+	GameState.from_save({"land_works": {"id": "nonsense", "left": 5.0}})
+	_expect(GameState.land_works.is_empty(), "works on an unknown parcel are dropped")
+	GameState.from_save({})
+	_done("land_works")
 
 
 # ------------------------------------------------------------------ the rules

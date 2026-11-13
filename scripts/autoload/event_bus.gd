@@ -14,6 +14,8 @@ signal build_completed(id: String, qty: int)
 signal structure_purchase_committed(payload: Dictionary)
 signal upgrade_bought(id: String)
 signal land_bought(id: String)
+## Works on a parcel began, or ended (`GameState.land_works`).
+signal land_works_changed
 signal route_bought(id: String)
 signal ship_arrived
 signal ship_departed

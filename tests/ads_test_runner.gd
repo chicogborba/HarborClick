@@ -135,6 +135,7 @@ func _test_placements_table() -> void:
 		&"minigame_retry": [0, 0.0],
 		&"minigame_play": [3, 0.0],
 		&"build_speed": [0, 30.0],
+		&"land_skip": [0, 0.0],
 		&"offline_double": [0, 0.0],
 		&"gull_double": [0, 0.0],
 		&"mission_reroll": [1, 0.0],
@@ -142,7 +143,7 @@ func _test_placements_table() -> void:
 		&"level_bonus": [0, 20.0],
 	}
 	_expect(AdPolicy.PLACEMENTS.size() == expected.size(),
-		"ten placements are declared (%d)" % AdPolicy.PLACEMENTS.size())
+		"eleven placements are declared (%d)" % AdPolicy.PLACEMENTS.size())
 	for id in expected.keys():
 		_expect(AdPolicy.PLACEMENTS.has(id), "placement %s exists" % String(id))
 		var rule: Dictionary = AdPolicy.PLACEMENTS.get(id, {})

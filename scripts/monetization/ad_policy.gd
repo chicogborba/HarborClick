@@ -17,6 +17,7 @@ const PLACEMENTS: Dictionary = {
 	&"minigame_retry": {"daily_cap": 0, "cooldown": 0.0},
 	&"minigame_play": {"daily_cap": 3, "cooldown": 0.0},
 	&"build_speed": {"daily_cap": 0, "cooldown": 30.0},
+	&"land_skip": {"daily_cap": 0, "cooldown": 0.0},
 	&"offline_double": {"daily_cap": 0, "cooldown": 0.0},
 	&"gull_double": {"daily_cap": 0, "cooldown": 0.0},
 	&"mission_reroll": {"daily_cap": 1, "cooldown": 0.0},

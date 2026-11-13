@@ -40,7 +40,7 @@ static func bake(world_h: int, rail_owned: bool = true) -> ImageTexture:
 	var grass_tile := _img("gr_grass")
 
 	var paved_top := int(PortLayout.TOP_MARGIN)
-	var paved_bottom := int(PortLayout.world_bottom() - PortLayout.SOUTH_MARGIN)
+	var paved_bottom := int(PortLayout.paved_bottom())
 	var verge := int(PortLayout.YARD_X0) - 6      # grass runs up to the kerb
 
 	# --- base plane ---

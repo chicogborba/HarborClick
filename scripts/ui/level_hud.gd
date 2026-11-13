@@ -31,6 +31,8 @@ var _service: TerminalLevelService
 var _badge: PanelContainer
 var _level_label: Label
 var _bar: ProgressBar
+## Lit while a pass tier is waiting to be collected.
+var _pip: TextureRect
 var _card: PanelContainer
 var _card_title: Label
 var _card_text: Label
@@ -76,6 +78,9 @@ func _ready() -> void:
 			AudioManager.play_sfx("tap")
 			roadmap_requested.emit())
 	add_child(_badge)
+	_pip = UiTheme.pip()
+	_pip.visible = false
+	add_child(_pip)
 
 	_card = UiTheme.panel(UiTheme.board_style(8, &"green"), false)
 	_card.visible = false
@@ -124,6 +129,7 @@ func refresh() -> void:
 		return
 	_level_label.text = Loc.t("level.short", {"n": str(_service.rules.level)})
 	_bar.value = _service.rules.progress_to_next()
+	_pip.visible = _service.claimable_count() > 0
 	_layout()
 
 
@@ -240,6 +246,8 @@ func _layout() -> void:
 			area = inside
 	_badge.reset_size()
 	_badge.position = (area.position + Vector2(6.0, Hud.BAR_H + 4.0)).round()
+	if _pip != null:
+		_pip.position = _badge.position + Vector2(_badge.size.x - 6.0, -3.0)
 	_card.size = Vector2(minf(280.0, area.size.x - 24.0), 0.0)
 	_card.reset_size()
 	if not _card.visible or _card.get_tree() == null or _card.get_tree().get_processed_tweens().is_empty():
