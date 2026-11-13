@@ -65,7 +65,7 @@ func _build(amount: float, report: Dictionary) -> void:
 	add_child(_dim)
 
 	_panel = PanelContainer.new()
-	UiTheme.apply_panel(_panel, UiTheme.board_style(10))
+	UiTheme.apply_panel(_panel, UiTheme.board_style(10, &"sea"))
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 

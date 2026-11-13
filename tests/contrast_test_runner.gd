@@ -45,13 +45,13 @@ func _run() -> void:
 		[UiTheme.INK, surfaces.btn_ghost, "label on a ghost key"],
 		[UiTheme.INK_SOFT, surfaces.btn_off, "label on a muted key"],
 		[UiTheme.INK_SOFT, surfaces.seg_off, "label on an inactive segment"],
-		[UiTheme.STEEL_DIM, surfaces.tab_off, "label on an inactive tab"],
-		[UiTheme.AMBER, surfaces.tab_on, "label on the open tab"],
+		[UiTheme.INK_SOFT, surfaces.tab_off, "label on an inactive tab"],
+		[UiTheme.INK, surfaces.tab_on, "label on the open tab"],
 		[UiTheme.INK, surfaces.card_done, "title on a finished card"],
 		[UiTheme.DANGER, surfaces.card, "a warning on a card"],
 		[UiTheme.DANGER, surfaces.card_locked, "the reason on a locked card"],
 		[UiTheme.AMBER_DEEP, surfaces.card, "a figure on a card"],
-		[UiTheme.AMBER, surfaces.header, "a board's title on its nameplate"],
+		[UiTheme.CREAM, surfaces.btn_go, "the price on a buy key"],
 		# The steel half of the interface: the gantry over the port, the glass
 		# the tally is lit behind, the berth tag and the console keys.
 		[UiTheme.DIGIT, surfaces.glass, "the tally lit behind glass"],
@@ -63,6 +63,13 @@ func _run() -> void:
 		[UiTheme.STEEL_DIM, surfaces.tag, "the cat timer on its tag"],
 		[UiTheme.STEEL_TEXT, surfaces.btn_steel, "label on a console key"],
 	]
+	# A board's title is stencilled large on its livery, so it answers to the
+	# large-text floor, once per paint.
+	for tone: StringName in UiTheme.LIVERY_PAINT:
+		var on_paint := _contrast(UiTheme.CREAM, UiTheme.LIVERY_PAINT[tone])
+		_expect(on_paint >= 3.0,
+			"a board title on the %s livery reads at %.2f:1, below 3.0:1"
+				% [tone, on_paint])
 	for pair in pairs:
 		var ratio := _contrast(pair[0], pair[1])
 		_expect(ratio >= AA_TEXT,

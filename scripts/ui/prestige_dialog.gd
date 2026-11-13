@@ -34,7 +34,7 @@ func _ready() -> void:
 		if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed): close())
 	add_child(_backdrop)
 	_panel = PanelContainer.new()
-	UiTheme.apply_panel(_panel, UiTheme.board_style(9))
+	UiTheme.apply_panel(_panel, UiTheme.board_style(9, &"gold"))
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 	var col := VBoxContainer.new()

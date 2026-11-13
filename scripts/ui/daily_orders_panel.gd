@@ -36,7 +36,7 @@ func _ready() -> void:
 	_scrim = UiTheme.scrim(0.7)
 	_scrim.gui_input.connect(_on_scrim_input)
 	add_child(_scrim)
-	_board = UiTheme.panel(UiTheme.board_style(11), false)
+	_board = UiTheme.panel(UiTheme.board_style(11, &"green"), false)
 	add_child(_board)
 	_column = VBoxContainer.new()
 	_column.add_theme_constant_override(&"separation", 6)

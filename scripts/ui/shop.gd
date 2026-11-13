@@ -171,9 +171,19 @@ func _build() -> void:
 		UiTheme.style_scroll(scroll)
 		sheet_col.add_child(scroll)
 		_scrolls[tab[0]] = scroll
-		var list := VBoxContainer.new()
+		var list: Container
+		if tab[0] == "structures":
+			# The equipment tab is a shelf, not a ledger: two machines abreast,
+			# each a tile with its own buy key.
+			var grid := GridContainer.new()
+			grid.columns = 2
+			grid.add_theme_constant_override(&"h_separation", 4)
+			grid.add_theme_constant_override(&"v_separation", 4)
+			list = grid
+		else:
+			list = VBoxContainer.new()
+			list.add_theme_constant_override(&"separation", 4)
 		list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		list.add_theme_constant_override(&"separation", 4)
 		scroll.add_child(list)
 		_lists[tab[0]] = list
 
@@ -247,11 +257,13 @@ func _buy_mode_label(mode: StringName) -> String:
 func _populate() -> void:
 	for item in StructureDB.ITEMS:
 		var card := ShopCard.new()
+		card.tile = true
 		card.setup(item.id, "structure", item.id, item.name, item.desc)
 		card.pressed_card.connect(_on_buy_structure)
 		_lists["structures"].add_child(card)
 		_cards[item.id] = card
 	_teaser = ShopCard.new()
+	_teaser.tile = true
 	_teaser.setup("", "teaser", "", "", "")
 	_teaser.visible = false
 	_lists["structures"].add_child(_teaser)
@@ -1412,7 +1424,9 @@ func next_purchase_eta() -> float:
 func _layout() -> void:
 	var view := get_viewport().get_visible_rect().size
 	var safe := _resolved_safe_rect(view)
-	var height := minf(safe.size.y * 0.70, 430.0)
+	var height := minf(safe.size.y * 0.84, 620.0)
+	(_lists["structures"] as GridContainer).columns = \
+		clampi(int((safe.size.x - 40.0) / 150.0), 2, 5)
 	_board.size = Vector2(safe.size.x - 12.0, height)
 	_board.position = Vector2(safe.position.x + 6.0, safe.end.y - height - 6.0)
 	for index in TABS.size():

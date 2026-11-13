@@ -72,7 +72,7 @@ func _build() -> void:
 	add_child(_dim)
 
 	_panel = PanelContainer.new()
-	UiTheme.apply_panel(_panel, UiTheme.board_style(9))
+	UiTheme.apply_panel(_panel, UiTheme.board_style(9, &"steel"))
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 

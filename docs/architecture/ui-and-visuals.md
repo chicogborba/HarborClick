@@ -5,21 +5,24 @@ generated nine-patches, bitmap typography, amber primary keys and teal service
 accents. Runtime code composes controls; generators own pixels.
 
 Which material a thing is made of says what kind of thing it is. **Steel** —
-navy enamel, brushed pinstripe, one amber hairline on the edge facing the water
-— is the terminal's own signage: the gantry over the port, the key console under
-it, the dark glass a lit number sits behind. **Deck** — the control room — is
-every overlay: the same navy enamel frame around a dark chart-gridded field,
-with cards as lit slabs stepping up in lightness (tray, locked, card, ready) and
-numbers behind glass. The only bright things on a board are the things to
-press or read: amber keys, teal progress, lit digits. **Leather** is the third
-and the rarest: the logbook, which is what the port keeps — only the two diaries
-are bound in it, and they are the one place paper and dark ink survive.
+hull-green enamel with a brushed pinstripe — is the terminal's own signage: the
+gantry over the port, the key console under it, the dark glass a lit number sits
+behind. **Container** is every overlay: a board is the end wall of a shipping
+container, corrugated steel painted in one of five liveries
+(`UiTheme.board_style(content, tone)`: `rust` shop, `sea` ports and minigames,
+`green` missions and levels, `steel` settings and readouts, `gold` wheel and
+rebuild), with a corner casting in each corner and a cream manifest sheet sunk
+into it, hanging from a crane spreader. `header()` paints the nameplate in the
+livery the board was just built with. On the sheet, cards are cargo labels
+(cream stickers, brown edge), items stand in a sky-blue window, and the price is
+a moulded green key — green means "this spends cargo" and nothing else is green.
+**Leather** is the third and the rarest: the logbook — only the two diaries are
+bound in it.
 
-The boards were cream paper clipboards until the control-room pass. The names
-in `UiTheme` (`INK`, `PAPER`, `paper_style`) are from that era and were kept so
-call sites did not move: `INK` is "text on a board" (now light), `PAPER` is "a
-card" (now navy), `KEY_INK` is the dark label on an amber key and `BOOK_INK` the
-dark ink on a diary page.
+The equipment tab of the shop is a shelf, not a ledger: `ShopCard.tile` lays a
+card out upright (machine, name, yield, price key) and the tab is a grid of
+them, two abreast on a phone and more on a wide window. Every other list keeps
+the card lying down.
 
 ## Motion
 
@@ -27,15 +30,14 @@ dark ink on a diary page.
 says how it behaves. One vocabulary, applied centrally so no board opts in:
 
 - **A board is racked into view** (`UiTheme.pop_open` / `pop_close`): it rises
-  from under the screen and overshoots; a scanline runs down it as it lands
-  (`power_on`, `ui_power.gdshader`); its nameplate, tabs and visible rows arrive
-  one after another (`cascade`).
+  from under the screen and overshoots, and its nameplate, tabs and visible
+  rows arrive one after another (`cascade`).
 - **The port goes out of focus behind it** (`dress_scrim`, `ui_scrim.gdshader`):
-  a pixel mosaic, desaturated toward navy, whose strength rides the scrim's own
+  a pixel mosaic, desaturated toward dusk, whose strength rides the scrim's own
   alpha so it grows with the existing fade.
 - **Every key sinks and springs** (`wire_press`, hooked in `style_button`,
   `style_tab`, `style_segment`).
-- **Every amber key shares one gloss** (`sheen`, `ui_sheen.gdshader`): a single
+- **Every amber and green key shares one gloss** (`sheen`, `ui_sheen.gdshader`): a single
   screen-space sweep on one clock, not a blink per key.
 - **Lists deal in on a tab change** (`Shop._deal_tab`), and the rate board's
   factors fill as log-scale bars in formula order (`RateBreakdown.RateBar`).

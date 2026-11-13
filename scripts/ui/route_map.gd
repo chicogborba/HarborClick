@@ -59,7 +59,7 @@ func _ready() -> void:
 	add_child(_backdrop)
 
 	_sheet = PanelContainer.new()
-	UiTheme.apply_panel(_sheet, UiTheme.board_style(9))
+	UiTheme.apply_panel(_sheet, UiTheme.board_style(9, &"sea"))
 	_sheet.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_sheet)
 	_clip = UiTheme.clip_badge()

@@ -1,30 +1,24 @@
 """UI chrome, in the two materials the terminal is actually made of.
 
-**Deck** is the control room: every overlay is an instrument panel in an enamel
-frame, under a nameplate and a carry-handle latch, with a dark chart-gridded
-field. Cards are navy slabs that step up in lightness with their state and
-prices are lit behind glass. (The `PAPER_*` names are from the clipboard era:
-they are the deck's ramp now.)
+**Container** is everything you open. A board is the end wall of a shipping
+container: corrugated steel painted in one of the yard's liveries (rust, sea,
+green, steel, gold — one per kind of board), a corner casting in each corner,
+and a cream manifest sheet sunk into it. It hangs from the same yellow spreader
+the quay cranes carry. What is on the sheet is cargo labels: thick cream
+stickers with a brown edge, a sky-blue window the item stands in, and the
+price as a moulded green key. Green means "this spends cargo" and nothing else
+is green.
 
-**Steel** is the terminal's own signage and instrumentation: the gantry bolted
-across the top of the quay carrying the tally and the clock, the console the
-keys sit on, and the dark glass a number is lit behind. It is navy enamel with
-a lit lip, a fine brushed pinstripe and one amber hairline along the edge that
-faces the port — the same amber the machines wear.
-
-The split is the point. Anything permanent over the port is steel, so it reads
-as part of the terminal rather than a panel floating on it; anything you open
-is paper, so it reads as something handed to you. The only saturated colours in
-either are the amber "GO" keys and the teal service tags.
+**Steel** is the terminal's own signage: the gantry bolted across the top of
+the quay carrying the tally and the clock, the console the keys sit on, and
+the dark glass a number is lit behind. It is hull-green enamel with a lit lip
+and a brushed pinstripe.
 
 Two rules keep it looking like a material instead of a diagram:
 
-* **Every layer casts a shadow onto the one below it.** Board on world, paper
-  on board, slip on paper, clip on paper. Without that the whole thing reads
-  flat no matter how good the individual pieces are.
-* **Nothing is a two-tone rectangle.** Wood, steel, paper and every key run a
-  four or five step ramp, and the flat faces carry grain, fibre or a brushed
-  streak.
+* **Every layer casts a shadow onto the one below it.**
+* **Nothing is a two-tone rectangle.** Every surface runs a four or five step
+  ramp.
 
 The nine-patch centre is *tiled*, not stretched (`AXIS_STRETCH_MODE_TILE` in
 `UiTheme.nine`), which is what lets the paper carry real fibre texture — a
@@ -52,25 +46,49 @@ STEEL_XL = (226, 226, 234, 255)
 # "Paper" is a name kept from the clipboard era. Since the control-room pass
 # every opened board is a deck panel: the same navy enamel as the gantry, one
 # family of slabs stepping up in lightness from the tray to a lit card.
-PAPER_XD = (9, 12, 21, 255)       # ink edge / deepest shadow
-PAPER_D = (19, 25, 39, 255)       # the tray a list lies in
-PAPER = (38, 50, 72, 255)         # a card
-PAPER_L = (48, 63, 90, 255)       # a card you can afford
-PAPER_XL = (88, 110, 144, 255)    # the lit lip
-PAPER_FIBRE = (42, 55, 78, 255)
-PAPER_RULE = (30, 39, 57, 255)
-DECK = (22, 29, 45, 255)          # the field of a board
-DECK_DOT = (31, 41, 61, 255)      # its chart grid
+PAPER_XD = (96, 70, 50, 255)      # the brown edge of every label
+PAPER_D = (210, 190, 154, 255)    # the tray a list lies in
+PAPER = (244, 232, 206, 255)      # a label
+PAPER_L = (255, 248, 228, 255)    # a label you can afford
+PAPER_XL = (255, 255, 244, 255)   # the lit lip
+PAPER_FIBRE = (236, 222, 194, 255)
+PAPER_RULE = (222, 206, 176, 255)
+DECK = (228, 210, 174, 255)       # the sheet a board holds
+DECK_DOT = (214, 194, 156, 255)
+DECK_SHADE = (188, 166, 130, 255)
+WELL = (190, 222, 218, 255)       # sky behind an item
+
+# The "go" green: every key that spends cargo is this colour and nothing else is.
+GO_XD = (18, 62, 32, 255)
+GO_D = (26, 86, 40, 255)
+GO = (36, 114, 52, 255)
+GO_L = (96, 180, 98, 255)
+GO_XL = (172, 228, 160, 255)
+
+## Container liveries, darkest to lightest. A board's frame and nameplate are
+## painted in one of these; which is `UiTheme.board_style(content, tone)`.
+LIVERY = {
+    "rust": ((92, 34, 20, 255), (150, 58, 28, 255), (200, 88, 38, 255),
+             (228, 124, 60, 255), (250, 176, 104, 255)),
+    "sea": ((14, 44, 78, 255), (24, 74, 118, 255), (38, 106, 156, 255),
+            (78, 148, 194, 255), (146, 200, 228, 255)),
+    "green": ((18, 58, 38, 255), (30, 90, 54, 255), (48, 126, 74, 255),
+              (92, 168, 106, 255), (160, 214, 162, 255)),
+    "steel": ((42, 44, 54, 255), (70, 74, 88, 255), (102, 108, 124, 255),
+              (146, 152, 168, 255), (198, 204, 216, 255)),
+    "gold": ((84, 50, 6, 255), (128, 82, 10, 255), (176, 118, 18, 255),
+             (220, 166, 50, 255), (250, 214, 120, 255)),
+}
 PRINT_WHITE = (244, 240, 228, 255)
 
 # --- enamelled navy steel: the HUD's own material ---
 # Dark enough that cream and amber both clear AA on it, and blue enough that it
 # never reads as "grey box" over the warm greys of the yard.
-HULL_XD = (16, 22, 34, 255)
-HULL_D = (28, 37, 54, 255)
-HULL = (42, 54, 74, 255)
-HULL_L = (68, 86, 112, 255)
-HULL_XL = (112, 136, 166, 255)
+HULL_XD = (10, 30, 36, 255)
+HULL_D = (18, 48, 56, 255)
+HULL = (28, 68, 76, 255)
+HULL_L = (56, 106, 112, 255)
+HULL_XL = (112, 164, 166, 255)
 
 # --- the dark glass a lit number sits behind ---
 GLASS_XD = (8, 11, 18, 255)
@@ -78,11 +96,11 @@ GLASS_D = (17, 21, 32, 255)
 GLASS = (25, 31, 46, 255)
 GLASS_GLOW = (38, 47, 66, 255)
 
-SLATE_XD = (6, 9, 16, 255)
-SLATE_D = (14, 19, 31, 255)
-SLATE = (26, 34, 52, 255)
-SLATE_L = (52, 66, 92, 255)
-SLATE_XL = (84, 104, 136, 255)
+SLATE_XD = (18, 14, 22, 255)
+SLATE_D = (34, 30, 44, 255)
+SLATE = (52, 46, 62, 255)
+SLATE_L = (84, 76, 96, 255)
+SLATE_XL = (128, 118, 140, 255)
 
 AMBER_XD = (128, 78, 18, 255)
 AMBER_D = (176, 112, 30, 255)
@@ -169,132 +187,143 @@ def paper_fibre(img, x, y, w, h, seed=11):
 
 # ------------------------------------------------------------------ surfaces
 
-def gen_board():
-    """32x32 nine-patch, margin 12: every overlay's frame.
+def _container_board(name, t):
+    """32x32 nine-patch, margin 12: a board is the end wall of a container.
 
-    Navy enamel, the HUD's own material, so a board that opens over the port
-    reads as part of the same terminal rather than a brown box dropped on it:
-    a dark outline, a lit lip along the top, a rivet in each corner and one
-    amber hairline framing the sheet. Inside it the manifest paper is clean —
-    no fibre, no ruling — with a two-step shadow under the frame's top and left
-    edges so the sheet sits *in* the frame. The middle 8x8 is plain paper and
-    tiles.
+    Painted corrugated steel in one of the yard's liveries, a corner casting
+    in each corner, and the manifest sheet sunk into it. The ribs are on a
+    4px period so they tile along every edge.
     """
+    xd, d, base, l, xl = t
     s = 32
     img = new_img(s, s)
-    rect(img, 0, 0, s, s, HULL_XD)
-    rect(img, 1, 1, s - 2, s - 2, HULL)
-    hline(img, 2, 1, s - 4, HULL_XL)
-    hline(img, 1, 2, s - 2, HULL_L)
-    vline(img, 1, 2, s - 4, HULL_L)
-    hline(img, 1, s - 2, s - 2, HULL_D)
-    vline(img, s - 2, 2, s - 4, HULL_D)
-    for rx, ry in ((3, 3), (s - 5, 3), (3, s - 5), (s - 5, s - 5)):
-        rivet(img, rx, ry)
-    # the amber hairline around the sheet, then the sheet
-    rect(img, 5, 5, s - 10, s - 10, AMBER_D)
-    rect(img, 6, 6, s - 12, s - 12, HULL_XD)
+    rect(img, 0, 0, s, s, xd)
+    rect(img, 1, 1, s - 2, s - 2, base)
+    hline(img, 1, 1, s - 2, xl)
+    vline(img, 1, 2, s - 3, l)
+    hline(img, 1, s - 2, s - 2, d)
+    vline(img, s - 2, 2, s - 3, d)
+    for x in range(2, s - 2):
+        if x % 4 == 0:
+            for y in (2, 3, 4, s - 5, s - 4, s - 3):
+                px(img, x, y, d)
+        elif x % 4 == 1:
+            for y in (2, 3, 4, s - 5, s - 4, s - 3):
+                px(img, x, y, l)
+    for y in range(6, s - 6):
+        if y % 4 == 0:
+            for x in (2, 3, 4, s - 5, s - 4, s - 3):
+                px(img, x, y, d)
+        elif y % 4 == 1:
+            for x in (2, 3, 4, s - 5, s - 4, s - 3):
+                px(img, x, y, l)
+    # corner castings: the steel blocks a spreader locks into
+    for cx, cy in ((1, 1), (s - 6, 1), (1, s - 6), (s - 6, s - 6)):
+        rect(img, cx, cy, 5, 5, STEEL_D)
+        hline(img, cx, cy, 5, STEEL_XL)
+        vline(img, cx, cy, 5, STEEL_L)
+        hline(img, cx, cy + 4, 5, STEEL_XD)
+        vline(img, cx + 4, cy, 5, STEEL_XD)
+        rect(img, cx + 2, cy + 1, 1, 3, STEEL_XD)
+    # the sheet, sunk into the wall
+    rect(img, 5, 5, s - 10, s - 10, xd)
+    rect(img, 6, 6, s - 12, s - 12, PAPER_XD)
     rect(img, 7, 7, s - 14, s - 14, DECK)
-    hline(img, 7, 7, s - 14, PAPER_XD)
-    hline(img, 7, 8, s - 14, (15, 20, 32, 255))
-    vline(img, 7, 7, s - 14, (15, 20, 32, 255))
-    # The chart grid: one dot per 8px tile, so a board reads as an instrument
-    # deck rather than a flat dark rectangle. The middle 8x8 is what tiles.
-    px(img, 12, 12, DECK_DOT)
-    px(img, 20, 12, DECK_DOT)
-    px(img, 12, 20, DECK_DOT)
-    px(img, 20, 20, DECK_DOT)
-    corner_notch(img, s, s, 2)
-    save(img, "ui_board")
+    hline(img, 7, 7, s - 14, DECK_SHADE)
+    vline(img, 7, 7, s - 14, DECK_SHADE)
+    hline(img, 7, s - 8, s - 14, PAPER_XL)
+    save(img, name)
+
+
+def gen_board():
+    for tone, ramp in LIVERY.items():
+        _container_board("ui_board" if tone == "rust" else "ui_board_" + tone,
+                         ramp)
 
 
 def gen_clip():
-    """The latch that tops a board: the carry handle of an instrument panel.
+    """The spreader a board hangs from, 72x22.
 
-    It was a chrome spring clip while boards were clipboards. A deck panel is
-    racked, not clipped, so this is the handle it is pulled out by: an enamel
-    bracket in the frame's own navy, a brushed grip bar across it, and a lamp
-    at each end showing the panel is live. Same 72x22 footprint, because
+    Every board is lowered into view by the same yellow spreader the quay
+    cranes carry: two cables, a beam with hazard ends, and a twist-lock
+    gripping each top corner. Same footprint as the old clip, because
     `UiTheme.place_clip` and the rise animation are cut to it.
     """
     w, h = 72, 22
     img = new_img(w, h)
-
-    # cast shadow first, so the bracket sits on top of it
+    YEL_XD, YEL_D, YEL, YEL_L = (104, 66, 10, 255), (188, 128, 22, 255), \
+        (244, 190, 44, 255), (255, 228, 128, 255)
+    HAZ = (40, 34, 36, 255)
     rect(img, 6, h - 3, w - 12, 2, SHADOW_1)
     rect(img, 9, h - 1, w - 18, 1, SHADOW_2)
-
-    # --- the grip bar, standing proud of the bracket ---
-    bar_x, bar_w = 18, w - 36
-    rect(img, bar_x, 0, bar_w, 7, HULL_XD)
-    rect(img, bar_x + 1, 1, bar_w - 2, 5, STEEL_D)
-    hline(img, bar_x + 2, 1, bar_w - 4, STEEL_XL)
-    hline(img, bar_x + 1, 2, bar_w - 2, STEEL_L)
-    hline(img, bar_x + 1, 5, bar_w - 2, STEEL_XD)
-    for gx in range(bar_x + 5, bar_x + bar_w - 5, 3):
-        vline(img, gx, 3, 2, STEEL)
-        vline(img, gx + 1, 3, 2, STEEL_XD)
-
-    # --- bracket body ---
-    rect(img, 2, 6, w - 4, h - 10, HULL_XD)
-    rect(img, 3, 7, w - 6, h - 13, HULL)
-    hline(img, 4, 7, w - 8, HULL_XL)
-    hline(img, 3, 8, w - 6, HULL_L)
-    hline(img, 3, h - 8, w - 6, HULL_D)
-    # the amber hairline every steel panel carries on the edge facing the work
-    hline(img, 3, h - 7, w - 6, AMBER)
-    hline(img, 3, h - 6, w - 6, AMBER_XD)
-
-    # --- a live lamp and a rivet at each end ---
-    for lx in (7, w - 10):
-        rect(img, lx - 1, 10, 4, 4, HULL_XD)
-        rect(img, lx, 11, 2, 2, TEAL_L)
-        px(img, lx, 11, TEAL_XL)
-    for rx in (14, w - 16):
-        rivet(img, rx, 11)
-
-    corner_notch(img, w, h, 2)
+    for cx in (22, w - 25):
+        rect(img, cx, 0, 3, 7, STEEL_XD)
+        vline(img, cx + 1, 0, 7, STEEL_L)
+    # head block the cables meet at
+    rect(img, 28, 2, w - 56, 5, STEEL_XD)
+    rect(img, 29, 3, w - 58, 3, STEEL_D)
+    hline(img, 29, 3, w - 58, STEEL_L)
+    # the beam
+    rect(img, 1, 6, w - 2, 11, YEL_XD)
+    rect(img, 2, 7, w - 4, 9, YEL)
+    hline(img, 3, 7, w - 6, YEL_L)
+    hline(img, 2, 14, w - 4, YEL_D)
+    hline(img, 2, 15, w - 4, YEL_D)
+    for end in (3, w - 17):
+        for x in range(14):
+            for y in range(7):
+                if (x + y) % 6 < 3:
+                    px(img, end + x, 8 + y, HAZ)
+    # nameplate
+    rect(img, 26, 9, w - 52, 5, YEL_XD)
+    rect(img, 27, 10, w - 54, 3, HAZ)
+    for lx in (30, 35, 40):
+        px(img, lx, 11, YEL_L)
+    # twist-locks reaching down onto the board
+    for fx in (5, w - 11):
+        rect(img, fx, 16, 6, 4, STEEL_XD)
+        rect(img, fx + 1, 16, 4, 3, STEEL)
+        hline(img, fx + 1, 16, 4, STEEL_XL)
+    corner_notch(img, w, h, 1)
     save(img, "ui_clip")
 
 
 def gen_paper():
-    """16x16 nine-patch, margin 5: the sheet a list of cards is laid out on.
-
-    One clean step darker than a card, recessed: its top and left edges are in
-    the shadow of whatever sits above it, so a list reads as slips lying in a
-    tray rather than one block of cream.
-    """
+    """16x16 nine-patch, margin 5: the tray a list of labels lies in."""
     s = 16
     img = new_img(s, s)
     rect(img, 0, 0, s, s, PAPER_XD)
     rect(img, 1, 1, s - 2, s - 2, PAPER_D)
-    hline(img, 1, 1, s - 2, (12, 16, 27, 255))
-    vline(img, 1, 1, s - 2, (15, 20, 32, 255))
-    hline(img, 1, s - 2, s - 2, (34, 44, 64, 255))
+    hline(img, 1, 1, s - 2, (176, 154, 118, 255))
+    vline(img, 1, 1, s - 2, (190, 168, 132, 255))
+    hline(img, 1, s - 2, s - 2, (236, 220, 188, 255))
+    for cx, cy in ((0, 0), (s - 1, 0), (0, s - 1), (s - 1, s - 1)):
+        px(img, cx, cy, (0, 0, 0, 0))
     save(img, "ui_paper")
 
 
 def _card(name, field, edge, edge_hi, rail=None, fibre_seed=31):
-    """16x16 nine-patch, margin 5: one chunky slip.
+    """16x16 nine-patch, margin 5: one cargo label.
 
-    Clean field, a lit top edge, and a two-pixel skirt along the bottom so the
-    slip has thickness and casts onto the sheet. A coloured spine on the left
-    says what state it is in (amber: you can buy it, teal: done).
+    A thick sticker: clean field, a white top edge, a two-step skirt so it has
+    thickness, and a hard shadow under it. A coloured stub on the left says
+    what state it is in (green: you can buy it, teal: done).
     """
     s = 16
     img = new_img(s, s)
     hline(img, 2, s - 1, s - 3, SHADOW_1)
+    vline(img, s - 1, 2, s - 3, SHADOW_2)
     rect(img, 0, 0, s - 1, s - 1, edge)
     rect(img, 1, 1, s - 3, s - 3, field)
     hline(img, 1, 1, s - 3, edge_hi)
-    hline(img, 1, 2, s - 3, _mix(field, edge_hi, 0.30))
-    # the skirt: the slab's own thickness, two steps
-    hline(img, 1, s - 4, s - 3, _shade(field, 0.86))
-    hline(img, 1, s - 3, s - 3, _shade(field, 0.66))
+    hline(img, 1, s - 4, s - 3, _shade(field, 0.90))
+    hline(img, 1, s - 3, s - 3, _shade(field, 0.74))
     if rail is not None:
-        vline(img, 1, 1, s - 4, rail[1])
-        vline(img, 2, 1, s - 4, rail[2] if len(rail) > 2 else rail[1])
-        vline(img, 0, 1, s - 3, rail[0])
+        vline(img, 1, 1, s - 3, rail[1])
+        vline(img, 2, 1, s - 3, rail[1])
+        vline(img, 3, 1, s - 3, rail[2])
+        hline(img, 1, 1, 3, rail[2])
+        hline(img, 1, s - 3, 3, rail[0])
     for cx, cy in ((0, 0), (s - 2, 0), (0, s - 2), (s - 2, s - 2)):
         px(img, cx, cy, (0, 0, 0, 0))
     save(img, name)
@@ -309,35 +338,26 @@ def _shade(color, k):
 
 
 def gen_cards():
-    _card("ui_card", PAPER, PAPER_XD, (72, 92, 124, 255))
-    _card("ui_card_hi", PAPER_L, AMBER_D, PAPER_XL,
-          rail=(AMBER_XD, AMBER, AMBER_L))
-    _card("ui_card_off", (28, 36, 52, 255), PAPER_XD, (40, 51, 72, 255))
-    _card("ui_card_done", (26, 60, 66, 255), TEAL_XD, (58, 122, 120, 255),
-          rail=(TEAL_XD, TEAL, TEAL_L))
+    _card("ui_card", PAPER, PAPER_XD, PAPER_XL)
+    _card("ui_card_hi", PAPER_L, GO_XD, PAPER_XL, rail=(GO_D, GO, GO_L))
+    _card("ui_card_off", (218, 206, 186, 255), (150, 132, 110, 255),
+          (232, 222, 204, 255))
+    _card("ui_card_done", (212, 234, 216, 255), TEAL_XD, (240, 250, 240, 255),
+          rail=(TEAL_D, TEAL, TEAL_L))
 
 
 def gen_slate():
-    """14x14 nine-patch, margin 5: the steel plate a number is stamped into.
-
-    Was a flat dark rounded box. It is a bevelled plate now: dark recessed
-    face, lit top-left lip, shaded bottom-right, and two screws holding it on.
-    """
+    """14x14 nine-patch, margin 5: the chalkboard plate a number is written on."""
     def plate(name, border):
         s = 14
         img = new_img(s, s)
         hline(img, 2, s - 1, s - 3, SHADOW_1)
         rect(img, 0, 0, s - 1, s - 1, border)
         rect(img, 1, 1, s - 3, s - 3, SLATE_D)
-        # the recess: light catches the far edge, the near edge is in shadow
         hline(img, 1, 1, s - 3, SLATE_XD)
         vline(img, 1, 1, s - 3, SLATE_XD)
         hline(img, 1, s - 3, s - 3, SLATE)
         vline(img, s - 3, 1, s - 3, SLATE)
-        hline(img, 2, 3, s - 5, SLATE)
-        for sx, sy in ((2, 2), (s - 4, s - 4)):
-            px(img, sx, sy, SLATE_XL)
-            px(img, sx + 1, sy + 1, SLATE_XD)
         for cx, cy in ((0, 0), (s - 2, 0), (0, s - 2), (s - 2, s - 2)):
             px(img, cx, cy, (0, 0, 0, 0))
         save(img, name)
@@ -347,24 +367,18 @@ def gen_slate():
 
 
 def gen_well():
-    """14x14 nine-patch, margin 5: the socket an item sprite sits in.
-
-    A hole punched in the paper: hard shadow on the lit side, a bright lip
-    opposite, and a slightly cooler floor so the sprite in it pops.
-    """
+    """14x14 nine-patch, margin 5: the sky-blue window an item stands in."""
     s = 14
     img = new_img(s, s)
     rect(img, 0, 0, s, s, PAPER_XD)
-    rect(img, 1, 1, s - 2, s - 2, (58, 72, 98, 255))
-    speckle(img, 2, 2, s - 4, s - 4, [(64, 79, 106, 255)], 0.12, seed=53)
-    # inset: the top-left of a hole is the dark side
-    hline(img, 1, 1, s - 2, (30, 39, 57, 255))
-    hline(img, 1, 2, s - 2, (46, 58, 81, 255))
-    vline(img, 1, 1, s - 2, (36, 46, 66, 255))
-    hline(img, 1, s - 2, s - 2, PAPER_XL)
-    vline(img, s - 2, 1, s - 2, (74, 92, 122, 255))
+    rect(img, 1, 1, s - 2, s - 2, WELL)
+    hline(img, 1, 1, s - 2, (138, 180, 186, 255))
+    hline(img, 1, 2, s - 2, (166, 204, 206, 255))
+    vline(img, 1, 1, s - 2, (152, 192, 196, 255))
+    hline(img, 1, s - 2, s - 2, (232, 246, 240, 255))
     corner_notch(img, s, s, 1)
     save(img, "ui_well")
+
 
 
 def gen_badge():
@@ -607,22 +621,22 @@ def gen_indicators():
 # ------------------------------------------------------------------- controls
 
 def _button(base, light, xlight, dark, xdark, name):
-    """16x16 nine-patch, margin 5: a chunky physical key.
+    """16x16 nine-patch, margin 5: a chunky moulded key.
 
-    Five tones and a cast shadow. The old two-tone version read as a coloured
-    rectangle; this one has a lit top face, a shaded skirt and a shadow, so it
-    looks like something that can be pressed.
+    Lit top face, a two-row skirt and a hard cast shadow: thick enough that it
+    reads as something you push down, not a coloured rectangle.
     """
     s = 16
     img = new_img(s, s)
     hline(img, 2, s - 1, s - 3, SHADOW_1)
     vline(img, s - 1, 2, s - 3, SHADOW_1)
-
     rect(img, 0, 0, s - 1, s - 1, xdark)
     rect(img, 1, 1, s - 3, s - 3, base)
     hline(img, 2, 1, s - 5, xlight)
     hline(img, 1, 2, s - 3, light)
-    vline(img, 1, 2, s - 5, light)
+    vline(img, 1, 2, s - 6, light)
+    px(img, 2, 3, xlight)
+    hline(img, 1, s - 5, s - 3, dark)
     hline(img, 1, s - 4, s - 3, dark)
     hline(img, 1, s - 3, s - 3, xdark)
     vline(img, s - 3, 2, s - 5, dark)
@@ -632,11 +646,8 @@ def _button(base, light, xlight, dark, xdark, name):
 
 
 def _flat_key(field, edge, name):
-    """16x16 nine-patch, margin 5: a key that is not there yet.
-
-    Flat — no lit face, no skirt, no shadow — and the colour of the paper it
-    sits on, so a "not yet" never competes with an amber "now" beside it.
-    """
+    """16x16 nine-patch, margin 5: a key that is not there yet — flat, no
+    shadow, the colour of the sheet it sits on."""
     s = 16
     img = new_img(s, s)
     rect(img, 0, 0, s - 1, s - 1, edge)
@@ -648,65 +659,69 @@ def _flat_key(field, edge, name):
 
 def gen_buttons():
     _button(AMBER, AMBER_L, AMBER_XL, AMBER_D, AMBER_XD, "ui_btn")
-    # pressed: the key sinks, so light and shade swap
     _button(AMBER_D, AMBER, AMBER_L, AMBER_XD, AMBER_XD, "ui_btn_down")
+    _button(GO, GO_L, GO_XL, GO_D, GO_XD, "ui_btn_go")
     _button(TEAL, TEAL_L, TEAL_XL, TEAL_D, TEAL_XD, "ui_btn_alt")
-    _flat_key((28, 36, 52, 255), (50, 63, 88, 255), "ui_btn_off")
+    _flat_key((214, 198, 170, 255), (170, 150, 120, 255), "ui_btn_off")
     _button(RUST, RUST_L, (222, 140, 116, 255), RUST_D, RUST_XD, "ui_btn_danger")
-    _button((58, 74, 102, 255), (78, 98, 130, 255), (120, 144, 176, 255),
-            (40, 52, 74, 255), PAPER_XD, "ui_btn_ghost")
-    # The console keys. Paper keys on a steel console read as sticky notes; these
-    # are the same enamel as the panel they are bolted to, one step lighter so
-    # they still stand off it.
+    _button(PAPER, PAPER_L, PAPER_XL, (206, 188, 156, 255), PAPER_XD,
+            "ui_btn_ghost")
     _button(HULL, HULL_L, HULL_XL, HULL_D, HULL_XD, "ui_btn_steel")
     _button(HULL_D, HULL, HULL_L, HULL_XD, HULL_XD, "ui_btn_steel_down")
 
 
 def gen_tabs():
-    """16x16 nine-patch, margin 5: folder tabs on the board's frame.
+    """16x16 nine-patch, margin 5: index dividers standing on the sheet.
 
-    The active tab is the sheet itself, lifted, its bottom edge open into the
-    paper below. The others are enamel keys sunk into the frame, so the one you
-    are on is the only cream thing in the row.
+    The open one is a bright label with the livery's stripe across its top;
+    the rest are kraft dividers behind it.
     """
     s = 16
     on = new_img(s, s)
-    rect(on, 0, 0, s, s, AMBER_XD)
-    rect(on, 1, 1, s - 2, s - 1, (56, 72, 100, 255))
+    rect(on, 0, 0, s, s, PAPER_XD)
+    rect(on, 1, 1, s - 2, s - 1, PAPER_L)
     hline(on, 1, 1, s - 2, AMBER_L)
     hline(on, 1, 2, s - 2, AMBER)
-    hline(on, 1, 3, s - 2, (84, 104, 136, 255))
+    hline(on, 1, 3, s - 2, AMBER_D)
     for cx in (0, s - 1):
         px(on, cx, 0, (0, 0, 0, 0))
     save(on, "ui_tab_on")
 
     off = new_img(s, s)
-    rect(off, 0, 1, s, s - 1, HULL_XD)
-    rect(off, 1, 2, s - 2, s - 3, (30, 39, 57, 255))
-    hline(off, 2, 2, s - 4, (48, 61, 86, 255))
-    hline(off, 1, s - 2, s - 2, HULL_XD)
+    rect(off, 0, 2, s, s - 2, (128, 104, 78, 255))
+    rect(off, 1, 3, s - 2, s - 4, (210, 188, 152, 255))
+    hline(off, 2, 3, s - 4, (230, 212, 180, 255))
+    hline(off, 1, s - 2, s - 2, (170, 146, 110, 255))
     for cx in (0, s - 1):
-        px(off, cx, 1, (0, 0, 0, 0))
+        px(off, cx, 2, (0, 0, 0, 0))
     save(off, "ui_tab_off")
 
 
 def gen_header():
-    """16x16 nine-patch, margin 5: the nameplate across the top of a board.
+    """16x16 nine-patch, margin 5: the painted band across the top of a board.
 
-    The frame's enamel carried into the sheet, with an amber hairline under it,
-    so every board announces itself the same way the gantry over the port does.
+    The container's own livery with a stencilled title, ribbed like the wall,
+    and a hazard stripe along its foot. One per livery.
     """
-    s = 16
-    img = new_img(s, s)
-    hline(img, 1, s - 1, s - 2, SHADOW_1)
-    rect(img, 0, 0, s, s - 1, HULL_XD)
-    rect(img, 1, 1, s - 2, s - 3, HULL)
-    hline(img, 2, 1, s - 4, HULL_L)
-    hline(img, 1, s - 3, s - 2, HULL_D)
-    hline(img, 1, s - 2, s - 2, AMBER)
-    for cx, cy in ((0, 0), (s - 1, 0)):
-        px(img, cx, cy, (0, 0, 0, 0))
-    save(img, "ui_header")
+    HAZ_Y, HAZ_K = (248, 198, 44, 255), (40, 34, 36, 255)
+    for tone, (xd, d, base, l, xl) in LIVERY.items():
+        s = 16
+        img = new_img(s, s)
+        hline(img, 1, s - 1, s - 2, SHADOW_1)
+        rect(img, 0, 0, s, s - 1, xd)
+        rect(img, 1, 1, s - 2, s - 5, base)
+        hline(img, 1, 1, s - 2, xl)
+        hline(img, 1, 2, s - 2, l)
+        for x in range(1, s - 1):
+            if x % 3 == 2:
+                vline(img, x, 3, s - 8, _mix(base, d, 0.45))
+        hline(img, 1, s - 5, s - 2, d)
+        for x in range(1, s - 1):
+            px(img, x, s - 4, HAZ_Y if x % 6 < 3 else HAZ_K)
+            px(img, x, s - 3, HAZ_Y if (x + 1) % 6 < 3 else HAZ_K)
+        for cx, cy in ((0, 0), (s - 1, 0)):
+            px(img, cx, cy, (0, 0, 0, 0))
+        save(img, "ui_header" if tone == "rust" else "ui_header_" + tone)
 
 
 def gen_segments():
@@ -721,20 +736,16 @@ def gen_segments():
     save(on, "ui_seg_on")
 
     off = new_img(10, 10)
-    rect(off, 0, 0, 10, 9, PAPER_XD)
-    rect(off, 1, 1, 8, 7, (34, 44, 64, 255))
-    hline(off, 1, 1, 8, (58, 74, 102, 255))
-    hline(off, 1, 7, 8, (24, 32, 48, 255))
+    rect(off, 0, 0, 10, 9, (128, 104, 78, 255))
+    rect(off, 1, 1, 8, 7, (232, 218, 190, 255))
+    hline(off, 1, 1, 8, PAPER_XL)
+    hline(off, 1, 7, 8, (204, 186, 152, 255))
     save(off, "ui_seg_off")
 
 
 def gen_focus():
     """12x12 nine-patch, margin 4: the keyboard focus ring, hollow centre.
-
-    Two tones on purpose. A single-colour ring cannot be visible on both the
-    cream paper of a board and the near-black steel of a readout, so the outer
-    pixel is ink and the inner one is cream: whichever it lands on, one reads.
-    """
+    Two tones, so one of them reads on paper and the other on steel."""
     s = 12
     img = new_img(s, s)
     rect(img, 0, 0, s, s, INK)
@@ -744,42 +755,44 @@ def gen_focus():
 
 
 def gen_bar():
-    """10x10 nine-patch, margin 4: a progress trough cut into the paper."""
+    """10x10 nine-patch, margin 4: a progress trough cut into the sheet."""
     bg = new_img(10, 10)
     rect(bg, 0, 0, 10, 10, PAPER_XD)
-    rect(bg, 1, 1, 8, 8, (14, 19, 31, 255))
-    hline(bg, 1, 1, 8, (8, 11, 19, 255))
-    hline(bg, 1, 8, 8, (40, 52, 74, 255))
+    rect(bg, 1, 1, 8, 8, (170, 148, 114, 255))
+    hline(bg, 1, 1, 8, (140, 118, 88, 255))
+    hline(bg, 1, 8, 8, (200, 180, 146, 255))
     save(bg, "ui_bar_bg")
 
     fill = new_img(10, 10)
-    rect(fill, 0, 0, 10, 10, TEAL_XD)
-    rect(fill, 1, 1, 8, 8, TEAL)
-    hline(fill, 1, 1, 8, TEAL_L)
-    hline(fill, 1, 2, 8, TEAL_XL)
-    hline(fill, 1, 8, 8, TEAL_D)
+    rect(fill, 0, 0, 10, 10, GO_XD)
+    rect(fill, 1, 1, 8, 8, GO)
+    hline(fill, 1, 1, 8, GO_XL)
+    hline(fill, 1, 2, 8, GO_L)
+    hline(fill, 1, 8, 8, GO_D)
     save(fill, "ui_bar_fill")
 
 
 def gen_scroll():
-    """10x10 nine-patches, margin 4: a sunk channel and a wooden grip."""
+    """10x10 nine-patches, margin 4: a sunk channel and a painted grip."""
     bg = new_img(10, 10)
     rect(bg, 0, 0, 10, 10, (0, 0, 0, 0))
-    rect(bg, 3, 0, 4, 10, (13, 17, 28, 255))
-    vline(bg, 3, 0, 10, (8, 11, 19, 255))
-    vline(bg, 6, 0, 10, (34, 44, 64, 255))
+    rect(bg, 3, 0, 4, 10, (186, 164, 128, 255))
+    vline(bg, 3, 0, 10, (150, 128, 96, 255))
+    vline(bg, 6, 0, 10, (226, 208, 176, 255))
     save(bg, "ui_scroll_bg")
 
+    xd, d, base, l, xl = LIVERY["rust"]
     grab = new_img(10, 10)
     rect(grab, 0, 0, 10, 10, (0, 0, 0, 0))
-    rect(grab, 2, 0, 6, 10, PAPER_XD)
-    rect(grab, 3, 1, 4, 8, AMBER)
-    vline(grab, 3, 1, 8, AMBER_L)
-    vline(grab, 6, 1, 8, AMBER_D)
-    hline(grab, 3, 1, 4, AMBER_XL)
+    rect(grab, 2, 0, 6, 10, xd)
+    rect(grab, 3, 1, 4, 8, base)
+    vline(grab, 3, 1, 8, l)
+    vline(grab, 6, 1, 8, d)
+    hline(grab, 3, 1, 4, xl)
     for cx, cy in ((2, 0), (7, 0), (2, 9), (7, 9)):
         px(grab, cx, cy, (0, 0, 0, 0))
     save(grab, "ui_scroll_grab")
+
 
 
 def gen_desk_props():

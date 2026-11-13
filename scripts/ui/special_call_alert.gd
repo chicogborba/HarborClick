@@ -34,7 +34,7 @@ func _ready() -> void:
 	_scrim = UiTheme.scrim(0.66)
 	add_child(_scrim)
 
-	_board = UiTheme.panel(UiTheme.board_style(11), false)
+	_board = UiTheme.panel(UiTheme.board_style(11, &"gold"), false)
 	add_child(_board)
 	# The brief is prose, and a panel sized from wrapped prose reports a minimum
 	# height in the thousands. The board takes its size from the safe area and the

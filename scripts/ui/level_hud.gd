@@ -77,7 +77,7 @@ func _ready() -> void:
 			roadmap_requested.emit())
 	add_child(_badge)
 
-	_card = UiTheme.panel(UiTheme.board_style(8), false)
+	_card = UiTheme.panel(UiTheme.board_style(8, &"green"), false)
 	_card.visible = false
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var col := VBoxContainer.new()

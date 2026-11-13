@@ -24,6 +24,12 @@ const PRICE_WIDTH := 66.0
 
 var id: String = ""
 var kind: String = "structure"
+## Set before `setup`. A tile stands on the shelf of the equipment tab: the
+## machine big on top, its name and yield under it, and the price as a key
+## across the foot. A row (the default) is the same card lying down, for lists
+## whose text is the point — upgrades, land.
+var tile := false
+const TILE_ART := Vector2(72, 46)
 
 var _art: PortIcon
 var _art_well: PanelContainer
@@ -48,6 +54,7 @@ var _price_col: VBoxContainer
 var _blurb := ""
 var _effect := ""
 var _state: StringName = &""
+var _price_look: StringName = &""
 var _press_start := Vector2.ZERO
 var _tracking_press := false
 var _last_activation_msec := -1000
@@ -67,6 +74,10 @@ func setup(item_id: String, item_kind: String, art_key: String,
 	add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
 	UiTheme.describe(self, title, description)
 	_apply_state(&"normal")
+
+	if tile:
+		_setup_tile(art_key, title, description, badge)
+		return
 
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 6)
@@ -152,14 +163,102 @@ func setup(item_id: String, item_kind: String, art_key: String,
 	_count_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.SLATE_TEXT)
 	_count_stamp.add_child(_count_label)
 
-	_price_stamp = UiTheme.stamp("", UiTheme.AMBER)
-	_price_stamp.size_flags_horizontal = Control.SIZE_FILL
+	_price_stamp = _make_price_key()
 	_price_col.add_child(_price_stamp)
-	_price_label = UiTheme.stamp_label(_price_stamp)
 	_art_well.custom_minimum_size = ART_SIZE
 	_art.custom_minimum_size = ART_SIZE - Vector2(2, 2)
 	_price_col.custom_minimum_size.x = PRICE_WIDTH
 
+
+
+func _make_price_key() -> PanelContainer:
+	## The price is the key you press, not a number beside one: green when the
+	## wallet covers it, the sheet's own colour when it does not.
+	var key := UiTheme.panel(UiTheme.nine("ui_btn_off", 5, 4))
+	key.size_flags_horizontal = Control.SIZE_FILL
+	key.custom_minimum_size.y = 20.0
+	_price_label = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK_SOFT)
+	_price_label.name = "Value"
+	_price_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_price_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	key.add_child(_price_label)
+	return key
+
+
+func _price_key(look: StringName) -> void:
+	## `go` | `off` | `done`
+	if _price_look == look:
+		return
+	_price_look = look
+	var sprite := "ui_btn_go" if look == &"go" else "ui_btn_off"
+	UiTheme.apply_panel(_price_stamp, UiTheme.nine(sprite, 5, 4))
+	_price_label.label_settings.font_color = UiTheme.CREAM if look == &"go" \
+		else (UiTheme.TEAL_DEEP if look == &"done" else UiTheme.INK_SOFT)
+
+
+func _setup_tile(art_key: String, title: String, description: String,
+		badge: Variant) -> void:
+	custom_minimum_size.y = 128.0
+	size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override(&"separation", 3)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(col)
+	_indent = Control.new()
+	_indent.visible = false
+	col.add_child(_indent)
+
+	_art_well = UiTheme.panel(UiTheme.well_style(2))
+	_art_well.custom_minimum_size = Vector2(0.0, TILE_ART.y)
+	col.add_child(_art_well)
+	_art = PortIcon.new()
+	_art.custom_minimum_size = Vector2(0.0, TILE_ART.y - 4.0)
+	_art.show_item(art_key)
+	_art.set_badge(badge)
+	_art_well.add_child(_art)
+	_count_stamp = UiTheme.panel(UiTheme.slate_style(false, 2))
+	_count_stamp.visible = false
+	_count_stamp.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_count_stamp.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	_art_well.add_child(_count_stamp)
+	_count_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.SLATE_TEXT)
+	_count_stamp.add_child(_count_label)
+
+	var name_row := HBoxContainer.new()
+	name_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	name_row.add_theme_constant_override(&"separation", 3)
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(name_row)
+	_lock = UiTheme.icon(UiTheme.Icon.LOCK)
+	_lock.visible = false
+	_lock.modulate = UiTheme.DANGER
+	_lock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	name_row.add_child(_lock)
+	_name_label = UiTheme.label(title, UiTheme.SIZE_BODY, UiTheme.INK)
+	_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_name_label.max_lines_visible = 2
+	_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_row.add_child(_name_label)
+
+	_chip_row = HFlowContainer.new()
+	_chip_row.visible = false
+	col.add_child(_chip_row)
+	for i in 2:
+		_chips.append(_make_chip())
+
+	_sub_label = UiTheme.label(description, UiTheme.SIZE_SMALL,
+		UiTheme.INK_SOFT)
+	_sub_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sub_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sub_label.max_lines_visible = 3
+	_sub_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	col.add_child(_sub_label)
+
+	_price_col = col
+	_price_stamp = _make_price_key()
+	_price_stamp.custom_minimum_size.y = 24.0
+	col.add_child(_price_stamp)
 
 
 const INDENT_STEP := 8.0
@@ -243,21 +342,21 @@ func refresh(cost: float, count: int, affordable: bool, sold_out: bool = false,
 	_lock.visible = false
 	if sold_out:
 		_price_label.text = "PRONTO"
-		_price_label.label_settings.font_color = UiTheme.TEAL_LIGHT
+		_price_key(&"done")
 		_apply_state(&"done")
 		_was_affordable = true
 	else:
 		_price_label.text = GameState.fmt(cost)
-		_price_label.label_settings.font_color = \
-			UiTheme.AMBER if affordable else UiTheme.SLATE_DIM
+		_price_key(&"go" if affordable else &"off")
 		_apply_state(&"ready" if affordable else &"normal")
 		var became_affordable := affordable and not _was_affordable
 		_was_affordable = affordable
 		if became_affordable and UserPreferences.can_animate():
 			var pulse := create_tween()
-			pulse.tween_property(_price_stamp, "modulate", Color(1.7, 1.55, 1.15), 0.09) \
+			pulse.tween_property(_price_stamp, "modulate", Color(1.5, 1.6, 1.3), 0.09) \
 				.from(Color.WHITE)
 			pulse.tween_property(_price_stamp, "modulate", Color.WHITE, 0.24)
+			UiMotion.punch(_price_stamp)
 	_count_stamp.visible = count > 0
 	_count_label.text = "x%d" % count
 
@@ -345,7 +444,7 @@ func show_locked(title: String, hint: String) -> void:
 	_sub_label.label_settings.font_color = UiTheme.INK_SOFT
 	_count_stamp.visible = false
 	_price_label.text = "?"
-	_price_label.label_settings.font_color = UiTheme.SLATE_DIM
+	_price_key(&"off")
 	_art.modulate = Color(0.0, 0.0, 0.0, 0.55)
 	_apply_state(&"locked")
 	tooltip_text = hint
@@ -366,7 +465,7 @@ func show_gated(reason: String, cost: float) -> void:
 	_lock.visible = true
 	_count_stamp.visible = false
 	_price_label.text = GameState.fmt(cost)
-	_price_label.label_settings.font_color = UiTheme.SLATE_DIM
+	_price_key(&"off")
 	_art.modulate = Color(0.35, 0.35, 0.4, 0.8)
 	_apply_state(&"locked")
 	tooltip_text = "%s\n%s" % [reason, _blurb]

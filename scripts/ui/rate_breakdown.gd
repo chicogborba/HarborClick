@@ -40,7 +40,7 @@ func _build() -> void:
 	add_child(_dim)
 
 	_panel = PanelContainer.new()
-	UiTheme.apply_panel(_panel, UiTheme.board_style(10))
+	UiTheme.apply_panel(_panel, UiTheme.board_style(10, &"steel"))
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_panel)
 
@@ -148,7 +148,7 @@ static func _share(entry: Dictionary, span: float) -> float:
 static func _bar_ink(entry: Dictionary) -> Color:
 	if String(entry.get("kind", "mult")) == "base":
 		return UiTheme.TEAL
-	return UiTheme.AMBER if float(entry.get("value", 1.0)) >= 1.0 \
+	return UiTheme.AMBER_DEEP if float(entry.get("value", 1.0)) >= 1.0 \
 		else UiTheme.DANGER
 
 
@@ -188,8 +188,8 @@ class RateBar:
 	func _draw() -> void:
 		var h := 6.0
 		var y := floorf((size.y - h) * 0.5)
-		draw_rect(Rect2(0, y, size.x, h), Color8(9, 12, 21))
-		draw_rect(Rect2(1, y + 1, size.x - 2, h - 2), Color8(14, 19, 31))
+		draw_rect(Rect2(0, y, size.x, h), Color8(96, 70, 50))
+		draw_rect(Rect2(1, y + 1, size.x - 2, h - 2), Color8(170, 148, 114))
 		if share <= 0.0:
 			return
 		var w := maxf(2.0, roundf((size.x - 2.0) * share * grow))
@@ -206,8 +206,8 @@ func _row(name_text: String, value_text: String, inert: bool = false,
 		share: float = 0.0, ink: Color = Color.WHITE) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 4)
-	var name_ink := UiTheme.PAPER_DEEP if inert else UiTheme.INK_SOFT
-	var value_ink := UiTheme.PAPER_DEEP if inert else UiTheme.INK
+	var name_ink := Color8(132, 114, 94) if inert else UiTheme.INK_SOFT
+	var value_ink := Color8(132, 114, 94) if inert else UiTheme.INK
 	var label := UiTheme.label(name_text, UiTheme.SIZE_SMALL, name_ink)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.clip_text = true

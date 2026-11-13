@@ -141,13 +141,13 @@ Inventory: **283 authored code/config/scene files**.
 | `scripts/ui/responsive_shell.gd` | 81 | class `ResponsiveShell`; 6 functions | Single source of viewport metrics for UI, world framing and save lifecycle. |
 | `scripts/ui/route_map.gd` | 367 | class `RouteMap`; 17 functions | PORTOS: a planet you can spin, the three ports on it, and the one you tap. |
 | `scripts/ui/settings_panel.gd` | 713 | class `SettingsPanel`; 39 functions | Options board: sound, language, presentation, backup, and the one |
-| `scripts/ui/shop.gd` | 1588 | class `Shop`; 66 functions | The purchase manifest, presented as the foreman's clipboard. |
-| `scripts/ui/shop_card.gd` | 445 | class `ShopCard`; 18 functions | One line torn off the purchase manifest. |
+| `scripts/ui/shop.gd` | 1602 | class `Shop`; 66 functions | The purchase manifest, presented as the foreman's clipboard. |
+| `scripts/ui/shop_card.gd` | 544 | class `ShopCard`; 21 functions | One line torn off the purchase manifest. |
 | `scripts/ui/special_call_alert.gd` | 208 | class `SpecialCallAlert`; 14 functions | The interruption: a charter on the table, with what it pays and what it costs. |
 | `scripts/ui/title_screen.gd` | 1221 | 38 functions | The first thing the game shows. |
 | `scripts/ui/tutorial_spotlight.gd` | 784 | class `TutorialSpotlight`; 42 functions | Alisson, on foot. The first minutes, and every "olha isso, chefe!" after. |
 | `scripts/ui/ui_motion.gd` | 340 | class `UiMotion`; 20 functions | How the interface moves, in one place. |
-| `scripts/ui/ui_theme.gd` | 1085 | class `UiTheme`; 71 functions | The one place the interface is described. |
+| `scripts/ui/ui_theme.gd` | 1099 | class `UiTheme`; 72 functions | The one place the interface is described. |
 | `scripts/ui/upgrade_map.gd` | 484 | class `UpgradeMap`; 27 functions | The upgrade catalogue as the thing it actually is: a network diagram. |
 | `scripts/ui/voyage_screen.gd` | 117 | 3 functions | The crossing between two ports, on the globe. |
 | `scripts/ui/wheel_button.gd` | 143 | class `WheelButton`; 8 functions | The Roda da Sorte's key: a small steel key under the gantry's left end, with |
@@ -200,7 +200,7 @@ Inventory: **283 authored code/config/scene files**.
 | `tests/clicks_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/combo_test_runner.gd` | 108 | 8 functions | The tap combo: steady taps build a multiplier, a pause lets it fall, a skill |
 | `tests/combo_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/contrast_test_runner.gd` | 115 | 6 functions | WCAG contrast proof for the interface palette. |
+| `tests/contrast_test_runner.gd` | 122 | 6 functions | WCAG contrast proof for the interface palette. |
 | `tests/contrast_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/core_test_runner.gd` | 857 | 46 functions | Run with: Godot --headless --path . res://tests/core_test_runner.tscn |
 | `tests/core_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -312,7 +312,7 @@ Inventory: **283 authored code/config/scene files**.
 | `tools/sprites/gen_ship.py` | 283 | 7 functions | Top-down container ship, bow pointing UP, moored along a vertical quay. |
 | `tools/sprites/gen_title.py` | 1115 | 46 functions | Generates the title screen's harbour backdrop and its furniture. |
 | `tools/sprites/gen_train.py` | 320 | 14 functions | The branch-line train: locomotive, three kinds of wagon, and the boxes they carry. |
-| `tools/sprites/gen_ui.py` | 1272 | 37 functions | UI chrome, in the two materials the terminal is actually made of. |
+| `tools/sprites/gen_ui.py` | 1285 | 38 functions | UI chrome, in the two materials the terminal is actually made of. |
 | `tools/sprites/gen_vehicles.py` | 384 | 12 functions | Top-down port vehicles. All face UP (north); the game rotates/flips them. |
 | `tools/sprites/gen_wheel.py` | 449 | 22 functions | The Roda da Sorte: a carnival wheel bolted to the terminal's steel. |
 | `tools/sprites/gen_worldmap.py` | 345 | 7 functions | The chart on the ports board: the world, at the interface's own pixel density. |

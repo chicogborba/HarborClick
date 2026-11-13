@@ -29,7 +29,7 @@ func _ready() -> void:
 		if event is InputEventMouseButton and not event.pressed:
 			close())
 	add_child(_scrim)
-	_board = UiTheme.panel(UiTheme.board_style(10), false)
+	_board = UiTheme.panel(UiTheme.board_style(10, &"steel"), false)
 	add_child(_board)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override(&"separation", 6)

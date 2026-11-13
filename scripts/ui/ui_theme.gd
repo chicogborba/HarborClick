@@ -10,11 +10,10 @@ class_name UiTheme
 ## along the edge that faces the water. Anything permanently over the port is
 ## steel, so it reads as part of the terminal rather than a panel floating on it.
 ##
-## **Deck** is the control room: every overlay is an instrument panel racked
-## into view — the same enamel frame around a dark chart-gridded field, cards as
-## lit navy slabs, a carry-handle latch on top. The `paper`/`INK` names below
-## are from when boards were cream clipboards; see the palette notes. How any
-## of it moves is `UiMotion`.
+## **Container** is everything you open: a board is the end wall of a shipping
+## container — corrugated steel in one of the yard's liveries, a cream manifest
+## sheet sunk into it, hung from a crane spreader. Cards are cargo labels and
+## the price is a green key. How any of it moves is `UiMotion`.
 ##
 ## Numbers are lit amber behind glass, keys are amber, service tags are teal —
 ## the two accents the machines already wear out in the yard.
@@ -35,20 +34,15 @@ const SIZE_BODY := 10
 const SIZE_TITLE := 20
 const SIZE_HUGE := 30
 
-# --- light on the deck ---
+# --- ink on the manifest sheet ---
 # Every colour used for functional text is chosen so it clears WCAG AA (4.5:1)
 # against every surface it can land on. `tests/contrast_test_runner.gd` fails
 # the build if that stops being true.
-#
-# The names are from the clipboard era and are kept so a hundred call sites did
-# not have to move: INK is "the text colour of a board", PAPER is "the colour of
-# a card". Since the control-room pass a board is a dark deck panel, so INK is
-# light and PAPER is navy. `KEY_INK` is the one dark ink left — the label on an
-# amber key.
-const INK := Color8(232, 238, 248)
-const INK_SOFT := Color8(170, 186, 210)
-const PAPER := Color8(38, 50, 72)
-const PAPER_DEEP := Color8(58, 72, 98)
+# `KEY_INK` is the label on an amber key.
+const INK := Color8(58, 44, 46)
+const INK_SOFT := Color8(84, 68, 64)
+const PAPER := Color8(244, 232, 206)
+const PAPER_DEEP := Color8(210, 190, 154)
 const CREAM := Color8(250, 240, 218)
 const KEY_INK := Color8(44, 30, 22)
 ## The diaries are still bound paper: these are the inks that go on a page.
@@ -56,22 +50,21 @@ const BOOK_INK := Color8(58, 44, 46)
 const BOOK_INK_SOFT := Color8(84, 68, 64)
 
 # --- accents (same two the yard machines wear) ---
-# The *_DEEP pair are the accents as text on a deck panel, so they are lit
-# rather than deep now; the surfaces keep their own colours in the sprites.
+# The *_DEEP pair are the accents as text on the sheet.
 const AMBER := Color8(252, 202, 96)
-const AMBER_DEEP := Color8(244, 176, 66)
-const TEAL := Color8(64, 150, 140)
-const TEAL_DEEP := Color8(112, 208, 188)
+const AMBER_DEEP := Color8(128, 78, 18)
+const TEAL := Color8(44, 116, 110)
+const TEAL_DEEP := Color8(28, 80, 80)
 const TEAL_LIGHT := Color8(104, 194, 176)
-const DANGER := Color8(255, 140, 122)
+const DANGER := Color8(150, 60, 48)
 
-# --- enamelled navy steel: the HUD's own material ---
+# --- hull-green enamelled steel: the HUD's own material ---
 ## The gantry, the console and the keys bolted to them. Dark enough that cream
 ## and amber both clear AA on it, blue enough that it never reads as a grey box
 ## over the warm greys of the yard.
-const HULL := Color8(42, 54, 74)
-const HULL_DEEP := Color8(28, 37, 54)
-const HULL_EDGE := Color8(16, 22, 34)
+const HULL := Color8(28, 68, 76)
+const HULL_DEEP := Color8(18, 48, 56)
+const HULL_EDGE := Color8(10, 30, 36)
 ## The dark glass a lit number sits behind, and the two inks that light up on it.
 const GLASS := Color8(25, 31, 46)
 const DIGIT := Color8(252, 202, 96)
@@ -85,31 +78,32 @@ const STEEL_DIM := Color8(176, 190, 212)
 ## Kept next to the ink so a palette change and its contrast proof stay in one
 ## place.
 const SURFACE := {
-	&"card": Color8(38, 50, 72),
-	&"card_ready": Color8(48, 63, 90),
-	&"card_locked": Color8(28, 36, 52),
-	&"card_done": Color8(26, 60, 66),
-	&"sheet": Color8(22, 29, 45),
-	&"slate": Color8(14, 19, 31),
+	&"card": Color8(244, 232, 206),
+	&"card_ready": Color8(255, 248, 228),
+	&"card_locked": Color8(218, 206, 186),
+	&"card_done": Color8(212, 234, 216),
+	&"sheet": Color8(228, 210, 174),
+	&"slate": Color8(34, 30, 44),
 	&"btn_amber": Color8(232, 160, 48),
 	&"btn_alt": Color8(44, 116, 110),
+	&"btn_go": Color8(36, 114, 52),
 	&"btn_danger": Color8(150, 60, 48),
-	&"btn_ghost": Color8(58, 74, 102),
-	&"btn_off": Color8(28, 36, 52),
-	&"seg_off": Color8(34, 44, 64),
-	&"tab_on": Color8(56, 72, 100),
-	&"tab_off": Color8(30, 39, 57),
-	&"header": Color8(42, 54, 74),
-	&"gantry": Color8(42, 54, 74),
+	&"btn_ghost": Color8(244, 232, 206),
+	&"btn_off": Color8(214, 198, 170),
+	&"seg_off": Color8(232, 218, 190),
+	&"tab_on": Color8(255, 248, 228),
+	&"tab_off": Color8(210, 188, 152),
+	&"header": Color8(200, 88, 38),
+	&"gantry": Color8(28, 68, 76),
 	&"glass": Color8(25, 31, 46),
-	&"tag": Color8(28, 37, 54),
-	&"btn_steel": Color8(42, 54, 74),
+	&"tag": Color8(18, 48, 56),
+	&"btn_steel": Color8(28, 68, 76),
 }
 
 # --- the slate a number is stamped on ---
-const SLATE := Color8(14, 19, 31)
+const SLATE := Color8(34, 30, 44)
 const SLATE_TEXT := Color8(240, 232, 214)
-const SLATE_DIM := Color8(138, 150, 172)
+const SLATE_DIM := Color8(150, 140, 154)
 
 ## Anything smaller than this is not a reliable touch target.
 const TOUCH_MIN := 44.0
@@ -272,10 +266,31 @@ static func title_ribbon_style() -> StyleBoxTexture:
 	return nine("ui_title_ribbon", 7, 4)
 
 
-static func board_style(content: int = 12) -> StyleBoxTexture:
-	## The clipboard itself: wood with grain, steel corner protectors, and the
-	## manifest sunk into a well.
-	return nine("ui_board", 12, content)
+## The container liveries a board can be painted in. `board_style` remembers the
+## one it was last asked for so the nameplate built right after it matches,
+## which is how every panel builds: frame first, then `header()`.
+const LIVERIES: Array[StringName] = [&"rust", &"sea", &"green", &"steel", &"gold"]
+## Each livery's body colour, for the contrast suite and anything tinted to match.
+const LIVERY_PAINT := {
+	&"rust": Color8(200, 88, 38), &"sea": Color8(38, 106, 156),
+	&"green": Color8(48, 126, 74), &"steel": Color8(102, 108, 124),
+	&"gold": Color8(176, 118, 18),
+}
+static var _livery: StringName = &"rust"
+
+
+static func _livery_sprite(base: String, tone: StringName) -> String:
+	return base if tone == &"rust" or not LIVERIES.has(tone) \
+		else "%s_%s" % [base, tone]
+
+
+static func board_style(content: int = 12,
+		tone: StringName = &"rust") -> StyleBoxTexture:
+	## The end wall of a container: painted corrugated steel in one of the
+	## yard's liveries, a corner casting in each corner, the manifest sheet
+	## sunk into it.
+	_livery = tone
+	return nine(_livery_sprite("ui_board", tone), 12, content)
 
 
 static func book_style(content: int = 11) -> StyleBoxTexture:
@@ -502,9 +517,9 @@ static func header_style() -> StyleBoxTexture:
 	## The nameplate across the top of a board: the frame's enamel with an
 	## amber hairline under it. Bottom margin is thicker so the title never
 	## sits on the stripe.
-	var box := nine("ui_header", 5, 4)
+	var box := nine(_livery_sprite("ui_header", _livery), 5, 4)
 	box.content_margin_left = 8
-	box.content_margin_bottom = 6
+	box.content_margin_bottom = 7
 	return box
 
 
@@ -521,12 +536,12 @@ static func header(title: String, close: Callable = Callable(),
 	plate.add_child(row)
 	if kind >= 0:
 		var glyph := icon(kind as Icon)
-		glyph.modulate = AMBER
+		glyph.modulate = CREAM
 		glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(glyph)
-	var text := label(title, SIZE_TITLE, AMBER)
-	text.label_settings = settings(SIZE_TITLE, AMBER, 2)
-	text.label_settings.outline_color = HULL_EDGE
+	var text := label(title, SIZE_TITLE, CREAM)
+	text.label_settings = settings(SIZE_TITLE, CREAM, 2)
+	text.label_settings.outline_color = Color8(44, 26, 22)
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	text.clip_text = true
@@ -536,7 +551,7 @@ static func header(title: String, close: Callable = Callable(),
 	row.add_child(text)
 	var key: Button = null
 	if close.is_valid():
-		key = icon_button(Icon.CLOSE, &"steel", 24.0, Loc.t("common.close"))
+		key = icon_button(Icon.CLOSE, &"ghost", 24.0, Loc.t("common.close"))
 		key.custom_minimum_size = Vector2(32, 24)
 		key.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		key.pressed.connect(close)
@@ -574,7 +589,7 @@ static func scrim(alpha: float = 0.74) -> ColorRect:
 	## Full-screen dim behind a modal. It always consumes the event, so closing
 	## an overlay can never reach the port underneath.
 	var node := ColorRect.new()
-	node.color = Color(0.035, 0.05, 0.09, alpha)
+	node.color = Color(0.09, 0.06, 0.07, alpha)
 	node.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	node.mouse_filter = Control.MOUSE_FILTER_STOP
 	# The port behind the board goes out of focus rather than merely darker.
@@ -738,8 +753,7 @@ static func pop_open(board: Control, scrim: CanvasItem = null,
 			board.position = state.last
 			# The jaw stands open until the board is nearly home, then bites.
 			_carry_clip(board, 6.0 if t < 0.86 else 0.0), 0.0, 1.0, RISE_TIME)
-		# The panel comes on as it lands, and what is on it arrives in order.
-		UiMotion.power_on(board)
+		# What is on the board arrives in order as it lands.
 		UiMotion.cascade(UiMotion.board_items(board), 0.0, 0.024)
 	else:
 		board.modulate.a = 0.0
@@ -801,11 +815,11 @@ static func settle_open(board: Control) -> void:
 # ------------------------------------------------------------------ controls
 
 const _BUTTON_SPRITES := {
-	&"amber": "ui_btn", &"alt": "ui_btn_alt", &"ghost": "ui_btn_ghost",
+	&"amber": "ui_btn", &"go": "ui_btn_go", &"alt": "ui_btn_alt", &"ghost": "ui_btn_ghost",
 	&"off": "ui_btn_off", &"danger": "ui_btn_danger", &"steel": "ui_btn_steel",
 }
 const _BUTTON_TEXT := {
-	&"amber": KEY_INK, &"alt": CREAM, &"ghost": INK,
+	&"amber": KEY_INK, &"go": CREAM, &"alt": CREAM, &"ghost": INK,
 	&"off": INK_SOFT, &"danger": CREAM, &"steel": STEEL_TEXT,
 }
 ## A key sinks into its own material when pressed. Amber sinking into amber is
@@ -926,7 +940,7 @@ static func style_button(node: Button, kind: StringName) -> void:
 	node.add_theme_color_override(&"icon_disabled_color", DISABLED_TEXT)
 	UiMotion.wire_press(node)
 	# Every amber key is something good to press, and they share one gloss.
-	UiMotion.set_sheen(node, kind == &"amber")
+	UiMotion.set_sheen(node, kind == &"amber" or kind == &"go")
 
 
 ## The two tones of the focus ring. A single colour cannot be visible on both
@@ -935,7 +949,7 @@ static func style_button(node: Button, kind: StringName) -> void:
 const FOCUS_OUTER := Color8(58, 44, 46)
 const FOCUS_INNER := CREAM
 ## A key that cannot be pressed: exempt from AA, held above 3:1 on `btn_off`.
-const DISABLED_TEXT := Color8(128, 140, 162)
+const DISABLED_TEXT := Color8(104, 92, 84)
 
 
 static func focus_ring() -> StyleBoxTexture:
@@ -1002,10 +1016,10 @@ static func style_tab(node: Button, active: bool) -> void:
 	node.add_theme_stylebox_override(&"hover", box)
 	node.add_theme_stylebox_override(&"pressed", tab_style(true))
 	node.add_theme_stylebox_override(&"focus", _focus_style())
-	var color := AMBER if active else STEEL_DIM
+	var color := INK if active else INK_SOFT
 	node.add_theme_color_override(&"font_color", color)
 	node.add_theme_color_override(&"font_hover_color", color)
-	node.add_theme_color_override(&"font_pressed_color", AMBER)
+	node.add_theme_color_override(&"font_pressed_color", INK)
 	node.add_theme_color_override(&"font_focus_color", color)
 	UiMotion.wire_press(node)
 
