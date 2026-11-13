@@ -50,13 +50,6 @@ static func open(board: Control, scrim: CanvasItem = null) -> void:
 	tween.tween_interval(SWING_AT)
 	tween.tween_method(cover.turn, 0.0, 1.0, SWING_TIME) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	# The leaf under the cover lifts with it and falls a beat behind: a book
-	# opened in a hurry always drags its first page.
-	tween.tween_callback(func() -> void:
-		cover.kind = &"leaf"
-		cover.turn(0.0))
-	tween.tween_method(cover.turn, 0.0, 1.0, LEAF_TIME * 0.8) \
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_callback(holder.queue_free)
 
 

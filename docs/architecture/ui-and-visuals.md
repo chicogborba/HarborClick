@@ -160,3 +160,23 @@ asphalt laid so far is the progress) and the shop's land tab carries the clock
 and the skip key. The X-ray scanner stands on the second parcel
 (`LandDB.SCANNER_PARCEL`): it appears abandoned when that ground is paved, on a
 band of its own with a loop off the road (`XrayStation._Loop`).
+
+## Deliveries, the cabinet and the lucky crane
+
+- **Purchases are delivered** (`SupplyDrop`, `StructureLayer._announce`): a
+  container comes down by parachute onto the spot, lands, opens, and the machine
+  is there. New machines get a box each, a beat apart; a purchase past the
+  visible cap is one box with the quantity on it, landing on a machine of that
+  kind, and buying again while it falls raises its number instead of launching
+  another. Never more than `MAX_DROPS` in the air.
+- **Troféus** (`PortJournal._build_trophy_page`) is a cabinet: a completion bar
+  with the percentage on top, then every goal as a bronze, silver or gold cup on
+  a shelf, a dark outline until earned; tapping a cup shows its goal.
+- **Guindaste da Sorte** (`LuckyWheelPanel._Machine`) replaced the wheel with a
+  prize crane over a belt of sealed containers. Same rules (`LuckyWheel`).
+- **Ships**: laytime is off (`BerthDeadline.ENABLED`), and `GameState.ship_pace`
+  (tugs owned and terminal level) shortens arrivals, departures and the wait for
+  the next call.
+- The shop's Orders tab is retired; land that can be bought shows a count on its
+  tab and is staked out "for sale" in the yard (`LandWorksSite`), where a crew
+  works while it is being built.

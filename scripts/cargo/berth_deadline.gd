@@ -16,6 +16,12 @@ extends RefCounted
 ## - sailing early multiplies the freight bonus by up to `EARLY_MAX`, in
 ##   proportion to the time left on the clock.
 
+## Laytime is switched off. A clock over every hull, a fine for missing it and a
+## bonus for beating it turned loading a ship into a race nobody had asked to
+## run, in a game whose other half is leaving it alone. The rules stay here,
+## tested, behind this switch; with it off no call is timed, fined or paid early.
+const ENABLED := false
+
 ## Moves per second a player tapping at an easy pace adds to the machines.
 const TAP_PACE := 0.55
 ## Slack on top of the work: nobody should need a perfect run.

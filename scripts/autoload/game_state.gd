@@ -1360,6 +1360,25 @@ func _tree_scope_additive(scope: StringName, stat: StringName,
 	return value
 
 
+## How much quicker the harbour turns ships round, per tug and per level.
+const SHIP_PACE_PER_TUG := 0.15
+const SHIP_PACE_TUGS := 10
+const SHIP_PACE_PER_LEVEL := 0.03
+const SHIP_PACE_MAX := 3.5
+
+
+func ship_pace() -> float:
+	## The harbour's tempo: 1.0 on a new port, up to SHIP_PACE_MAX on a grown
+	## one. Tugs are what moves a hull, so each tug owned brings ships in and
+	## takes them out faster and shortens the wait for the next one — the lever
+	## a mid-game port pulls when the quay stands empty — and the terminal's
+	## level adds a little of its own. Only the time a berth spends *without* a
+	## ship changes; what a call pays does not.
+	var tugs := mini(structure_count("rebocador"), SHIP_PACE_TUGS)
+	return minf(SHIP_PACE_MAX, 1.0 + SHIP_PACE_PER_TUG * float(tugs)
+		+ SHIP_PACE_PER_LEVEL * float(maxi(0, FeatureGate.level() - 1)))
+
+
 func level_multiplier() -> float:
 	return 1.0 + LEVEL_BONUS_PER * float(maxi(0, FeatureGate.level() - 1))
 

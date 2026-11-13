@@ -215,6 +215,21 @@ func _stage(scenario: String) -> Vector2:
 			_main.shop._on_tab("upgrades")
 			await get_tree().create_timer(1.0).timeout
 			return Vector2(-1, -1)
+		"supplydrop":
+			# A bulk purchase past the visible cap: one box, "x10", coming down
+			# on the machine that is already there. Caught mid-fall.
+			GameState.teus = 1.0e30
+			GameState.buy_structure_bulk("estivador", &"x10")
+			var fleet: Array = _main.world.structures.live("estivador")
+			await get_tree().create_timer(0.75).timeout
+			# Held where it is, so the shot is of the fall and not of the yard
+			# a second after it.
+			for drop: Variant in _main.world.structures._drops:
+				if is_instance_valid(drop):
+					(drop as Node).set_process(false)
+			if fleet.is_empty():
+				return Vector2(-1, -1)
+			return (fleet[fleet.size() - 1] as Node2D).global_position + Vector2(0, -50)
 		"landworks":
 			# Two parcels paved (so the abandoned scanner is on its band) and
 			# the third half built: the works site, the roller and the clock.

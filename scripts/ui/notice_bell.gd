@@ -202,6 +202,9 @@ func open_log() -> void:
 	_board.modulate.a = 0.0
 	_board.visible = true
 	_opening = true
+	# Dark from the first frame it exists: shown at full strength and then
+	# faded in by the rise, it flashed the whole screen once before opening.
+	_scrim.modulate.a = 0.0
 	_scrim.visible = true
 	open_changed.emit(true)
 	_show_pages()

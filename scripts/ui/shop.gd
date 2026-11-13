@@ -1222,8 +1222,9 @@ func _update_orders_tab() -> void:
 		return
 	# A second lane is reason enough on its own now: from the moment the port
 	# trades on two, which one it books next is a decision.
-	tab.visible = (PortLayout.berth_count() > 1 or GameState.prestige_count > 0) \
-		and FeatureGate.unlocked(&"orders")
+	# The tab is retired: booking orders and the foreman's switches were a page
+	# nobody opened. The rules behind it keep their defaults.
+	tab.visible = false
 	if not tab.visible and _active == "orders":
 		_on_tab("structures")
 
@@ -1335,6 +1336,13 @@ func _update_tab_badges() -> void:
 		return
 	var base := Loc.t(str(TABS[1][1]))
 	button.text = "%s %d" % [base, ready_upgrades] if ready_upgrades > 0 else base
+	# Ground shouts the same way: a parcel that can be paid for right now.
+	var land_tab: Button = _tab_buttons.get("land")
+	if land_tab != null:
+		var parcel := GameState.next_land()
+		var ready_land := not parcel.is_empty() and GameState.can_afford(float(parcel.cost))
+		var land_base := Loc.t(str(TABS[2][1]))
+		land_tab.text = "%s 1" % land_base if ready_land else land_base
 
 
 # --------------------------------------------------------------------- state

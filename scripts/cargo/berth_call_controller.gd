@@ -555,6 +555,14 @@ func _tick_deadline(delta: float) -> void:
 	## has been shown the shop would be a lesson in the wrong thing.
 	if ship == null:
 		return
+	if not BerthDeadline.ENABLED:
+		# No call is timed any more: no clock on the hull, no fine, no rush.
+		if deadline_total > 0.0 or late:
+			deadline_total = 0.0
+			deadline_left = 0.0
+			late = false
+		ship.set_deadline(-1.0, 0.0, false)
+		return
 	if not ship.is_working():
 		ship.set_deadline(-1.0, 0.0, false)
 		return

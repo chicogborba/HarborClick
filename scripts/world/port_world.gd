@@ -833,14 +833,14 @@ func _drive_arrivals(delta: float) -> void:
 		return
 	_sort_hull_depth()
 	for index: int in _turnaround.keys():
-		var left := float(_turnaround[index]) - delta
+		var left := float(_turnaround[index]) - delta * GameState.ship_pace()
 		if left <= 0.0:
 			_turnaround.erase(index)
 			if index < berths.size():
 				berths[index].seed_new()
 		else:
 			_turnaround[index] = left
-	_arrival_wait -= delta
+	_arrival_wait -= delta * GameState.ship_pace()
 	if _arrival_wait > 0.0 or _fairway_busy():
 		return
 	_arrival_wait = ARRIVAL_SPACING

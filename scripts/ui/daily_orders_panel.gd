@@ -36,7 +36,6 @@ var _board: _Clipboard
 var _column: VBoxContainer
 var _close_button: Button
 var _streak: Label
-var _tally: _Tally
 var _rows: Array[_Row] = []
 var _bonus: _Row
 var _reset: Label
@@ -55,7 +54,7 @@ func _ready() -> void:
 	_board.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_board)
 	_column = VBoxContainer.new()
-	_column.add_theme_constant_override(&"separation", 4)
+	_column.add_theme_constant_override(&"separation", 6)
 	_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_board.add_child(_column)
 
@@ -88,17 +87,9 @@ func _ready() -> void:
 	_close_button.add_child(cross)
 	head.add_child(_close_button)
 
-	var streak_row := HBoxContainer.new()
-	streak_row.add_theme_constant_override(&"separation", 6)
-	_column.add_child(streak_row)
-	_tally = _Tally.new()
-	_tally.custom_minimum_size = Vector2(54.0, 14.0)
-	_tally.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	streak_row.add_child(_tally)
 	_streak = UiTheme.label("", UiTheme.SIZE_SMALL, PENCIL)
 	_streak.clip_text = true
-	_streak.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	streak_row.add_child(_streak)
+	_column.add_child(_streak)
 
 	for index in ROWS:
 		var row := _Row.new()
@@ -107,10 +98,6 @@ func _ready() -> void:
 		_column.add_child(row)
 		_rows.append(row)
 
-	var cut := _Scribble.new()
-	cut.kind = &"dashes"
-	cut.custom_minimum_size = Vector2(0.0, 5.0)
-	_column.add_child(cut)
 	_bonus = _Row.new()
 	_bonus.seed_no = 9
 	_bonus.star = true
@@ -175,8 +162,6 @@ func refresh() -> void:
 	var orders := _service.orders
 	_streak.text = "%s  •  %s" % [Loc.t("daily.streak", {"n": str(orders.streak)}),
 		Loc.t("daily.best", {"n": str(orders.best_streak)})]
-	_tally.count = orders.streak
-	_tally.queue_redraw()
 	var all_claimed := true
 	for index in ROWS:
 		var row := _rows[index]
@@ -270,8 +255,13 @@ func _layout() -> void:
 	if safe.size == Vector2.ZERO:
 		safe = view
 	safe = safe.intersection(view) if safe.intersects(view) else view
-	var width := minf(310.0, safe.size.x - 12.0)
-	_board.size = Vector2(width, _board.size.y)
+	var width := minf(330.0, safe.size.x - 10.0)
+	# The words wrap to exactly the room they have; left at a narrow floor they
+	# report the height of a column one word wide and the sheet comes out tall.
+	for row: _Row in _rows + [_bonus]:
+		if row != null:
+			row.set_text_width(width - 72.0)
+	_board.size = Vector2(width, 0.0)
 	if _layout_pending:
 		return
 	_layout_pending = true
@@ -333,8 +323,8 @@ class _Clipboard extends MarginContainer:
 	const STEEL_L := Color8(226, 232, 238)
 
 	func _init() -> void:
-		add_theme_constant_override(&"margin_left", 34)
-		add_theme_constant_override(&"margin_right", 14)
+		add_theme_constant_override(&"margin_left", 18)
+		add_theme_constant_override(&"margin_right", 16)
 		add_theme_constant_override(&"margin_top", 30)
 		add_theme_constant_override(&"margin_bottom", 14)
 		resized.connect(queue_redraw)
@@ -359,28 +349,6 @@ class _Clipboard extends MarginContainer:
 		draw_rect(sheet, DailyOrdersPanel.SHEET)
 		draw_rect(Rect2(sheet.position.x, sheet.end.y - 1, sheet.size.x, 1), SHEET_D)
 		draw_rect(Rect2(sheet.end.x - 1, sheet.position.y, 1, sheet.size.y), SHEET_D)
-		var y := sheet.position.y + 46.0
-		while y < sheet.end.y - 6.0:
-			draw_rect(Rect2(sheet.position.x + 1, y, sheet.size.x - 2, 1), RULE)
-			y += 12.0
-		draw_rect(Rect2(sheet.position.x + 21, sheet.position.y + 1, 1,
-			sheet.size.y - 2), MARGIN)
-		for hole in 3:
-			var hy := sheet.position.y + sheet.size.y * (0.22 + 0.28 * hole)
-			draw_rect(Rect2(sheet.position.x + 7, roundf(hy), 6, 6), WOOD_D)
-			draw_rect(Rect2(sheet.position.x + 8, roundf(hy) - 1, 4, 8), WOOD_D)
-			draw_rect(Rect2(sheet.position.x + 8, roundf(hy) + 1, 4, 4), EDGE)
-		# Where the mug stood.
-		var ring := Vector2(sheet.end.x - 30, sheet.end.y - 26)
-		for i in 28:
-			var a := TAU * i / 28.0
-			if i % 7 == 3:
-				continue
-			draw_rect(Rect2((ring + Vector2(cos(a) * 15.0, sin(a) * 13.0)).round(),
-				Vector2(2, 2)), Color(0.55, 0.36, 0.2, 0.2))
-		for i in 6:
-			draw_rect(Rect2(sheet.end.x - 1 - i, sheet.end.y - 7 + i, i + 1, 1), SHEET_D)
-			draw_rect(Rect2(sheet.end.x - i, sheet.end.y - 7 + i, i, 7 - i), WOOD)
 		# The spring clip, biting the top of the sheet.
 		var cx := roundf(w * 0.5)
 		draw_rect(Rect2(cx - 38, 4, 76, 18), EDGE)
@@ -407,10 +375,7 @@ class _Scribble extends Control:
 		match kind:
 			&"underline":
 				var reach := minf(size.x, 190.0)
-				DailyOrdersPanel.wobble(self, Vector2(0, 1), Vector2(reach, 2),
-					DailyOrdersPanel.PEN, 3)
-				DailyOrdersPanel.wobble(self, Vector2(6, 4), Vector2(reach * 0.7, 4),
-					DailyOrdersPanel.PEN, 5)
+				draw_rect(Rect2(0, 2, reach, 2), DailyOrdersPanel.PEN)
 			&"cross":
 				var c := (size * 0.5).round()
 				DailyOrdersPanel.stroke(self, c + Vector2(-6, -6), c + Vector2(6, 6),
@@ -422,29 +387,6 @@ class _Scribble extends Control:
 				while x < size.x - 4.0:
 					draw_rect(Rect2(x, 2, 5, 1), DailyOrdersPanel.PENCIL)
 					x += 9.0
-
-
-class _Tally extends Control:
-	## The streak, counted the way you count on paper: four strokes and a slash.
-	var count := 0
-
-	func _init() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func _draw() -> void:
-		var shown := clampi(count, 0, 10)
-		var x := 1.0
-		for i in shown:
-			if i % 5 == 4:
-				DailyOrdersPanel.stroke(self, Vector2(x - 17, 11), Vector2(x - 1, 2),
-					DailyOrdersPanel.PEN)
-				x += 6.0
-			else:
-				DailyOrdersPanel.stroke(self, Vector2(x + (i % 2), 1), Vector2(x, 12),
-					DailyOrdersPanel.PEN)
-				x += 4.0
-		if shown == 0:
-			draw_rect(Rect2(1, 6, 6, 1), DailyOrdersPanel.PENCIL)
 
 
 class _Row extends MarginContainer:
@@ -467,10 +409,10 @@ class _Row extends MarginContainer:
 	var _ink_tween: Tween
 
 	func _init() -> void:
-		add_theme_constant_override(&"margin_left", 22)
-		add_theme_constant_override(&"margin_right", 4)
-		add_theme_constant_override(&"margin_top", 5)
-		add_theme_constant_override(&"margin_bottom", 5)
+		add_theme_constant_override(&"margin_left", 30)
+		add_theme_constant_override(&"margin_right", 6)
+		add_theme_constant_override(&"margin_top", 7)
+		add_theme_constant_override(&"margin_bottom", 9)
 		custom_minimum_size.y = UiTheme.TOUCH_MIN
 		focus_mode = Control.FOCUS_ALL
 		mouse_filter = Control.MOUSE_FILTER_STOP
@@ -479,7 +421,7 @@ class _Row extends MarginContainer:
 		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		col.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		add_child(col)
-		_name = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK)
+		_name = UiTheme.label("", UiTheme.SIZE_TITLE, UiTheme.INK)
 		_name.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_name.custom_minimum_size.x = 100.0
 		col.add_child(_name)
@@ -515,6 +457,9 @@ class _Row extends MarginContainer:
 			_ink = 0.0
 		queue_redraw()
 
+	func set_text_width(width: float) -> void:
+		_name.custom_minimum_size.x = maxf(80.0, width)
+
 	func refuse() -> void:
 		## Not yet: the row shakes its head.
 		if not UserPreferences.can_animate():
@@ -542,61 +487,44 @@ class _Row extends MarginContainer:
 
 	func _draw() -> void:
 		var pen := DailyOrdersPanel.PEN
-		var mid := roundf(size.y * 0.5)
 		var ox := roundf(_nudge)
 		if _ready_now:
-			# Highlighter, two passes that do not quite line up.
-			var glow := 0.78 + 0.22 * sin(_t * 4.0) if UserPreferences.can_animate() else 1.0
+			# One pass of highlighter: this line can be ticked.
+			var glow := 0.8 + 0.2 * sin(_t * 4.0) if UserPreferences.can_animate() else 1.0
 			var m := DailyOrdersPanel.MARKER
-			draw_rect(Rect2(17, 3, size.x - 19, size.y - 8), Color(m.r, m.g, m.b, 0.55 * glow))
-			draw_rect(Rect2(20, 6, size.x - 21, size.y - 9), Color(m.r, m.g, m.b, 0.5 * glow))
+			draw_rect(Rect2(0, 1, size.x, size.y - 3), Color(m.r, m.g, m.b, 0.7 * glow))
 		if has_focus():
-			DailyOrdersPanel.wobble(self, Vector2(16, size.y - 2), Vector2(size.x - 2, size.y - 2),
-				pen, seed_no + 40)
-		var box := Vector2(1 + ox, mid - 7)
+			draw_rect(Rect2(0, size.y - 2, size.x, 1), pen)
+		var top := roundf(_name.global_position.y - global_position.y)
+		var box := Vector2(4 + ox, top + 2)
 		if star:
-			_draw_star(box + Vector2(7, 7), pen)
+			_draw_star(box + Vector2(9, 9), pen)
 		else:
-			# Four sides, none of them quite meeting.
-			DailyOrdersPanel.wobble(self, box, box + Vector2(13, 0), pen, seed_no)
-			DailyOrdersPanel.wobble(self, box + Vector2(13, -1), box + Vector2(12, 13), pen, seed_no + 1)
-			DailyOrdersPanel.wobble(self, box + Vector2(13, 13), box + Vector2(-1, 12), pen, seed_no + 2)
-			DailyOrdersPanel.wobble(self, box + Vector2(0, 13), box + Vector2(1, 0), pen, seed_no + 3)
-		# The pencil bar: one hatch per tenth, pressed harder where it is done.
+			# A plain square, two pixels of pen.
+			draw_rect(Rect2(box, Vector2(18, 18)), pen)
+			draw_rect(Rect2(box + Vector2(2, 2), Vector2(14, 14)),
+				DailyOrdersPanel.MARKER if _ready_now else DailyOrdersPanel.SHEET)
+		# How far along: one thin line under the words.
 		if not star and not _claimed:
-			var slots := 10
-			var done := int(floor(float(_progress) / float(_goal) * slots + 0.001))
-			var bx := 22.0
-			var by := size.y - 15.0
-			for i in slots:
-				if i < done:
-					DailyOrdersPanel.stroke(self, Vector2(bx + 3, by), Vector2(bx, by + 6),
-						DailyOrdersPanel.PENCIL, 2.0)
-				else:
-					draw_rect(Rect2(bx + 1, by + 5, 2, 1), DailyOrdersPanel.PENCIL)
-				bx += 7.0
+			var track := Rect2(30, size.y - 6, size.x - 36, 2)
+			draw_rect(track, Color(DailyOrdersPanel.PENCIL, 0.3))
+			draw_rect(Rect2(track.position, Vector2(roundf(track.size.x
+				* clampf(float(_progress) / float(_goal), 0.0, 1.0)), 2)), pen)
 		if _ink > 0.0:
 			var red := DailyOrdersPanel.RED_PEN
-			var first := clampf(_ink / 0.25, 0.0, 1.0)
-			var second := clampf((_ink - 0.25) / 0.3, 0.0, 1.0)
-			var third := clampf((_ink - 0.55) / 0.45, 0.0, 1.0)
+			var first := clampf(_ink / 0.3, 0.0, 1.0)
+			var second := clampf((_ink - 0.3) / 0.7, 0.0, 1.0)
 			if star:
-				draw_rect(Rect2(box + Vector2(4, 4), Vector2(6, 6) * first), DailyOrdersPanel.MARKER)
-				_draw_star(box + Vector2(7, 7), red)
+				_draw_star(box + Vector2(9, 9), red)
 			else:
-				DailyOrdersPanel.stroke(self, box + Vector2(2, 6), box + Vector2(6, 11), red, 2.0, first)
+				DailyOrdersPanel.stroke(self, box + Vector2(3, 8), box + Vector2(8, 14), red, 3.0, first)
 				if second > 0.0:
-					DailyOrdersPanel.stroke(self, box + Vector2(6, 11), box + Vector2(16, -5), red, 2.0, second)
-			if third > 0.0:
-				var ty := roundf(_name.global_position.y - global_position.y) + 5.0
-				var reach := minf(_name.size.x, _name.get_minimum_size().x + 6.0)
-				DailyOrdersPanel.wobble(self, Vector2(21, ty + 1), Vector2(24 + reach, ty),
-					DailyOrdersPanel.PENCIL, seed_no + 9, 1.0, third)
+					DailyOrdersPanel.stroke(self, box + Vector2(8, 14), box + Vector2(20, -4), red, 3.0, second)
 
 	func _draw_star(c: Vector2, ink: Color) -> void:
 		var pts: Array[Vector2] = []
 		for i in 5:
 			var a := -PI * 0.5 + TAU * (i * 2 % 5) / 5.0
-			pts.append((c + Vector2(cos(a), sin(a)) * 8.0).round())
+			pts.append((c + Vector2(cos(a), sin(a)) * 10.0).round())
 		for i in 5:
-			DailyOrdersPanel.stroke(self, pts[i], pts[(i + 1) % 5], ink)
+			DailyOrdersPanel.stroke(self, pts[i], pts[(i + 1) % 5], ink, 2.0)

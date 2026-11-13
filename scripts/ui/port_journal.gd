@@ -53,6 +53,8 @@ var _list: VBoxContainer
 var _tab_buttons: Dictionary = {}
 var _focus_return: Control
 var _rail: CommandRail
+## The cup whose card is open on the trophy page.
+var _trophy_pick := ""
 
 
 func setup(manager_or_callbacks: Variant, callbacks: Dictionary = {}) -> void:
@@ -181,30 +183,65 @@ func _on_backdrop_input(event: InputEvent) -> void:
 # -------------------------------------------------------------- the trophies
 
 func _build_trophy_page() -> void:
-	## Thirty-eight goals as twelve tracks rather than thirty-eight rows.
+	## The cabinet. Every goal in the game is a cup on a shelf: struck in
+	## bronze, silver or gold by how deep into its trade it sits, and a dark
+	## outline of itself until it is earned.
 	##
-	## The list tabs answer "what is next" and "what is there", one row at a
-	## time, and both are the right shape for picking something to chase. Neither
-	## answers "how far into this game am I", because that question is about the
-	## *shape* of the whole board — which trades are finished, which are barely
-	## started, which have not been touched. Twelve struck coins with a row of
-	## lamps beside each one answers it in a glance, and the lamps are the same
-	## component the console uses for a berth.
+	## This page used to be twelve rows with a coin and a line of lamps — a
+	## summary of the collection rather than the collection. Somebody who wants
+	## everything wants to *see* everything: which cups are there, which gaps
+	## are left, and one number at the top for how far the whole lot has got.
+	## So the top of the page is that number, as a bar with the quarters marked,
+	## and under it are the shelves, one trade at a time.
 	var objectives := _objectives()
 	var done := 0
 	for objective: Dictionary in objectives:
 		if bool(objective.get("complete", false)):
 			done += 1
-	var tally := HBoxContainer.new()
-	tally.add_theme_constant_override(&"separation", 5)
-	_list.add_child(tally)
-	var heading := UiTheme.label("QUADRO DE HONRA", UiTheme.SIZE_BODY, UiTheme.BOOK_INK)
-	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tally.add_child(heading)
-	tally.add_child(UiTheme.stamp("%d/%d" % [done, objectives.size()],
-		UiTheme.AMBER, UiTheme.SIZE_SMALL))
-	_list.add_child(UiTheme.divider())
+	var total := maxi(1, objectives.size())
+	var meter := _Completion.new()
+	meter.done = done
+	meter.total = total
+	meter.custom_minimum_size.y = 72.0
+	_list.add_child(meter)
 
+	# What the cup under the finger is.
+	var picked: Dictionary = {}
+	for objective: Dictionary in objectives:
+		if str(objective.get("id", "")) == _trophy_pick:
+			picked = objective
+	var note := UiTheme.panel(UiTheme.card_style(
+		&"done" if bool(picked.get("complete", false)) else &"normal"))
+	_list.add_child(note)
+	var note_col := VBoxContainer.new()
+	note_col.add_theme_constant_override(&"separation", 2)
+	note_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	note.add_child(note_col)
+	if picked.is_empty():
+		var hint := UiTheme.label(Loc.t("trophy.hint"), UiTheme.SIZE_SMALL,
+			UiTheme.INK_SOFT)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		note_col.add_child(hint)
+	else:
+		var name_label := UiTheme.label(str(picked.get("title", "")),
+			UiTheme.SIZE_BODY, UiTheme.INK)
+		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note_col.add_child(name_label)
+		var earned := bool(picked.get("complete", false))
+		if not earned:
+			note_col.add_child(_progress_bar(float(picked.get("progress", 0.0)),
+				float(picked.get("target", 1.0))))
+		var line := UiTheme.label("%s / %s  -  %s" % [
+			GameState.fmt(float(picked.get("progress", 0.0))),
+			GameState.fmt(float(picked.get("target", 0.0))),
+			_reward_text(picked.get("reward", {}))], UiTheme.SIZE_SMALL,
+			UiTheme.TEAL_DEEP if earned else UiTheme.INK_SOFT)
+		line.clip_text = true
+		note_col.add_child(line)
+
+	var width := maxf(160.0, _sheet.size.x - 44.0 - UiTheme.SCROLL_WIDTH)
+	var columns := clampi(int(width / _Cup.CELL.x), 3, 12)
 	for branch: Array in BRANCHES:
 		var rows: Array[Dictionary] = []
 		for objective: Dictionary in objectives:
@@ -212,97 +249,205 @@ func _build_trophy_page() -> void:
 				rows.append(objective)
 		if rows.is_empty():
 			continue
-		# Cheapest first, so the lamps down the track read as a ladder rather
-		# than as the order the table happened to be written in.
+		# Cheapest first, so a shelf reads left to right as a ladder.
 		rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 			return float(a.get("target", 0.0)) < float(b.get("target", 0.0)))
-		_list.add_child(_trophy_branch(str(branch[0]), str(branch[1]), rows))
+		_list.add_child(_trophy_shelf(str(branch[1]), rows, columns))
 
 
-func _trophy_branch(key: String, title: String,
-		rows: Array[Dictionary]) -> PanelContainer:
+func _trophy_shelf(title: String, rows: Array[Dictionary], columns: int) -> Control:
 	var earned := 0
-	var next: Dictionary = {}
 	for objective: Dictionary in rows:
 		if bool(objective.get("complete", false)):
 			earned += 1
-		elif next.is_empty():
-			next = objective
-	var finished := next.is_empty()
-
-	var card := PanelContainer.new()
-	UiTheme.apply_panel(card, UiTheme.card_style(
-		&"done" if finished else &"normal"))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 7)
-	card.add_child(row)
-
-	# The coin, mounted. A struck medallion is mostly a dark navy field inside a
-	# gold rim, and dropped straight onto cream manifest paper the field is the
-	# part that reads — twelve of them looked like twelve holes punched in the
-	# sheet. On a slate mount the gold is the lightest thing in the frame, which
-	# is what a medal is supposed to be. The game already mounts a photograph
-	# this way on a staff badge; this is the same object.
-	var mount := UiTheme.panel(UiTheme.slate_style(earned > 0, 2), false)
-	mount.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(mount)
-	var coin := TextureRect.new()
-	coin.texture = load("res://assets/sprites/ui_medal_%s.png" % key)
-	coin.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	coin.custom_minimum_size = Vector2(32, 32)
-	# Dimmed until the branch is started, so a board of twelve says where the run
-	# has actually been — but never so far that the relief disappears.
-	coin.modulate = Color(1, 1, 1) if earned > 0 else Color(0.62, 0.64, 0.72, 0.8)
-	mount.add_child(coin)
-
-	var column := VBoxContainer.new()
-	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	column.add_theme_constant_override(&"separation", 2)
-	row.add_child(column)
-
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override(&"separation", 1)
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override(&"separation", 4)
-	column.add_child(head)
-	var name_label := UiTheme.label(title, UiTheme.SIZE_SMALL, UiTheme.INK)
+	box.add_child(head)
+	var name_label := UiTheme.label(title, UiTheme.SIZE_SMALL, UiTheme.BOOK_INK)
 	name_label.clip_text = true
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(name_label)
-	# Lamps: lit for earned, running for the one in progress, dark for the rest.
-	var track := HBoxContainer.new()
-	track.add_theme_constant_override(&"separation", 2)
-	track.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(track)
-	for objective: Dictionary in rows:
-		var state := UiTheme.Led.OFF
-		if bool(objective.get("complete", false)):
-			state = UiTheme.Led.ATTENTION
-		elif objective == next:
-			state = UiTheme.Led.RUNNING
-		var lamp := UiTheme.led(state)
-		lamp.tooltip_text = str(objective.get("title", ""))
-		track.add_child(lamp)
+	var full := earned == rows.size()
+	head.add_child(UiTheme.label("%d/%d" % [earned, rows.size()], UiTheme.SIZE_SMALL,
+		UiTheme.TEAL_DEEP if full else UiTheme.BOOK_INK_SOFT))
+	var grid := GridContainer.new()
+	grid.columns = columns
+	grid.add_theme_constant_override(&"h_separation", 0)
+	grid.add_theme_constant_override(&"v_separation", 2)
+	box.add_child(grid)
+	var next_found := false
+	for index in rows.size():
+		var objective: Dictionary = rows[index]
+		var cup := _Cup.new()
+		cup.tier = clampi(int(float(index) * 3.0 / float(rows.size())), 0, 2)
+		cup.crown = index == rows.size() - 1 and rows.size() > 1
+		cup.earned = bool(objective.get("complete", false))
+		cup.picked = str(objective.get("id", "")) == _trophy_pick
+		if not cup.earned and not next_found:
+			next_found = true
+			cup.fill = clampf(float(objective.get("progress", 0.0))
+				/ maxf(1.0, float(objective.get("target", 1.0))), 0.0, 1.0)
+		cup.custom_minimum_size = _Cup.CELL
+		cup.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cup.tooltip_text = str(objective.get("title", ""))
+		UiTheme.describe(cup, str(objective.get("title", "")))
+		cup.pressed.connect(_pick_trophy.bind(str(objective.get("id", ""))))
+		grid.add_child(cup)
+	# Empty pegs to the end of the shelf, so the plank runs the full width.
+	var spare := (columns - rows.size() % columns) % columns
+	for i in spare:
+		var blank := _Cup.new()
+		blank.blank = true
+		blank.custom_minimum_size = _Cup.CELL
+		blank.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		blank.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		grid.add_child(blank)
+	return box
 
-	if finished:
-		var closed := UiTheme.label("Tudo conquistado nesta trilha.",
-			UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
-		closed.clip_text = true
-		column.add_child(closed)
-		return card
 
-	var next_label := UiTheme.label(str(next.get("title", "")),
-		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
-	next_label.clip_text = true
-	column.add_child(next_label)
-	column.add_child(_progress_bar(float(next.get("progress", 0.0)),
-		float(next.get("target", 1.0))))
-	var counted := UiTheme.label("%s / %s" % [
-		GameState.fmt(float(next.get("progress", 0.0))),
-		GameState.fmt(float(next.get("target", 0.0)))],
-		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
-	counted.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	column.add_child(counted)
-	return card
+func _pick_trophy(id: String) -> void:
+	_trophy_pick = "" if id == _trophy_pick else id
+	AudioManager.play_sfx("tap")
+	_refresh()
+
+
+class _Completion extends Control:
+	## The one number a completionist came for: how much of everything is done.
+	## A bar with the quarters marked, the percentage in big type, and the big
+	## cup at the end that only turns gold at a hundred.
+	var done := 0
+	var total := 1
+	var _big: Label
+	var _small: Label
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var percent := int(floor(100.0 * float(done) / float(maxi(1, total))))
+		_big = UiTheme.label("%d%%" % percent, UiTheme.SIZE_TITLE, UiTheme.AMBER)
+		add_child(_big)
+		_small = UiTheme.label(Loc.t("trophy.count",
+			{"n": str(done), "total": str(total)}), UiTheme.SIZE_SMALL, UiTheme.SLATE_TEXT)
+		add_child(_small)
+		resized.connect(queue_redraw)
+
+	func _draw() -> void:
+		var ink := Color8(24, 20, 30)
+		var gold := UiTheme.AMBER
+		draw_rect(Rect2(Vector2.ZERO, size), ink)
+		draw_rect(Rect2(1, 1, size.x - 2, size.y - 2), Color8(34, 30, 44))
+		draw_rect(Rect2(1, size.y - 3, size.x - 2, 2), Color8(128, 78, 18))
+		var ratio := float(done) / float(maxi(1, total))
+		var cup := Vector2(size.x - 34.0, size.y - 6.0)
+		var track := Rect2(10, size.y - 24.0, size.x - 84.0, 10)
+		draw_rect(track.grow(1.0), ink)
+		draw_rect(track, Color8(70, 62, 78))
+		var filled := roundf(track.size.x * ratio)
+		if filled > 0.0:
+			draw_rect(Rect2(track.position, Vector2(filled, track.size.y)), gold)
+			draw_rect(Rect2(track.position, Vector2(filled, 2)), Color8(255, 236, 160))
+			draw_rect(Rect2(track.position + Vector2(0, track.size.y - 2),
+				Vector2(filled, 2)), Color8(196, 136, 40))
+		for quarter in [0.25, 0.5, 0.75]:
+			var x := roundf(track.position.x + track.size.x * quarter)
+			draw_rect(Rect2(x, track.position.y - 3.0, 2, track.size.y + 6.0),
+				gold if ratio >= quarter else Color8(112, 102, 116))
+		# The grand cup: a silhouette until every shelf is full.
+		_Cup.draw_cup(self, cup, 2, done >= total, true, 2.0)
+		if _big != null:
+			_big.position = Vector2(10, 8)
+			_small.position = Vector2(18.0 + _big.get_minimum_size().x, 17)
+
+
+class _Cup extends Control:
+	## One goal, as a cup standing on its shelf.
+	signal pressed
+
+	const CELL := Vector2(40, 46)
+	const METALS := [
+		[Color8(200, 124, 72), Color8(238, 176, 120), Color8(132, 74, 44)],
+		[Color8(188, 196, 208), Color8(240, 244, 248), Color8(112, 122, 140)],
+		[Color8(244, 190, 64), Color8(255, 236, 160), Color8(176, 116, 28)],
+	]
+	const WOOD := Color8(150, 100, 60)
+	const WOOD_D := Color8(96, 60, 38)
+	const WOOD_L := Color8(186, 134, 84)
+
+	var tier := 0
+	var crown := false
+	var earned := false
+	var picked := false
+	var blank := false
+	## 0..1 for the next cup to be won on its shelf; -1 for the rest.
+	var fill := -1.0
+
+	func _init() -> void:
+		focus_mode = Control.FOCUS_ALL
+		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		focus_entered.connect(queue_redraw)
+		focus_exited.connect(queue_redraw)
+
+	func _gui_input(event: InputEvent) -> void:
+		if blank:
+			return
+		var click := event as InputEventMouseButton
+		var touch := event as InputEventScreenTouch
+		if (click != null and click.button_index == MOUSE_BUTTON_LEFT and not click.pressed) \
+				or (touch != null and not touch.pressed) \
+				or event.is_action_pressed(&"ui_accept"):
+			accept_event()
+			pressed.emit()
+
+	func _draw() -> void:
+		# The plank, continuous from cell to cell.
+		var shelf := size.y - 7.0
+		draw_rect(Rect2(0, shelf, size.x, 5), WOOD)
+		draw_rect(Rect2(0, shelf, size.x, 1), WOOD_L)
+		draw_rect(Rect2(0, shelf + 4.0, size.x, 2), WOOD_D)
+		if blank:
+			return
+		var cx := roundf(size.x * 0.5)
+		if picked or has_focus():
+			draw_rect(Rect2(cx - 17, 1, 34, shelf - 1.0), Color(UiTheme.AMBER, 0.35))
+		draw_cup(self, Vector2(cx, shelf), tier, earned, crown, 1.0)
+		if not earned and fill >= 0.0:
+			# The one being worked on: how close, under the plank.
+			draw_rect(Rect2(cx - 13, size.y - 2.0, 26, 2), Color8(96, 84, 78))
+			draw_rect(Rect2(cx - 13, size.y - 2.0, roundf(26.0 * fill), 2), UiTheme.TEAL)
+
+	static func draw_cup(on: CanvasItem, foot: Vector2, metal: int, lit: bool,
+			star: bool, k: float) -> void:
+		## A cup standing on `foot` (bottom centre), `k` pixels to the pixel.
+		var ink := Color8(38, 26, 30)
+		var body: Color = METALS[metal][0]
+		var light: Color = METALS[metal][1]
+		var dark: Color = METALS[metal][2]
+		if not lit:
+			# Not won yet: its own outline, cut out of the dark.
+			body = Color8(122, 108, 96)
+			light = Color8(140, 126, 112)
+			dark = Color8(104, 92, 84)
+			ink = Color8(84, 72, 68)
+		var parts := [
+			# [x, y (up from the foot), w, h, colour]
+			[-9, 3, 18, 3, ink], [-8, 3, 16, 2, dark],            # plinth
+			[-6, 6, 12, 3, ink], [-5, 6, 10, 2, body],
+			[-2, 12, 4, 6, ink], [-1, 12, 2, 6, dark],            # stem
+			[-9, 28, 18, 16, ink],                                # bowl
+			[-8, 27, 16, 14, body], [-8, 27, 4, 14, light],
+			[4, 27, 4, 14, dark], [-6, 14, 12, 2, ink], [-5, 15, 10, 2, dark],
+			[-14, 26, 5, 3, ink], [-14, 26, 3, 9, ink], [-14, 19, 6, 3, ink],   # handles
+			[9, 26, 5, 3, ink], [11, 26, 3, 9, ink], [8, 19, 6, 3, ink],
+			[-10, 30, 20, 3, ink], [-9, 29, 18, 1, light],        # lip
+		]
+		for part: Array in parts:
+			on.draw_rect(Rect2(foot.x + float(part[0]) * k, foot.y - float(part[1]) * k,
+				float(part[2]) * k, float(part[3]) * k), part[4])
+		if star and lit:
+			for dot: Array in [[-1, 24, 2, 6], [-3, 22, 6, 2]]:
+				on.draw_rect(Rect2(foot.x + float(dot[0]) * k, foot.y - float(dot[1]) * k,
+					float(dot[2]) * k, float(dot[3]) * k), Color8(196, 56, 48))
 
 
 func _build_album_page() -> void:

@@ -1,44 +1,31 @@
 class_name LuckyWheelPanel
 extends CanvasLayer
-## The Roda da Sorte board: the carnival wheel bolted to a clipboard, opened
-## from the small key under the gantry.
+## The Guindaste da Sorte: a prize crane over a belt of sealed containers,
+## opened from the small key under the gantry.
 ##
-## Pixel art cannot be rotated — a sprite turned 13 degrees is resampled into
-## mush — so the disc is not one picture spun in-engine. `ui_wheel_disc` is 64
-## pre-turned frames (see tools/sprites/gen_wheel.py), and a spin is just the
-## atlas region advancing frame by frame while the icons ride their quantised
-## angle, so every segment edge stays crisp at every step.
+## It was a carnival wheel, and a wheel is the one game of chance with nothing
+## to do with a port — a disc turned, a pointer stopped, a word appeared. The
+## rules are unchanged (`LuckyWheel`: eight prizes, the same weights, the same
+## tokens) but the thing you watch is now the terminal's own: eight boxes ride
+## a belt under a spreader, the belt runs and slows, the spreader drops on the
+## one that stopped under it, lifts it out, and the doors come open on the
+## prize. The belt slowing is the suspense and the lift is the reveal — two
+## beats where the wheel had one.
 ##
-## Everything is built once in `_ready` and only rewritten in place afterwards:
-## text, atlas regions and positions. Rebuilding controls per frame eats taps.
+## `_Machine` draws all of it in whole pixels; nothing is rotated or scaled.
+## Everything is built once in `_ready` and only rewritten in place afterwards.
 
 signal open_changed(opened: bool)
 
-const TEX_DISC := preload("res://assets/sprites/ui_wheel_disc.png")
-const TEX_SHEEN := preload("res://assets/sprites/ui_wheel_sheen.png")
-const TEX_RIM := preload("res://assets/sprites/ui_wheel_rim.png")
-const TEX_BULBS := preload("res://assets/sprites/ui_wheel_bulbs.png")
-const TEX_POINTER := preload("res://assets/sprites/ui_wheel_pointer.png")
-const TEX_HUB := preload("res://assets/sprites/ui_wheel_hub.png")
 const TEX_ICONS := preload("res://assets/sprites/ui_wheel_icons.png")
-const TEX_STAND := preload("res://assets/sprites/ui_wheel_stand.png")
 
-const DISC := 104
-const DISC_FRAMES := 64
-const FRAME_DEG := 360.0 / 64.0 ## 5.625: frame k is the disc turned k * FRAME_DEG clockwise
-const RIM := 124
-const POINTER_SIZE := Vector2(15, 19)
-const HUB := 22
 const ICON := 14
-const ICON_RADIUS := 31.0
-const SEGMENT_DEG := 45.0
-## The wheel view's own rect: the wheel centre sits at (66, 64) inside it.
-const VIEW_SIZE := Vector2(132, 150)
-const CENTER := Vector2(66, 64)
-const SPIN_TIME := 4.2
-const SPIN_TURNS := 5.0
-const JITTER := 14.0
-const PEG_OFFSET := 22.5 ## a peg is under the pointer at angle + PEG_OFFSET over SEGMENT_DEG
+## The belt runs for REEL seconds, then the spreader drops and lifts for GRAB.
+const REEL_TIME := 3.0
+const GRAB_TIME := 1.1
+const SPIN_TIME := REEL_TIME + GRAB_TIME
+const SPIN_LAPS := 3
+const VIEW_SIZE := Vector2(216, 132)
 
 var _service: WheelService
 ## True from the key press to the first frame of the rise: the state says the
@@ -48,12 +35,8 @@ var _opening := false
 var _scrim: ColorRect
 var _board: PanelContainer
 var _column: VBoxContainer
-var _wheel_view: Control
-var _disc_atlas: AtlasTexture
-var _bulbs_atlas: AtlasTexture
-var _pointer_atlas: AtlasTexture
+var _wheel_view: _Machine
 var _coin_atlas: AtlasTexture
-var _icons: Array[TextureRect] = []
 var _status: Label
 ## How the next token is earned, and how close it is. A wheel with no spin left
 ## and no word on how to get one is a locked door with no handle.
@@ -156,64 +139,14 @@ func _ready() -> void:
 
 
 func _build_wheel_view() -> void:
-	_wheel_view = Control.new()
+	_wheel_view = _Machine.new()
 	_wheel_view.custom_minimum_size = VIEW_SIZE
 	_wheel_view.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_wheel_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.add_child(_wheel_view)
-	# Draw order: pedestal, disc, segment icons, sheen, rim, bulbs, hub,
-	# pointer. Every position is a whole pixel; nothing here is ever rotated
-	# or non-integer-scaled.
-	_wheel_view.add_child(_layer(TEX_STAND,
-		Rect2(Vector2.ZERO, Vector2(56, 26)), Vector2(38, 124), Vector2(56, 26)))
-	var disc := _layer(TEX_DISC, Rect2(0, 0, DISC, DISC),
-		Vector2(14, 12), Vector2(DISC, DISC))
-	_disc_atlas = disc.texture as AtlasTexture
-	_wheel_view.add_child(disc)
 	_coin_atlas = AtlasTexture.new()
 	_coin_atlas.atlas = TEX_ICONS
 	_coin_atlas.region = Rect2(0, 0, ICON, ICON)
-	for i in LuckyWheel.SEGMENTS.size():
-		var icon := _layer(TEX_ICONS, Rect2(i * ICON, 0, ICON, ICON),
-			CENTER - Vector2(ICON, ICON) * 0.5, Vector2(ICON, ICON))
-		_icons.append(icon)
-		_wheel_view.add_child(icon)
-	_wheel_view.add_child(_layer(TEX_SHEEN,
-		Rect2(Vector2.ZERO, Vector2(DISC, DISC)), Vector2(14, 12), Vector2(DISC, DISC)))
-	_wheel_view.add_child(_layer(TEX_RIM,
-		Rect2(Vector2.ZERO, Vector2(RIM, RIM)), Vector2(4, 2), Vector2(RIM, RIM)))
-	var bulbs := _layer(TEX_BULBS, Rect2(0, 0, RIM, RIM),
-		Vector2(4, 2), Vector2(RIM, RIM))
-	var additive := CanvasItemMaterial.new()
-	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	bulbs.material = additive
-	_bulbs_atlas = bulbs.texture as AtlasTexture
-	_wheel_view.add_child(bulbs)
-	_wheel_view.add_child(_layer(TEX_HUB,
-		Rect2(Vector2.ZERO, Vector2(HUB, HUB)), Vector2(55, 53), Vector2(HUB, HUB)))
-	# The pointer's pivot/cap is at its local (7, 2) and its tip points down;
-	# placed so the tip lands on the top edge of the disc.
-	var pointer := _layer(TEX_POINTER, Rect2(0, 0, POINTER_SIZE.x, POINTER_SIZE.y),
-		Vector2(59, -7), POINTER_SIZE)
-	pointer.pivot_offset = Vector2(7, 2)
-	_pointer_atlas = pointer.texture as AtlasTexture
-	_wheel_view.add_child(pointer)
-
-
-func _layer(atlas: Texture2D, region: Rect2, pos: Vector2, size: Vector2) -> TextureRect:
-	var at := AtlasTexture.new()
-	at.atlas = atlas
-	at.region = region
-	var node := TextureRect.new()
-	node.texture = at
-	node.custom_minimum_size = size
-	node.size = size
-	node.position = pos
-	node.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	node.stretch_mode = TextureRect.STRETCH_SCALE
-	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return node
 
 
 # ------------------------------------------------------------------ service
@@ -299,6 +232,8 @@ func finish_now() -> void:
 		return
 	_spinning = false
 	_angle = _spin_start + _spin_delta
+	_wheel_view.held = posmod(int(round(_angle)), LuckyWheel.SEGMENTS.size())
+	_wheel_view.grab = 1.0
 	_apply_angle()
 	_finish_spin()
 
@@ -394,22 +329,25 @@ func _on_spin_pressed() -> void:
 	_prize.visible = false
 	_detail.visible = false
 	_ad_double_button.visible = false
-	# Segment i is centred under the pointer at rotation 360 - i*45, plus a
-	# jitter so the peg does not always stop on the exact same pixel.
-	var target := fposmod(360.0 - float(index) * SEGMENT_DEG, 360.0) \
-		+ randf_range(-JITTER, JITTER)
-	var current := fposmod(_angle, 360.0)
-	var delta := SPIN_TURNS * 360.0 + fposmod(target - current, 360.0)
+	# The belt is measured in boxes: box i is under the spreader at offset i.
+	var count := float(LuckyWheel.SEGMENTS.size())
+	var current := fposmod(_angle, count)
+	var delta := SPIN_LAPS * count + fposmod(float(index) - current, count)
+	_wheel_view.held = -1
+	_wheel_view.grab = 0.0
 	if not UserPreferences.can_animate():
 		_angle = current + delta
+		_wheel_view.held = index
+		_wheel_view.grab = 1.0
 		_apply_angle()
 		_finish_spin()
 		return
+	_angle = current
 	_spinning = true
 	_spin_t = 0.0
 	_spin_start = _angle
 	_spin_delta = delta
-	_last_peg = int(floor((_angle + PEG_OFFSET) / SEGMENT_DEG))
+	_last_peg = int(round(_angle))
 	_refresh_status()
 
 
@@ -425,22 +363,12 @@ func _finish_spin() -> void:
 
 
 func _apply_angle() -> void:
-	## One quantised frame drives the disc sprite AND the icon positions, so
-	## the icons stay glued to their segments at every step of the spin.
-	var frame := posmod(int(round(_angle / FRAME_DEG)), DISC_FRAMES)
-	_disc_atlas.region = Rect2(frame * DISC, 0.0, DISC, DISC)
-	var frame_deg := float(frame) * FRAME_DEG
-	for i in _icons.size():
-		var a := deg_to_rad(float(i) * SEGMENT_DEG + frame_deg)
-		var p := CENTER + Vector2(sin(a), -cos(a)) * ICON_RADIUS \
-			- Vector2(ICON, ICON) * 0.5
-		_icons[i].position = p.round()
+	_wheel_view.offset = _angle
+	_wheel_view.queue_redraw()
 
 
 func _on_peg() -> void:
 	AudioManager.play_sfx("wheel_tick", 0.1, -4.0)
-	_pointer_atlas.region = Rect2(POINTER_SIZE.x, 0, POINTER_SIZE.x, POINTER_SIZE.y)
-	_peg_t = 0.06
 
 
 # ------------------------------------------------------------------ the reveal
@@ -494,7 +422,7 @@ func _spawn_burst() -> void:
 		var coin := Sprite2D.new()
 		coin.texture = _coin_atlas
 		coin.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		coin.position = CENTER
+		coin.position = _wheel_view.hook_point()
 		_wheel_view.add_child(coin)
 		var dir := Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0))
 		if dir == Vector2.ZERO:
@@ -536,8 +464,8 @@ func _process(delta: float) -> void:
 	if _status_tick >= 1.0:
 		_status_tick = 0.0
 		_refresh_status()
-	# Bulbs: idle chase every 0.5 s, fast chase while spinning, fast flash for
-	# 1.2 s after a win.
+	# Lamps round the cabinet: a slow chase idle, fast while the belt runs,
+	# and a flash for a beat after a win.
 	_flash_t = maxf(0.0, _flash_t - delta)
 	_bulb_tick += delta
 	var interval := 0.5
@@ -548,23 +476,30 @@ func _process(delta: float) -> void:
 	if _bulb_tick >= interval:
 		_bulb_tick = 0.0
 		_bulb_frame = 1 - _bulb_frame
-		_bulbs_atlas.region = Rect2(_bulb_frame * RIM, 0.0, RIM, RIM)
-	if _peg_t > 0.0:
-		_peg_t -= delta
-		if _peg_t <= 0.0:
-			_pointer_atlas.region = Rect2(0, 0, POINTER_SIZE.x, POINTER_SIZE.y)
+		_wheel_view.lamps = _bulb_frame
+		_wheel_view.queue_redraw()
+	_wheel_view.running = _spinning and _spin_t < REEL_TIME
+	_wheel_view.glow = _flash_t
 	if _spinning:
 		_spin_t += delta
-		var t := clampf(_spin_t / SPIN_TIME, 0.0, 1.0)
-		# Ease-out quart: fast off the peg, long settle on the prize.
+		var t := clampf(_spin_t / REEL_TIME, 0.0, 1.0)
+		# Ease-out quart: the belt leaves fast and takes its time arriving.
 		_angle = _spin_start + _spin_delta * (1.0 - pow(1.0 - t, 4.0))
-		_apply_angle()
-		var peg := int(floor((_angle + PEG_OFFSET) / SEGMENT_DEG))
-		if peg != _last_peg:
+		var peg := int(round(_angle))
+		if peg != _last_peg and t < 1.0:
 			_last_peg = peg
 			_on_peg()
-		if t >= 1.0:
+		if _spin_t >= REEL_TIME:
+			# Stopped. The spreader comes down on the box, and takes it up.
+			if _wheel_view.held < 0:
+				_wheel_view.held = posmod(int(round(_angle)), LuckyWheel.SEGMENTS.size())
+				AudioManager.play_sfx("thunk", 0.05, -3.0)
+			_wheel_view.grab = clampf((_spin_t - REEL_TIME) / GRAB_TIME, 0.0, 1.0)
+		_apply_angle()
+		if _spin_t >= SPIN_TIME:
 			_finish_spin()
+	elif _flash_t > 0.0:
+		_wheel_view.queue_redraw()
 	if _shake_t > 0.0:
 		_shake_t -= delta
 		if _shake_t <= 0.0:
@@ -609,3 +544,131 @@ func _refresh_status() -> void:
 	# Nothing to spin with, and an ad may stand in for a token.
 	_ad_spin_button.visible = not _spinning and wheel.pending.is_empty() \
 		and not wheel.can_spin(now) and AdService.available(&"wheel_spin")
+
+
+
+class _Machine extends Control:
+	## The cabinet: a lit frame, a belt of eight sealed boxes, and the spreader.
+	const PITCH := 46.0
+	const BOX := Vector2(38, 26)
+	const BELT_Y := 96.0
+	const RAIL_Y := 16.0
+	const INK := Color8(24, 20, 30)
+	const PAINTS := [Color8(196, 84, 40), Color8(44, 116, 142), Color8(54, 130, 78),
+		Color8(196, 150, 40), Color8(150, 60, 110), Color8(70, 92, 160),
+		Color8(120, 126, 136), Color8(190, 60, 52)]
+
+	## Belt position, in boxes: box i is under the spreader at offset i.
+	var offset := 0.0
+	## The box the spreader has hold of (-1 none) and how far through the
+	## drop-and-lift it is (0..0.4 down, 0.4..1 up).
+	var held := -1
+	var grab := 0.0
+	var lamps := 0
+	var running := false
+	var glow := 0.0
+
+	func _init() -> void:
+		clip_contents = true
+
+	func hook_point() -> Vector2:
+		return Vector2(size.x * 0.5, RAIL_Y + 34.0)
+
+	func _spreader_y() -> float:
+		var rest := RAIL_Y + 12.0
+		var down := BELT_Y - BOX.y - 5.0
+		if held < 0:
+			return rest
+		if grab < 0.4:
+			var d := grab / 0.4
+			return roundf(lerpf(rest, down, d * d))
+		var u := (grab - 0.4) / 0.6
+		return roundf(lerpf(down, rest + 6.0, 1.0 - pow(1.0 - u, 3.0)))
+
+	func _draw() -> void:
+		var w := size.x
+		var h := size.y
+		var cx := roundf(w * 0.5)
+		# Cabinet and glass.
+		draw_rect(Rect2(0, 0, w, h), INK)
+		draw_rect(Rect2(1, 1, w - 2, h - 2), Color8(176, 118, 18))
+		draw_rect(Rect2(1, 1, w - 2, 2), Color8(240, 190, 64))
+		draw_rect(Rect2(7, 7, w - 14, h - 14), INK)
+		draw_rect(Rect2(8, 8, w - 16, h - 16), Color8(30, 44, 58))
+		draw_rect(Rect2(8, 8, w - 16, 30), Color8(38, 58, 74))
+		# The yard beyond the glass: far stacks, dim.
+		for i in 7:
+			draw_rect(Rect2(12 + i * 30, 54 - (i * 7 % 3) * 8, 26, 12 + (i * 7 % 3) * 8),
+				Color8(36, 52, 66))
+		# Belt.
+		draw_rect(Rect2(8, BELT_Y, w - 16, 12), INK)
+		draw_rect(Rect2(8, BELT_Y + 1, w - 16, 3), Color8(92, 100, 118))
+		draw_rect(Rect2(8, BELT_Y + 4, w - 16, 7), Color8(58, 62, 78))
+		var tick := fposmod(-offset * PITCH, 12.0)
+		var x := 8.0 + tick
+		while x < w - 8.0:
+			draw_rect(Rect2(roundf(x), BELT_Y + 5, 2, 5), Color8(40, 42, 56))
+			x += 12.0
+		draw_rect(Rect2(8, BELT_Y + 12, w - 16, h - BELT_Y - 20), Color8(44, 40, 54))
+		# Boxes. The one in the spreader rides up with it instead of the belt.
+		var count := LuckyWheel.SEGMENTS.size()
+		var base := int(floor(offset))
+		var hook := _spreader_y()
+		for step in range(-3, 4):
+			var index := posmod(base + step, count)
+			var bx := cx + (float(base + step) - offset) * PITCH - BOX.x * 0.5
+			var by := BELT_Y - BOX.y
+			var lifted := index == held and absf(float(base + step) - offset) < 0.5
+			if lifted and grab >= 0.4:
+				by = hook + 5.0
+			_box(Vector2(roundf(bx), roundf(by)), index, lifted and grab >= 1.0)
+		# The cabinet's sides again, over whatever rode in under them.
+		for fx: float in [0.0, w - 8.0]:
+			draw_rect(Rect2(fx, 7, 8, h - 14), Color8(176, 118, 18))
+		draw_rect(Rect2(7, 7, 1, h - 14), INK)
+		draw_rect(Rect2(w - 8.0, 7, 1, h - 14), INK)
+		draw_rect(Rect2(0, 0, 1, h), INK)
+		draw_rect(Rect2(w - 1.0, 0, 1, h), INK)
+		# Rail, trolley, cable, spreader.
+		draw_rect(Rect2(8, RAIL_Y, w - 16, 5), INK)
+		draw_rect(Rect2(8, RAIL_Y + 1, w - 16, 2), Color8(240, 190, 52))
+		draw_rect(Rect2(cx - 9, RAIL_Y - 3, 18, 10), INK)
+		draw_rect(Rect2(cx - 8, RAIL_Y - 2, 16, 8), Color8(212, 84, 40))
+		draw_rect(Rect2(cx - 1, RAIL_Y + 7, 2, hook - RAIL_Y - 7), Color8(170, 176, 188))
+		draw_rect(Rect2(cx - 21, hook, 42, 6), INK)
+		draw_rect(Rect2(cx - 20, hook + 1, 40, 3), Color8(240, 190, 52))
+		for side: float in [-20.0, 17.0]:
+			draw_rect(Rect2(cx + side, hook + 5, 3, 3), INK)
+		# The mark on the glass: this is where it stops.
+		for i in 3:
+			draw_rect(Rect2(cx - 2 + i, BELT_Y + 14 + i, 5 - i * 2, 1), UiTheme.AMBER)
+		# Lamps round the frame.
+		var n := 0
+		var lx := 12.0
+		while lx < w - 10.0:
+			for ly: float in [3.0, h - 5.0]:
+				var on := (n + lamps) % 2 == 0
+				draw_rect(Rect2(lx, ly, 2, 2), Color8(255, 236, 160) if on else Color8(120, 78, 18))
+			lx += 12.0
+			n += 1
+		if glow > 0.0:
+			draw_rect(Rect2(8, 8, w - 16, h - 16), Color(1.0, 0.92, 0.6, 0.18 * minf(1.0, glow)))
+
+	func _box(at: Vector2, index: int, open: bool) -> void:
+		var paint: Color = PAINTS[index % PAINTS.size()]
+		draw_rect(Rect2(at + Vector2(2, 3), BOX), Color(0, 0, 0, 0.3))
+		draw_rect(Rect2(at, BOX), INK)
+		draw_rect(Rect2(at + Vector2(1, 1), BOX - Vector2(2, 2)), paint)
+		draw_rect(Rect2(at + Vector2(1, 1), Vector2(BOX.x - 2.0, 2)), paint.lightened(0.3))
+		draw_rect(Rect2(at + Vector2(1, BOX.y - 4.0), Vector2(BOX.x - 2.0, 3)), paint.darkened(0.3))
+		var rx := at.x + 4.0
+		while rx < at.x + BOX.x - 3.0:
+			draw_rect(Rect2(rx, at.y + 4.0, 1, BOX.y - 9.0), paint.darkened(0.18))
+			rx += 4.0
+		# What is inside, stencilled on the door — or shown, once it is open.
+		var plate := Rect2(at + Vector2((BOX.x - 18.0) * 0.5, 4.0), Vector2(18, 18))
+		draw_rect(plate, INK if not open else Color8(255, 236, 160))
+		draw_rect(plate.grow(-1.0), Color8(34, 30, 44) if not open else Color8(250, 244, 224))
+		draw_texture_rect_region(LuckyWheelPanel.TEX_ICONS,
+			Rect2(plate.position + Vector2(2, 2), Vector2(14, 14)),
+			Rect2(index * 14, 0, 14, 14))

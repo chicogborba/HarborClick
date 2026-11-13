@@ -14,7 +14,7 @@ const FEATURE_NAMES := {
 	&"gull": "level.feature.gull", &"wheel": "level.feature.wheel",
 	&"journal": "level.feature.journal", &"routes": "level.feature.routes",
 	&"charters": "level.feature.charters",
-	&"decor": "level.feature.decor", &"orders": "level.feature.orders",
+	&"decor": "level.feature.decor",
 	&"prestige": "level.feature.prestige",
 }
 

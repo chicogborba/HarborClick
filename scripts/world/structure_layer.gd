@@ -31,6 +31,14 @@ const SLOT_TYPES := ["armazem", "alfandega", "torre", "porto_ia", "portal"]
 
 var world: PortWorld
 var _actors: Dictionary = {}     # id -> Array[StructureActor]
+## Boxes in the air at once, at most; past that a delivery just happens.
+const MAX_DROPS := 6
+## Machines spawned by the purchase being processed, waiting for their box.
+var _fresh: Dictionary = {}
+var _drops: Array = []
+## The box coming down on an already-capped kind, and what it adds up to.
+var _cap_drops: Dictionary = {}
+var _cap_gain: Dictionary = {}
 
 
 func _ready() -> void:
@@ -39,22 +47,88 @@ func _ready() -> void:
 
 
 func _announce(quote: Dictionary) -> void:
-	## Point at the machine that was just paid for.
+	## A purchase is a delivery: `SupplyDrop` brings it down by parachute.
 	##
-	## Every kind has a readable cap, so most purchases past the first few add
-	## nothing to the yard — and a purchase that changes nothing on screen is the
-	## whole of "I buy things and nothing happens". When the cap is already met
-	## the badge goes over a machine of that kind that *is* there, and it shudders
-	## on its springs, so the money always lands somewhere the player can see.
+	## The problem with delivering *everything* is buying in bulk — ten dockers
+	## at once, or the buy key held down. So a purchase is one of two things:
+	##
+	## * it put new machines in the yard (never more than the visible cap, so a
+	##   handful at most): each gets its own box, a beat apart, and steps out of
+	##   it when the doors go. The first box carries the count for the lot.
+	## * it added nothing visible (the cap was already met): one box comes down
+	##   on a machine of that kind that *is* there, with the quantity stencilled
+	##   on it, and that machine takes the weight when it opens. Buying again
+	##   while that box is still in the air does not launch another — the same
+	##   box's number goes up. A screen can not fill with parachutes.
+	##
+	## Past `MAX_DROPS` in the air at once, deliveries simply happen: the game
+	## never waits on an animation and never queues one up for later.
 	var id := str(quote.get("id", ""))
 	var gain := float(quote.get("nominal_cps_gain", 0.0))
-	var fleet := live(id)
-	if fleet.is_empty() or world == null or gain <= 0.0:
+	var qty := maxi(1, int(quote.get("quantity", 1)))
+	var fresh: Array = _fresh.get(id, [])
+	_fresh.erase(id)
+	if world == null:
 		return
-	var actor: StructureActor = fleet[fleet.size() - 1]
-	actor.acknowledge()
-	world.show_world_badge(actor.position + Vector2(0.0, -14.0),
-		"+%s TEU/s" % GameState.fmt(gain))
+	var badge := "+%s TEU/s" % GameState.fmt(gain) if gain > 0.0 else ""
+	if not fresh.is_empty():
+		for index in fresh.size():
+			var actor: StructureActor = fresh[index]
+			if not is_instance_valid(actor):
+				continue
+			var last := index == fresh.size() - 1
+			_deliver(id, actor, qty if index == 0 else 1, index * 0.22, true,
+				badge if last else "")
+		return
+	var fleet := live(id)
+	if fleet.is_empty():
+		return
+	var standing: StructureActor = fleet[fleet.size() - 1]
+	var flying: Variant = _cap_drops.get(id)
+	if is_instance_valid(flying) and (flying as SupplyDrop).in_flight():
+		(flying as SupplyDrop).add(qty)
+		_cap_gain[id] = float(_cap_gain.get(id, 0.0)) + gain
+		return
+	_cap_gain[id] = gain
+	_cap_drops[id] = _deliver(id, standing, qty, 0.0, false, "")
+
+
+func _deliver(id: String, actor: StructureActor, qty: int, wait: float,
+		reveal: bool, badge: String) -> SupplyDrop:
+	var arrive := func() -> void:
+		if not is_instance_valid(actor):
+			return
+		if reveal:
+			actor.visible = true
+			actor.pop_in()
+		else:
+			actor.acknowledge()
+		var text := badge
+		if not reveal and float(_cap_gain.get(id, 0.0)) > 0.0:
+			text = "+%s TEU/s" % GameState.fmt(float(_cap_gain[id]))
+		if not text.is_empty() and world != null:
+			world.show_world_badge(actor.position + Vector2(0.0, -14.0), text)
+	if _drops_in_air() >= MAX_DROPS or not UserPreferences.can_animate() \
+			or DisplayServer.get_name() == "headless":
+		arrive.call()
+		return null
+	if reveal:
+		actor.visible = false
+	var drop := SupplyDrop.new()
+	world.add_child(drop)
+	drop.opened.connect(arrive)
+	drop.setup(world, actor.global_position + Vector2(0.0, 4.0), id, qty, wait)
+	_drops.append(drop)
+	return drop
+
+
+func _drops_in_air() -> int:
+	var alive: Array[SupplyDrop] = []
+	for drop: Variant in _drops:
+		if is_instance_valid(drop):
+			alive.append(drop)
+	_drops = alive
+	return alive.size()
 
 
 func rebuild() -> void:
@@ -73,13 +147,27 @@ func rebuild() -> void:
 func _on_structure_bought(id: String, count: int) -> void:
 	var target := mini(count, CAPS.get(id, 2))
 	var current := live(id).size()
+	var fresh: Array = _fresh.get(id, [])
 	while current < target:
-		_spawn(id, current, true)
+		fresh.append(_spawn(id, current, false))
 		current += 1
+	if not fresh.is_empty():
+		# `_announce` follows in the same call stack and delivers these. Should
+		# it not (a caller that only emits `structure_bought`), they are simply
+		# there next frame.
+		_fresh[id] = fresh
+		_settle_fresh.call_deferred(id)
 	_relayout(id)
 
 
-func _spawn(id: String, index: int, animate: bool) -> void:
+func _settle_fresh(id: String) -> void:
+	for actor: Variant in _fresh.get(id, []):
+		if is_instance_valid(actor):
+			(actor as StructureActor).pop_in()
+	_fresh.erase(id)
+
+
+func _spawn(id: String, index: int, animate: bool) -> StructureActor:
 	var actor := StructureActor.new()
 	actor.setup(id, index, world)
 	if not _actors.has(id):
@@ -96,6 +184,7 @@ func _spawn(id: String, index: int, animate: bool) -> void:
 	_place(actor, id, index)
 	if animate:
 		actor.pop_in()
+	return actor
 
 
 func live(id: String) -> Array[StructureActor]:

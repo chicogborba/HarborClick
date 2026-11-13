@@ -811,6 +811,10 @@ const STRINGS := {
 	"pt_BR": "TERMINAR AGORA", "en": "FINISH NOW", "es": "TERMINAR YA",
 	"fr": "FINIR MAINTENANT", "de": "JETZT FERTIG", "it": "FINISCI ORA",
 	"ru": "ЗАКОНЧИТЬ СЕЙЧАС", "pl": "ZAKOŃCZ TERAZ", "tr": "ŞİMDİ BİTİR"},
+"land.sale.sign": {
+	"pt_BR": "À VENDA", "en": "FOR SALE", "es": "EN VENTA", "fr": "À VENDRE",
+	"de": "ZU VERKAUFEN", "it": "IN VENDITA", "ru": "ПРОДАЁТСЯ", "pl": "NA SPRZEDAŻ",
+	"tr": "SATILIK"},
 "land.works.sign": {
 	"pt_BR": "OBRA", "en": "WORKS", "es": "OBRA", "fr": "TRAVAUX", "de": "BAU",
 	"it": "CANTIERE", "ru": "СТРОЙКА", "pl": "BUDOWA", "tr": "İNŞAAT"},
@@ -1823,6 +1827,18 @@ const STRINGS := {
 	"pt_BR": "PULAR", "en": "SKIP", "es": "SALTAR",
 	"fr": "PASSER", "de": "SKIP", "it": "SALTA",
 	"ru": "ПРОПУСК", "pl": "POMIŃ", "tr": "GEÇ"},
+"trophy.hint": {
+	"pt_BR": "Toque numa taça para ver a conquista.", "en": "Tap a cup to see its goal.",
+	"es": "Toca una copa para ver el logro.", "fr": "Touchez une coupe pour voir le succès.",
+	"de": "Tippe auf einen Pokal für das Ziel.", "it": "Tocca una coppa per vedere il traguardo.",
+	"ru": "Нажми на кубок, чтобы увидеть цель.", "pl": "Stuknij puchar, aby zobaczyć cel.",
+	"tr": "Hedefi görmek için kupaya dokun."},
+"trophy.count": {
+	"pt_BR": "{n} de {total} conquistas", "en": "{n} of {total} trophies",
+	"es": "{n} de {total} logros", "fr": "{n} sur {total} succès",
+	"de": "{n} von {total} Pokalen", "it": "{n} di {total} traguardi",
+	"ru": "{n} из {total} кубков", "pl": "{n} z {total} pucharów",
+	"tr": "{total} kupadan {n}"},
 "roadmap.title": {
 	"pt_BR": "PASSE DO PORTO", "en": "TERMINAL PASS", "es": "PASE DEL PUERTO", "fr": "PASSE DU PORT", "de": "HAFENPASS", "it": "PASS DEL PORTO", "ru": "ПРОПУСК ПОРТА", "pl": "KARNET PORTU", "tr": "LİMAN BİLETİ"},
 "pass.claim_all": {
@@ -2014,13 +2030,13 @@ const STRINGS := {
 	"pl": "2 darmowe losowania dziennie. Więcej za wideo ({left} dziś)",
 	"tr": "Günde 2 bedava çevirme. Fazlası video ile ({left} bugün)"},
 "wheel.title": {
-	"pt_BR": "RODA DA SORTE", "en": "LUCKY WHEEL", "es": "RULETA",
-	"fr": "ROULETTE", "de": "GLÜCKSRAD", "it": "RUOTA",
-	"ru": "КОЛЕСО", "pl": "KOŁO", "tr": "ÇARK"},
+	"pt_BR": "GUINDASTE DA SORTE", "en": "LUCKY CRANE", "es": "GRÚA DE LA SUERTE",
+	"fr": "GRUE DE LA CHANCE", "de": "GLÜCKSKRAN", "it": "GRU FORTUNATA",
+	"ru": "КРАН УДАЧИ", "pl": "DŹWIG SZCZĘŚCIA", "tr": "ŞANS VİNCİ"},
 "wheel.spin": {
-	"pt_BR": "GIRAR", "en": "SPIN", "es": "GIRAR", "fr": "TOURNER",
-	"de": "DREHEN", "it": "GIRA", "ru": "КРУТЬ", "pl": "KRĘĆ",
-	"tr": "ÇEVİR"},
+	"pt_BR": "PESCAR", "en": "GRAB", "es": "PESCAR", "fr": "ATTRAPER",
+	"de": "GREIFEN", "it": "PESCA", "ru": "ХВАТАЙ", "pl": "ŁAP",
+	"tr": "YAKALA"},
 "wheel.spin_in": {
 	"pt_BR": "PRÓXIMO GIRO EM {time}", "en": "NEXT SPIN IN {time}", "es": "PRÓXIMO GIRO EN {time}",
 	"fr": "PROCHAIN TOUR DANS {time}", "de": "NÄCHSTER DREH IN {time}", "it": "PROSSIMO GIRO TRA {time}",

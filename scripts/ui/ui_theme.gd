@@ -156,7 +156,12 @@ static func icon16(kind: Icon16, scale: int = 1) -> TextureRect:
 	var node := TextureRect.new()
 	node.texture = icon16_texture(kind)
 	node.custom_minimum_size = Vector2(16, 16) * scale
-	node.stretch_mode = TextureRect.STRETCH_SCALE
+	# Exactly its own square, wherever it is put: left to fill a row it was
+	# stretched to the row's height and the pixels came out unequal.
+	node.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	node.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	node.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	node.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	node.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return node

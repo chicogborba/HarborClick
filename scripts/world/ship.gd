@@ -909,6 +909,9 @@ func arrive(open_channel: bool = true) -> void:
 	# lives in one place with the reason attached.
 	var moored := berth_position()
 	var tween := create_tween()
+	# A harbour with tugs (and a seasoned terminal) hurries its ships: the same
+	# track in less time. See `GameState.ship_pace`.
+	var k := 1.0 / GameState.ship_pace()
 	if open_channel:
 		# The full approach: down the fairway, outboard of the berth line, sliding
 		# alongside over the last stretch. It is the set piece the port is built
@@ -916,17 +919,17 @@ func arrive(open_channel: bool = true) -> void:
 		# and the open water above it.
 		_under_way = true
 		position = Vector2(PortLayout.FAIRWAY_X, PortLayout.channel_entry_y())
-		tween.tween_property(self, "position:y", moored.y, 5.4) \
+		tween.tween_property(self, "position:y", moored.y, 5.4 * k) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-		tween.parallel().tween_property(self, "position:x", moored.x, 2.1) \
-			.set_delay(3.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		tween.parallel().tween_property(self, "position:x", moored.x, 2.1 * k) \
+			.set_delay(3.3 * k).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	else:
 		# Somebody is alongside between here and the sea, and the channel fits one
 		# hull. Come in off the offing instead, beam-on under the tugs and straight
 		# onto the berth: no part of that track crosses another ship.
 		_under_way = false
 		position = Vector2(PortLayout.OFFING_X, moored.y)
-		tween.tween_property(self, "position:x", moored.x, 4.4) \
+		tween.tween_property(self, "position:x", moored.x, 4.4 * k) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tween.tween_callback(func() -> void:
 		_under_way = false
@@ -941,23 +944,24 @@ func depart(open_channel: bool = true) -> void:
 	_set_phase(Phase.DEPARTING)
 	AudioManager.play_sfx("horn", 0.04, -6.0)
 	var tween := create_tween()
+	var k := 1.0 / GameState.ship_pace()
 	# Lines let go, then off the wall. The sidestep is its own leg rather than
 	# something that happens while the ship is already under way: a hull that
 	# starts up the channel the instant it is freed reads as sliding along the
 	# quay it was tied to.
-	tween.tween_interval(0.9)
-	tween.tween_property(self, "position:x", PortLayout.FAIRWAY_X, 1.5) \
+	tween.tween_interval(0.9 * k)
+	tween.tween_property(self, "position:x", PortLayout.FAIRWAY_X, 1.5 * k) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	if open_channel:
 		tween.tween_callback(func() -> void:
 			_under_way = true
 			_refresh_wake_state())
-		tween.tween_property(self, "position:y", PortLayout.channel_exit_y(), 4.6) \
+		tween.tween_property(self, "position:y", PortLayout.channel_exit_y(), 4.6 * k) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	else:
 		# The way north is somebody else's berth. Out to sea instead, the way the
 		# tugs took it off the wall: no crossing, and nothing to slide through.
-		tween.tween_property(self, "position:x", PortLayout.OFFING_X, 3.4) \
+		tween.tween_property(self, "position:x", PortLayout.OFFING_X, 3.4 * k) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tween.tween_callback(func() -> void:
 		_under_way = false
