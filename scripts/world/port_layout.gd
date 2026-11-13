@@ -397,7 +397,7 @@ static func world_bottom() -> float:
 
 static func land_works_rect() -> Rect2:
 	## The strip of bare ground the crew paves while a parcel is in works.
-	return Rect2(YARD_X0, paved_bottom(), QUAY_X0 - YARD_X0, 58.0)
+	return Rect2(YARD_X0, paved_bottom(), QUAY_X0 - YARD_X0, 78.0)
 
 
 static func rail_y() -> float:

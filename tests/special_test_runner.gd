@@ -37,6 +37,7 @@ func _run() -> void:
 	_test_the_stack_game_can_be_lost()
 	_test_the_maze_is_always_solvable()
 	_test_the_maze_can_be_won_and_lost()
+	_test_the_traffic_game_can_be_won_and_lost()
 	_test_a_reload_keeps_the_charter_but_not_the_burst()
 
 	SaveManager._sections.clear()
@@ -49,6 +50,67 @@ func _run() -> void:
 			push_error(failure)
 		print("SPECIAL CALL TESTS FAILED: %d assertion(s)" % failures.size())
 		get_tree().quit(1)
+
+
+# ------------------------------------------------------------------ traffic
+
+func _traffic_bot_lane(game: TrafficGame) -> int:
+	## A careful driver: stay put unless something is coming in this lane,
+	## then take the clearest neighbour. Pickups are fine to drive into.
+	var danger := func(lane: int) -> float:
+		var nearest := 999.0
+		for thing: Dictionary in game.things:
+			var kind: StringName = thing.kind
+			if int(thing.lane) != lane or kind in [TrafficGame.COFFEE, TrafficGame.CLOCK]:
+				continue
+			# Its head still alongside the rig counts: changing lanes into the
+			# side of a car is a crash too.
+			var y := float(thing.y)
+			if y + float(TrafficGame.KINDS[kind].len) > -TrafficGame.RIG_LEN and y < nearest:
+				nearest = y
+		return nearest
+	if float(danger.call(game.lane)) > 70.0:
+		return game.lane
+	var best := game.lane
+	var best_room := float(danger.call(game.lane))
+	for lane in [game.lane - 1, game.lane + 1]:
+		if lane < 0 or lane >= TrafficGame.LANES:
+			continue
+		var room := float(danger.call(lane))
+		if room > best_room:
+			best = lane
+			best_room = room
+	return best
+
+
+func _test_the_traffic_game_can_be_won_and_lost() -> void:
+	var offer := SpecialCallDB.get_offer(&"caminhao_atrasado")
+	_expect(not offer.is_empty(), "the late-lorry charter is in the catalogue")
+	var careful := TrafficGame.new()
+	careful.setup(offer, 7)
+	var guard := 0
+	while not careful.over and guard < 6000:
+		var want := _traffic_bot_lane(careful)
+		if want != careful.lane:
+			careful.steer(signi(want - careful.lane))
+		careful.advance(1.0 / 60.0)
+		guard += 1
+	_expect(careful.over and careful.victory,
+		"a careful driver reaches the gate (hits %d, %.1fs left)" % [careful.hits, careful.time_left])
+	var sleepy := TrafficGame.new()
+	sleepy.setup(offer, 7)
+	guard = 0
+	while not sleepy.over and guard < 6000:
+		sleepy.advance(1.0 / 60.0)
+		guard += 1
+	_expect(sleepy.over and not sleepy.victory and sleepy.hits > 0,
+		"a driver who never steers crashes or runs out of time")
+	var kerb := TrafficGame.new()
+	kerb.setup(offer, 1)
+	kerb.steer(-1)
+	_expect(not kerb.steer(-1) and kerb.lane == 0, "the kerb stops a lane change")
+	for game: StringName in SpecialCallDB.GAMES:
+		_expect(SpecialCallDB.COVER.has(game), "%s has a cover picture" % game)
 
 
 # ------------------------------------------------------------------ catalogue

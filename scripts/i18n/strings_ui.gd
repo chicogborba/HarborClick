@@ -1330,6 +1330,15 @@ const STRINGS := {
 	"fr": "Acheter {name}", "de": "{name} kaufen", "it": "Compra {name}",
 	"ru": "Купить «{name}»", "pl": "Kup {name}", "tr": "{name} satın al"},
 
+"shop.cosmetics.all": {
+	"pt_BR": "TUDO", "en": "ALL", "es": "TODO", "fr": "TOUT", "de": "ALLES",
+	"it": "TUTTO", "ru": "ВСЁ", "pl": "WSZYSTKO", "tr": "TÜMÜ"},
+"shop.cosmetics.count": {
+	"pt_BR": "Coleção: {n} de {total}", "en": "Collection: {n} of {total}",
+	"es": "Colección: {n} de {total}", "fr": "Collection : {n} sur {total}",
+	"de": "Sammlung: {n} von {total}", "it": "Collezione: {n} di {total}",
+	"ru": "Коллекция: {n} из {total}", "pl": "Kolekcja: {n} z {total}",
+	"tr": "Koleksiyon: {total} içinde {n}"},
 "shop.cosmetics.port": {
 	"pt_BR": "O PORTO", "en": "THE PORT", "es": "EL PUERTO",
 	"fr": "LE PORT", "de": "DER HAFEN", "it": "IL PORTO", "ru": "ПОРТ",
@@ -2099,6 +2108,55 @@ const STRINGS := {
 	"de": "Ein Minispiel jetzt, für ein belohntes Werbevideo.", "it": "Un minigioco ora, con un annuncio premiato.",
 	"ru": "Одна мини-игра сейчас, за рекламу с наградой.", "pl": "Jedna minigra teraz, za nagradzaną reklamę.",
 	"tr": "Reklam karşılığında şimdi bir mini oyun."},
+"arcade.cabinet": {
+	"pt_BR": "FLIPERAMA", "en": "ARCADE", "es": "ARCADE", "fr": "ARCADE", "de": "SPIELHALLE",
+	"it": "SALA GIOCHI", "ru": "АРКАДА", "pl": "SALON GIER", "tr": "ATARI SALONU"},
+"arcade.pick": {
+	"pt_BR": "Escolha a máquina", "en": "Pick a machine", "es": "Elige la máquina",
+	"fr": "Choisis la machine", "de": "Wähle einen Automaten", "it": "Scegli la macchina",
+	"ru": "Выбери автомат", "pl": "Wybierz automat", "tr": "Makineni seç"},
+"game.stack.name": {
+	"pt_BR": "Torre de Contêiner", "en": "Container Tower", "es": "Torre de Contenedores",
+	"fr": "Tour de Conteneurs", "de": "Containerturm", "it": "Torre di Container",
+	"ru": "Башня контейнеров", "pl": "Wieża kontenerów", "tr": "Konteyner Kulesi"},
+"game.stack.desc": {
+	"pt_BR": "Solte na hora certa e não deixe a pilha tombar.",
+	"en": "Let go at the right moment and keep the stack upright.",
+	"es": "Suelta en el momento justo y que la pila no caiga.",
+	"fr": "Lâche au bon moment sans faire tomber la pile.",
+	"de": "Lass im richtigen Moment los, der Stapel darf nicht kippen.",
+	"it": "Molla al momento giusto senza far cadere la pila.",
+	"ru": "Отпускай вовремя и не урони башню.",
+	"pl": "Puść w dobrej chwili i nie przewróć stosu.",
+	"tr": "Doğru anda bırak, yığını devirme."},
+"game.maze.name": {
+	"pt_BR": "Labirinto do Pátio", "en": "Yard Maze", "es": "Laberinto del Patio",
+	"fr": "Labyrinthe du Quai", "de": "Hof-Labyrinth", "it": "Labirinto del Piazzale",
+	"ru": "Лабиринт склада", "pl": "Labirynt placu", "tr": "Saha Labirenti"},
+"game.maze.desc": {
+	"pt_BR": "Ache as caixas perdidas e corra pro berço.",
+	"en": "Find the lost boxes and race to the berth.",
+	"es": "Encuentra las cajas perdidas y corre al muelle.",
+	"fr": "Retrouve les boîtes perdues et file au quai.",
+	"de": "Finde die verlorenen Boxen und ab zum Liegeplatz.",
+	"it": "Trova le casse perse e corri all'ormeggio.",
+	"ru": "Найди потерянные ящики и мчись к причалу.",
+	"pl": "Znajdź zgubione skrzynie i pędź do nabrzeża.",
+	"tr": "Kayıp kutuları bul, rıhtıma koş."},
+"game.traffic.name": {
+	"pt_BR": "Caminhão Atrasado", "en": "Late Lorry", "es": "Camión Atrasado",
+	"fr": "Camion en Retard", "de": "Verspäteter Laster", "it": "Camion in Ritardo",
+	"ru": "Опоздавший грузовик", "pl": "Spóźniona ciężarówka", "tr": "Geciken Kamyon"},
+"game.traffic.desc": {
+	"pt_BR": "Costure o trânsito e chegue antes do portão fechar.",
+	"en": "Weave through traffic and beat the closing gate.",
+	"es": "Esquiva el tráfico y llega antes de que cierre el portón.",
+	"fr": "Slalome dans la circulation avant la fermeture du portail.",
+	"de": "Schlängel dich durch den Verkehr, bevor das Tor schließt.",
+	"it": "Sfreccia nel traffico prima che chiuda il cancello.",
+	"ru": "Лавируй в потоке и успей до закрытия ворот.",
+	"pl": "Lawiruj w korku i zdąż przed zamknięciem bramy.",
+	"tr": "Trafikte sıyrıl, kapı kapanmadan yetiş."},
 "arcade.title": {
 	"pt_BR": "Fichinha do arcade", "en": "Arcade token", "es": "Ficha de arcade",
 	"fr": "Jeton d'arcade", "de": "Arcade-Münze", "it": "Gettone arcade",

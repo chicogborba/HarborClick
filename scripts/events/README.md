@@ -120,3 +120,11 @@ Run the `xray` suite after changing anything here, and the `tour_receita`,
 
 Run the `special` suite plus `cargo` and `phase3_progression_ui` after changing
 anything here, and the `charter` / `minigame` captures for the two boards.
+
+## traffic_game.gd
+
+The late-lorry minigame's rules, pure: three lanes, traffic slower than the rig,
+hazards (hit = life, speed reset, grace), oil (thrown a lane), coffee (turbo) and
+clocks (+seconds). A new row never blocks the last open lane, counting what is
+still alongside from earlier rows. `tests/special_test_runner.gd` drives a
+careful bot to the gate and a driver who never steers into a loss.

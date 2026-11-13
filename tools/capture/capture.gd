@@ -437,6 +437,33 @@ func _run(size: Vector2i) -> void:
 				% [size.x, size.y, _main.maze.game.moves])
 		_main.maze.visible = false
 		await get_tree().create_timer(0.2).timeout
+	if _wants("traffic"):
+		# The late lorry: a run a few seconds in, with traffic on the road.
+		_main.traffic.open(SpecialCallDB.get_offer(&"caminhao_atrasado"))
+		await get_tree().create_timer(3.2).timeout
+		_main.traffic._steer(-1)
+		await get_tree().create_timer(0.6).timeout
+		_check("traffic", _main.traffic._board, size)
+		await _shot("traffic")
+		if _main.traffic.game == null or _main.traffic.game.travelled < 50.0:
+			_failures.append("traffic at %dx%d never got moving" % [size.x, size.y])
+		_main.traffic.visible = false
+		await get_tree().create_timer(0.2).timeout
+	if _wants("arcade"):
+		_main.arcade_picker.open()
+		await get_tree().create_timer(0.6).timeout
+		_check("arcade", _main.arcade_picker._board, size)
+		await _shot("arcade")
+		_main.arcade_picker.close()
+		await get_tree().create_timer(0.2).timeout
+	if _wants("charter_traffic"):
+		_main.special_alert.open(SpecialCallDB.get_offer(&"caminhao_atrasado"),
+			SpecialCallDirector.OFFER_TIMEOUT)
+		await get_tree().create_timer(0.5).timeout
+		_check("charter_traffic", _main.special_alert._board, size)
+		await _shot("charter_traffic")
+		_main.special_alert.close()
+		await get_tree().create_timer(0.2).timeout
 	if _wants("minigame"):
 		var game_offer := SpecialCallDB.get_offer(&"gala_relampago")
 		_main.minigame.open(game_offer)

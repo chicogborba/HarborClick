@@ -217,6 +217,21 @@ func _test_two_fingers_zoom_and_never_pan() -> void:
 	var before := cam.zoom.x
 	cam._unhandled_input(_magnify(1.2))
 	_expect(cam.zoom.x > before, "a trackpad magnify gesture zooms too")
+	# The bare wheel scrolls the yard: it used to zoom, which is not what a
+	# wheel does anywhere else.
+	cam.set_world_bottom(2000.0)
+	cam.zoom = Vector2.ONE
+	cam.position = Vector2(160, 600)
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	wheel.pressed = true
+	cam._unhandled_input(wheel)
+	_expect(cam.zoom.x == 1.0, "the wheel does not zoom")
+	_expect(cam.position.y > 600.0, "the wheel scrolls down the yard")
+	wheel.ctrl_pressed = true
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	cam._unhandled_input(wheel)
+	_expect(cam.zoom.x != 1.0, "ctrl + wheel still zooms")
 	cam.queue_free()
 	_done("camera_pinch")
 

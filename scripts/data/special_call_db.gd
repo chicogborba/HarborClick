@@ -22,6 +22,11 @@ const PENALTY_SLUMP: StringName = &"slump"      # multiplier < 1 for N seconds
 ## the board that plays it.
 const GAME_STACK: StringName = &"stack"
 const GAME_MAZE: StringName = &"maze"
+const GAME_TRAFFIC: StringName = &"traffic"
+## Every game the Arcade cabinet offers, in the order its cards are shown.
+const GAMES: Array[StringName] = [GAME_STACK, GAME_MAZE, GAME_TRAFFIC]
+## Frame of `ui_minigame_art.png` each game's cover is on (3 is the scanner).
+const COVER := {GAME_STACK: 0, GAME_MAZE: 1, GAME_TRAFFIC: 2, &"xray": 3}
 
 const OFFERS: Array[Dictionary] = [
 	{
@@ -90,6 +95,28 @@ const OFFERS: Array[Dictionary] = [
 		"goal": 5,
 		"seconds": 60.0,
 		"reward": {"kind": REWARD_LUMP, "seconds": 600.0},
+		"penalty": {"kind": PENALTY_SLUMP, "mult": 0.6, "seconds": 40.0},
+	},
+	{
+		"id": "caminhao_atrasado",
+		"title": "Caminhão Atrasado",
+		"brief": "O reefer com a carga do navio ficou preso na avenida e o portão fecha com a maré. Assume o volante: desvia do trânsito, foge dos buracos e chega antes do gate fechar.",
+		"game": GAME_TRAFFIC,
+		"hull": "panamax",
+		"goal": 8,
+		"seconds": 36.0,
+		"reward": {"kind": REWARD_SURGE, "mult": 4.0, "seconds": 45.0},
+		"penalty": {"kind": PENALTY_FINE, "seconds": 25.0},
+	},
+	{
+		"id": "frete_expresso",
+		"title": "Frete Expresso",
+		"brief": "Remédio refrigerado pra embarcar no último feeder do dia. É hora do rush, choveu óleo na pista e o motorista travou. A estrada é sua.",
+		"game": GAME_TRAFFIC,
+		"hull": "coastal_feeder",
+		"goal": 11,
+		"seconds": 44.0,
+		"reward": {"kind": REWARD_LUMP, "seconds": 720.0},
 		"penalty": {"kind": PENALTY_SLUMP, "mult": 0.6, "seconds": 40.0},
 	},
 ]
@@ -194,7 +221,7 @@ static func is_valid() -> bool:
 		if int(offer.get("goal", 0)) < 3 or float(offer.get("seconds", 0.0)) < 10.0:
 			return false
 		# A charter has to name a game something can actually open.
-		if not [GAME_STACK, GAME_MAZE].has(StringName(offer.get("game", &""))):
+		if not GAMES.has(StringName(offer.get("game", &""))):
 			return false
 		if ShipCatalog.get_silhouette(StringName(offer.get("hull", ""))).is_empty():
 			return false

@@ -17,6 +17,8 @@ var _scroll: ScrollContainer
 var _column: VBoxContainer
 var _scrim: ColorRect
 var _title: Label
+var _cover: TextureRect
+var _game_label: Label
 var _brief: Label
 var _reward: Label
 var _penalty: Label
@@ -67,6 +69,23 @@ func _ready() -> void:
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	heading.add_child(_title)
 
+	# The machine this charter is worked on, as a picture: a player should know
+	# what they are agreeing to play before they agree to it.
+	var framed := UiTheme.panel(UiTheme.slate_style(false, 2), false)
+	column.add_child(framed)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override(&"separation", 2)
+	framed.add_child(stack)
+	_cover = TextureRect.new()
+	_cover.custom_minimum_size = ArcadePicker.ART_SIZE * 2.0
+	_cover.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_cover.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_cover.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	stack.add_child(_cover)
+	_game_label = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.AMBER)
+	_game_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	stack.add_child(_game_label)
+
 	_brief = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK)
 	_brief.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(_brief)
@@ -105,6 +124,10 @@ func open(offer: Dictionary, seconds: float) -> void:
 	_left = maxf(1.0, seconds)
 	_title.text = str(_offer.get("title", "Escala"))
 	_brief.text = str(_offer.get("brief", ""))
+	var game := StringName(_offer.get("game", SpecialCallDB.GAME_STACK))
+	_cover.texture = ArcadePicker.cover(game)
+	_game_label.text = "%s • %s" % [ArcadePicker.game_name(game), ArcadePicker.game_desc(game)]
+	_game_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_reward.text = "Se der conta: %s" % SpecialCallDB.reward_text(_offer)
 	_penalty.text = "Se falhar: %s" % SpecialCallDB.penalty_text(_offer)
 	_update_clock()

@@ -361,3 +361,20 @@ board); `level_roadmap.gd` is the horizontal Passe do Porto with claimable
 tiers; `book_fx.gd` turns the logbook's cover and leaves in perspective, and
 `notice_bell.gd` keeps the book at one height on every page. See
 `docs/architecture/ui-and-visuals.md`.
+
+## Minigames, the arcade cabinet and the decor shelf
+
+- `traffic_minigame.gd` — "Caminhão Atrasado": the late reefer driven down a
+  three-lane avenue to the port gate (`events/traffic_game.gd` owns the rules).
+  Taps on either half of the road, swipes, the two arrow keys under it and the
+  keyboard arrows all change lanes. Road sprites (`mg_*`, `tools/sprites/
+  gen_minigames.py`) are drawn at the size they are shown; positions are road
+  pixels times `SCALE`.
+- `arcade_picker.gd` — the Arcade key opens this cabinet: one card per game in
+  `SpecialCallDB.GAMES`, with its cover from `ui_minigame_art.png`. The card you
+  tap is the game the rewarded ad pays for. `ArcadePicker.cover()` is also what
+  the charter alert shows above its brief.
+- The DECOR tab of `shop.gd` is a shop window: a showcase of the picked piece
+  (art at 2x, what it does, buy or switch) over filter chips, the collection
+  count and a grid of every piece (`ui_decor_art.png`, `tools/sprites/
+  gen_decor.py`; `CosmeticDb` items name their frame with `art`).

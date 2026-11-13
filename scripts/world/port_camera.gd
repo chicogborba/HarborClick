@@ -79,10 +79,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			_dragging = event.pressed
 			if event.pressed:
 				_velocity = Vector2.ZERO
-		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			_set_zoom(zoom.x * 0.88)
-		elif event.pressed and event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			_set_zoom(zoom.x * 1.14)
+		elif event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP,
+				MOUSE_BUTTON_WHEEL_DOWN]:
+			var up: bool = event.button_index == MOUSE_BUTTON_WHEEL_UP
+			if event.ctrl_pressed or event.meta_pressed:
+				# Ctrl/Cmd + wheel is the zoom a desktop player reaches for on
+				# purpose; the bare wheel is a scroll, like on every page.
+				_set_zoom(zoom.x * (1.14 if up else 0.88))
+			else:
+				_scroll(-WHEEL_STEP if up else WHEEL_STEP)
+	elif event is InputEventPanGesture:
+		# Two fingers on a trackpad: the same scroll, not a zoom.
+		_scroll(event.delta.y * PAN_GESTURE_STEP)
 	elif event is InputEventScreenDrag and _touches.size() >= 2:
 		# Two fingers zoom, and never pan: the terminal stays under them.
 		_touches[event.index] = event.position
@@ -125,6 +133,17 @@ func _on_viewport_resized() -> void:
 	_zoom_floor = clampf(target_zoom, 0.25, 4.0)
 	_zoom_ceiling = maxf(_zoom_floor * 2.5, 1.0)
 	zoom = Vector2.ONE * _zoom_floor
+	_clamp_position()
+
+
+## World pixels one wheel notch scrolls, and per unit of trackpad pan.
+const WHEEL_STEP := 36.0
+const PAN_GESTURE_STEP := 12.0
+
+
+func _scroll(world_dy: float) -> void:
+	_velocity = Vector2.ZERO
+	position.y += world_dy / zoom.y
 	_clamp_position()
 
 

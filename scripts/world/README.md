@@ -311,10 +311,18 @@ and asserts the box still lands promptly.
 ## Land works and the scanner's parcel
 
 `land_works_site.gd` draws a parcel under construction south of the pavement
-(`PortLayout.land_works_rect`). `xray_station.gd` stands on the band the second
+(`PortLayout.land_works_rect`): asphalt up to the front, then the formwork and
+pour (mixer), the dig (excavator and a dumper running spoil to the heap), and a
+staging yard with the site office, stock and a tower crane slewing loads from
+the stock to the pour. Sprites are `works_*` (`tools/sprites/gen_works.py`). `xray_station.gd` stands on the band the second
 parcel adds (`PortLayout.scanner_band_h`), hidden until that parcel is paved.
 That band is threaded into the yard like the railway, at the head of the second
 parcel (`PortLayout.scanner_row`), so the post never moves once it is there:
 later parcels grow the yard past it. While an inspection waits the post draws
 alarm rings and a beam (`XrayStation._Beacon`), and `ui/xray_beacon.gd` puts a
 red tag on the edge of the view when the post is scrolled off screen.
+
+`decor_layer.gd` also builds the newer shelf pieces: palms down the west verge,
+and in its `_Show` node the lighthouse beam, the balloon crossing the terminal,
+dolphins jumping in the basin, fireworks over the water at night and the
+country flags on the quay.

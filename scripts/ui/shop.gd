@@ -752,73 +752,174 @@ func _on_skip_land_works() -> void:
 		AudioManager.play_sfx("deny")
 
 
+## The decor shelf's state: which piece the showcase shows, and which part of
+## the collection the grid is filtered to.
+var _decor_pick: StringName = &""
+var _decor_filter: StringName = &"all"
+var _decor_nodes: Dictionary = {}
+var _decor_tiles: Dictionary = {}
+var _decor_filters: Dictionary = {}
+const DECOR_ART := preload("res://assets/sprites/ui_decor_art.png")
+const DECOR_ART_SIZE := Vector2(56, 44)
+
+
+static func _decor_texture(id: StringName) -> AtlasTexture:
+	var atlas := AtlasTexture.new()
+	atlas.atlas = DECOR_ART
+	atlas.region = Rect2(Vector2(CosmeticDb.art_of(id) * DECOR_ART_SIZE.x, 0), DECOR_ART_SIZE)
+	return atlas
+
+
 func _build_cosmetics() -> void:
 	## The shelf. Every other tab on this board sells production; this one sells
-	## nothing but the way the terminal looks, which is why each row has to carry
-	## two different controls at two different times.
-	##
-	## Unowned, it is a price and a key. Owned, it is a switch — and the switch
-	## is the reason the tab exists at all: a decoration you cannot take back off
-	## is a decoration nobody risks buying.
+	## nothing but the way the terminal looks, so it is laid out like a shop
+	## window rather than a price list: a showcase at the top with the piece
+	## you picked, big, with what it does and the one key that matters for it
+	## (buy, or switch on and off), and under it the whole collection as a grid
+	## of pictures you can see the state of at a glance.
 	var list: VBoxContainer = _lists["cosmetics"]
-	list.add_child(_orders_caption(Loc.t("shop.cosmetics.port")))
-	var intro := UiTheme.label(
-		# Hyphens, never em dashes: the bitmap font has no glyph for one and
-		# prints a hollow box in its place.
-		Loc.t("shop.cosmetics.blurb"),
-		UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
-	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	list.add_child(intro)
-	var crew_done := false
-	for item: Dictionary in CosmeticDb.all():
-		if StringName(item.kind) == CosmeticDb.KIND_CREW and not crew_done:
-			crew_done = true
-			list.add_child(_orders_caption(Loc.t("shop.cosmetics.crew")))
-		list.add_child(_cosmetic_card(item))
-
-
-func _cosmetic_card(item: Dictionary) -> PanelContainer:
-	var id := StringName(item.id)
-	var card := PanelContainer.new()
-	card.name = "Decor_%s" % id
-	UiTheme.apply_panel(card, UiTheme.card_style(&"normal"))
-	var row := HBoxContainer.new()
-	row.name = "Row"
-	row.add_theme_constant_override(&"separation", 6)
-	card.add_child(row)
-
-	var glyph := UiTheme.icon(UiTheme.Icon[str(item.get("icon", "STAR"))], 2)
-	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(glyph)
-
+	_decor_tiles.clear()
+	_decor_filters.clear()
+	if _decor_pick == &"":
+		_decor_pick = StringName(_decor_order()[0].id)
+	# --- the showcase ---------------------------------------------------------
+	var hero := PanelContainer.new()
+	hero.name = "DecorHero"
+	UiTheme.apply_panel(hero, UiTheme.card_style(&"ready"))
+	list.add_child(hero)
+	var hero_row := HBoxContainer.new()
+	hero_row.add_theme_constant_override(&"separation", 8)
+	hero.add_child(hero_row)
+	var frame := PanelContainer.new()
+	UiTheme.apply_panel(frame, UiTheme.slate_style(false, 2))
+	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	hero_row.add_child(frame)
+	var art := TextureRect.new()
+	art.custom_minimum_size = DECOR_ART_SIZE * 2.0
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	frame.add_child(art)
 	var text := VBoxContainer.new()
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	text.add_theme_constant_override(&"separation", 1)
-	row.add_child(text)
-	text.add_child(UiTheme.label(str(item.name), UiTheme.SIZE_BODY, UiTheme.INK))
-	var blurb := UiTheme.label(str(item.desc), UiTheme.SIZE_SMALL,
-		UiTheme.INK_SOFT)
-	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.add_child(blurb)
-
-	var keys := VBoxContainer.new()
-	keys.name = "Keys"
-	keys.add_theme_constant_override(&"separation", 3)
-	keys.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	keys.custom_minimum_size.x = 74.0
-	row.add_child(keys)
+	text.add_theme_constant_override(&"separation", 3)
+	hero_row.add_child(text)
+	var kind := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+	text.add_child(kind)
+	var title := UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.add_child(title)
+	var desc := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.add_child(desc)
 	var buy := UiTheme.button("", &"amber", UiTheme.SIZE_SMALL)
 	buy.name = "Buy"
-	buy.custom_minimum_size.y = 24.0
-	buy.pressed.connect(_on_buy_cosmetic.bind(id))
-	keys.add_child(buy)
+	buy.custom_minimum_size.y = UiTheme.TOUCH_MIN
+	buy.pressed.connect(func() -> void: _on_buy_cosmetic(_decor_pick))
+	text.add_child(buy)
 	var toggle := UiTheme.button("", &"steel", UiTheme.SIZE_SMALL)
 	toggle.name = "Toggle"
-	toggle.custom_minimum_size.y = 24.0
-	toggle.pressed.connect(_on_toggle_cosmetic.bind(id))
-	keys.add_child(toggle)
-	return card
+	toggle.custom_minimum_size.y = UiTheme.TOUCH_MIN
+	toggle.pressed.connect(func() -> void: _on_toggle_cosmetic(_decor_pick))
+	text.add_child(toggle)
+	_decor_nodes = {"art": art, "kind": kind, "title": title, "desc": desc,
+		"buy": buy, "toggle": toggle}
+	# --- filters and the count --------------------------------------------------
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override(&"separation", 4)
+	list.add_child(bar)
+	for pair: Array in [[&"all", "shop.cosmetics.all"], [CosmeticDb.KIND_PORT, "shop.cosmetics.port"],
+			[CosmeticDb.KIND_CREW, "shop.cosmetics.crew"]]:
+		var chip := UiTheme.segment(Loc.t(pair[1]), pair[0] == _decor_filter)
+		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		chip.custom_minimum_size.y = 28.0
+		var key: StringName = pair[0]
+		chip.pressed.connect(func() -> void:
+			_decor_filter = key
+			AudioManager.play_sfx("ui_tab", 0.05)
+			_refresh_cosmetics())
+		bar.add_child(chip)
+		_decor_filters[key] = chip
+	var count := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	count.name = "DecorCount"
+	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	list.add_child(count)
+	_decor_nodes["count"] = count
+	# --- the collection -----------------------------------------------------------
+	var grid := GridContainer.new()
+	grid.name = "DecorGrid"
+	grid.columns = 3
+	grid.add_theme_constant_override(&"h_separation", 4)
+	grid.add_theme_constant_override(&"v_separation", 4)
+	list.add_child(grid)
+	for item: Dictionary in _decor_order():
+		var tile := _cosmetic_tile(item)
+		grid.add_child(tile)
+		_decor_tiles[StringName(item.id)] = tile
+	var intro := UiTheme.label(Loc.t("shop.cosmetics.blurb"), UiTheme.SIZE_SMALL,
+		UiTheme.INK_SOFT)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	list.add_child(intro)
+
+
+func _decor_order() -> Array[Dictionary]:
+	## The port's pieces first: they are what changes the view, and what a
+	## player opening the shelf for the first time should see.
+	var port: Array[Dictionary] = []
+	var crew: Array[Dictionary] = []
+	for item: Dictionary in CosmeticDb.all():
+		if StringName(item.kind) == CosmeticDb.KIND_PORT:
+			port.append(item)
+		else:
+			crew.append(item)
+	return port + crew
+
+
+func _cosmetic_tile(item: Dictionary) -> Button:
+	var id := StringName(item.id)
+	var tile := Button.new()
+	tile.name = "Decor_%s" % id
+	tile.custom_minimum_size = Vector2(0, DECOR_ART_SIZE.y + 52.0)
+	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tile.focus_mode = Control.FOCUS_ALL
+	var column := VBoxContainer.new()
+	column.name = "Column"
+	column.add_theme_constant_override(&"separation", 1)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	column.offset_left = 4
+	column.offset_top = 4
+	column.offset_right = -4
+	column.offset_bottom = -3
+	tile.add_child(column)
+	var art := TextureRect.new()
+	art.name = "Art"
+	art.texture = _decor_texture(id)
+	art.custom_minimum_size = DECOR_ART_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(art)
+	var label := UiTheme.label(str(item.name), UiTheme.SIZE_SMALL, UiTheme.INK)
+	label.name = "Name"
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.max_lines_visible = 2
+	label.custom_minimum_size.y = 20.0
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(label)
+	var badge := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+	badge.name = "Badge"
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(badge)
+	UiTheme.describe(tile, str(item.name), str(item.desc))
+	tile.pressed.connect(func() -> void:
+		_decor_pick = id
+		AudioManager.play_sfx("tap", 0.08)
+		_refresh_cosmetics())
+	return tile
 
 
 func _on_buy_cosmetic(id: StringName) -> void:
@@ -838,39 +939,78 @@ func _on_toggle_cosmetic(id: StringName) -> void:
 	_refresh()
 
 
+func _decor_badge(id: StringName) -> Array:
+	## [text, colour] for a tile's state line.
+	var item := CosmeticDb.of(id)
+	if GameState.cosmetic_on(id):
+		return [Loc.t("shop.cosmetics.on"), UiTheme.TEAL_DEEP]
+	if GameState.owns_cosmetic(id):
+		return [Loc.t("shop.cosmetics.off"), UiTheme.INK_SOFT]
+	if CosmeticDb.level_only(id):
+		return [Loc.t("level.short", {"n": str(CosmeticDb.level_of(id))}), UiTheme.INK_SOFT]
+	var price := float(item.get("cost", 0.0))
+	return [GameState.fmt(price), UiTheme.AMBER_DEEP if GameState.can_afford(price)
+		else UiTheme.DANGER]
+
+
 func _refresh_cosmetics() -> void:
-	var list: VBoxContainer = _lists.get("cosmetics")
-	if list == null:
+	if _decor_nodes.is_empty() or not is_instance_valid(_decor_nodes.get("art")):
 		return
+	var owned := 0
 	for item: Dictionary in CosmeticDb.all():
 		var id := StringName(item.id)
-		var card := list.get_node_or_null(NodePath("Decor_%s" % id)) \
-			as PanelContainer
-		if card == null:
+		if GameState.owns_cosmetic(id):
+			owned += 1
+		var tile := _decor_tiles.get(id) as Button
+		if tile == null or not is_instance_valid(tile):
 			continue
-		var owned := GameState.owns_cosmetic(id)
-		var on := GameState.cosmetic_on(id)
-		UiTheme.apply_panel(card, UiTheme.card_style(
-			&"ready" if on else (&"done" if owned else &"normal")))
-		var buy := card.get_node_or_null(^"Row/Keys/Buy") as Button
-		var toggle := card.get_node_or_null(^"Row/Keys/Toggle") as Button
-		if buy != null:
-			buy.visible = not owned
-			buy.text = GameState.fmt(float(item.cost))
-			buy.disabled = not GameState.can_afford(float(item.cost))
-			if CosmeticDb.level_only(id):
-				# Not for sale: the roadmap hands it over at its level.
-				buy.text = Loc.t("level.short", {"n": str(CosmeticDb.level_of(id))})
-				buy.disabled = true
-			UiTheme.describe(buy, Loc.t("shop.buy_name", {"name": str(item.name)}),
-				Loc.t("shop.cost", {"amount": GameState.fmt(float(item.cost))}))
-		if toggle != null:
-			toggle.visible = owned
-			toggle.text = Loc.t("shop.cosmetics.on" if on
-				else "shop.cosmetics.off")
-			UiTheme.style_button(toggle, &"amber" if on else &"steel")
-			UiTheme.describe(toggle, Loc.t("shop.cosmetics.toggle_off" if on
-				else "shop.cosmetics.toggle_on", {"name": str(item.name)}))
+		tile.visible = _decor_filter == &"all" or StringName(item.kind) == _decor_filter
+		var mine := GameState.owns_cosmetic(id)
+		var state := &"ready" if id == _decor_pick else (&"done" if mine else (
+			&"locked" if CosmeticDb.level_only(id) else &"normal"))
+		for look: StringName in [&"normal", &"hover", &"pressed", &"focus"]:
+			tile.add_theme_stylebox_override(look, UiTheme.card_style(
+				&"ready" if look != &"normal" and id != _decor_pick else state))
+		var art := tile.get_node(^"Column/Art") as TextureRect
+		# Pieces you cannot have yet are shown dimmed, never hidden: the shelf
+		# is also the list of what there is to want.
+		art.modulate = Color.WHITE if mine or GameState.can_afford(float(item.cost)) \
+			else Color(0.55, 0.55, 0.6)
+		var badge := tile.get_node(^"Column/Badge") as Label
+		var look_badge := _decor_badge(id)
+		badge.text = str(look_badge[0])
+		badge.label_settings = UiTheme.settings(UiTheme.SIZE_SMALL, look_badge[1])
+	for key: StringName in _decor_filters:
+		UiTheme.style_segment(_decor_filters[key], key == _decor_filter)
+	(_decor_nodes.count as Label).text = Loc.t("shop.cosmetics.count",
+		{"n": str(owned), "total": str(CosmeticDb.all().size())})
+	# --- the showcase follows the pick ---
+	var pick := CosmeticDb.of(_decor_pick)
+	if pick.is_empty():
+		return
+	var id := _decor_pick
+	(_decor_nodes.art as TextureRect).texture = _decor_texture(id)
+	(_decor_nodes.kind as Label).text = Loc.t("shop.cosmetics.port"
+		if StringName(pick.kind) == CosmeticDb.KIND_PORT else "shop.cosmetics.crew")
+	(_decor_nodes.title as Label).text = str(pick.name)
+	(_decor_nodes.desc as Label).text = str(pick.desc)
+	var buy := _decor_nodes.buy as Button
+	var toggle := _decor_nodes.toggle as Button
+	var mine := GameState.owns_cosmetic(id)
+	var on := GameState.cosmetic_on(id)
+	buy.visible = not mine
+	buy.text = Loc.t("shop.buy_name", {"name": GameState.fmt(float(pick.cost))})
+	buy.disabled = not GameState.can_afford(float(pick.cost))
+	if CosmeticDb.level_only(id):
+		buy.text = Loc.t("level.short", {"n": str(CosmeticDb.level_of(id))})
+		buy.disabled = true
+	UiTheme.describe(buy, Loc.t("shop.buy_name", {"name": str(pick.name)}),
+		Loc.t("shop.cost", {"amount": GameState.fmt(float(pick.cost))}))
+	toggle.visible = mine
+	toggle.text = Loc.t("shop.cosmetics.on" if on else "shop.cosmetics.off")
+	UiTheme.style_button(toggle, &"amber" if on else &"steel")
+	UiTheme.describe(toggle, Loc.t("shop.cosmetics.toggle_off" if on
+		else "shop.cosmetics.toggle_on", {"name": str(pick.name)}))
 
 
 func _build_orders() -> void:

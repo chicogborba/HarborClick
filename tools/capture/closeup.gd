@@ -242,12 +242,12 @@ func _stage(scenario: String) -> Vector2:
 			var third := str(LandDB.ITEMS[2].id)
 			if not GameState.land.has(third):
 				var total := LandDB.build_seconds(third)
-				GameState.land_works = {"id": third, "left": total * 0.45, "total": total}
+				GameState.land_works = {"id": third, "left": total * 0.7, "total": total}
 				EventBus.land_works_changed.emit()
 			_main.cam.set_world_bottom(_main.world.visible_bottom())
 			# Long enough for any camera move the new ground set off to end.
 			await get_tree().create_timer(2.5).timeout
-			return Vector2(150.0, PortLayout.paved_bottom() - 30.0)
+			return PortLayout.land_works_rect().get_center() + Vector2(0, -16)
 		"landshop":
 			GameState.land_works = {}
 			var next := LandDB.next_parcel(GameState.land)
@@ -293,6 +293,16 @@ func _stage(scenario: String) -> Vector2:
 			_main.xray_service.state_changed.emit()
 			await get_tree().create_timer(1.0).timeout
 			return _main.world.xray_station.centre()
+		"decor_night":
+			# Every piece on the port's shelf switched on, after dark.
+			for item: Dictionary in CosmeticDb.all():
+				if StringName(item.kind) == CosmeticDb.KIND_PORT:
+					GameState.cosmetics_owned[str(item.id)] = true
+					GameState.cosmetics_on[str(item.id)] = true
+			EventBus.cosmetics_changed.emit()
+			TimeManager.time_of_day = 0.92
+			await get_tree().create_timer(4.0).timeout
+			return Vector2(-1, -1)
 		"xray_beacon_top", "xray_beacon_bottom":
 			# A lorry waiting under the beam with the camera elsewhere: the red
 			# tag on the edge of the view that leads back to it.

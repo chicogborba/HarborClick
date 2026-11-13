@@ -20,6 +20,9 @@ var clock: PortClock
 var special_alert: SpecialCallAlert
 var minigame: CraneMinigame
 var maze: MazeMinigame
+var traffic: TrafficMinigame
+## The arcade cabinet: which machine to play.
+var arcade_picker: ArcadePicker
 var wheel_service: WheelService
 var wheel_panel: LuckyWheelPanel
 var wheel_button: WheelButton
@@ -311,7 +314,15 @@ func _ready() -> void:
 	maze = MazeMinigame.new()
 	maze.name = "MazeMinigame"
 	add_child(maze)
-	for board: MinigameBoard in [minigame, maze]:
+	traffic = TrafficMinigame.new()
+	traffic.name = "TrafficMinigame"
+	add_child(traffic)
+	arcade_picker = ArcadePicker.new()
+	arcade_picker.name = "ArcadePicker"
+	add_child(arcade_picker)
+	arcade_picker.open_changed.connect(_on_overlay_changed.bind("minigame"))
+	arcade_picker.picked.connect(_on_arcade_picked)
+	for board: MinigameBoard in [minigame, maze, traffic]:
 		board.open_changed.connect(_on_overlay_changed.bind("minigame"))
 		board.open_changed.connect(func(opened: bool) -> void:
 			if not opened:
@@ -558,8 +569,11 @@ func _open_charter_board(offer: Dictionary) -> void:
 	# stacked — the same rule the special alert follows.
 	_close_other_overlays("minigame")
 	var board: MinigameBoard = minigame
-	if StringName(offer.get("game", &"")) == SpecialCallDB.GAME_MAZE:
-		board = maze
+	match StringName(offer.get("game", &"")):
+		SpecialCallDB.GAME_MAZE:
+			board = maze
+		SpecialCallDB.GAME_TRAFFIC:
+			board = traffic
 	board.open(offer)
 
 
@@ -572,7 +586,7 @@ func _event_boards_busy() -> bool:
 		return true
 	if bool(_overlay_state.special):
 		return true
-	for board in [minigame, maze, xray_board]:
+	for board in [minigame, maze, traffic, xray_board]:
 		if board != null and board.is_open():
 			return true
 	return false
@@ -597,20 +611,27 @@ func _flush_queued_charter() -> void:
 
 
 func _on_arcade_requested() -> void:
-	## The Arcade key on the Diário: one minigame on demand, paid for by a
-	# rewarded ad (`minigame_play`, 3/day). The game itself is a coin-op with a
-	# small lump prize and no stake — losing costs nothing but the board.
+	## The Arcade key on the Diário opens the cabinet: the player picks a
+	## machine, then a rewarded ad (`minigame_play`, 3/day) pays for the
+	## token. The game itself is a coin-op with a small lump prize and no
+	## stake — losing costs nothing but the board.
+	if not AdService.available(&"minigame_play"):
+		AudioManager.play_sfx("deny")
+		return
+	# The journal opened the cabinet; the cabinet closes what opened it.
+	if journal != null and journal.is_open():
+		journal.close()
+	arcade_picker.open()
+
+
+func _on_arcade_picked(game: StringName) -> void:
 	if not AdService.available(&"minigame_play"):
 		AudioManager.play_sfx("deny")
 		return
 	AdService.show_rewarded(&"minigame_play", func() -> void:
-		# The journal opened the board; the board closes what opened it. Both
-		# up at once is the wheel-SPIN-under-a-charter bug again.
-		if journal != null and journal.is_open():
-			journal.close()
 		var offer := {
-			"title": Loc.t("arcade.title"),
-			"game": SpecialCallDB.GAME_MAZE if randi() % 2 == 0 else SpecialCallDB.GAME_STACK,
+			"title": ArcadePicker.game_name(game),
+			"game": game,
 			"arcade": true,
 			"seconds": 42.0, "goal": 6,
 			"reward": {"kind": SpecialCallDB.REWARD_LUMP, "seconds": 180.0},
@@ -728,6 +749,10 @@ func _apply_view_metrics(metrics: Dictionary) -> void:
 		minigame.apply_view_metrics(metrics)
 	if maze != null:
 		maze.apply_view_metrics(metrics)
+	if traffic != null:
+		traffic.apply_view_metrics(metrics)
+	if arcade_picker != null:
+		arcade_picker.apply_view_metrics(metrics)
 	for node: Variant in [xray_panel, xray_board]:
 		if node != null:
 			node.apply_view_metrics(metrics)
