@@ -7,16 +7,50 @@ accents. Runtime code composes controls; generators own pixels.
 Which material a thing is made of says what kind of thing it is. **Steel** —
 navy enamel, brushed pinstripe, one amber hairline on the edge facing the water
 — is the terminal's own signage: the gantry over the port, the key console under
-it, the dark glass a lit number sits behind. **Paper** — wood, spring clip,
-manifest sheets — is the paperwork: every overlay. Anything permanently over the
-port is steel so it reads as structure; anything you open is paper so it reads as
-something handed to you. **Leather** is the third and the rarest: the logbook,
-which is what the port keeps — only the two diaries are bound in it.
+it, the dark glass a lit number sits behind. **Deck** — the control room — is
+every overlay: the same navy enamel frame around a dark chart-gridded field,
+with cards as lit slabs stepping up in lightness (tray, locked, card, ready) and
+numbers behind glass. The only bright things on a board are the things to
+press or read: amber keys, teal progress, lit digits. **Leather** is the third
+and the rarest: the logbook, which is what the port keeps — only the two diaries
+are bound in it, and they are the one place paper and dark ink survive.
 
-Boards move like what they are. A clipboard is lifted up into view and its clip
-snaps shut (`UiTheme.pop_open` / `pop_close`); a book comes up shut and its
-cover swings open (`BookFx`). Each gesture has one sound file cut to the same
-clock as its tween. See `scripts/ui/README.md` for the contracts.
+The boards were cream paper clipboards until the control-room pass. The names
+in `UiTheme` (`INK`, `PAPER`, `paper_style`) are from that era and were kept so
+call sites did not move: `INK` is "text on a board" (now light), `PAPER` is "a
+card" (now navy), `KEY_INK` is the dark label on an amber key and `BOOK_INK` the
+dark ink on a diary page.
+
+## Motion
+
+`UiTheme` says what a thing is made of; `UiMotion` (`scripts/ui/ui_motion.gd`)
+says how it behaves. One vocabulary, applied centrally so no board opts in:
+
+- **A board is racked into view** (`UiTheme.pop_open` / `pop_close`): it rises
+  from under the screen and overshoots; a scanline runs down it as it lands
+  (`power_on`, `ui_power.gdshader`); its nameplate, tabs and visible rows arrive
+  one after another (`cascade`).
+- **The port goes out of focus behind it** (`dress_scrim`, `ui_scrim.gdshader`):
+  a pixel mosaic, desaturated toward navy, whose strength rides the scrim's own
+  alpha so it grows with the existing fade.
+- **Every key sinks and springs** (`wire_press`, hooked in `style_button`,
+  `style_tab`, `style_segment`).
+- **Every amber key shares one gloss** (`sheen`, `ui_sheen.gdshader`): a single
+  screen-space sweep on one clock, not a blink per key.
+- **Lists deal in on a tab change** (`Shop._deal_tab`), and the rate board's
+  factors fill as log-scale bars in formula order (`RateBreakdown.RateBar`).
+- **The port is seen through a lens** (`lens.gdshader`, `Main._build_lens`): a
+  banded, dithered vignette between the world and the HUD.
+
+Two rules: nothing waits on motion (state changes first, "movimento reduzido"
+and headless make every call a no-op), and the layout always wins (a slide that
+finds its control somewhere other than where it last put it adopts the new
+place). `tools/capture/motion.tscn -- shop` writes a film strip of an opening,
+which is the only way to review any of this without watching it.
+
+A book still comes up shut and its cover swings open (`BookFx`). Each gesture
+has one sound file cut to the same clock as its tween. See
+`scripts/ui/README.md` for the contracts.
 
 ## Entry points
 

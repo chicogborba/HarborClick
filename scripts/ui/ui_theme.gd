@@ -10,10 +10,11 @@ class_name UiTheme
 ## along the edge that faces the water. Anything permanently over the port is
 ## steel, so it reads as part of the terminal rather than a panel floating on it.
 ##
-## **Paper** is the paperwork: every overlay is the foreman's clipboard — a
-## weathered wooden board, a steel spring clip, manifest sheets underneath, and
-## cards torn off them. Anything you *open* is paper, so it reads as something
-## handed to you rather than part of the scenery.
+## **Deck** is the control room: every overlay is an instrument panel racked
+## into view — the same enamel frame around a dark chart-gridded field, cards as
+## lit navy slabs, a carry-handle latch on top. The `paper`/`INK` names below
+## are from when boards were cream clipboards; see the palette notes. How any
+## of it moves is `UiMotion`.
 ##
 ## Numbers are lit amber behind glass, keys are amber, service tags are teal —
 ## the two accents the machines already wear out in the yard.
@@ -34,23 +35,35 @@ const SIZE_BODY := 10
 const SIZE_TITLE := 20
 const SIZE_HUGE := 30
 
-# --- ink on paper ---
+# --- light on the deck ---
 # Every colour used for functional text is chosen so it clears WCAG AA (4.5:1)
 # against every surface it can land on. `tests/contrast_test_runner.gd` fails
 # the build if that stops being true.
-const INK := Color8(58, 44, 46)
-const INK_SOFT := Color8(84, 68, 64)
-const PAPER := Color8(238, 224, 198)
-const PAPER_DEEP := Color8(206, 188, 156)
+#
+# The names are from the clipboard era and are kept so a hundred call sites did
+# not have to move: INK is "the text colour of a board", PAPER is "the colour of
+# a card". Since the control-room pass a board is a dark deck panel, so INK is
+# light and PAPER is navy. `KEY_INK` is the one dark ink left — the label on an
+# amber key.
+const INK := Color8(232, 238, 248)
+const INK_SOFT := Color8(170, 186, 210)
+const PAPER := Color8(38, 50, 72)
+const PAPER_DEEP := Color8(58, 72, 98)
 const CREAM := Color8(250, 240, 218)
+const KEY_INK := Color8(44, 30, 22)
+## The diaries are still bound paper: these are the inks that go on a page.
+const BOOK_INK := Color8(58, 44, 46)
+const BOOK_INK_SOFT := Color8(84, 68, 64)
 
 # --- accents (same two the yard machines wear) ---
+# The *_DEEP pair are the accents as text on a deck panel, so they are lit
+# rather than deep now; the surfaces keep their own colours in the sprites.
 const AMBER := Color8(252, 202, 96)
-const AMBER_DEEP := Color8(128, 78, 18)
-const TEAL := Color8(44, 116, 110)
-const TEAL_DEEP := Color8(28, 80, 80)
+const AMBER_DEEP := Color8(244, 176, 66)
+const TEAL := Color8(64, 150, 140)
+const TEAL_DEEP := Color8(112, 208, 188)
 const TEAL_LIGHT := Color8(104, 194, 176)
-const DANGER := Color8(150, 60, 48)
+const DANGER := Color8(255, 140, 122)
 
 # --- enamelled navy steel: the HUD's own material ---
 ## The gantry, the console and the keys bolted to them. Dark enough that cream
@@ -72,18 +85,20 @@ const STEEL_DIM := Color8(176, 190, 212)
 ## Kept next to the ink so a palette change and its contrast proof stay in one
 ## place.
 const SURFACE := {
-	&"card": Color8(238, 224, 198),
-	&"card_ready": Color8(250, 240, 218),
-	&"card_locked": Color8(200, 190, 176),
-	&"sheet": Color8(206, 188, 156),
-	&"slate": Color8(34, 30, 44),
+	&"card": Color8(38, 50, 72),
+	&"card_ready": Color8(48, 63, 90),
+	&"card_locked": Color8(28, 36, 52),
+	&"card_done": Color8(26, 60, 66),
+	&"sheet": Color8(22, 29, 45),
+	&"slate": Color8(14, 19, 31),
 	&"btn_amber": Color8(232, 160, 48),
 	&"btn_alt": Color8(44, 116, 110),
 	&"btn_danger": Color8(150, 60, 48),
-	&"btn_ghost": Color8(238, 224, 198),
-	&"btn_off": Color8(214, 198, 170),
-	&"seg_off": Color8(224, 210, 184),
-	&"tab_off": Color8(42, 54, 74),
+	&"btn_ghost": Color8(58, 74, 102),
+	&"btn_off": Color8(28, 36, 52),
+	&"seg_off": Color8(34, 44, 64),
+	&"tab_on": Color8(56, 72, 100),
+	&"tab_off": Color8(30, 39, 57),
 	&"header": Color8(42, 54, 74),
 	&"gantry": Color8(42, 54, 74),
 	&"glass": Color8(25, 31, 46),
@@ -92,9 +107,9 @@ const SURFACE := {
 }
 
 # --- the slate a number is stamped on ---
-const SLATE := Color8(34, 30, 44)
+const SLATE := Color8(14, 19, 31)
 const SLATE_TEXT := Color8(240, 232, 214)
-const SLATE_DIM := Color8(150, 140, 154)
+const SLATE_DIM := Color8(138, 150, 172)
 
 ## Anything smaller than this is not a reliable touch target.
 const TOUCH_MIN := 44.0
@@ -289,7 +304,7 @@ static func style_book_tab(node: Button, active: bool) -> void:
 	node.add_theme_stylebox_override(&"focus", _focus_style())
 	for key: StringName in [&"font_color", &"font_hover_color",
 			&"font_pressed_color", &"font_focus_color"]:
-		node.add_theme_color_override(key, INK if active else INK_SOFT)
+		node.add_theme_color_override(key, BOOK_INK if active else BOOK_INK_SOFT)
 
 
 static func paper_style(content: int = 5) -> StyleBoxTexture:
@@ -559,9 +574,11 @@ static func scrim(alpha: float = 0.74) -> ColorRect:
 	## Full-screen dim behind a modal. It always consumes the event, so closing
 	## an overlay can never reach the port underneath.
 	var node := ColorRect.new()
-	node.color = Color(0.055, 0.045, 0.078, alpha)
+	node.color = Color(0.035, 0.05, 0.09, alpha)
 	node.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	node.mouse_filter = Control.MOUSE_FILTER_STOP
+	# The port behind the board goes out of focus rather than merely darker.
+	UiMotion.dress_scrim(node)
 	return node
 
 
@@ -721,6 +738,9 @@ static func pop_open(board: Control, scrim: CanvasItem = null,
 			board.position = state.last
 			# The jaw stands open until the board is nearly home, then bites.
 			_carry_clip(board, 6.0 if t < 0.86 else 0.0), 0.0, 1.0, RISE_TIME)
+		# The panel comes on as it lands, and what is on it arrives in order.
+		UiMotion.power_on(board)
+		UiMotion.cascade(UiMotion.board_items(board), 0.0, 0.024)
 	else:
 		board.modulate.a = 0.0
 		tween.tween_property(board, "modulate:a", 1.0, 0.12) \
@@ -785,8 +805,8 @@ const _BUTTON_SPRITES := {
 	&"off": "ui_btn_off", &"danger": "ui_btn_danger", &"steel": "ui_btn_steel",
 }
 const _BUTTON_TEXT := {
-	&"amber": INK, &"alt": CREAM, &"ghost": INK,
-	&"off": INK, &"danger": CREAM, &"steel": STEEL_TEXT,
+	&"amber": KEY_INK, &"alt": CREAM, &"ghost": INK,
+	&"off": INK_SOFT, &"danger": CREAM, &"steel": STEEL_TEXT,
 }
 ## A key sinks into its own material when pressed. Amber sinking into amber is
 ## the default; a steel key on a steel console needs its own darker face, or
@@ -889,26 +909,33 @@ static func style_button(node: Button, kind: StringName) -> void:
 	var text_color: Color = _BUTTON_TEXT.get(kind, INK)
 	node.add_theme_color_override(&"font_color", text_color)
 	node.add_theme_color_override(&"font_hover_color", text_color)
-	node.add_theme_color_override(&"font_pressed_color", CREAM)
+	node.add_theme_color_override(&"font_pressed_color",
+		KEY_INK if kind == &"amber" else CREAM)
 	node.add_theme_color_override(&"font_focus_color", text_color)
 	# WCAG 1.4.3 exempts inactive controls from the contrast floor, but a key
 	# nobody can read is still a bad key, so it stays as legible as a disabled
 	# state is allowed to look.
-	node.add_theme_color_override(&"font_disabled_color", Color8(86, 78, 74))
+	node.add_theme_color_override(&"font_disabled_color", DISABLED_TEXT)
 	# The glyph on a key follows the key's own text colour. Leaving it white
 	# made an amber star on a cream ghost key read as an empty box.
 	node.add_theme_color_override(&"icon_normal_color", text_color)
 	node.add_theme_color_override(&"icon_hover_color", text_color)
-	node.add_theme_color_override(&"icon_pressed_color", CREAM)
+	node.add_theme_color_override(&"icon_pressed_color",
+		KEY_INK if kind == &"amber" else CREAM)
 	node.add_theme_color_override(&"icon_focus_color", text_color)
-	node.add_theme_color_override(&"icon_disabled_color", Color8(120, 112, 104))
+	node.add_theme_color_override(&"icon_disabled_color", DISABLED_TEXT)
+	UiMotion.wire_press(node)
+	# Every amber key is something good to press, and they share one gloss.
+	UiMotion.set_sheen(node, kind == &"amber")
 
 
 ## The two tones of the focus ring. A single colour cannot be visible on both
 ## cream paper and near-black slate, so the ring carries one of each and
 ## whichever surface it lands on, one of them reads.
-const FOCUS_OUTER := INK
+const FOCUS_OUTER := Color8(58, 44, 46)
 const FOCUS_INNER := CREAM
+## A key that cannot be pressed: exempt from AA, held above 3:1 on `btn_off`.
+const DISABLED_TEXT := Color8(128, 140, 162)
 
 
 static func focus_ring() -> StyleBoxTexture:
@@ -961,11 +988,12 @@ static func style_segment(node: Button, active: bool) -> void:
 	node.add_theme_stylebox_override(&"hover", box)
 	node.add_theme_stylebox_override(&"pressed", nine("ui_seg_on", 3, 3))
 	node.add_theme_stylebox_override(&"focus", _focus_style())
-	var color := INK if active else INK_SOFT
+	var color := KEY_INK if active else INK_SOFT
 	node.add_theme_color_override(&"font_color", color)
-	node.add_theme_color_override(&"font_hover_color", INK)
-	node.add_theme_color_override(&"font_pressed_color", INK)
+	node.add_theme_color_override(&"font_hover_color", color)
+	node.add_theme_color_override(&"font_pressed_color", KEY_INK)
 	node.add_theme_color_override(&"font_focus_color", color)
+	UiMotion.wire_press(node)
 
 
 static func style_tab(node: Button, active: bool) -> void:
@@ -974,11 +1002,12 @@ static func style_tab(node: Button, active: bool) -> void:
 	node.add_theme_stylebox_override(&"hover", box)
 	node.add_theme_stylebox_override(&"pressed", tab_style(true))
 	node.add_theme_stylebox_override(&"focus", _focus_style())
-	var color := INK if active else STEEL_TEXT
+	var color := AMBER if active else STEEL_DIM
 	node.add_theme_color_override(&"font_color", color)
 	node.add_theme_color_override(&"font_hover_color", color)
-	node.add_theme_color_override(&"font_pressed_color", INK)
+	node.add_theme_color_override(&"font_pressed_color", AMBER)
 	node.add_theme_color_override(&"font_focus_color", color)
+	UiMotion.wire_press(node)
 
 
 const SCROLL_WIDTH := 8.0

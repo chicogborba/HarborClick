@@ -8,20 +8,26 @@ The interface is made of three materials, and which one a thing is made of says
 what kind of thing it is. **Steel** — navy enamel, brushed pinstripe, one amber
 hairline on the edge facing the water — is the terminal's own signage: the
 gantry, the key console, the glass a lit number sits behind (`gantry_style`,
-`console_style`, `glass_style`, `tag_style`, the `steel` button kind). **Paper**
-— clean manifest sheets held in an enamel frame, under a spring clip — is the
-paperwork: every overlay. The frame is the HUD's own navy, so a board reads as
-part of the terminal, and the sheet inside it is plain cream with no fibre.
+`console_style`, `glass_style`, `tag_style`, the `steel` button kind). **Deck**
+— a dark chart-gridded field in the same enamel frame, under a carry-handle
+latch — is every overlay (`board_style`, `paper_style`, `card_style`; the
+"paper" names are historical). Cards are navy slabs; the only bright things on
+a board are amber keys, teal progress and lit digits. `INK` is light, `KEY_INK`
+is the dark label on an amber key, `BOOK_INK` the dark ink of a diary page.
+How any of it moves is `UiMotion` — see "Motion" in
+`docs/architecture/ui-and-visuals.md`.
 **Leather** — a stitched binding with brass corners round a page block — is what
 the port *keeps*: the two diaries (`PortJournal`, `NoticeBell`) and nothing else
 (`book_style`, `book_header_style`, `style_book_tab`).
 
 ## Boards move like the objects they are
 
-- **A clipboard is lifted into view.** `UiTheme.pop_open` brings a board up from
+- **A panel is racked into view.** `UiTheme.pop_open` brings a board up from
   under the bottom edge of the screen, a few pixels past its mark and back, and
-  its spring clip stands open until the board is nearly home and then bites
-  (`place_clip` registers the clip; `_carry_clip` moves it). `pop_close(board,
+  its latch stands proud until the board is nearly home and then seats
+  (`place_clip` registers the latch; `_carry_clip` moves it). As it lands a
+  scanline runs down it and its rows cascade in (`UiMotion.power_on`,
+  `UiMotion.cascade`) — automatically, for every board that slides. `pop_close(board,
   scrim, done)` drops it back out. `board_up.wav` / `board_down.wav` are one
   file per gesture, cut to the same clock as the tween.
 - **A book is opened.** `BookFx.open` raises the book shut and swings its cover

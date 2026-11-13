@@ -57,9 +57,12 @@ func _build() -> void:
 	col.add_child(_rows)
 
 	col.add_child(UiTheme.divider())
-	_total = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
+	# The product, lit behind glass like the tally it explains.
+	var glass := UiTheme.panel(UiTheme.glass_style(4))
+	col.add_child(glass)
+	_total = UiTheme.label("", UiTheme.SIZE_TITLE, UiTheme.DIGIT)
 	_total.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	col.add_child(_total)
+	glass.add_child(_total)
 
 
 func is_open() -> bool:
@@ -76,6 +79,7 @@ func open() -> void:
 	_layout()
 	open_changed.emit(true)
 	UiTheme.pop_open(_panel, _dim)
+	_play_bars()
 
 
 func close() -> void:
@@ -98,15 +102,22 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _refresh() -> void:
 	for child in _rows.get_children():
 		child.queue_free()
-	for entry in GameState.cps_breakdown():
+	var entries: Array = GameState.cps_breakdown()
+	# Multipliers multiply, so their logs add: on a log scale each bar is that
+	# factor's honest share of the climb from the base rate to the total.
+	var span := 0.0
+	for entry in entries:
+		if String(entry.get("kind", "mult")) != "base":
+			span = maxf(span, absf(log(maxf(float(entry.get("value", 1.0)), 0.0001))))
+	for entry in entries:
 		# A factor of exactly one changed nothing, and six rows of "x1.00" are six
 		# rows the eye has to read before it finds the one that moved. They stay on
 		# the panel — the formula has to be complete or it is a description of
 		# itself again — but they are printed in the paper's own shadow, so what is
 		# actually multiplying the port is what stands out.
 		_rows.add_child(_row(String(entry.label), _value_text(entry),
-			_is_inert(entry)))
-	_total.text = "= %s TEU/s" % GameState.fmt(GameState.cps)
+			_is_inert(entry), _share(entry, span), _bar_ink(entry)))
+	_total.text = "%s TEU/s" % GameState.fmt(GameState.cps)
 
 
 static func _value_text(entry: Dictionary) -> String:
@@ -125,17 +136,93 @@ static func _is_inert(entry: Dictionary) -> bool:
 		and is_equal_approx(float(entry.get("value", 1.0)), 1.0)
 
 
-func _row(name_text: String, value_text: String,
-		inert: bool = false) -> HBoxContainer:
+static func _share(entry: Dictionary, span: float) -> float:
+	if String(entry.get("kind", "mult")) == "base":
+		return 1.0
+	if span <= 0.0:
+		return 0.0
+	return clampf(absf(log(maxf(float(entry.get("value", 1.0)), 0.0001))) / span,
+		0.0, 1.0)
+
+
+static func _bar_ink(entry: Dictionary) -> Color:
+	if String(entry.get("kind", "mult")) == "base":
+		return UiTheme.TEAL
+	return UiTheme.AMBER if float(entry.get("value", 1.0)) >= 1.0 \
+		else UiTheme.DANGER
+
+
+func _play_bars() -> void:
+	## The bars fill one after another, top to bottom: the order the economy
+	## applies them is the order they are seen arriving.
+	var index := 0
+	for row in _rows.get_children():
+		if row.is_queued_for_deletion():
+			continue
+		var bar := row.get_node_or_null(^"Bar") as RateBar
+		if bar != null:
+			bar.play(0.16 + index * 0.05)
+		index += 1
+
+
+class RateBar:
+	extends Control
+	## One factor's share, as a lit segment in a trough. Drawn on whole pixels.
+	var share := 0.0
+	var ink := Color.WHITE
+	var grow := 1.0:
+		set(value):
+			grow = value
+			queue_redraw()
+
+	func play(delay: float) -> void:
+		if not UiMotion.live():
+			grow = 1.0
+			return
+		grow = 0.0
+		var tween := create_tween()
+		tween.tween_interval(delay)
+		tween.tween_property(self, "grow", 1.0, 0.34) \
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+	func _draw() -> void:
+		var h := 6.0
+		var y := floorf((size.y - h) * 0.5)
+		draw_rect(Rect2(0, y, size.x, h), Color8(9, 12, 21))
+		draw_rect(Rect2(1, y + 1, size.x - 2, h - 2), Color8(14, 19, 31))
+		if share <= 0.0:
+			return
+		var w := maxf(2.0, roundf((size.x - 2.0) * share * grow))
+		if grow <= 0.0:
+			return
+		draw_rect(Rect2(1, y + 1, w, h - 2), ink)
+		draw_rect(Rect2(1, y + 1, w, 1), ink.lightened(0.45))
+		draw_rect(Rect2(1, y + h - 2, w, 1), ink.darkened(0.3))
+		# the lit head of the bar
+		draw_rect(Rect2(w, y + 1, 1, h - 2), ink.lightened(0.7))
+
+
+func _row(name_text: String, value_text: String, inert: bool = false,
+		share: float = 0.0, ink: Color = Color.WHITE) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 4)
 	var name_ink := UiTheme.PAPER_DEEP if inert else UiTheme.INK_SOFT
 	var value_ink := UiTheme.PAPER_DEEP if inert else UiTheme.INK
 	var label := UiTheme.label(name_text, UiTheme.SIZE_SMALL, name_ink)
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.clip_text = true
 	row.add_child(label)
+	var bar := RateBar.new()
+	bar.name = "Bar"
+	bar.share = 0.0 if inert else share
+	bar.ink = ink
+	bar.custom_minimum_size = Vector2(76, 10)
+	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(bar)
 	var value := UiTheme.label(value_text, UiTheme.SIZE_SMALL, value_ink)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value.custom_minimum_size.x = 64
 	row.add_child(value)
 	return row
 
@@ -158,7 +245,7 @@ func _layout() -> void:
 	# board as empty paper under seven short rows.
 	var lines := GameState.cps_breakdown().size()
 	var wanted := Vector2(minf(MAX_WIDTH, safe.size.x - 24.0),
-		minf(30.0 + 4.0 + lines * 14.0 + 26.0 + 22.0, safe.size.y - 24.0))
+		minf(30.0 + 4.0 + lines * 14.0 + 44.0 + 22.0, safe.size.y - 24.0))
 	_panel.custom_minimum_size = wanted
 	_panel.size = wanted
 	_panel.position = safe.position + (safe.size - wanted) * 0.5

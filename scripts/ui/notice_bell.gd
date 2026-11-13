@@ -132,7 +132,7 @@ func _ready() -> void:
 	_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inner.add_child(_list)
 	_empty = UiTheme.label("Nada novo no porto.", UiTheme.SIZE_SMALL,
-		UiTheme.INK_SOFT)
+		UiTheme.BOOK_INK_SOFT)
 	inner.add_child(_empty)
 	_medals = VBoxContainer.new()
 	_medals.add_theme_constant_override(&"separation", 6)

@@ -198,7 +198,7 @@ func _build_trophy_page() -> void:
 	var tally := HBoxContainer.new()
 	tally.add_theme_constant_override(&"separation", 5)
 	_list.add_child(tally)
-	var heading := UiTheme.label("QUADRO DE HONRA", UiTheme.SIZE_BODY, UiTheme.INK)
+	var heading := UiTheme.label("QUADRO DE HONRA", UiTheme.SIZE_BODY, UiTheme.BOOK_INK)
 	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tally.add_child(heading)
 	tally.add_child(UiTheme.stamp("%d/%d" % [done, objectives.size()],
@@ -308,7 +308,7 @@ func _trophy_branch(key: String, title: String,
 func _build_album_page() -> void:
 	## C7 — the ship album: one card per silhouette, a chip per livery, lit when
 	# that hull×paint has actually arrived. A complete page pays a lump once.
-	var heading := UiTheme.label("ÁLBUM DE NAVIOS", UiTheme.SIZE_BODY, UiTheme.INK)
+	var heading := UiTheme.label("ÁLBUM DE NAVIOS", UiTheme.SIZE_BODY, UiTheme.BOOK_INK)
 	_list.add_child(heading)
 	_list.add_child(UiTheme.divider())
 	for silhouette in ShipCatalog.SILHOUETTES:
@@ -482,7 +482,7 @@ func _refresh() -> void:
 	if _list.get_child_count() == 0:
 		var empty := UiTheme.label("Nenhuma meta nesta página."
 			if _active_tab != "crew" else "Ninguém contratado ainda.",
-			UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+			UiTheme.SIZE_SMALL, UiTheme.BOOK_INK_SOFT)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_list.add_child(empty)
 

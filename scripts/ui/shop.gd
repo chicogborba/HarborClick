@@ -1280,10 +1280,28 @@ func _on_tab(tab_name: String) -> void:
 	_bulk_row.visible = tab_name == "structures"
 	if tab_name == "orders":
 		_refresh_orders()
+	var was_open := _open
 	if not _open:
 		_open_sheet()
 	_refresh()
+	if was_open:
+		# A tab change deals the new list in, row by row, a frame after the
+		# container has placed it.
+		_deal_tab.call_deferred(tab_name)
 	AudioManager.play_sfx("tap")
+
+
+func _deal_tab(tab_name: String) -> void:
+	# The page was hidden until this frame, so it has no size until the next;
+	# it waits that frame unseen, or the list shows whole and then deals in.
+	var page: Control = _scrolls.get(tab_name)
+	if page == null or not UiMotion.live():
+		return
+	page.modulate.a = 0.0
+	await get_tree().process_frame
+	page.modulate.a = 1.0
+	if _open and _active == tab_name and _scrolls.has(tab_name):
+		UiMotion.cascade(UiMotion.scroll_items(_scrolls[tab_name]), 0.0, 0.03, 12.0)
 
 
 func _set_buy_mode(mode: StringName) -> void:

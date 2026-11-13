@@ -109,6 +109,7 @@ func _ready() -> void:
 	add_child(cam)
 	cam.make_current()
 	cam.set_world_bottom(world.visible_bottom())
+	_build_lens()
 
 	hud = Hud.new()
 	hud.name = "Hud"
@@ -767,6 +768,25 @@ func _on_overlay_changed(opened: bool, source: String) -> void:
 
 func is_frozen() -> bool:
 	return get_tree().paused
+
+
+func _build_lens() -> void:
+	## A dithered vignette between the port and the HUD (`lens.gdshader`).
+	if DisplayServer.get_name() == "headless":
+		return
+	var layer := CanvasLayer.new()
+	layer.name = "Lens"
+	layer.layer = 4
+	add_child(layer)
+	var rect := ColorRect.new()
+	rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var material := ShaderMaterial.new()
+	material.shader = preload("res://assets/shaders/lens.gdshader")
+	material.set_shader_parameter(&"px", maxf(1.0, roundf(
+		get_viewport().get_stretch_transform().get_scale().x)))
+	rect.material = material
+	layer.add_child(rect)
 
 
 func _update_freeze() -> void:

@@ -113,9 +113,7 @@ func _ready() -> void:
 	_column.add_child(_status)
 	_earn = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	_earn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	# Clipped, never wrapped: a wrapping label with no width yet reports a
-	# fantasy height, which is the bug that once pushed this board off a phone.
-	_earn.clip_text = true
+	_earn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_column.add_child(_earn)
 	# The thick dark outline is what FloatText uses so bright type survives
 	# over any pixel art; a prize name is exactly that kind of loud.
@@ -257,13 +255,18 @@ func open() -> void:
 	_prize.visible = false
 	_detail.visible = false
 	_refresh_status()
+	# Laid out for real, but unseen: a hidden layer does not sort its
+	# containers, so the wrapped labels kept a stale width and the board was
+	# measured hundreds of pixels too tall. `pop_open` restores both alphas.
+	_board.modulate.a = 0.0
+	_scrim.modulate.a = 0.0
+	visible = true
 	_layout()
 	await get_tree().process_frame
 	await get_tree().process_frame
 	if not _opening:
 		return
 	_opening = false
-	visible = true
 	UiTheme.pop_open(_board, _scrim)
 	if _spin_button.disabled:
 		_close_button.grab_focus()
