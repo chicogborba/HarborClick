@@ -34,6 +34,8 @@ const WATER_HULLS := PortLayout.BERTH_MAX
 ## holding yard reservations open for no visual gain, so the rest of the moves
 ## take the plain arc.
 const MAX_LIVE_RELAYS := 8
+## Floating numbers alive at once; see `_add_float`.
+const MAX_FLOATS := 24
 
 ## Somebody tapped a person. The UI owns the dossier; the world only knows who
 ## was touched and what they are doing.
@@ -90,7 +92,14 @@ var entities: Node2D          # y-sorted ground level
 var overhead: Node2D          # gantries, drones, boxes in flight
 
 var _ground: Sprite2D
-var _water: ColorRect
+var _ground_surface: GroundSurface
+var _water: WaterSurface
+## Untyped on purpose: a typed array throws on reading a freed element, and
+## these free themselves.
+var _floats: Array = []
+var _wakes := WaterWakes.new()
+## Last centre of each hull, for the direction it is making way in.
+var _hull_last: Dictionary = {}
 var _water_foam: WaterFoam
 var _water_quality: WaterQuality.Level = WaterQuality.Level.MEDIUM
 var decor: DecorLayer
@@ -278,8 +287,14 @@ func _build_ground() -> void:
 
 
 func _rebake_ground() -> void:
-	_ground.texture = GroundBaker.bake(int(PortLayout.world_bottom() + 90.0),
+	var baked := GroundBaker.bake(int(PortLayout.world_bottom() + 90.0),
 		_rail_owned())
+	if _ground_surface == null:
+		_ground_surface = GroundSurface.new()
+		_ground_surface.name = "GroundSurface"
+		add_child(_ground_surface)
+	# Weathered once on the GPU (slabs, patches, stains, cracks); see GroundSurface.
+	_ground.texture = _ground_surface.weather(baked, _rail_owned())
 
 
 func _rail_owned() -> bool:
@@ -293,16 +308,15 @@ func _rail_owned() -> bool:
 
 
 func _build_water() -> void:
-	_water = ColorRect.new()
+	_water = WaterSurface.new()
 	_water.name = "Water"
 	_water.position = Vector2(PortLayout.WATER_X0 - 12.0, 0)
 	_water.size = Vector2(PortLayout.WORLD_W - PortLayout.WATER_X0 + 12.0,
 		PortLayout.world_bottom() + 220.0)
 	_water.z_index = -9
 	_water.z_as_relative = false
-	_water.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var mat := ShaderMaterial.new()
-	mat.shader = preload("res://assets/shaders/water_top.gdshader")
+	_water.set_shader(preload("res://assets/shaders/water_top.gdshader"))
+	var mat := _water.water_material
 	mat.set_shader_parameter("world_offset", _water.position)
 	mat.set_shader_parameter("shore_x", PortLayout.WATER_X0)
 	mat.set_shader_parameter("water_span",
@@ -315,7 +329,6 @@ func _build_water() -> void:
 		mat.set_shader_parameter("col_mid", sea[1])
 		mat.set_shader_parameter("col_deep", sea[2])
 		mat.set_shader_parameter("col_abyss", sea[3])
-	_water.material = mat
 	add_child(_water)
 	_water_quality = WaterQuality.choose(get_viewport().get_visible_rect().size)
 	mat.set_shader_parameter("quality_level", int(_water_quality))
@@ -436,14 +449,14 @@ func _rebuild_decals() -> void:
 		_decals.add_child(b)
 
 
-	# puddles and oil marks on the pavement
+	# Oil, patches and cracks are laid by the ground's weathering pass now
+	# (GroundSurface). The eighteen "puddle" sprites that stood in for them were
+	# hard-edged hexagons with a highlight dash, which read as UI ghosts parked on
+	# the asphalt rather than as anything wet. The rng draws stay, so every
+	# decal after this keeps the place it has always had.
 	for i in 18:
-		var p := Sprite2D.new()
-		p.texture = preload("res://assets/sprites/prop_puddle.png")
-		p.centered = false
-		p.position = Vector2(rng.randf_range(16.0, PortLayout.QUAY_X1 - 20.0),
-			rng.randf_range(PortLayout.TOP_MARGIN, PortLayout.world_bottom() - 40.0))
-		_decals.add_child(p)
+		rng.randf()
+		rng.randf()
 
 	# greenery on the verge, and cones dotted around the yard
 	for i in int(PortLayout.world_bottom() / 76.0):
@@ -528,7 +541,7 @@ func _on_land_bought(_id: String) -> void:
 	# A longer quay may have room for another berth.
 	_ensure_berths()
 	_rebake_ground()
-	_water.size.y = PortLayout.world_bottom() + 220.0
+	_water.size = Vector2(_water.size.x, PortLayout.world_bottom() + 220.0)
 	if _water_foam != null:
 		_water_foam.rebuild(PortLayout.world_bottom())
 	_rebuild_decals()
@@ -550,7 +563,7 @@ func _on_prestiged(_shares: int) -> void:
 	## duplicate props after a prestige reset.
 	yard.resize()
 	_rebake_ground()
-	_water.size.y = PortLayout.world_bottom() + 220.0
+	_water.size = Vector2(_water.size.x, PortLayout.world_bottom() + 220.0)
 	if _water_foam != null:
 		_water_foam.rebuild(PortLayout.world_bottom())
 	if structures != null:
@@ -592,14 +605,14 @@ func _apply_water_quality(metrics: Dictionary) -> void:
 	if level == _water_quality:
 		return
 	_water_quality = level
-	if _water != null and _water.material is ShaderMaterial:
-		(_water.material as ShaderMaterial).set_shader_parameter("quality_level", int(level))
+	if _water != null:
+		_water.water_material.set_shader_parameter("quality_level", int(level))
 	if _water_foam != null:
 		_water_foam.set_quality(level)
 
 
 func _process(delta: float) -> void:
-	_feed_water_shader()
+	_feed_water_shader(delta)
 	_allocate_cranes()
 	for controller in berths:
 		controller.tick(delta)
@@ -1143,10 +1156,10 @@ func _drive_gate_arm(delta: float) -> void:
 		ARM_OPEN if open else ARM_CLOSED, delta * 2.6)
 
 
-func _feed_water_shader() -> void:
-	if _water == null or ship == null or not (_water.material is ShaderMaterial):
+func _feed_water_shader(delta: float = 0.0) -> void:
+	if _water == null or ship == null:
 		return
-	var mat := _water.material as ShaderMaterial
+	var mat := _water.water_material
 	var driver := ship
 	var strength := 0.0
 	for hull in berth_hulls():
@@ -1157,12 +1170,11 @@ func _feed_water_shader() -> void:
 			driver = hull
 	mat.set_shader_parameter("ship_speed", strength)
 	if strength > 0.0:
-		# Shader space is world space offset by the water rect's own origin, and
-		# the half-length is *this* hull's. It used to be the berth envelope, so
-		# once classes had their own lengths the bow wave was drawn up to forty
-		# pixels off the end of the ship it belonged to.
-		mat.set_shader_parameter("ship_centre",
-			driver.hull_centre() - _water.position)
+		# Shader space *is* world space (`world_offset` is added in the vertex
+		# stage). This used to subtract the water's origin a second time, which
+		# put every hull's lap and bow wave 228 px to the west — under the quay,
+		# where nobody ever saw it. The half-length is this hull's own.
+		mat.set_shader_parameter("ship_centre", driver.hull_centre())
 		mat.set_shader_parameter("ship_half",
 			Vector2(PortLayout.SHIP_W, driver.hull_height()) * 0.5)
 	# Every hull on the water, moving or not: a ship lying alongside still works
@@ -1173,7 +1185,7 @@ func _feed_water_shader() -> void:
 	for hull in berth_hulls():
 		if not hull.visible or rects.size() >= WATER_HULLS:
 			continue
-		var centre := hull.hull_centre() - _water.position
+		var centre := hull.hull_centre()
 		rects.append(Vector4(centre.x, centre.y,
 			PortLayout.SHIP_W * 0.5, hull.hull_height() * 0.5))
 	mat.set_shader_parameter("hull_count", rects.size())
@@ -1181,6 +1193,48 @@ func _feed_water_shader() -> void:
 		while rects.size() < WATER_HULLS:
 			rects.append(Vector4(-9999.0, -9999.0, 1.0, 1.0))
 		mat.set_shader_parameter("hulls", rects)
+	_feed_wakes(delta)
+	if rain != null:
+		mat.set_shader_parameter("rain", rain.amount())
+		mat.set_shader_parameter("chop", rain.amount() * 0.6)
+
+
+func _feed_wakes(delta: float) -> void:
+	## Everything making way drops its stern on the water; see WaterWakes.
+	if delta > 0.0:
+		_wakes.tick(delta)
+	for hull in berth_hulls():
+		var key := StringName("hull_%d" % hull.get_instance_id())
+		var centre := hull.hull_centre()
+		var last: Vector2 = _hull_last.get(key, centre)
+		_hull_last[key] = centre
+		if not hull.visible or hull.wake_strength() <= 0.02:
+			continue
+		var travel := centre - last
+		if travel.length() < 0.05:
+			continue
+		# The trailing end, whichever way it is going: a hull backing off the
+		# berth lays its wash off the bow.
+		var heading := travel.normalized()
+		var stern := centre - heading * (hull.hull_height() * 0.5 - 6.0)
+		_wakes.feed(key, stern, PortLayout.SHIP_W * 0.24, hull.wake_strength())
+	if structures != null:
+		for boat in structures.boats():
+			var sample := boat.water_wake()
+			if sample.is_empty():
+				continue
+			_wakes.feed(StringName("boat_%d" % boat.get_instance_id()),
+				sample.stern, sample.half, sample.strength, 7.0, 4.5)
+	var packed := _wakes.pack(Vector2.ZERO)
+	_water.water_material.set_shader_parameter("trail_count", packed.size())
+	if packed.size() > 0:
+		while packed.size() < WaterWakes.MAX_POINTS:
+			packed.append(Vector4(-9999.0, -9999.0, 99.0, -1.0))
+		_water.water_material.set_shader_parameter("trail", packed)
+
+
+func water_wakes() -> WaterWakes:
+	return _wakes
 
 
 # ---------- input ----------
@@ -1528,7 +1582,7 @@ func show_premiada(pos: Vector2) -> void:
 		return
 	var ft := FloatText.new()
 	ft.setup(Loc.t("cargo.premiada"), pos + Vector2(0.0, -30.0), true)
-	overhead.add_child(ft)
+	_add_float(ft)
 
 
 func spawn_dust(pos: Vector2) -> void:
@@ -1559,13 +1613,37 @@ func show_world_badge(pos: Vector2, text: String) -> void:
 		return
 	var badge := FloatText.new()
 	badge.setup(text, pos, false)
-	overhead.add_child(badge)
+	_add_float(badge)
+
+
+func _add_float(text: FloatText) -> void:
+	## Floating numbers answer "did that pay?"; past a couple of dozen at once
+	## they answer nothing and cost a node, a label and a `_process` each. An
+	## automated port at full tilt was keeping six hundred alive. The oldest goes
+	## first — it is the one already fading.
+	var alive: Array = []
+	for item in _floats:
+		if is_instance_valid(item) and not item.is_queued_for_deletion():
+			alive.append(item)
+	_floats = alive
+	while _floats.size() >= MAX_FLOATS:
+		_floats.pop_front().queue_free()
+	_floats.append(text)
+	overhead.add_child(text)
+
+
+func live_float_count() -> int:
+	var count := 0
+	for item in _floats:
+		if is_instance_valid(item) and not item.is_queued_for_deletion():
+			count += 1
+	return count
 
 
 func _spawn_float_text(pos: Vector2, value: float, crit: bool) -> void:
 	var ft := FloatText.new()
 	ft.setup("+" + GameState.fmt(value), pos, crit)
-	overhead.add_child(ft)
+	_add_float(ft)
 
 
 func _on_hull_phase(phase: int, index: int) -> void:
@@ -1664,7 +1742,7 @@ func _catch_gull() -> void:
 		# places that print them plainly.
 		ft.setup(Loc.t("gull.%s" % str(prize.get("id", "lucky"))).trim_suffix("!"),
 			pos, true)
-		overhead.add_child(ft)
+		_add_float(ft)
 	golden_gull_caught.emit(prize, pos)
 
 

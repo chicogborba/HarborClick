@@ -1,7 +1,9 @@
 class_name PrestigeDB
 ## Declarative prestige branches. A future economy owner applies these effects.
 
-const BRANCHES: Array[Dictionary] = [
+## A `static var`, not a `const`: `CatalogText` writes the player's language
+## into these rows in place (see scripts/i18n/catalog_text.gd).
+static var BRANCHES: Array[Dictionary] = [
 	# `throughput_structural` used to be `scope: "structures", cps_multiplier`,
 	# which `GameState` multiplied into the same product as `scope: "global"`. Two
 	# names, two prices, one number: the scope did not exist. It now pays per kind

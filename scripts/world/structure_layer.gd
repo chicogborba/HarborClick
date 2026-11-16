@@ -187,6 +187,16 @@ func _spawn(id: String, index: int, animate: bool) -> StructureActor:
 	return actor
 
 
+func boats() -> Array[StructureActor]:
+	## Every actor that rides the water, for the wakes it leaves.
+	var out: Array[StructureActor] = []
+	for id: String in _actors.keys():
+		for actor in live(id):
+			if actor._boat_fx != null:
+				out.append(actor)
+	return out
+
+
 func live(id: String) -> Array[StructureActor]:
 	## The actors of one kind that still exist, pruning any that were freed under
 	## us. A typed `for` over the raw array *throws* on a freed instance rather

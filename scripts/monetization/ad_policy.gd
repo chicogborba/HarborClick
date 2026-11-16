@@ -25,6 +25,8 @@ const PLACEMENTS: Dictionary = {
 	## The level-up card's offer: one per level, so the level itself is the cap;
 	## the cooldown only stops two queued levels from stacking two offers.
 	&"level_bonus": {"daily_cap": 0, "cooldown": 20.0},
+	## Sailing to another port when the hour's free crossing is spent.
+	&"port_travel": {"daily_cap": 0, "cooldown": 0.0},
 }
 
 ## The `last_unix` a placement starts with: far enough back that no real or

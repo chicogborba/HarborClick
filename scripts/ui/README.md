@@ -70,17 +70,15 @@ Entry points:
   All optional, all hidden at the daily cap.
 - `rate_breakdown.gd` — the factors behind the rate, opened by pressing the rate
   tag on the counter. It is the formula, not a caption for it: machines at
-  catalogue rate, then milestones, fitted upgrades, capital, turmas, global
+  catalogue rate, then milestones, fitted upgrades, capital, global
   upgrades, fog and surge — multiply the rows and you land back on
   `GameState.base_cps`. A game whose whole strategy layer is "why did that number
   go up" cannot only ever show the product. **Adding a factor to `recompute` means
-  adding a row here**: a port that converted a fleet into conductors traded the
-  "Melhorias" row away to buy the "Turmas" one, and a trade invisible in the
-  formula did not happen anywhere the player can see.
+  adding a row here**: a factor invisible in the formula did not happen anywhere
+  the player can see.
 - `shop.gd` — the purchase board. Upgrade cards carry coloured chips from
   `upgrade_chips()` — teal TEU/s, green whole port, amber tap, blue per-machine,
-  purple swap, slate rail — plus a rose "ESCOLHA 1 DE 2" on exclusive pairs, and
-  the effect line says "this or X, you can swap later" before the first buy.
+  slate rail. There are no exclusive picks.
   Chips are prebuilt in `ShopCard.set_chips` and only rewritten on change. Its DECOR. tab is the one place in the game
   that sells nothing productive: a row there carries a price before it is owned
   and an on/off switch afterwards, and the switch is the reason the tab works —
@@ -99,14 +97,11 @@ Entry points:
       `_refresh_upgrade_list`). Order and membership only change on a purchase or
       an unlock, the list compares a key before moving anything, and it never
       re-lays itself while a pointer is down.
-    - The MAPA key swaps in `upgrade_map.gd` and its ticket, which keep their
-      own rules below.
   - **A shut station says what shuts it.** `_gate_reason` turns the two ways a
     node can be blocked — an unbought prerequisite, a fleet the port has not got
     — into one sentence naming the thing to go and do. A dead control with no
-    sentence is indistinguishable from a bug. The third case, a buy that refits an
-    exclusive sibling out, is not a state but a price, and it is on the ticket
-    before the press rather than in a dialog after it.
+    sentence is indistinguishable from a bug. There are no exclusive picks: every
+    node can be owned beside every other.
 - `route_map.gd` — **PORTOS**, behind the console key of the same name. A
   pixel globe (`globe.gd` + `assets/shaders/globe.gdshader`) you spin with a
   finger: the world map projected one globe-pixel at a time, Brazil, the
@@ -122,22 +117,6 @@ Entry points:
   them. It exists because a save must not be applied while the last port's
   world is alive; it is also the moment the player is told where they are
   going. A tap skips it.
-- `upgrade_map.gd` — the upgrade graph drawn as a transit map: one coloured line
-  per trunk, one station per upgrade, depth as distance along the line. Bought
-  track is solid, unbought is a dashed survey line, and a node that excludes a
-  sibling is drawn as an interchange.
-  - **It is one `_draw()`, not fifty Controls.** Fifty stations made of Controls
-    are fifty layouts, and the tab refreshes on a timer while it is open.
-    `refresh()` compares every station's state against a cache and returns without
-    repainting when nothing moved.
-  - **Zoom is about the anchor.** `_set_zoom` keeps whatever was under the fingers
-    under them. Zooming about the origin instead throws the thing the player was
-    looking at off the edge, which on a map is the difference between a control
-    and a fight.
-  - **A tap is a press that did not travel.** `TAP_SLOP` separates selecting a
-    station from panning, and `_station_at` picks the *nearest* station rather
-    than the first hit — two stations can be a lane apart at low zoom and the one
-    whose circle you technically landed in is not always the one you aimed at.
 - `settings_panel.gd` — the options board, four pages behind icon tabs (SOM,
   TELA, IDIOMA, DADOS) under a nameplate that never scrolls. Each option is
   its own card; every fixed set of answers is a segmented control
@@ -374,7 +353,14 @@ tiers; `book_fx.gd` turns the logbook's cover and leaves in perspective, and
   `SpecialCallDB.GAMES`, with its cover from `ui_minigame_art.png`. The card you
   tap is the game the rewarded ad pays for. `ArcadePicker.cover()` is also what
   the charter alert shows above its brief.
-- The DECOR tab of `shop.gd` is a shop window: a showcase of the picked piece
-  (art at 2x, what it does, buy or switch) over filter chips, the collection
-  count and a grid of every piece (`ui_decor_art.png`, `tools/sprites/
-  gen_decor.py`; `CosmeticDb` items name their frame with `art`).
+- The DECOR tab of `shop.gd` is built like the equipment tab: a collection
+  meter, the TUDO / O PORTO / A EQUIPE segments, then tiles two abreast. Each
+  tile is the piece standing in a light well (`ui_decor_icons.png`, objects
+  with no sky or frame, from `tools/sprites/gen_decor.py`; `CosmeticDb` items
+  name their frame with `art`), its name, a line of what it does and a key
+  across the foot — the price (green when affordable), the level that hands it
+  over, LIGADO or DESLIGADO. The whole tile is the control: tapping it buys or
+  switches, so there is no showcase to pick into first.
+- The MELHORIAS tab is one list (there is no map view). COMPRAR TUDO buys every
+  affordable node cheapest first, again after each pass, since a purchase can
+  open the next node down a trunk.

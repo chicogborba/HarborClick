@@ -6,7 +6,9 @@ class_name ContractDB
 ## asked for were already earning. `productive_teus` is measured in seconds of
 ## the port's own rate (480-560 s inside a 600 s window), because a fixed
 ## "produce 90 TEU" completed itself the instant a grown port accepted it.
-const TEMPLATES: Array[Dictionary] = [
+## A `static var`, not a `const`: `CatalogText` writes the player's language
+## into these rows in place (see scripts/i18n/catalog_text.gd).
+static var TEMPLATES: Array[Dictionary] = [
 	{"id": "container_turn", "title": "Giro de Contêineres", "description": "Mova carga no turno ativo.", "stat": "containers_moved", "min_target": 12.0, "max_target": 20.0, "active_duration": 300.0, "seconds_of_cps": 180.0},
 	{"id": "import_clearance", "title": "Liberação de Importação", "description": "Descarregue importações no turno ativo.", "stat": "imports_moved", "min_target": 8.0, "max_target": 14.0, "active_duration": 480.0, "seconds_of_cps": 270.0},
 	{"id": "export_window", "title": "Janela de Exportação", "description": "Embarque exportações no turno ativo.", "stat": "exports_moved", "min_target": 8.0, "max_target": 14.0, "active_duration": 480.0, "seconds_of_cps": 270.0},

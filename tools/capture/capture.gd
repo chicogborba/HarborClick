@@ -702,60 +702,18 @@ func _run(size: Vector2i) -> void:
 			GameState.finish_land_works()
 			guard += 1
 			await get_tree().create_timer(0.25).timeout
+		# The tab is retired (shop.gd `_update_orders_tab`): the booking rules
+		# keep their defaults and the page is gone. What is worth catching now is
+		# it coming back half-wired, so pin that it stays hidden even on a port
+		# with several berths, and that asking for it lands somewhere real.
 		_main.shop._on_tab("orders")
+		_main.shop._refresh()
 		await get_tree().create_timer(0.4).timeout
 		var tab: Button = _main.shop._tab_buttons.get("orders")
-		if tab == null or not tab.visible:
-			_failures.append("orders tab hidden at %dx%d with %d berths"
+		if tab != null and tab.visible:
+			_failures.append("the retired orders tab is showing at %dx%d with %d berths"
 				% [size.x, size.y, PortLayout.berth_count()])
 		_check("orders", _main.shop._board, size)
-		await _shot("shop_orders")
-		# And the same board with the foreman hired, because a section that only
-		# ever photographs greyed out proves nothing about the state it spends the
-		# rest of the game in.
-		GameState.prestige_count = maxi(1, GameState.prestige_count)
-		GameState.foreman_mode = Foreman.PAYBACK
-		_main.shop._refresh()
-		await get_tree().create_timer(0.3).timeout
-		var modes: HBoxContainer = _main.shop._lists["orders"] \
-			.get_node_or_null(^"Foreman/Modes")
-		var greedy: Button = modes.get_node_or_null(
-			NodePath("Mode_%s" % Foreman.PAYBACK)) if modes != null else null
-		if greedy == null or greedy.disabled:
-			_failures.append("foreman still locked at %dx%d after a rebuild"
-				% [size.x, size.y])
-		_check("orders_foreman", _main.shop._board, size)
-		await _shot("shop_orders_foreman")
-		# The branch's section, scrolled to and with a train actually on the line.
-		# It is the only readout the rail has — everything it reports happens at
-		# the bottom of the world where the camera never goes — so a board that
-		# rendered its three buttons and left the status line empty would look
-		# exactly like a working one in the shot above.
-		var branch: RailYard = _main.world.rail
-		branch.seed_new()
-		branch._next_service = 0.01
-		branch.tick(0.02)
-		branch.notify_arrived()
-		var board: VBoxContainer = _main.shop._lists["orders"]
-		var section: VBoxContainer = board.get_node_or_null(^"Branch")
-		if section == null:
-			_failures.append("no branch section on the orders board at %dx%d"
-				% [size.x, size.y])
-		else:
-			var scroll: ScrollContainer = _main.shop._scrolls.get("orders")
-			if scroll != null:
-				_main.shop._refresh()
-				await get_tree().process_frame
-				scroll.scroll_vertical = int(section.position.y)
-			await get_tree().create_timer(0.4).timeout
-			var status: Label = section.get_node_or_null(^"Status")
-			if status == null or status.text.is_empty():
-				_failures.append("the branch section reports nothing at %dx%d"
-					% [size.x, size.y])
-			else:
-				print("[capture] branch says: ", status.text)
-			_check("orders_branch", _main.shop._board, size)
-			await _shot("shop_orders_branch")
 	_main.shop._close()
 	await get_tree().create_timer(0.2).timeout
 	if _wants("settings"):
@@ -778,6 +736,25 @@ func _run(size: Vector2i) -> void:
 		_check("routes", _main.routes._sheet, size)
 		await _shot("routes")
 		_main.routes.close()
+		await get_tree().create_timer(0.2).timeout
+	if _wants("routes_trip"):
+		# An open port abroad with the hour's free crossing already spent: the
+		# card has to say the next free one is coming and offer the ad instead.
+		var ledger: Dictionary = SaveManager._ledger
+		var kept := ledger.duplicate(true)
+		var open_ids: Array = ledger.get("open", ["santos"])
+		if not open_ids.has("long_beach"):
+			open_ids.append("long_beach")
+		ledger["open"] = open_ids
+		ledger["free_trip_at"] = Time.get_unix_time_from_system() - 1500.0
+		_main.routes.open()
+		await get_tree().create_timer(0.3).timeout
+		_main.routes._select(&"long_beach")
+		await get_tree().create_timer(0.6).timeout
+		_check("routes trip", _main.routes._sheet, size)
+		await _shot("routes_trip")
+		_main.routes.close()
+		SaveManager._ledger = kept
 		await get_tree().create_timer(0.2).timeout
 	if _wants("journal"):
 		_main.journal.open()

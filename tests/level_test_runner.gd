@@ -179,8 +179,10 @@ func _test_minute_table() -> void:
 	}
 	var last_hours := float(TerminalLevel.xp_for_level(TerminalLevel.MAX_LEVEL)) \
 		/ ASSUMED_XP_PER_MIN / 60.0
-	_expect(last_hours >= 12.0 and last_hours <= 16.0,
-		"level 30 takes about two hours a day for a week (%.1f h)" % last_hours)
+	# XP_SCALE 4.0: the climb was made deliberately slow — level 30 is a
+	# fortnight of two-hour days, not a week.
+	_expect(last_hours >= 19.0 and last_hours <= 26.0,
+		"level 30 takes about two hours a day for a fortnight (%.1f h)" % last_hours)
 	for n in ranges.keys():
 		# The table is the unscaled curve; the week-long pacing stretches all of it.
 		var minutes := float(TerminalLevel.xp_for_level(int(n))) / ASSUMED_XP_PER_MIN \

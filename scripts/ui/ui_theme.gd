@@ -856,6 +856,18 @@ static func install_window_theme(window: Window) -> void:
 	if window == null or window.theme != null:
 		return
 	var theme := Theme.new()
+	_dress_tooltip(theme)
+	window.theme = theme
+	# And the engine's fallback theme, which is the last thing every control
+	# resolves against. The window theme alone did not reach the tooltip popup on
+	# desktop: a capture with the pointer resting on the logbook caught it in the
+	# stock anti-aliased sans, hanging over the command rail.
+	_dress_tooltip(ThemeDB.get_default_theme())
+
+
+static func _dress_tooltip(theme: Theme) -> void:
+	if theme == null:
+		return
 	# `ui_tip`, not the gantry's job tag. The tag is a sixteen-pixel enamel sign
 	# with a teal service spine, rivets and five pixels of margin all round —
 	# correct bolted across the top of the quay, and a road sign when it is
@@ -876,7 +888,6 @@ static func install_window_theme(window: Window) -> void:
 	theme.set_constant(&"shadow_offset_x", &"TooltipLabel", 0)
 	theme.set_constant(&"shadow_offset_y", &"TooltipLabel", 0)
 	theme.set_constant(&"outline_size", &"TooltipLabel", 0)
-	window.theme = theme
 
 
 static func describe(control: Control, control_name: String,

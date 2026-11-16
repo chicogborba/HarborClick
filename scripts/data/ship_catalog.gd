@@ -15,7 +15,9 @@ const FIXED_BAY_ROWS := PortLayout.SHIP_BAY_ROWS
 ## `tools/sprites/gen_ship.py`), all on the same 66x232 canvas with the same 24
 ## bays — the silhouettes differ in bow and stern shaping, never in a fractional
 ## scale that would distort the containers. `sprite`/`paint` name the textures.
-const SILHOUETTES: Array[Dictionary] = [
+## A `static var`, not a `const`: `CatalogText` writes the player's language
+## into these rows in place (see scripts/i18n/catalog_text.gd).
+static var SILHOUETTES: Array[Dictionary] = [
 	{"id": "coastal_feeder", "title": "Feeder Costeiro", "capacity": 1200,
 		"unlock_blocks": 0, "sprite": "ship_top_feeder",
 		"paint": "ship_paint_feeder", "hull_scale": Vector2.ONE,

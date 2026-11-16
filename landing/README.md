@@ -44,12 +44,14 @@ top edge of the sprite and came out flat.
 
 ## Favicon
 
-`gen_favicon()` draws an amber badge with the harbour's anchor cut out of it at
-16px and scales it by whole numbers only: `media/favicon.png` (32),
+`gen_favicon()` resizes the brand icon — a red gantry crane lifting a container
+at sunset, generated once from game captures (`docs/media/store/keyart/icon.png`,
+prompt in `generations.json`) — to `media/favicon.png` (32),
 `media/favicon-192.png` for `apple-touch-icon`, and `favicon.ico` carrying 16,
-32 and 48. A badge rather than a bare anchor because a thin silhouette on
-transparency disappears into whatever colour the browser paints behind the tab,
-and it has to read on light chrome and dark chrome both.
+32 and 48. The same file feeds the game's own icons (`tools/sprites/gen_icons.py`,
+`application/config/icon`), so the landing tab, `/jogar/` and the installed app
+all show one mark. The old amber anchor badge is still drawn as a fallback when
+the generated icon is missing.
 
 `favicon.ico` sits next to `index.html` rather than in `assets/`, and
 `build_release.sh` copies it to the release root: a browser asks for

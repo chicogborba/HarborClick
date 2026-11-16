@@ -52,31 +52,17 @@ var _rail: CommandRail
 ## The railway, not the console. `_rail` is the bottom bar; this is the branch
 ## line, and the orders board is the only screen it reports to.
 var _branch: RailYard
-## The upgrades tab: a network diagram, and the ticket that answers everything
-## about whichever station on it was last touched.
-var _map: UpgradeMap
-var _map_pick := ""
-var _ticket: PanelContainer
-var _ticket_name: Label
-var _ticket_effect: Label
-var _ticket_price: PanelContainer
-var _ticket_price_label: Label
-var _ticket_buy: Button
-## The upgrades tab is a list first and a map on request. The map was the only
-## view, and on a phone it was fifty grey dots with half their names cut off:
-## nobody could tell what was for sale, what it did or what it cost without
-## tapping stations one by one.
-var _up_list_view: Control
-var _up_map_view: Control
+## The upgrades tab: one list — what can be bought, what is next, what is owned.
 var _up_summary: Label
-var _up_view_toggle: Button
+## Buys every affordable upgrade, cheapest first. With ~90 nodes on the tree,
+## tapping each card in turn was the tab's most repeated chore.
+var _up_buy_all: Button
 var _up_list: VBoxContainer
 var _up_caption_ready: Control
 var _up_caption_next: Control
 var _up_more: Label
 var _up_owned_toggle: Button
 var _up_owned_open := false
-var _up_showing_map := false
 ## Order and membership the list was last laid out with, so a refresh that
 ## changes nothing moves nothing.
 var _up_layout_key := ""
@@ -278,12 +264,11 @@ func _populate() -> void:
 
 
 func _build_upgrade_page() -> Control:
-	## A list of what can be bought, with the map one key away.
+	## A list of what can be bought.
 	##
-	## The list answers the three questions in the order a player asks them —
-	## what can I buy now, what is next, what have I got — and every card says
-	## what it does and what it costs without a tap. The transit map is still
-	## there for the shape of the tree; it is just no longer the only way in.
+	## It answers the three questions in the order a player asks them — what can
+	## I buy now, what is next, what have I got — and every card says what it
+	## does and what it costs without a tap.
 	var page := VBoxContainer.new()
 	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	page.add_theme_constant_override(&"separation", 3)
@@ -295,18 +280,18 @@ func _build_upgrade_page() -> Control:
 	_up_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_up_summary.clip_text = true
 	head.add_child(_up_summary)
-	_up_view_toggle = UiTheme.button(Loc.t("shop.upgrades.map"), &"ghost",
+	_up_buy_all = UiTheme.button(Loc.t("shop.upgrades.buy_all"), &"go",
 		UiTheme.SIZE_SMALL)
-	_up_view_toggle.custom_minimum_size = Vector2(64.0, 22.0)
-	_up_view_toggle.pressed.connect(_toggle_upgrade_view)
-	head.add_child(_up_view_toggle)
+	_up_buy_all.name = "BuyAll"
+	_up_buy_all.custom_minimum_size = Vector2(0.0, 24.0)
+	_up_buy_all.pressed.connect(_on_buy_all_upgrades)
+	head.add_child(_up_buy_all)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	UiTheme.style_scroll(scroll)
 	page.add_child(scroll)
-	_up_list_view = scroll
 	# The scrollbar is drawn over the last few pixels of a full-width child, so
 	# the gutter is reserved by hand (see the live-panel note in scripts/ui).
 	var gutter := MarginContainer.new()
@@ -332,58 +317,6 @@ func _build_upgrade_page() -> Control:
 		_refresh_upgrade_list())
 	_up_list.add_child(_up_owned_toggle)
 
-	var map_page := VBoxContainer.new()
-	map_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	map_page.add_theme_constant_override(&"separation", 3)
-	map_page.visible = false
-	page.add_child(map_page)
-	_up_map_view = map_page
-
-	var well := UiTheme.panel(UiTheme.well_style(2))
-	well.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	map_page.add_child(well)
-	_map = UpgradeMap.new()
-	_map.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_map.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_map.node_selected.connect(_on_map_node)
-	well.add_child(_map)
-
-	_ticket = UiTheme.panel(UiTheme.paper_style(4))
-	# A floor, so the map's EXPAND_FILL can never squeeze the answer panel to
-	# nothing on a short screen — the map is the part that should give way.
-	_ticket.custom_minimum_size.y = 84.0
-	map_page.add_child(_ticket)
-	var row := VBoxContainer.new()
-	row.add_theme_constant_override(&"separation", 2)
-	_ticket.add_child(row)
-
-	_ticket_name = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK)
-	_ticket_name.clip_text = true
-	row.add_child(_ticket_name)
-
-	_ticket_effect = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
-	_ticket_effect.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	# Both of these matter. An autowrap label with no width to wrap *to* reports a
-	# minimum height of thousands of pixels, and a PanelContainer can never be
-	# smaller than its content — so the board grew past the screen and pushed this
-	# very panel off the bottom of it. `_layout` gives it a real width; the line
-	# cap stops a long swap warning doing the same thing more slowly.
-	_ticket_effect.max_lines_visible = 3
-	_ticket_effect.custom_minimum_size = Vector2(120.0, 30.0)
-	row.add_child(_ticket_effect)
-
-	var buy_row := HBoxContainer.new()
-	buy_row.add_theme_constant_override(&"separation", 4)
-	row.add_child(buy_row)
-	_ticket_price = UiTheme.stamp("", UiTheme.AMBER, UiTheme.SIZE_SMALL)
-	_ticket_price.custom_minimum_size.x = 68.0
-	buy_row.add_child(_ticket_price)
-	_ticket_price_label = UiTheme.stamp_label(_ticket_price)
-	_ticket_buy = UiTheme.button(Loc.t("shop.map.buy"), &"amber", UiTheme.SIZE_SMALL)
-	_ticket_buy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_ticket_buy.custom_minimum_size.y = 26.0
-	_ticket_buy.pressed.connect(func() -> void: _on_buy_upgrade(_map_pick))
-	buy_row.add_child(_ticket_buy)
 	return page
 
 
@@ -414,16 +347,6 @@ func _upgrade_art(item: Dictionary) -> String:
 		if str(entry.id) == branch:
 			return str(entry.get("art", ""))
 	return ""
-
-
-func _toggle_upgrade_view() -> void:
-	_up_showing_map = not _up_showing_map
-	_up_list_view.visible = not _up_showing_map
-	_up_map_view.visible = _up_showing_map
-	_up_view_toggle.text = Loc.t("shop.upgrades.list" if _up_showing_map
-		else "shop.upgrades.map")
-	AudioManager.play_sfx("tap")
-	_refresh_upgrades()
 
 
 func _upgrade_frontier(item: Dictionary) -> bool:
@@ -461,6 +384,8 @@ func _refresh_upgrade_list() -> void:
 	for item in available:
 		if GameState.can_afford(UpgradeDB.price_for(item, GameState.upgrades)):
 			ready += 1
+	_up_buy_all.disabled = ready == 0
+	UiTheme.style_button(_up_buy_all, &"go" if ready > 0 else &"off")
 	_up_summary.text = Loc.t("shop.upgrades.summary", {
 		"owned": str(owned.size()), "total": str(UpgradeDB.ITEMS.size()),
 		"ready": str(ready)})
@@ -511,15 +436,6 @@ func _refresh_upgrade_list() -> void:
 		elif GameState.upgrade_available(item):
 			card.visible = true
 			var effect := str(GameState.upgrade_preview(item).get("text", ""))
-			var refits := UpgradeDB.conflicts_with(item, GameState.upgrades)
-			var rivals := UpgradeDB.excludes_of(item)
-			if not refits.is_empty():
-				effect = "%s\n%s" % [effect, Loc.t("shop.upgrade.swap", {"name": str(
-					UpgradeDB.get_item(refits[0]).get("name", refits[0]))})]
-			elif not rivals.is_empty():
-				# The pair explained before the first buy, not discovered after it.
-				effect = "%s\n%s" % [effect, Loc.t("shop.upgrade.or", {"name": str(
-					UpgradeDB.get_item(rivals[0]).get("name", rivals[0]))})]
 			card.set_effect(effect)
 			card.refresh(price, 0, GameState.can_afford(price), false, 1,
 				float(GameState.upgrade_preview(item).get("cps_gain", 0.0)))
@@ -536,9 +452,7 @@ const CHIP_PRODUCTION := Color8(36, 120, 110)
 const CHIP_PORT := Color8(52, 128, 58)
 const CHIP_TAP := Color8(176, 104, 22)
 const CHIP_SYNERGY := Color8(40, 96, 156)
-const CHIP_SWAP := Color8(112, 70, 156)
 const CHIP_RAIL := Color8(76, 88, 112)
-const CHIP_CHOICE := Color8(170, 56, 100)
 
 
 static func upgrade_chips(item: Dictionary) -> Array:
@@ -565,15 +479,9 @@ static func upgrade_chips(item: Dictionary) -> Array:
 			chips.append({"text": Loc.t("shop.chip.synergy",
 				{"v": "+%d%%" % roundi(value * 100.0)}),
 				"color": CHIP_SYNERGY, "icon": UiTheme.Icon.CREW})
-		"transform":
-			chips.append({"text": Loc.t("shop.chip.swap"), "color": CHIP_SWAP,
-				"icon": UiTheme.Icon.CHEVRON})
 		"rail_stat":
 			chips.append({"text": Loc.t("shop.chip.rail"), "color": CHIP_RAIL,
 				"icon": UiTheme.Icon.TRAIN})
-	if not UpgradeDB.excludes_of(item).is_empty():
-		chips.append({"text": Loc.t("shop.chip.choice"), "color": CHIP_CHOICE,
-			"icon": UiTheme.Icon.LOCK})
 	return chips
 
 
@@ -588,65 +496,10 @@ func _pointer_down() -> bool:
 	return Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
 
 
-func _on_map_node(id: String) -> void:
-	_map_pick = id
-	_refresh_ticket()
-	AudioManager.play_sfx("tap")
-
-
-func _refresh_ticket() -> void:
-	## Everything about one station, in the order a player asks it: what is this,
-	## what does it do for me, what does it cost, can I have it.
-	if _ticket == null:
-		return
-	if _map_pick.is_empty():
-		_ticket_name.text = Loc.t("shop.map.pick")
-		_ticket_effect.text = Loc.t("shop.map.hint")
-		_ticket_price.visible = false
-		_ticket_buy.disabled = true
-		_ticket_buy.text = Loc.t("shop.map.buy")
-		return
-	var item := UpgradeDB.get_item(_map_pick)
-	if item.is_empty():
-		return
-	_ticket_name.text = str(item.get("name", _map_pick))
-	_ticket_price.visible = true
-	if GameState.has_upgrade(_map_pick):
-		_ticket_effect.text = str(GameState.upgrade_preview(item).get("text", ""))
-		_ticket_price_label.text = Loc.t("shop.map.owned")
-		_ticket_buy.disabled = true
-		_ticket_buy.text = Loc.t("shop.map.owned")
-		return
-	var reason := _gate_reason(item)
-	var price := UpgradeDB.price_for(item, GameState.upgrades)
-	_ticket_price_label.text = GameState.fmt(price)
-	if not reason.is_empty():
-		_ticket_effect.text = "%s\n%s" % [reason, str(item.get("desc", ""))]
-		_ticket_buy.disabled = true
-		_ticket_buy.text = Loc.t("shop.map.shut")
-		return
-	var refits := UpgradeDB.conflicts_with(item, GameState.upgrades)
-	var effect := str(GameState.upgrade_preview(item).get("text", ""))
-	if not refits.is_empty():
-		effect = "%s\n%s" % [effect, Loc.t("shop.upgrade.swap", {"name": str(
-			UpgradeDB.get_item(refits[0]).get("name", refits[0]))})]
-	_ticket_effect.text = effect
-	_ticket_buy.disabled = not GameState.can_afford(price)
-	_ticket_buy.text = Loc.t("shop.map.buy")
-
-
 func _refresh_upgrades() -> void:
-	## The map redraws itself only when a station actually changed state, and the
-	## ticket under it re-reads whichever station is selected. Nothing is rebuilt:
-	## this runs off the shop's refresh timer while the tab is open, and the
-	## version of this screen that tore down and re-created its rows on that timer
-	## ate every tap that landed during a rebuild.
-	if _up_showing_map:
-		if _map != null:
-			_map.refresh()
-		_refresh_ticket()
-	else:
-		_refresh_upgrade_list()
+	## Runs off the shop's refresh timer while the tab is open. Nothing is
+	## rebuilt: the list only moves and restyles the cards it built once.
+	_refresh_upgrade_list()
 	_update_tab_badges()
 
 
@@ -752,87 +605,81 @@ func _on_skip_land_works() -> void:
 		AudioManager.play_sfx("deny")
 
 
-## The decor shelf's state: which piece the showcase shows, and which part of
-## the collection the grid is filtered to.
-var _decor_pick: StringName = &""
+## The decor tab: a filter, a collection meter, and one tile per piece.
 var _decor_filter: StringName = &"all"
-var _decor_nodes: Dictionary = {}
 var _decor_tiles: Dictionary = {}
 var _decor_filters: Dictionary = {}
-const DECOR_ART := preload("res://assets/sprites/ui_decor_art.png")
-const DECOR_ART_SIZE := Vector2(56, 44)
+var _decor_count: Label
+var _decor_bar: ProgressBar
+var _decor_grid: GridContainer
+const DECOR_ICONS := preload("res://assets/sprites/ui_decor_icons.png")
+const DECOR_ICON_SIZE := Vector2(48, 40)
 
 
 static func _decor_texture(id: StringName) -> AtlasTexture:
 	var atlas := AtlasTexture.new()
-	atlas.atlas = DECOR_ART
-	atlas.region = Rect2(Vector2(CosmeticDb.art_of(id) * DECOR_ART_SIZE.x, 0), DECOR_ART_SIZE)
+	atlas.atlas = DECOR_ICONS
+	atlas.region = Rect2(Vector2(CosmeticDb.art_of(id) * DECOR_ICON_SIZE.x, 0),
+		DECOR_ICON_SIZE)
 	return atlas
 
 
 func _build_cosmetics() -> void:
-	## The shelf. Every other tab on this board sells production; this one sells
-	## nothing but the way the terminal looks, so it is laid out like a shop
-	## window rather than a price list: a showcase at the top with the piece
-	## you picked, big, with what it does and the one key that matters for it
-	## (buy, or switch on and off), and under it the whole collection as a grid
-	## of pictures you can see the state of at a glance.
+	## The decor tab is built the way the equipment tab is: a shelf of tiles two
+	## abreast, each with the piece standing in its well, its name, one line of
+	## what it does, and a key across the foot that does the one thing that
+	## piece needs — buy it, or switch it on and off. No showcase to pick into
+	## first: the tile *is* the control, like every other tile on this board.
 	var list: VBoxContainer = _lists["cosmetics"]
 	_decor_tiles.clear()
 	_decor_filters.clear()
-	if _decor_pick == &"":
-		_decor_pick = StringName(_decor_order()[0].id)
-	# --- the showcase ---------------------------------------------------------
-	var hero := PanelContainer.new()
-	hero.name = "DecorHero"
-	UiTheme.apply_panel(hero, UiTheme.card_style(&"ready"))
-	list.add_child(hero)
-	var hero_row := HBoxContainer.new()
-	hero_row.add_theme_constant_override(&"separation", 8)
-	hero.add_child(hero_row)
-	var frame := PanelContainer.new()
-	UiTheme.apply_panel(frame, UiTheme.slate_style(false, 2))
-	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	hero_row.add_child(frame)
-	var art := TextureRect.new()
-	art.custom_minimum_size = DECOR_ART_SIZE * 2.0
-	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	frame.add_child(art)
-	var text := VBoxContainer.new()
-	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text.add_theme_constant_override(&"separation", 3)
-	hero_row.add_child(text)
-	var kind := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
-	text.add_child(kind)
-	var title := UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK)
-	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.add_child(title)
-	var desc := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	text.add_child(desc)
-	var buy := UiTheme.button("", &"amber", UiTheme.SIZE_SMALL)
-	buy.name = "Buy"
-	buy.custom_minimum_size.y = UiTheme.TOUCH_MIN
-	buy.pressed.connect(func() -> void: _on_buy_cosmetic(_decor_pick))
-	text.add_child(buy)
-	var toggle := UiTheme.button("", &"steel", UiTheme.SIZE_SMALL)
-	toggle.name = "Toggle"
-	toggle.custom_minimum_size.y = UiTheme.TOUCH_MIN
-	toggle.pressed.connect(func() -> void: _on_toggle_cosmetic(_decor_pick))
-	text.add_child(toggle)
-	_decor_nodes = {"art": art, "kind": kind, "title": title, "desc": desc,
-		"buy": buy, "toggle": toggle}
-	# --- filters and the count --------------------------------------------------
+
+	# --- the collection meter (the same card the ship album opens with) -------
+	var meter := PanelContainer.new()
+	meter.name = "DecorMeter"
+	UiTheme.apply_panel(meter, UiTheme.card_style(&"normal"))
+	list.add_child(meter)
+	var meter_col := VBoxContainer.new()
+	meter_col.add_theme_constant_override(&"separation", 3)
+	meter.add_child(meter_col)
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override(&"separation", 6)
+	meter_col.add_child(head)
+	var glyph := TextureRect.new()
+	glyph.texture = _decor_texture(&"duck")
+	glyph.custom_minimum_size = DECOR_ICON_SIZE * 0.75
+	glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	glyph.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	glyph.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(glyph)
+	var texts := VBoxContainer.new()
+	texts.add_theme_constant_override(&"separation", 3)
+	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	texts.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	head.add_child(texts)
+	_decor_count = UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.AMBER_DEEP)
+	_decor_count.name = "DecorCount"
+	texts.add_child(_decor_count)
+	_decor_bar = ProgressBar.new()
+	var styles := UiTheme.bar_styles()
+	_decor_bar.add_theme_stylebox_override(&"background", styles[0])
+	_decor_bar.add_theme_stylebox_override(&"fill", styles[1])
+	_decor_bar.show_percentage = false
+	_decor_bar.custom_minimum_size = Vector2(0, 8)
+	_decor_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texts.add_child(_decor_bar)
+
+	# --- filters: the same segmented bar as the equipment tab's LOTE ----------
 	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override(&"separation", 4)
+	bar.add_theme_constant_override(&"separation", 3)
 	list.add_child(bar)
-	for pair: Array in [[&"all", "shop.cosmetics.all"], [CosmeticDb.KIND_PORT, "shop.cosmetics.port"],
+	for pair: Array in [[&"all", "shop.cosmetics.all"],
+			[CosmeticDb.KIND_PORT, "shop.cosmetics.port"],
 			[CosmeticDb.KIND_CREW, "shop.cosmetics.crew"]]:
 		var chip := UiTheme.segment(Loc.t(pair[1]), pair[0] == _decor_filter)
 		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		chip.custom_minimum_size.y = 28.0
+		chip.custom_minimum_size.y = 24.0
 		var key: StringName = pair[0]
 		chip.pressed.connect(func() -> void:
 			_decor_filter = key
@@ -840,25 +687,24 @@ func _build_cosmetics() -> void:
 			_refresh_cosmetics())
 		bar.add_child(chip)
 		_decor_filters[key] = chip
-	var count := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
-	count.name = "DecorCount"
-	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	list.add_child(count)
-	_decor_nodes["count"] = count
-	# --- the collection -----------------------------------------------------------
-	var grid := GridContainer.new()
-	grid.name = "DecorGrid"
-	grid.columns = 3
-	grid.add_theme_constant_override(&"h_separation", 4)
-	grid.add_theme_constant_override(&"v_separation", 4)
-	list.add_child(grid)
+
+	# --- the shelf -------------------------------------------------------------
+	_decor_grid = GridContainer.new()
+	_decor_grid.name = "DecorGrid"
+	_decor_grid.columns = 2
+	_decor_grid.add_theme_constant_override(&"h_separation", 4)
+	_decor_grid.add_theme_constant_override(&"v_separation", 4)
+	_decor_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_child(_decor_grid)
 	for item: Dictionary in _decor_order():
 		var tile := _cosmetic_tile(item)
-		grid.add_child(tile)
+		_decor_grid.add_child(tile)
 		_decor_tiles[StringName(item.id)] = tile
+
 	var intro := UiTheme.label(Loc.t("shop.cosmetics.blurb"), UiTheme.SIZE_SMALL,
 		UiTheme.INK_SOFT)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intro.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	list.add_child(intro)
 
 
@@ -876,50 +722,112 @@ func _decor_order() -> Array[Dictionary]:
 
 
 func _cosmetic_tile(item: Dictionary) -> Button:
+	## One piece, as an equipment-style tile. The whole tile is the key; the
+	## coloured bar across its foot only says what pressing it will do.
 	var id := StringName(item.id)
 	var tile := Button.new()
 	tile.name = "Decor_%s" % id
-	tile.custom_minimum_size = Vector2(0, DECOR_ART_SIZE.y + 52.0)
 	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tile.focus_mode = Control.FOCUS_ALL
+	tile.custom_minimum_size.y = 168.0
 	var column := VBoxContainer.new()
 	column.name = "Column"
-	column.add_theme_constant_override(&"separation", 1)
+	column.add_theme_constant_override(&"separation", 3)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	column.offset_left = 4
-	column.offset_top = 4
-	column.offset_right = -4
-	column.offset_bottom = -3
+	column.offset_left = 6
+	column.offset_top = 6
+	column.offset_right = -6
+	column.offset_bottom = -6
 	tile.add_child(column)
+
+	var well := UiTheme.panel(UiTheme.well_style(2))
+	well.name = "Well"
+	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	well.custom_minimum_size.y = DECOR_ICON_SIZE.y * 2.0 + 6.0
+	column.add_child(well)
 	var art := TextureRect.new()
 	art.name = "Art"
 	art.texture = _decor_texture(id)
-	art.custom_minimum_size = DECOR_ART_SIZE
-	art.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	art.custom_minimum_size = DECOR_ICON_SIZE * 2.0
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	art.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_child(art)
-	var label := UiTheme.label(str(item.name), UiTheme.SIZE_SMALL, UiTheme.INK)
+	well.add_child(art)
+	# "Ligado" as a stamp in the corner of the well, where the equipment tiles
+	# carry their count: the state is read off the picture, not hunted for.
+	var stamp := UiTheme.panel(UiTheme.slate_style(true, 2))
+	stamp.name = "OnStamp"
+	stamp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stamp.size_flags_horizontal = Control.SIZE_SHRINK_END
+	stamp.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	stamp.visible = false
+	well.add_child(stamp)
+	var stamp_row := HBoxContainer.new()
+	stamp_row.add_theme_constant_override(&"separation", 2)
+	stamp_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stamp.add_child(stamp_row)
+	var check := UiTheme.icon(UiTheme.Icon.CHECK)
+	check.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stamp_row.add_child(check)
+
+	var name_row := HBoxContainer.new()
+	name_row.name = "NameRow"
+	name_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	name_row.add_theme_constant_override(&"separation", 3)
+	name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(name_row)
+	var lock := UiTheme.icon(UiTheme.Icon.LOCK)
+	lock.name = "Lock"
+	lock.modulate = UiTheme.INK_SOFT
+	lock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	lock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_row.add_child(lock)
+	var label := UiTheme.label(str(item.name), UiTheme.SIZE_BODY, UiTheme.INK)
 	label.name = "Name"
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.max_lines_visible = 2
-	label.custom_minimum_size.y = 20.0
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_child(label)
-	var badge := UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
-	badge.name = "Badge"
-	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_child(badge)
-	UiTheme.describe(tile, str(item.name), str(item.desc))
-	tile.pressed.connect(func() -> void:
-		_decor_pick = id
-		AudioManager.play_sfx("tap", 0.08)
-		_refresh_cosmetics())
+	name_row.add_child(label)
+
+	var desc := UiTheme.label(str(item.desc), UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	desc.name = "Desc"
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.max_lines_visible = 2
+	desc.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	desc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	desc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(desc)
+
+	var key := UiTheme.panel(UiTheme.nine("ui_btn_off", 5, 4))
+	key.name = "Key"
+	key.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	key.custom_minimum_size.y = 24.0
+	column.add_child(key)
+	var key_label := UiTheme.label("", UiTheme.SIZE_BODY, UiTheme.INK_SOFT)
+	key_label.name = "Value"
+	key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	key_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	key_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	key.add_child(key_label)
+
+	tile.pressed.connect(func() -> void: _on_decor_tile(id))
 	return tile
+
+
+func _on_decor_tile(id: StringName) -> void:
+	## The tile does whatever its key says: buy what is for sale, switch what is
+	## owned, and refuse — audibly — what the wallet or the level cannot reach.
+	if GameState.owns_cosmetic(id):
+		_on_toggle_cosmetic(id)
+	elif CosmeticDb.level_only(id):
+		AudioManager.play_sfx("deny")
+	else:
+		_on_buy_cosmetic(id)
 
 
 func _on_buy_cosmetic(id: StringName) -> void:
@@ -928,6 +836,9 @@ func _on_buy_cosmetic(id: StringName) -> void:
 		return
 	AudioManager.play_sfx("buy")
 	SaveManager.request_save(&"cosmetic")
+	var tile := _decor_tiles.get(id) as Control
+	if tile != null and UserPreferences.can_animate():
+		UiMotion.punch(tile)
 	_refresh()
 
 
@@ -939,78 +850,79 @@ func _on_toggle_cosmetic(id: StringName) -> void:
 	_refresh()
 
 
-func _decor_badge(id: StringName) -> Array:
-	## [text, colour] for a tile's state line.
+func _decor_state(id: StringName) -> Dictionary:
+	## What a tile shows: {card, key, text, ink}. `card` is the tile's frame,
+	## `key` the sprite of the bar across its foot.
 	var item := CosmeticDb.of(id)
 	if GameState.cosmetic_on(id):
-		return [Loc.t("shop.cosmetics.on"), UiTheme.TEAL_DEEP]
+		return {"card": &"done", "key": "ui_btn", "text": Loc.t("shop.cosmetics.on"),
+			"ink": UiTheme.KEY_INK}
 	if GameState.owns_cosmetic(id):
-		return [Loc.t("shop.cosmetics.off"), UiTheme.INK_SOFT]
+		return {"card": &"normal", "key": "ui_btn_steel",
+			"text": Loc.t("shop.cosmetics.off"), "ink": UiTheme.STEEL_TEXT}
 	if CosmeticDb.level_only(id):
-		return [Loc.t("level.short", {"n": str(CosmeticDb.level_of(id))}), UiTheme.INK_SOFT]
+		return {"card": &"locked", "key": "ui_btn_off",
+			"text": Loc.t("level.short", {"n": str(CosmeticDb.level_of(id))}),
+			"ink": UiTheme.INK_SOFT}
 	var price := float(item.get("cost", 0.0))
-	return [GameState.fmt(price), UiTheme.AMBER_DEEP if GameState.can_afford(price)
-		else UiTheme.DANGER]
+	if GameState.can_afford(price):
+		return {"card": &"ready", "key": "ui_btn_go", "text": GameState.fmt(price),
+			"ink": UiTheme.CREAM}
+	return {"card": &"normal", "key": "ui_btn_off", "text": GameState.fmt(price),
+		"ink": UiTheme.INK_SOFT}
 
 
 func _refresh_cosmetics() -> void:
-	if _decor_nodes.is_empty() or not is_instance_valid(_decor_nodes.get("art")):
+	if _decor_grid == null or not is_instance_valid(_decor_grid):
 		return
+	_decor_grid.columns = 2 if _board == null else \
+		clampi(int((_board.size.x - 28.0) / 150.0), 2, 4)
 	var owned := 0
 	for item: Dictionary in CosmeticDb.all():
 		var id := StringName(item.id)
-		if GameState.owns_cosmetic(id):
+		var mine := GameState.owns_cosmetic(id)
+		if mine:
 			owned += 1
 		var tile := _decor_tiles.get(id) as Button
 		if tile == null or not is_instance_valid(tile):
 			continue
 		tile.visible = _decor_filter == &"all" or StringName(item.kind) == _decor_filter
-		var mine := GameState.owns_cosmetic(id)
-		var state := &"ready" if id == _decor_pick else (&"done" if mine else (
-			&"locked" if CosmeticDb.level_only(id) else &"normal"))
-		for look: StringName in [&"normal", &"hover", &"pressed", &"focus"]:
-			tile.add_theme_stylebox_override(look, UiTheme.card_style(
-				&"ready" if look != &"normal" and id != _decor_pick else state))
-		var art := tile.get_node(^"Column/Art") as TextureRect
+		var look := _decor_state(id)
+		var card: StringName = look.card
+		if tile.get_meta(&"look", "") == str(look):
+			continue
+		tile.set_meta(&"look", str(look))
+		for state: StringName in [&"normal", &"hover", &"pressed", &"focus", &"disabled"]:
+			tile.add_theme_stylebox_override(state, UiTheme.card_style(card))
+		var art := tile.get_node(^"Column/Well/Art") as TextureRect
 		# Pieces you cannot have yet are shown dimmed, never hidden: the shelf
 		# is also the list of what there is to want.
-		art.modulate = Color.WHITE if mine or GameState.can_afford(float(item.cost)) \
-			else Color(0.55, 0.55, 0.6)
-		var badge := tile.get_node(^"Column/Badge") as Label
-		var look_badge := _decor_badge(id)
-		badge.text = str(look_badge[0])
-		badge.label_settings = UiTheme.settings(UiTheme.SIZE_SMALL, look_badge[1])
+		art.modulate = Color.WHITE if mine or card == &"ready" else Color(0.62, 0.64, 0.68)
+		(tile.get_node(^"Column/Well/OnStamp") as Control).visible = \
+			GameState.cosmetic_on(id)
+		(tile.get_node(^"Column/NameRow/Lock") as Control).visible = \
+			CosmeticDb.level_only(id) and not mine
+		var name_label := tile.get_node(^"Column/NameRow/Name") as Label
+		name_label.label_settings = UiTheme.settings(UiTheme.SIZE_BODY,
+			UiTheme.INK if mine or card == &"ready" else UiTheme.INK_SOFT)
+		var key := tile.get_node(^"Column/Key") as PanelContainer
+		UiTheme.apply_panel(key, UiTheme.nine(str(look.key), 5, 4))
+		var value := tile.get_node(^"Column/Key/Value") as Label
+		value.text = str(look.text)
+		value.label_settings = UiTheme.settings(UiTheme.SIZE_BODY, look.ink)
+		if mine:
+			UiTheme.describe(tile, str(item.name), Loc.t(
+				"shop.cosmetics.toggle_off" if GameState.cosmetic_on(id)
+				else "shop.cosmetics.toggle_on", {"name": str(item.name)}))
+		else:
+			UiTheme.describe(tile, str(item.name), "%s • %s" % [str(item.desc),
+				str(look.text)])
 	for key: StringName in _decor_filters:
 		UiTheme.style_segment(_decor_filters[key], key == _decor_filter)
-	(_decor_nodes.count as Label).text = Loc.t("shop.cosmetics.count",
-		{"n": str(owned), "total": str(CosmeticDb.all().size())})
-	# --- the showcase follows the pick ---
-	var pick := CosmeticDb.of(_decor_pick)
-	if pick.is_empty():
-		return
-	var id := _decor_pick
-	(_decor_nodes.art as TextureRect).texture = _decor_texture(id)
-	(_decor_nodes.kind as Label).text = Loc.t("shop.cosmetics.port"
-		if StringName(pick.kind) == CosmeticDb.KIND_PORT else "shop.cosmetics.crew")
-	(_decor_nodes.title as Label).text = str(pick.name)
-	(_decor_nodes.desc as Label).text = str(pick.desc)
-	var buy := _decor_nodes.buy as Button
-	var toggle := _decor_nodes.toggle as Button
-	var mine := GameState.owns_cosmetic(id)
-	var on := GameState.cosmetic_on(id)
-	buy.visible = not mine
-	buy.text = Loc.t("shop.buy_name", {"name": GameState.fmt(float(pick.cost))})
-	buy.disabled = not GameState.can_afford(float(pick.cost))
-	if CosmeticDb.level_only(id):
-		buy.text = Loc.t("level.short", {"n": str(CosmeticDb.level_of(id))})
-		buy.disabled = true
-	UiTheme.describe(buy, Loc.t("shop.buy_name", {"name": str(pick.name)}),
-		Loc.t("shop.cost", {"amount": GameState.fmt(float(pick.cost))}))
-	toggle.visible = mine
-	toggle.text = Loc.t("shop.cosmetics.on" if on else "shop.cosmetics.off")
-	UiTheme.style_button(toggle, &"amber" if on else &"steel")
-	UiTheme.describe(toggle, Loc.t("shop.cosmetics.toggle_off" if on
-		else "shop.cosmetics.toggle_on", {"name": str(pick.name)}))
+	var total := CosmeticDb.all().size()
+	_decor_count.text = Loc.t("shop.cosmetics.count", {"n": str(owned), "total": str(total)})
+	_decor_bar.max_value = float(total)
+	_decor_bar.value = float(owned)
 
 
 func _build_orders() -> void:
@@ -1645,9 +1557,6 @@ func _layout() -> void:
 			tab_button.text = Loc.t(str(tab[1]))
 	_update_tab_badges()
 	_update_orders_tab()
-	if _ticket_effect != null:
-		# Autowrap needs a real width before the column asks it for a height.
-		_ticket_effect.custom_minimum_size.x = _board.size.x - 40.0
 
 	_backdrop.visible = _open
 	_board.visible = _open
@@ -1719,6 +1628,45 @@ func _on_buy_upgrade(id: String) -> void:
 	elif card != null:
 		card.shake_deny()
 		AudioManager.play_sfx("deny")
+
+
+func buy_all_upgrades() -> int:
+	## Cheapest first, and again after each pass: a purchase can open the next
+	## node down its trunk, which may itself be affordable now.
+	var bought := 0
+	var guard := 0
+	while guard < 32:
+		guard += 1
+		var candidates: Array[Dictionary] = []
+		for item in UpgradeDB.ITEMS:
+			if not GameState.has_upgrade(str(item.id)) and GameState.upgrade_available(item) \
+					and GameState.can_afford(float(item.cost)):
+				candidates.append(item)
+		if candidates.is_empty():
+			break
+		candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return float(a.cost) < float(b.cost))
+		var progressed := false
+		for item in candidates:
+			if GameState.buy_upgrade(str(item.id)):
+				bought += 1
+				progressed = true
+		if not progressed:
+			break
+	return bought
+
+
+func _on_buy_all_upgrades() -> void:
+	var bought := buy_all_upgrades()
+	if bought <= 0:
+		AudioManager.play_sfx("deny")
+		return
+	AudioManager.play_sfx("upgrade")
+	EventBus.notification_requested.emit({
+		"id": "upgrades_bought", "kind": &"unlock", "priority": 1,
+		"text": Loc.t("shop.upgrades.bought_all", {"n": str(bought)}),
+	})
+	_refresh_upgrades()
 
 
 func _on_buy_land(id: String) -> void:

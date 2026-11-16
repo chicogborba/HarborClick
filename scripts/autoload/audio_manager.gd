@@ -448,12 +448,22 @@ func _load(stream_name: String, looping: bool = false) -> AudioStream:
 	var key := stream_name + ("_loop" if looping else "")
 	if _cache.has(key):
 		return _cache[key]
-	var path := SFX_DIR + stream_name + ".wav"
+	# The soundtrack is Ogg (tools/audio/lyria); effects and ambience are WAV.
+	var path := SFX_DIR + stream_name + ".ogg"
+	if not ResourceLoader.exists(path):
+		path = SFX_DIR + stream_name + ".wav"
 	if not ResourceLoader.exists(path):
 		_cache[key] = null
 		return null
 	var stream: AudioStream = load(path)
-	if looping and stream is AudioStreamWAV:
+	if looping and stream is AudioStreamOggVorbis:
+		# The loop seam is baked into the file (render_loops.py crossfades the
+		# tail over the head), so the whole file loops.
+		var ogg := (stream as AudioStreamOggVorbis).duplicate() as AudioStreamOggVorbis
+		ogg.loop = true
+		ogg.loop_offset = 0.0
+		stream = ogg
+	elif looping and stream is AudioStreamWAV:
 		var wav := (stream as AudioStreamWAV).duplicate() as AudioStreamWAV
 		wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
 		wav.loop_begin = 0

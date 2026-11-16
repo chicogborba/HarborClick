@@ -6,7 +6,9 @@ class_name AchievementDB
 ## adds. They used to pay "cosmetics" and "career points" that existed nowhere
 ## else in the game — a reward the player could never see or spend.
 
-const ITEMS: Array[Dictionary] = [
+## A `static var`, not a `const`: `CatalogText` writes the player's language
+## into these rows in place (see scripts/i18n/catalog_text.gd).
+static var ITEMS: Array[Dictionary] = [
 	# TEU (6)
 	{"id": "teu_100", "category": "teu", "stat": "teus_earned", "threshold": 100.0, "title": "Primeira Carga", "description": "Produza 100 TEUs.", "reward": {"kind": "xp", "amount": 40}},
 	{"id": "teu_10k", "category": "teu", "stat": "teus_earned", "threshold": 10000.0, "title": "Maré de Contêineres", "description": "Produza 10 mil TEUs.", "reward": {"kind": "xp", "amount": 80}},

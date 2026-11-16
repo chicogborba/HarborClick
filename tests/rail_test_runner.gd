@@ -608,7 +608,6 @@ func _test_fitted_upgrades_move_the_branch() -> void:
 	var branch := _world.rail
 	var before_rate := branch.auto_rate()
 	var before_dwell := branch.dwell_seconds()
-	var before_bonus := branch.completion_seconds()
 	_expect(_close(before_dwell, RailYard.DWELL_SECONDS),
 		"an unfitted branch stands for the baseline dwell")
 
@@ -620,24 +619,12 @@ func _test_fitted_upgrades_move_the_branch() -> void:
 	_expect(branch.auto_rate() > before_rate,
 		"a rail gantry works the rake faster")
 
-	GameState.upgrades["terminal_interior"] = true
-	_expect(branch.completion_seconds() > before_bonus,
-		"a dry port pays more for a composition worked clean")
-
-	# The exclusive pair trades stand time against how often a train comes, and
-	# both halves have to actually land on the timetable.
-	GameState.upgrades.erase("patio_manobras")
-	GameState.upgrades["trem_shuttle"] = true
-	var shuttle_gap := RailCargoPolicy.clamp_gap(
+	GameState.upgrades["sinalizacao_ctc"] = true
+	var ctc_gap := RailCargoPolicy.clamp_gap(
 		RailCargoPolicy.service_gap(true) * GameState.rail_stat(&"service_gap", 1.0))
-	GameState.upgrades.erase("trem_shuttle")
-	GameState.upgrades["trem_pesado"] = true
-	var heavy_gap := RailCargoPolicy.clamp_gap(
-		RailCargoPolicy.service_gap(true) * GameState.rail_stat(&"service_gap", 1.0))
-	_expect(shuttle_gap.y < heavy_gap.x,
-		"the shuttle's whole timetable is tighter than the heavy train's")
-	_expect(branch.dwell_seconds() > RailYard.DWELL_SECONDS,
-		"and the heavy train pays for that with a much longer stand")
+	var bare_gap := RailCargoPolicy.clamp_gap(RailCargoPolicy.service_gap(true))
+	_expect(ctc_gap.y <= bare_gap.y and ctc_gap.x < bare_gap.x,
+		"signalling brings the services closer together")
 
 	GameState.upgrades.clear()
 	_expect(_close(branch.dwell_seconds(), RailYard.DWELL_SECONDS)

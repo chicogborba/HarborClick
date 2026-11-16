@@ -444,6 +444,32 @@ const STRINGS := {
 	"pt_BR": "VOCÊ ESTÁ AQUI", "en": "YOU ARE HERE", "es": "ESTÁS AQUÍ",
 	"fr": "VOUS ÊTES ICI", "de": "SIE SIND HIER", "it": "SEI QUI",
 	"ru": "ВЫ ЗДЕСЬ", "pl": "JESTEŚ TUTAJ", "tr": "BURADASIN"},
+"ports.trip.free": {
+	"pt_BR": "Viagem grátis disponível", "en": "Free crossing available",
+	"es": "Viaje gratis disponible", "fr": "Traversée gratuite disponible",
+	"de": "Kostenlose Überfahrt verfügbar", "it": "Traversata gratuita disponibile",
+	"ru": "Бесплатный рейс доступен", "pl": "Darmowy rejs dostępny",
+	"tr": "Ücretsiz sefer hazır"},
+"ports.trip.next": {
+	"pt_BR": "Grátis em {time} • ou veja um anúncio",
+	"en": "Free in {time} • or watch an ad",
+	"es": "Gratis en {time} • o mira un anuncio",
+	"fr": "Gratuit dans {time} • ou regardez une pub",
+	"de": "Gratis in {time} • oder Werbung ansehen",
+	"it": "Gratis tra {time} • o guarda uno spot",
+	"ru": "Бесплатно через {time} • или реклама",
+	"pl": "Za darmo za {time} • lub obejrzyj reklamę",
+	"tr": "{time} sonra ücretsiz • ya da reklam izle"},
+"ports.trip.ad": {
+	"pt_BR": "assista um anúncio curto para viajar agora",
+	"en": "watch a short ad to sail now",
+	"es": "mira un anuncio corto para viajar ahora",
+	"fr": "regardez une courte pub pour partir maintenant",
+	"de": "kurze Werbung ansehen, um jetzt zu reisen",
+	"it": "guarda uno spot breve per partire ora",
+	"ru": "посмотрите короткую рекламу, чтобы отплыть сейчас",
+	"pl": "obejrzyj krótką reklamę, aby wypłynąć teraz",
+	"tr": "şimdi gitmek için kısa bir reklam izle"},
 "ports.travel": {
 	"pt_BR": "VIAJAR", "en": "TRAVEL", "es": "VIAJAR", "fr": "PARTIR",
 	"de": "REISEN", "it": "PARTI", "ru": "В ПУТЬ", "pl": "PŁYŃ", "tr": "GİT"},
@@ -854,14 +880,8 @@ const STRINGS := {
 	"pt_BR": "{v} TOQUE", "en": "{v} TAP", "es": "{v} TOQUE", "fr": "{v} TOUCHE", "de": "{v} TIPPEN", "it": "{v} TOCCO", "ru": "{v} КАСАНИЕ", "pl": "{v} STUKNIĘCIE", "tr": "{v} DOKUNUŞ"},
 "shop.chip.synergy": {
 	"pt_BR": "{v} POR MÁQUINA", "en": "{v} PER MACHINE", "es": "{v} POR MÁQUINA", "fr": "{v} PAR MACHINE", "de": "{v} PRO MASCHINE", "it": "{v} PER MACCHINA", "ru": "{v} ЗА МАШИНУ", "pl": "{v} NA MASZYNĘ", "tr": "{v} MAKİNE BAŞI"},
-"shop.chip.swap": {
-	"pt_BR": "TROCA", "en": "SWAP", "es": "CAMBIO", "fr": "ÉCHANGE", "de": "TAUSCH", "it": "SCAMBIO", "ru": "ОБМЕН", "pl": "ZAMIANA", "tr": "TAKAS"},
 "shop.chip.rail": {
 	"pt_BR": "RAMAL", "en": "RAIL", "es": "RAMAL", "fr": "RAIL", "de": "BAHN", "it": "RACCORDO", "ru": "ВЕТКА", "pl": "BOCZNICA", "tr": "HAT"},
-"shop.chip.choice": {
-	"pt_BR": "ESCOLHA 1 DE 2", "en": "PICK 1 OF 2", "es": "ELIGE 1 DE 2", "fr": "1 SUR 2", "de": "1 VON 2", "it": "SCEGLI 1 DI 2", "ru": "1 ИЗ 2", "pl": "WYBIERZ 1 Z 2", "tr": "2'DEN 1'İ"},
-"shop.upgrade.or": {
-	"pt_BR": "Ou este ou {name}. Dá pra trocar depois.", "en": "This or {name}. You can swap later.", "es": "Este o {name}. Puedes cambiar después.", "fr": "Celui-ci ou {name}. Échange possible ensuite.", "de": "Dieses oder {name}. Später tauschbar.", "it": "Questo o {name}. Puoi cambiare dopo.", "ru": "Это или {name}. Потом можно поменять.", "pl": "To albo {name}. Można zmienić później.", "tr": "Bu ya da {name}. Sonra değiştirebilirsin."},
 "boost.output": {
 	"pt_BR": "PRODUÇÃO", "en": "OUTPUT", "es": "PRODUCCIÓN", "fr": "PRODUCTION", "de": "LEISTUNG", "it": "PRODUZIONE", "ru": "ВЫРАБОТКА", "pl": "PRODUKCJA", "tr": "ÜRETİM"},
 "boost.combo": {
@@ -1014,16 +1034,6 @@ const STRINGS := {
 # Deliberately terse: the card's sub-label shows two lines and the second is
 # "+N TEU/s". A longer sentence pushes the gain off the card, and the gain is
 # half of what makes the swap a decision.
-"shop.upgrade.swap": {
-	"pt_BR": "Troca {name} - preço triplo",
-	"en": "Replaces {name} - triple price",
-	"es": "Sustituye {name} - precio triple",
-	"fr": "Remplace {name} - prix triple",
-	"de": "Ersetzt {name} - dreifach",
-	"it": "Sostituisce {name} - prezzo triplo",
-	"ru": "Заменит «{name}» - тройная цена",
-	"pl": "Zastąpi {name} - potrójna cena",
-	"tr": "{name} yerine - üç kat fiyat"},
 # Not a word, a punctuation mark — but it is localised text like any other, and
 # it belongs where the rest of it lives. "1.2B" in a pt-BR game reads as one
 # point two, which is a different number.
@@ -1259,22 +1269,6 @@ const STRINGS := {
 "number.decimal": {
 	"pt_BR": ",", "en": ".", "es": ",", "fr": ",", "de": ",",
 	"it": ",", "ru": ",", "pl": ",", "tr": ","},
-"shop.map.pick": {
-	"pt_BR": "Toque numa estação", "en": "Tap a station",
-	"es": "Toque una estación", "fr": "Touchez une station",
-	"de": "Station antippen", "it": "Tocca una stazione",
-	"ru": "Коснитесь станции", "pl": "Dotknij stacji",
-	"tr": "Bir istasyona dokun"},
-"shop.map.hint": {
-	"pt_BR": "Cada linha é um ramo. Arraste para andar, pince para aproximar.",
-	"en": "Each line is a branch. Drag to move, pinch to zoom.",
-	"es": "Cada línea es una rama. Arrastre para mover, pellizque para acercar.",
-	"fr": "Chaque ligne est une branche. Glissez pour vous déplacer, pincez pour zoomer.",
-	"de": "Jede Linie ist ein Zweig. Ziehen zum Bewegen, kneifen zum Zoomen.",
-	"it": "Ogni linea è un ramo. Trascina per spostarti, pizzica per ingrandire.",
-	"ru": "Каждая линия - ветка. Тяните, чтобы двигаться, сводите пальцы для масштаба.",
-	"pl": "Każda linia to gałąź. Przeciągnij, aby się poruszać, uszczypnij, aby przybliżyć.",
-	"tr": "Her hat bir daldır. Kaydırarak gezin, sıkıştırarak yakınlaş."},
 "shop.upgrades.available": {
 	"pt_BR": "DISPONÍVEIS", "en": "AVAILABLE", "es": "DISPONIBLES",
 	"fr": "DISPONIBLES", "de": "VERFÜGBAR", "it": "DISPONIBILI",
@@ -1303,24 +1297,10 @@ const STRINGS := {
 	"de": "+{n} weiter oben im Baum", "it": "+{n} più avanti nell'albero",
 	"ru": "+{n} дальше по дереву", "pl": "+{n} dalej w drzewie",
 	"tr": "+{n} ağaçta ileride"},
-"shop.upgrades.map": {
-	"pt_BR": "MAPA", "en": "MAP", "es": "MAPA", "fr": "CARTE", "de": "KARTE",
-	"it": "MAPPA", "ru": "КАРТА", "pl": "MAPA", "tr": "HARİTA"},
-"shop.upgrades.list": {
-	"pt_BR": "LISTA", "en": "LIST", "es": "LISTA", "fr": "LISTE", "de": "LISTE",
-	"it": "LISTA", "ru": "СПИСОК", "pl": "LISTA", "tr": "LİSTE"},
-"shop.map.buy": {
-	"pt_BR": "COMPRAR", "en": "BUY", "es": "COMPRAR", "fr": "ACHETER",
-	"de": "KAUFEN", "it": "COMPRA", "ru": "КУПИТЬ", "pl": "KUP",
-	"tr": "SATIN AL"},
 "shop.map.owned": {
 	"pt_BR": "PRONTO", "en": "DONE", "es": "LISTO", "fr": "FAIT",
 	"de": "FERTIG", "it": "FATTO", "ru": "ГОТОВО", "pl": "GOTOWE",
 	"tr": "TAMAM"},
-"shop.map.shut": {
-	"pt_BR": "FECHADO", "en": "SHUT", "es": "CERRADO", "fr": "FERMÉ",
-	"de": "ZU", "it": "CHIUSO", "ru": "ЗАКРЫТО", "pl": "ZAMKNIĘTE",
-	"tr": "KAPALI"},
 "shop.cost": {
 	"pt_BR": "{amount} TEUs", "en": "{amount} TEUs", "es": "{amount} TEUs",
 	"fr": "{amount} TEU", "de": "{amount} TEU", "it": "{amount} TEU",
@@ -1330,6 +1310,16 @@ const STRINGS := {
 	"fr": "Acheter {name}", "de": "{name} kaufen", "it": "Compra {name}",
 	"ru": "Купить «{name}»", "pl": "Kup {name}", "tr": "{name} satın al"},
 
+"shop.upgrades.buy_all": {
+	"pt_BR": "COMPRAR TUDO", "en": "BUY ALL", "es": "COMPRAR TODO",
+	"fr": "TOUT ACHETER", "de": "ALLES KAUFEN", "it": "COMPRA TUTTO",
+	"ru": "КУПИТЬ ВСЁ", "pl": "KUP WSZYSTKO", "tr": "HEPSİNİ AL"},
+"shop.upgrades.bought_all": {
+	"pt_BR": "{n} melhorias instaladas", "en": "{n} upgrades fitted",
+	"es": "{n} mejoras instaladas", "fr": "{n} améliorations installées",
+	"de": "{n} Verbesserungen eingebaut", "it": "{n} migliorie installate",
+	"ru": "Установлено улучшений: {n}", "pl": "Zamontowano ulepszeń: {n}",
+	"tr": "{n} geliştirme takıldı"},
 "shop.cosmetics.all": {
 	"pt_BR": "TUDO", "en": "ALL", "es": "TODO", "fr": "TOUT", "de": "ALLES",
 	"it": "TUTTO", "ru": "ВСЁ", "pl": "WSZYSTKO", "tr": "TÜMÜ"},
@@ -1361,7 +1351,7 @@ const STRINGS := {
 	"pt_BR": "LIGADO", "en": "ON", "es": "PUESTO", "fr": "ACTIVÉ", "de": "AN",
 	"it": "ATTIVO", "ru": "ВКЛ", "pl": "WŁ.", "tr": "TAKILI"},
 "shop.cosmetics.off": {
-	"pt_BR": "DESLIG.", "en": "OFF", "es": "QUITADO", "fr": "DÉSACT.",
+	"pt_BR": "DESLIGADO", "en": "OFF", "es": "QUITADO", "fr": "DÉSACT.",
 	"de": "AUS", "it": "SPENTO", "ru": "ВЫКЛ", "pl": "WYŁ.",
 	"tr": "KALDIRILDI"},
 "shop.cosmetics.toggle_on": {

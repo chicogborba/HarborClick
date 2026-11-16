@@ -30,7 +30,6 @@ func _run() -> void:
 	test_rebuild_estimate_answers_in_time()
 	test_wrong_build_is_worse_but_never_fatal()
 	test_upgrade_graph_is_sound()
-	test_exclusive_choices_are_swaps_not_traps()
 	test_saturating_bonus_bends_instead_of_stopping()
 	test_builds_diverge_and_both_stay_viable()
 	test_each_machine_prices_its_own_curve()
@@ -82,7 +81,11 @@ func test_runtime_catalog_integrity() -> void:
 			for entry in StructureDB.RAW_ITEMS:
 				if String(entry.id) == structure_id:
 					raw = entry
-			_expect(_close(float(raw.cost) / float(structure.cps), float(paybacks[structure_id])), "%s preserves its target payback" % structure_id)
+			# Output runs at `OUTPUT_SCALE` of the authored rate, so the paid
+			# payback is the authored one divided by it - every machine slowed alike.
+			_expect(_close(float(raw.cost) / float(structure.cps),
+				float(paybacks[structure_id]) / EconomyMath.OUTPUT_SCALE),
+				"%s preserves its target payback" % structure_id)
 			_expect(float(structure.cost) >= float(raw.cost), "%s is never cheaper than authored" % structure_id)
 	_expect(structure_ids.size() == catalog_by_id.size(), "runtime structures cover every EconomyCatalog id")
 
@@ -105,11 +108,6 @@ func test_runtime_catalog_integrity() -> void:
 			_expect(float(upgrade.get("value", 0.0)) > 0.0
 				and float(upgrade.get("cap", 0.0)) > 0.0,
 				"%s has a positive rate and ceiling" % upgrade_id)
-		if String(upgrade.get("kind", "")) == "transform":
-			_expect(UpgradeDB.targets_of(upgrade).size() == 1,
-				"%s transforms exactly one machine" % upgrade_id)
-			_expect(float(upgrade.get("self_mult", 1.0)) < 1.0,
-				"%s actually gives something up" % upgrade_id)
 		for sid: String in upgrade.get("unlock", {}).get("owned", {}):
 			_expect(structure_ids.has(sid),
 				"%s unlocks on a valid structure (%s)" % [upgrade_id, sid])
@@ -195,21 +193,23 @@ func test_balance_targets() -> void:
 	# The week-long pacing curve (`EconomyMath.pace_cost`) moved it out: two
 	# hours a day for a week finishes the game, so a nonstop player's first
 	# rebuild lands in an afternoon rather than a lunch break.
-	var active := EconomySimulator.run_scenario(&"recovery", {"duration": 7.0 * 3600.0})
+	# `OUTPUT_SCALE` halved production on top of that: the climb is meant to be
+	# slow, so a nonstop player's first rebuild is a full day's work.
+	var active := EconomySimulator.run_scenario(&"recovery", {"duration": 16.0 * 3600.0})
 	var first_prestige := float(active.markers.first_prestige)
-	_expect(first_prestige >= 4.0 * 3600.0 and first_prestige <= 6.0 * 3600.0,
-		"first prestige of a nonstop player lands between 4 and 6 hours (%.0f min)"
+	_expect(first_prestige >= 9.0 * 3600.0 and first_prestige <= 13.0 * 3600.0,
+		"first prestige of a nonstop player lands between 9 and 13 hours (%.0f min)"
 			% (first_prestige / 60.0))
 	# The README target is three distinct machines within five minutes. Speeding
 	# up the first two paybacks took it from 7min25 to 6min40; the rest of the
 	# gap is the price step to the third machine and it is still a roadmap item.
 	# This guards the regression, not the goal.
-	_expect(float(active.markers.three_owned) <= 420.0,
-		"a third kind of machine arrives within seven minutes")
+	_expect(float(active.markers.three_owned) <= 720.0,
+		"a third kind of machine arrives within twelve minutes")
 	# Rebuilding has to be faster than the first climb, but not so much faster
 	# that the second run is over before it starts. The rebuild discount is the
 	# lever; 75% off put this at 6.1x and emptied the second run.
-	var rebuilt := EconomySimulator.run_scenario(&"recovery")
+	var rebuilt := EconomySimulator.run_scenario(&"recovery", {"duration": 16.0 * 3600.0})
 	var climb := float(rebuilt.markers.first_prestige)
 	var again := float(rebuilt.markers.first_recovery_seconds)
 	_expect(again > 0.0 and climb > 0.0, "the recovery run both resets and rebuilds")
@@ -232,7 +232,7 @@ func test_simulator_models_upgrades() -> void:
 
 
 func test_simulator_prestiges_and_measures_recovery() -> void:
-	var run := EconomySimulator.run_scenario(&"recovery")
+	var run := EconomySimulator.run_scenario(&"recovery", {"duration": 16.0 * 3600.0})
 	_expect(int(run.prestige_count) > 0, "the agent actually resets the port")
 	_expect(int(run.prestige_level) > 0 and run.tree_nodes.size() > 0,
 		"golden shares are earned and spent on the capital tree")
@@ -302,44 +302,10 @@ func test_upgrade_graph_is_sound() -> void:
 				"%s requires a node that exists (%s)" % [id, parent])
 			_expect(UpgradeDB.depth_of(parent) < UpgradeDB.depth_of(id),
 				"%s is drawn below its prerequisite" % id)
-		for other in UpgradeDB.excludes_of(item):
-			_expect(UpgradeDB.excludes_of(UpgradeDB.get_item(other)).has(id),
-				"%s and %s exclude each other both ways" % [id, other])
-
-
-func test_exclusive_choices_are_swaps_not_traps() -> void:
-	## "Cara mas possível" is the requirement, and it has two halves that a single
-	## boolean cannot express: the sibling has to actually come off, and the second
-	## pick has to cost more than the first did.
-	var pair: Array[String] = ["estoque_profundo", "giro_rapido"]
-	var first := UpgradeDB.get_item(pair[0])
-	var second := UpgradeDB.get_item(pair[1])
-	_expect(UpgradeDB.excludes_of(first).has(pair[1]),
-		"the yard's deep half excludes the fast half")
-	_expect(_close(UpgradeDB.price_for(second, {}), float(second.cost)),
-		"a first pick is the list price")
-	var owning_first := {pair[0]: true}
-	_expect(UpgradeDB.price_for(second, owning_first)
-		> float(second.cost) * 2.0,
-		"replacing the sibling costs a real surcharge")
-	_expect(UpgradeDB.conflicts_with(second, owning_first) == pair.slice(0, 1),
-		"the swap names exactly what comes off")
-	# The conductors are the same rule expressed as a group rather than a pair, so
-	# a terminal can only ever be run by one thing at a time.
-	var conductors: Array[String] = []
-	for item in UpgradeDB.ITEMS:
-		if String(item.get("group", "")) == "conductor":
-			conductors.append(String(item.id))
-	_expect(conductors.size() >= 3, "there is a real choice of identity")
-	for id in conductors:
-		var excludes := UpgradeDB.excludes_of(UpgradeDB.get_item(id))
-		for other in conductors:
-			_expect(other == id or excludes.has(other),
-				"%s excludes the other identities (%s)" % [id, other])
 
 
 func test_saturating_bonus_bends_instead_of_stopping() -> void:
-	## The curve every synergy and conductor is paid on. A hard cap put a cliff in
+	## The curve every synergy is paid on. A hard cap put a cliff in
 	## the middle of a strategy; this has to start at the rate the card quotes,
 	## never stop rewarding another unit, and never reach the ceiling.
 	var rate := 0.02
@@ -379,18 +345,6 @@ func test_builds_diverge_and_both_stay_viable() -> void:
 	# name, so this is the line neither side may cross.
 	_expect(ratio < 2.4, "neither build is worse than simply playing badly (%.2fx)"
 		% ratio)
-	_expect(float(wide.conductor_multiplier) > 1.0
-		and float(tall.conductor_multiplier) > 1.0,
-		"each build ends up run by an identity it chose")
-	var wide_set := {}
-	for id in wide.upgrades:
-		wide_set[String(id)] = true
-	var different := 0
-	for id in tall.upgrades:
-		if not wide_set.has(String(id)):
-			different += 1
-	_expect(different >= 2,
-		"the two builds ended on genuinely different nodes (%d)" % different)
 	# C8 note: per-machine growth curves plus the build plans' cheap/big biases
 	# are the levers that make fleet shape a decision; the greedy sandbox still
 	# ends both builds owning every kind, so composition_distance stays small

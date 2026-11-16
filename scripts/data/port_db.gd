@@ -28,7 +28,9 @@ const HOME: StringName = &"santos"
 
 ## Chart positions are in the world map's 0..1 equirectangular space:
 ## x = (lon + 180) / 360, y = (90 - lat) / 180.
-const PORTS: Array[Dictionary] = [
+## A `static var`, not a `const`: `CatalogText` writes the player's language
+## into these rows in place (see scripts/i18n/catalog_text.gd).
+static var PORTS: Array[Dictionary] = [
 	{
 		"id": &"santos", "name": "Santos", "country": "Brasil", "flag": 0,
 		"chart": Vector2(0.371, 0.633), "playable": true, "cost": 0.0,
@@ -158,7 +160,7 @@ const PORTS: Array[Dictionary] = [
 ]
 
 ## The local trunk a port adds to the upgrade tree.
-const BRANCH := {"id": "porto", "title": "Porto", "art": "torre"}
+static var BRANCH := {"id": "porto", "title": "Porto", "art": "torre"}
 ## What every *other* open port is worth to this one: the network is the reason
 ## to run more than one terminal, and the only thing ports share.
 const NETWORK_BONUS_PER_PORT := 0.10
@@ -198,6 +200,8 @@ static func set_active(id: StringName) -> void:
 	LandDB.apply_port()
 	UpgradeDB.apply_port()
 	ShipCatalog.apply_port()
+	# The paced tables were just rebuilt from the authored Portuguese.
+	CatalogText.relocalize()
 
 
 # ------------------------------------------------------------------- economy

@@ -43,7 +43,18 @@
   `tour_xray_due`, `xray_panel`, `xray_roll`, `xray_boot`, `xray_scan`,
   `xray_miss`) — the
   matrix harness can wedge on a stale frame after its first shot when the
-  window is unfocused, which a single shot never does.
+  window is unfocused, which a single shot never does. `a+b+c` takes several
+  closeups in one window (it raises the window before each), and `wake_trail`
+  and `tooltip` are scenarios too. Pass `--audio-driver Dummy` to keep it quiet.
+  `water_lab.tscn` renders the water shader alone with a moored hull, a hull
+  under way and a tug track — seconds instead of a full boot. `census.tscn`
+  runs **headless**: the perf stress port, counted (nodes per subtree, who
+  processes) and timed (ms per script `_process`, per `PortWorld` subsystem).
+- `docs/gen_store_media.py` + `docs/gen_keyart.py` — store screenshots, feature
+  graphic and social banners (`docs/media/store/`); the key art is generated
+  once with an OpenRouter key from real captures as style reference.
+- `audio/lyria/` — the soundtrack: prompts, committed Lyria answers and the
+  offline loop renderer (see its README).
 - `balance/` — deterministic economy scenarios.
 - `docs/` — whole-repository code-map generator, and `gen_readme_media.py`,
   which frames `user://uishots` captures and the landing wordmark into the

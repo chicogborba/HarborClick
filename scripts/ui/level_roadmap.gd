@@ -409,8 +409,8 @@ func _layout() -> void:
 	var view := get_viewport().get_visible_rect().size
 	var safe := _safe_rect if _safe_rect.size != Vector2.ZERO \
 		else Rect2(Vector2.ZERO, view)
-	_scrim.position = Vector2.ZERO
-	_scrim.size = view
+	# The scrim is anchored full-rect (UiTheme.scrim); sizing it by hand only
+	# made the engine warn on every layout that it would undo the change.
 	var width := minf(620.0, safe.size.x - 12.0)
 	_board.size = Vector2(width, _board.size.y)
 	if _layout_pending or not is_inside_tree():

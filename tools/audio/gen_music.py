@@ -294,6 +294,14 @@ def gen_shop():
     save_wav(buf, "music_shop", normalize=0.5)
 
 if __name__ == "__main__":
+    # Retired: the soundtrack is composed by Lyria now (tools/audio/lyria —
+    # recipes, committed answers, render_loops.py). These synth loops are kept
+    # as the reference they were and only render with --synth; even then the
+    # .ogg wins in AudioManager._load, so they can never shadow the real tracks.
+    import sys
+    if "--synth" not in sys.argv:
+        print("music: from tools/audio/lyria (pass --synth for the old loops)")
+        sys.exit(0)
     print("music:")
     gen_day()
     gen_night()

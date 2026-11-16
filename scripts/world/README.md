@@ -1,6 +1,19 @@
 # World domain
 
-## The ground is baked per ownership state
+## The ground is baked per ownership state, then weathered once on the GPU
+
+`GroundBaker` places tiles and paint; `GroundSurface` then runs
+`ground_detail.gdshader` over the result in a SubViewport drawn **once**
+(`UPDATE_ONCE`) and `_ground` shows that texture — no per-frame cost. The pass
+adds what 16 px tiles cannot: terminal-scale tone, cast apron slabs (two across,
+28 px long, sawn joints with a lit lip), crane rails under the portainers'
+bogies (`QUAY_X0 + 8` and `+ 28`), patched/oiled/cracked blacktop a shade cooler
+than the tile, tyre-polished wheel paths on the road and grass in clumps. Paint
+(saturated or very bright pixels) only takes the macro tone. Because the
+shader owns joints, patches and cracks, `gen_ground.py`'s `gr_quay` and
+`gr_yard_*` tiles are plain grain — put features back in a tile and they repeat
+every 16 px again. The old `prop_puddle` decals on the asphalt were retired for
+the same reason (they read as hexagonal UI ghosts).
 
 `GroundBaker.bake(world_h, rail_owned)` paints the whole plane in one texture.
 The rail corridor (ballast, sleepers, both steel lines, buffer stop, platform)
@@ -188,22 +201,37 @@ exception — the deck rows are eleven pixels apart and a box is thirteen tall, 
 an offset copy lands on the box below it and the hold turns into dark bands. That
 offset is the whole difference between flat 2D and a top-down view with depth.
 
-Water is worked by every hull, moving or not. `_feed_water_shader` hands the
-shader one rectangle per visible ship, and a lap of disturbed water runs along
-each of them — peaked a few pixels *out*, because the first three are under the
-hull's own contact shadow and a band brightest at zero is a band nobody sees. A
-berth is what the player looks at almost all of the time; before this the surface
-only moved during the five seconds of an arrival.
+Water is `WaterSurface`: `water_top.gdshader` painting a SubViewport the size of
+the harbour in *world* pixels, shown nearest-filtered where the old ColorRect
+was. Its cost is fixed by the harbour, not the screen, so phones get the same
+surface as desktops — before, the shader ran once per screen pixel and phones
+were given the cheap path, four flat bands. `WaterQuality` now only trims detail
+octaves. The surface is a lit height field (swells with sharp crests, light from
+the upper left like everything else), a depth ramp through the port's four
+colours quantised in twelve dithered steps, horizontal ripple strokes gated in
+patches, glitter, caustics on the shelf, swell running up the quay wall in sets,
+cloud shadow, and — fed from `Rainfall` — chop, whitecaps and rain rings.
 
-The half-length handed to the shader is *that hull's*, not the berth envelope:
-once classes had their own lengths, a fixed 116 px drew the bow wave up to forty
-pixels off the end of the ship it belonged to.
+**Shader space is world space**: `world_offset` is added in the vertex stage, so
+`PortWorld` hands hull centres and wake samples over *unshifted*. It used to
+subtract the water's origin a second time, which drew every lap and bow wave
+228 px west, under the quay, for as long as the feature existed.
 
-The wake is three things, and the middle one is what makes a hull read as
-*cutting*: a bow wave leaving the stem at a fixed angle, a collar of disturbed
-water dragged along the sides, and a widening V astern with transverse crests
-curved back inside it. All of it lives in `water_top.gdshader`, driven by
-`ship_speed`, which is measured from the hull actually moving.
+Every hull, moving or not, shelters the water in its lee (between it and the
+quay the swell dies) and is lapped by a band hugging a capsule of its outline. A
+hull under way swaps the lap for the bow wave and collar.
+
+The wake behind is the water's memory, not a shape towed by the hull:
+`WaterWakes` takes a sample of each emitter's trailing end every few pixels —
+ships from `_feed_wakes`, tugs and boats from `StructureActor.water_wake` — and
+the shader draws the band between consecutive samples: streaked wash along the
+track, transverse crests that travel with the hull, and two arms opening at a
+fixed rate, which is the V. The track stays where it was laid, bends when the
+hull turns, slicks the swell flat as it ages and fades out over `LIFE`. A jump
+longer than `TELEPORT` starts a new chain rather than drawing a wake across the
+harbour. `ShipWake` keeps only what wants hard pixels: the bow wave, the collar
+and a short boil at the screws. `tools/capture/water_lab.tscn` renders the
+water alone for tuning; `closeup.tscn -- wake_trail` shows a long run.
 
 `FlyingContainer` is the sole visible cargo hand-off. Origin views refresh as
 soon as the flight is prepared, and destination views do not appear until its

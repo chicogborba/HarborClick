@@ -52,6 +52,7 @@ func _run() -> void:
 	await _test_every_option_shows_all_of_its_answers()
 	await _test_switching_language_redraws_the_board()
 	await _test_the_board_fits_a_small_phone()
+	_test_every_soundtrack_loop_loads()
 
 	_panel.queue_free()
 	# Deletion is deferred to the end of a frame, and the ObjectDB leak report
@@ -60,12 +61,12 @@ func _run() -> void:
 		await get_tree().process_frame
 	_restore_state()
 
-	var expected := 6
+	var expected := 7
 	if _finished.size() != expected:
 		failures.append("only %d of %d tests reached their last line (%s)"
 			% [_finished.size(), expected, ", ".join(_finished)])
 	if failures.is_empty():
-		print("SETTINGS TESTS PASSED (levels, drag, mute, segments, language, fit)")
+		print("SETTINGS TESTS PASSED (levels, drag, mute, segments, language, fit, soundtrack)")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -282,6 +283,22 @@ func _test_the_board_fits_a_small_phone() -> void:
 	UserPreferences.set_ui_scale(1.0)
 	Loc.apply(&"pt_BR")
 	_finished.append("fit")
+
+
+func _test_every_soundtrack_loop_loads() -> void:
+	## The soundtrack moved from synth WAVs to Lyria Oggs. A name `update_music`
+	## asks for that resolves to nothing plays silence without an error, so pin
+	## every one: it exists, it is an Ogg, and the music loader loops it.
+	for track in ["music_day", "music_dawn", "music_dusk", "music_night",
+			"music_fog", "music_rain", "music_shop"]:
+		var stream: AudioStream = AudioManager._load(track, true)
+		_expect(stream is AudioStreamOggVorbis, "%s loads as the Ogg soundtrack" % track)
+		if stream is AudioStreamOggVorbis:
+			_expect((stream as AudioStreamOggVorbis).loop, "%s loops" % track)
+			_expect(stream.get_length() > 60.0, "%s is a full loop, not a stub" % track)
+	_expect(AudioManager._load("click") is AudioStreamWAV,
+		"effects still load from WAV")
+	_finished.append("soundtrack")
 
 
 func _expect(condition: bool, message: String) -> void:

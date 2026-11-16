@@ -8,9 +8,11 @@ extends Node2D
 ## this layer draws the foam, as whole pixels, on top of the shader's swell:
 ##
 ##   * the bow wave — water piled on the stem and peeled down both shoulders;
-##   * the two arms of the V it sheds, running aft and outward;
 ##   * the collar dragged along the plating;
-##   * the propeller wash boiling astern and thinning out behind.
+##   * the boil right at the screws.
+##
+## The V and the long track astern are the water's, not this layer's: they are
+## laid on the sea by WaterWakes so they stay where the hull made them.
 ##
 ## Two rules make it read as water rather than as a sticker towed by the ship.
 ## Every pattern is hashed on *world* rows, so foam stays where it was made
@@ -22,11 +24,10 @@ extends Node2D
 
 const FOAM := Color8(246, 252, 252)
 const SPRAY := Color8(190, 232, 236)
-const HAZE := Color8(132, 200, 214)
 ## Rows of bow the shoulders' foam runs down, in hull pixels.
 const BOW_ROWS := 54
-const ARM_SLOPE := 0.44
-const INNER_SLOPE := 0.24
+## Rows of fine boil drawn astern before the water's own track takes over.
+const BOIL_ROWS := 22
 
 ## 0 moored .. 1 full ahead; eased by the ship from its real movement.
 var strength := 0.0:
@@ -145,34 +146,26 @@ func _draw() -> void:
 		+ _right[mini(BOW_ROWS, _height - 1)]) * 0.5
 	var bow := mini(BOW_ROWS, _height - 1)
 
-	# --- the propeller wash, first, so everything else sits on it ---
-	var trail := int(60.0 + 130.0 * s)
+	# --- the boil at the screws ---
+	# Only the first few rows astern, in single pixels. The track behind it is
+	# the water's (WaterWakes → water_top.gdshader), where it stays on the sea as
+	# the hull moves on. This used to run two hundred rows of 2x2 cells, which
+	# read as a mosaic pasted over the tugs riding in it.
 	var stern_half := float(_right[_height - 3] - _left[_height - 3]) * 0.5
-	for i in range(-6, trail, 2):
+	for i in range(-4, BOIL_ROWS):
 		var y := _height + i
-		var far := clampf(float(i) / float(trail), 0.0, 1.0)
-		var half := stern_half * 0.62 + maxf(0.0, float(i)) * 0.11
-		var gy := (world_y + y) >> 1
-		var cells := int(half / 2.0)
+		var far := clampf(float(i) / float(BOIL_ROWS), 0.0, 1.0)
+		var half := stern_half * 0.55 + maxf(0.0, float(i)) * 0.12
+		var gy := world_y + y
+		var cells := int(half)
 		for c in range(-cells, cells + 1):
-			# Hashed on a row twice as tall as it is drawn, so foam comes in
-			# short streaks along the track instead of single-pixel static.
-			var n := _hash(c, (gy >> 1) + (beat if absi(c) < 2 else 0))
-			# The boil is dense at the screws and thins toward the edges and aft.
+			var n := _hash(c, (gy >> 1) + (beat if absi(c) < 3 else 0))
 			var edge := absf(float(c)) / maxf(1.0, float(cells))
-			var need := 0.40 + far * 0.50 + edge * edge * 0.24
-			if n > need + 0.26:
-				_dot(centre + c * 2.0, y, 2, 2, FOAM, s * (1.0 - far * 0.75))
+			var need := 0.46 + far * 0.42 + edge * edge * 0.25
+			if n > need + 0.24:
+				_dot(centre + c, y, 1, 1, FOAM, s * (1.0 - far * 0.7))
 			elif n > need:
-				_dot(centre + c * 2.0, y, 2, 2, SPRAY, s * (0.80 - far * 0.55))
-			elif far < 0.55 and n > need - 0.30:
-				# Aerated water under the foam: the pale bed the wash lies on.
-				_dot(centre + c * 2.0, y, 2, 2, HAZE, s * (0.55 - far * 0.9))
-		# The two bright seams the wash leaves at its edges.
-		if _hash(7, gy) > 0.30 + far * 0.5:
-			_dot(centre - half - 2.0, y, 2, 2, FOAM, s * (0.9 - far * 0.8))
-		if _hash(11, gy) > 0.30 + far * 0.5:
-			_dot(centre + half, y, 2, 2, FOAM, s * (0.9 - far * 0.8))
+				_dot(centre + c, y, 1, 1, SPRAY, s * (0.75 - far * 0.5))
 
 	# --- the collar along the plating ---
 	for y in range(bow, _height - 2):
@@ -209,29 +202,3 @@ func _draw() -> void:
 			_dot(_left[y] - thick - off - 3.0 - (gy & 1), y, 1, 1, FOAM, a)
 		if _hash(17, (gy >> 1) + beat) > 0.80 - s * 0.2:
 			_dot(_right[y] + off + thick + 2.0 + (gy & 1), y, 1, 1, FOAM, a)
-
-	# --- the V: two arms shed from the shoulders, a fainter pair inside ---
-	var arm := int(80.0 + 150.0 * s)
-	var root := 10
-	var root_half := float(_right[mini(root, _height - 1)]
-		- _left[mini(root, _height - 1)]) * 0.5 + 3.0
-	for i in range(0, arm, 1):
-		var y := root + i
-		var far := float(i) / float(arm)
-		var gy := world_y + y
-		var a := s * (1.0 - far) * (1.0 - far * 0.3)
-		var reach := root_half + float(i) * ARM_SLOPE
-		# Dashes three world rows long, so the arm is broken water, not a line.
-		var dash := _hash(19, gy / 3)
-		if dash > 0.22 + far * 0.35:
-			var w := 2.0 if far < 0.5 else 1.0
-			var color := FOAM if far < 0.45 and dash > 0.5 else SPRAY
-			_dot(stem - reach - w, y, w, 1, color, a)
-			_dot(stem + reach, y, w, 1, color, a)
-		if i > 14 and _hash(23, gy / 4) > 0.5 + far * 0.3:
-			var inner := root_half + float(i) * INNER_SLOPE
-			# Only where it has cleared the hull's own side.
-			var row := mini(y, _height - 1)
-			if y >= _height or stem - inner < _left[row] - 4:
-				_dot(stem - inner - 1.0, y, 1, 1, HAZE, a * 0.9)
-				_dot(stem + inner, y, 1, 1, HAZE, a * 0.9)

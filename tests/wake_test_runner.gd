@@ -6,8 +6,11 @@ extends Node
 ## The wake is drawn by the water shader from three uniforms. A shader that
 ## stops being fed fails silently — the sea simply looks calm — so what is
 ## checked here is the feed: a moored hull reports nothing, a driving hull
-## reports its speed, and the centre handed over is in the water rect's own
-## space rather than the world's.
+## reports its speed, and the centre handed over is the hull's real centre in
+## world space — the frame the shader draws in, since `world_offset` is added in
+## its vertex stage. (This file used to assert water-local space with a check
+## that compared an expression to itself; the lap and bow wave it "verified"
+## were being drawn under the quay. `phase4_water` pins the real feed.)
 
 const TEST_SAVE_PATH := "user://harborclick_wake_test.json"
 
@@ -24,11 +27,11 @@ func _run() -> void:
 	GameState.from_save({})
 
 	await _test_strength_follows_real_movement()
-	_test_centre_is_in_shader_space()
+	_test_centre_is_the_hull_centre()
 
 	SaveManager.wipe()
 	if failures.is_empty():
-		print("WAKE TESTS PASSED (strength, shader space)")
+		print("WAKE TESTS PASSED (strength, hull centre)")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -74,7 +77,7 @@ func _test_strength_follows_real_movement() -> void:
 	ship.free()
 
 
-func _test_centre_is_in_shader_space() -> void:
+func _test_centre_is_the_hull_centre() -> void:
 	var ship := Ship.new()
 	add_child(ship)
 	ship.position = Vector2(PortLayout.SHIP_X, 200.0)
@@ -84,12 +87,6 @@ func _test_centre_is_in_shader_space() -> void:
 		"the hull centre is the middle of the beam, not its left edge")
 	_expect(is_equal_approx(centre.y, 200.0 + PortLayout.SHIP_H * 0.5),
 		"the hull centre is amidships, not at the bow")
-	# The water rect is offset from the world origin; the shader reads its own
-	# local space, so the centre must be offset by exactly that much.
-	var water_origin := Vector2(PortLayout.WATER_X0 - 12.0, 0.0)
-	var shader_space := centre - water_origin
-	_expect(is_equal_approx(shader_space.x, centre.x - water_origin.x),
-		"the centre handed to the shader is in the water rect's space")
 	ship.free()
 
 

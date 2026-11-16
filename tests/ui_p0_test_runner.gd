@@ -25,7 +25,6 @@ func _run() -> void:
 	await _test_shop_backdrop_and_escape_contract()
 	await _test_responsive_shell_profiles_without_main_scene()
 	await _test_safe_area_reaches_primary_ui()
-	await _test_upgrade_map_is_a_navigable_graph()
 	await _test_upgrade_list_sells_in_sections()
 	await _test_pop_open_yields_to_a_layout_mid_slide()
 	await _test_board_motion_never_strands_a_board()
@@ -509,7 +508,6 @@ func _test_shop_never_outgrows_a_small_phone() -> void:
 			% ["upgrades", board.get_combined_minimum_size().x, board.size.x])
 	_expect(_rect_inside(Rect2(Vector2.ZERO, Vector2(view)), board.get_global_rect()),
 		"the shop stays on a 320px screen (%s)" % board.get_global_rect())
-	# The exclusive pair is the widest thing the tab can show.
 	var chips_seen := 0
 	for id: String in shop._cards:
 		var card: ShopCard = shop._cards[id]
@@ -518,11 +516,6 @@ func _test_shop_never_outgrows_a_small_phone() -> void:
 			_expect(card.get_combined_minimum_size().x <= board.size.x,
 				"card %s fits the board" % id)
 	_expect(chips_seen > 0, "the check actually met a card with chips")
-	var two_chips := false
-	for id: String in shop._cards:
-		var card: ShopCard = shop._cards[id]
-		two_chips = two_chips or (card._chips[1].panel as Control).visible
-	_expect(two_chips, "and with two chips on it — the widest case")
 	viewport.queue_free()
 	await get_tree().process_frame
 
@@ -570,71 +563,21 @@ func _test_upgrade_list_sells_in_sections() -> void:
 	shop._up_owned_toggle.emit_signal("pressed")
 	_expect(luvas.visible and gancho.visible, "unfolding COMPRADAS shows them")
 
-	shop._up_view_toggle.emit_signal("pressed")
-	_expect(shop._up_map_view.visible and not shop._up_list_view.visible,
-		"the map is one key away")
-	shop._up_view_toggle.emit_signal("pressed")
-	_expect(shop._up_list_view.visible, "and so is the way back")
+	# COMPRAR TUDO: everything affordable, and whatever that opens, in one tap.
+	GameState.teus = 1e30
+	GameState.lifetime_teus = 1e30
+	GameState.all_time_teus = 1e30
+	var bought := shop.buy_all_upgrades()
+	_expect(bought > 0, "buy-all bought something (%d)" % bought)
+	var left := 0
+	for item in UpgradeDB.ITEMS:
+		if not GameState.has_upgrade(str(item.id)) and GameState.upgrade_available(item):
+			left += 1
+	_expect(left == 0, "and left nothing buyable behind (%d)" % left)
+
 	viewport.queue_free()
 	await get_tree().process_frame
 	GameState.from_save({})
-
-
-func _test_upgrade_map_is_a_navigable_graph() -> void:
-	## The upgrades tab is a diagram now, and a diagram has three ways of being
-	## quietly wrong that no screenshot review would catch: a station missing from
-	## it, a child drawn west of the thing that opens it, and a tap that lands on
-	## the wrong station because two are near each other.
-	GameState.from_save({"owned": {"estivador": 30},
-		"upgrades": ["cafe_forte"], "teus": 1e9, "all_time_teus": 1e9})
-	GameState.recompute()
-	var map := UpgradeMap.new()
-	map.size = Vector2(340, 380)
-	add_child(map)
-	await get_tree().process_frame
-
-	for item in UpgradeDB.ITEMS:
-		_expect(map._nodes.has(str(item.id)),
-			"every upgrade is a station on the map (%s)" % item.id)
-	_expect(map._nodes.size() == UpgradeDB.ITEMS.size(),
-		"and the map invents none of its own")
-
-	# West-to-east is the whole grammar of the picture: a station you can only
-	# reach through another has to be drawn further along the line than it.
-	for item in UpgradeDB.ITEMS:
-		var id := str(item.id)
-		for parent in UpgradeDB.requires_of(item):
-			_expect(float(map._nodes[parent].pos.x) < float(map._nodes[id].pos.x),
-				"%s is drawn east of %s" % [id, parent])
-
-	# The three states the map draws, against a port that has exactly one of each.
-	_expect(map._state_of("cafe_forte") == 2, "a bought station is lit")
-	_expect(map._state_of("carrinho_mao") == 1, "the next one along is open")
-	_expect(map._state_of("sindicato") == 0, "and the one past that is shut")
-
-	# A tap has to select the station under the finger, and a drag has to select
-	# nothing at all — this is the whole reason the map does its own panning.
-	map.reset_view()
-	var picked: Array[String] = []
-	map.node_selected.connect(func(id: String) -> void: picked.append(id))
-	var target: Vector2 = map._to_screen(Vector2(map._nodes["cafe_forte"].pos))
-	map._begin_press(target)
-	map._end_press(target)
-	_expect(picked.size() == 1 and picked[0] == "cafe_forte",
-		"a tap selects the station under it (%s)" % str(picked))
-	picked.clear()
-	map._begin_press(target)
-	map._end_press(target + Vector2(60.0, 0.0))
-	_expect(picked.is_empty(), "a drag pans the map instead of buying something")
-
-	# Zoom is about the finger, not about the origin: whatever was under the
-	# pinch has to still be under it afterwards, or the map fights the player.
-	var anchor := Vector2(170.0, 190.0)
-	var before := map._to_map(anchor)
-	map._set_zoom(map._zoom * 1.6, anchor)
-	_expect(map._to_map(anchor).distance_to(before) < 0.75,
-		"zoom keeps the point under the fingers where it was")
-	map.queue_free()
 
 
 func _same_rect(left: Rect2, right: Rect2) -> bool:

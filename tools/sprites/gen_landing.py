@@ -840,28 +840,41 @@ def _favicon_base() -> Image.Image:
 
 
 def gen_favicon():
-    """One drawing, four sizes, every one an integer multiple of the first.
+    """The brand icon (a gantry crane lifting a container at sunset, see
+    `tools/sprites/gen_icons.py`) at tab, touch and .ico sizes.
 
-    `favicon.ico` goes next to `index.html` rather than into `/media`, because
-    a browser asks for `/favicon.ico` at the root whether the page links it or
-    not, and an unanswered one is served the whole HTML document by the nginx
-    catch-all."""
+    It replaced the amber anchor badge drawn above when the game got a real
+    logo; `_favicon_base` stays as the fallback for a checkout without the
+    generated icon. `favicon.ico` goes next to `index.html` rather than into
+    `/media`, because a browser asks for `/favicon.ico` at the root whether the
+    page links it or not, and an unanswered one is served the whole HTML
+    document by the nginx catch-all."""
+    source = os.path.join(ROOT, "docs", "media", "store", "keyart", "icon.png")
+    if os.path.exists(source):
+        art = Image.open(source).convert("RGBA")
+
+        def at(size):
+            return art.resize((size, size), Image.LANCZOS)
+
+        save(at(32), "favicon")
+        save(at(192), "favicon-192")
+        ico = os.path.join(ROOT, "landing", "favicon.ico")
+        at(48).save(ico, format="ICO", sizes=[(48, 48), (32, 32), (16, 16)])
+        print("  ../favicon.ico  16+32+48")
+        return
     base = _favicon_base()
 
-    def at(scale):
+    def scaled(scale):
         return base.resize((16 * scale, 16 * scale), Image.NEAREST)
 
-    save(at(2), "favicon")
-    # 192 is the PWA size and divides by sixteen; iOS scales it down to the 180
-    # it wants, which is one smooth resize instead of a whole soft icon.
+    save(scaled(2), "favicon")
     touch = Image.new("RGBA", (192, 192), P.SAFETY)
-    touch.alpha_composite(at(12))
+    touch.alpha_composite(scaled(12))
     save(touch, "favicon-192")
-
     ico = os.path.join(ROOT, "landing", "favicon.ico")
-    at(3).save(ico, format="ICO", sizes=[(48, 48), (32, 32), (16, 16)],
-               append_images=[at(2), base])
-    print(f"  ../favicon.ico  16+32+48")
+    scaled(3).save(ico, format="ICO", sizes=[(48, 48), (32, 32), (16, 16)],
+                   append_images=[scaled(2), base])
+    print("  ../favicon.ico  16+32+48")
 
 
 def gen_marks():
@@ -959,7 +972,15 @@ def _plate(w: int, h: int) -> Image.Image:
 
 
 def gen_og():
-    """1200x630 social card, painted at 300x158 and scaled by exactly 4."""
+    """1200x630 social card.
+
+    When the store media exists, the link preview is its pt_BR card — key art,
+    the STACKYARD logo and the "idle clicker" pitch (`tools/docs/gen_store_media.py`).
+    The pixel-plate card below is the fallback for a checkout without it."""
+    store = os.path.join(ROOT, "docs", "media", "store", "pt_BR", "og_1200x630.jpg")
+    if os.path.exists(store):
+        save(Image.open(store).convert("RGBA"), "og")
+        return
     scale = 4
     w, h = 300, 158
     strip = Image.open(os.path.join(OUT, "port-strip.png")).convert("RGBA")

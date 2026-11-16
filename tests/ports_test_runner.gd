@@ -30,13 +30,14 @@ func _run() -> void:
 	_test_a_profile_resumes_in_its_last_port()
 	_test_deleting_a_profile_takes_its_ports()
 	_test_each_port_plays_differently()
+	_test_one_free_crossing_an_hour()
 	_wipe()
-	var expected := 8
+	var expected := 9
 	if _finished.size() != expected:
 		failures.append("only %d of %d tests reached their last line (%s)"
 			% [_finished.size(), expected, ", ".join(_finished)])
 	if failures.is_empty():
-		print("PORTS TESTS PASSED (table, purchase, isolation, catalogues, rate, resume, delete)")
+		print("PORTS TESTS PASSED (table, purchase, isolation, catalogues, rate, resume, delete, free trip)")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -63,6 +64,28 @@ func _test_the_table_is_sound() -> void:
 				"every node can say what it does (%s)" % item.id)
 	PortDB.set_active(PortDB.HOME)
 	_finished.append("table")
+
+
+func _test_one_free_crossing_an_hour() -> void:
+	## One crossing an hour is free, the rest cost an ad — and the stamp is the
+	## profile's, so it survives a reload and is shared by every port.
+	_wipe()
+	SaveManager.use_profile(SLOT)
+	var now := 1_000_000.0
+	_expect(SaveManager.free_trip_ready(now), "a new profile has its free crossing")
+	_expect(SaveManager.spend_free_trip(now), "and can spend it")
+	_expect(not SaveManager.free_trip_ready(now + 60.0), "a minute later it is spent")
+	_expect(not SaveManager.spend_free_trip(now + 60.0), "and cannot be spent twice")
+	_expect(absf(SaveManager.free_trip_seconds_left(now + 600.0) - 3000.0) < 0.01,
+		"the card can say how long is left (%f)" % SaveManager.free_trip_seconds_left(now + 600.0))
+	SaveManager.port_ledger(SLOT)
+	_expect(not SaveManager.free_trip_ready(now + 60.0), "the stamp survives a reload")
+	_expect(SaveManager.free_trip_ready(now + SaveManager.FREE_TRIP_SECONDS),
+		"an hour later the next one is free")
+	_expect(SaveManager.free_trip_ready(now - 5000.0),
+		"a clock set back does not lock the crossing")
+	_expect(AdPolicy.PLACEMENTS.has(&"port_travel"), "the paid crossing has an ad placement")
+	_finished.append("free_trip")
 
 
 func _test_a_port_must_be_paid_for() -> void:

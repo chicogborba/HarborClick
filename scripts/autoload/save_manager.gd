@@ -513,6 +513,7 @@ func port_ledger(slot: int) -> Dictionary:
 				open.push_front(String(PortDB.HOME))
 			ledger.open = open
 			ledger.active = str((parsed as Dictionary).get("active", PortDB.HOME))
+			ledger.free_trip_at = float((parsed as Dictionary).get("free_trip_at", 0.0))
 	_ledger = ledger
 	PortDB.open_count = (ledger.open as Array).size()
 	return ledger
@@ -527,6 +528,37 @@ func _write_ledger() -> bool:
 	file.store_string(JSON.stringify(_ledger))
 	file.close()
 	PortDB.open_count = (_ledger.get("open", []) as Array).size()
+	return true
+
+
+## One crossing an hour is free; any other is paid for with a short ad. The
+## stamp lives in the ledger, so it is shared by every port in the profile.
+const FREE_TRIP_SECONDS := 3600.0
+
+
+func free_trip_seconds_left(now: float = -1.0) -> float:
+	## Seconds until the next free crossing; 0 when one is available now.
+	if now < 0.0:
+		now = Time.get_unix_time_from_system()
+	var last := float(_ledger.get("free_trip_at", 0.0))
+	# A stamp from the future is a clock that went back, not a lock for years.
+	if last <= 0.0 or last > now:
+		return 0.0
+	return maxf(0.0, FREE_TRIP_SECONDS - (now - last))
+
+
+func free_trip_ready(now: float = -1.0) -> bool:
+	return free_trip_seconds_left(now) <= 0.0
+
+
+func spend_free_trip(now: float = -1.0) -> bool:
+	## Stamps the free crossing. False (and nothing stamped) when it is not up yet.
+	if now < 0.0:
+		now = Time.get_unix_time_from_system()
+	if not free_trip_ready(now):
+		return false
+	_ledger["free_trip_at"] = now
+	_write_ledger()
 	return true
 
 

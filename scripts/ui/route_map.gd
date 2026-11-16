@@ -222,7 +222,11 @@ func _process(delta: float) -> void:
 	if not _open:
 		return
 	_refresh_timer += delta
-	if not _dirty or _refresh_timer < REFRESH_INTERVAL:
+	# The free-crossing countdown ticks on its own, so the card re-reads at
+	# least once a second even when nothing else moved.
+	if not _dirty and _refresh_timer < 1.0:
+		return
+	if _refresh_timer < REFRESH_INTERVAL:
 		return
 	_refresh_timer = 0.0
 	_dirty = false
@@ -273,17 +277,27 @@ func _refresh() -> void:
 		_state.text = Loc.t("ports.here")
 		_state.label_settings.font_color = UiTheme.TEAL_DEEP
 	elif open:
-		_state.text = Loc.t("ports.wallet", {"amount": GameState.fmt(
+		var where := Loc.t("ports.wallet", {"amount": GameState.fmt(
 			float(_port_wallets[_selected]))}) if _port_wallets.has(_selected) \
 			else Loc.t("ports.new")
+		# One crossing an hour is on the house; the rest cost a short ad. The
+		# card always says which this one is, and when the next free one is.
+		var free := SaveManager.free_trip_ready()
+		var wait := Loc.t("ports.trip.free") if free else Loc.t("ports.trip.next",
+			{"time": _clock_text(SaveManager.free_trip_seconds_left())})
+		_state.text = "%s\n%s" % [where, wait]
 		_state.label_settings.font_color = UiTheme.TEAL_DEEP
 		_go.text = Loc.t("ports.travel")
-		UiTheme.style_button(_go, &"amber")
-		UiTheme.describe(_go, Loc.t("ports.travel_name", {"name": str(port.name)}))
+		_go.icon = null if free else UiTheme.icon16_texture(UiTheme.Icon16.AD)
+		_go.disabled = not free and not AdService.available(&"port_travel")
+		UiTheme.style_button(_go, &"amber" if free else &"go")
+		UiTheme.describe(_go, Loc.t("ports.travel_name", {"name": str(port.name)})
+			+ ("" if free else " • " + Loc.t("ports.trip.ad")))
 	else:
 		_state.text = str(port.get("tagline", "")) if affordable \
 			else Loc.t("ports.missing", {"amount": GameState.fmt(cost - GameState.teus)})
 		_state.label_settings.font_color = UiTheme.AMBER_DEEP
+		_go.icon = null
 		_go.text = GameState.fmt(cost)
 		UiTheme.style_button(_go, &"amber" if affordable else &"off")
 		UiTheme.describe(_go, Loc.t("ports.open_name", {"name": str(port.name)}))
@@ -291,6 +305,13 @@ func _refresh() -> void:
 	_network.text = Loc.t("ports.network.none") if count <= 1 \
 		else Loc.t("ports.network", {"count": str(count),
 			"pct": str(int(round((PortDB.network_multiplier() - 1.0) * 100.0)))})
+
+
+static func _clock_text(seconds: float) -> String:
+	var total := maxi(0, ceili(seconds))
+	if total >= 60:
+		return "%d min" % ceili(total / 60.0)
+	return "%d s" % total
 
 
 func _read_port_wallets() -> void:
@@ -310,8 +331,14 @@ func _on_go() -> void:
 	if id == PortDB.active or not PortDB.is_playable(id):
 		return
 	if SaveManager.port_open(id):
-		AudioManager.play_sfx("tap")
-		travel_requested.emit(id)
+		if SaveManager.spend_free_trip():
+			AudioManager.play_sfx("tap")
+			travel_requested.emit(id)
+			return
+		# The hour's free crossing is spent: a short ad pays for this one.
+		if not AdService.show_rewarded(&"port_travel", func() -> void:
+				travel_requested.emit(id)):
+			AudioManager.play_sfx("deny")
 		return
 	if not SaveManager.buy_port(id):
 		AudioManager.play_sfx("deny")
@@ -341,9 +368,15 @@ func _layout() -> void:
 	# The planet is a whole multiple of its own pixels: two on a phone, three
 	# where the board is wide enough.
 	var scale := clampi(int((width - 30.0) / Globe.PIXELS), 1, 3)
-	_space.custom_minimum_size.y = float(Globe.PIXELS * scale) + 12.0
 	var top := safe.position.y + 20.0
 	var available := maxf(220.0, safe.end.y - top - 6.0)
+	# And a step smaller again when the card under it would not fit: the
+	# free-crossing line made the sheet one row taller than a 390x844 phone, and
+	# a container never shrinks below its minimum, so it spilled off the top.
+	var rest := _column.get_combined_minimum_size().y - _space.custom_minimum_size.y
+	while scale > 1 and rest + float(Globe.PIXELS * scale) + 12.0 + 22.0 > available:
+		scale -= 1
+	_space.custom_minimum_size.y = float(Globe.PIXELS * scale) + 12.0
 	_sheet.size = Vector2(width, clampf(_column.get_combined_minimum_size().y + 22.0,
 		220.0, available))
 	_sheet.position = Vector2(safe.position.x + 6.0, safe.end.y - _sheet.size.y - 6.0)

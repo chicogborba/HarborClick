@@ -1,0 +1,142 @@
+"""Asks an image model for the store key art, using real captures as reference.
+
+    OPENROUTER_API_KEY=... tools/venv/bin/python tools/docs/gen_keyart.py [name ...]
+
+The key art is the one picture that is not a screenshot (feature graphic,
+banners). It is generated from game captures so it carries the game's own
+pixel language, then `gen_store_media.py` lays the real wordmark over it. The
+answer and its prompt are committed under `docs/media/store/keyart/`; nothing
+here runs in the build. Never commit the key.
+"""
+import base64
+import io
+import json
+import os
+import sys
+import urllib.request
+
+from PIL import Image
+
+ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
+OUT = os.path.join(ROOT, "docs", "media", "store", "keyart")
+SHOTS = os.environ.get("STACKYARD_SHOTS", os.path.expanduser(
+    "~/Library/Application Support/Godot/app_userdata/HarborClick/uishots"))
+MODEL = "google/gemini-3-pro-image-preview"
+
+STYLE = (
+    "Match the reference screenshots exactly: the same crisp top-down pixel art, "
+    "the same palette (teal and navy sea with pixel ripple strokes, warm grey "
+    "asphalt, beige concrete quay with crane rails, red ship-to-shore gantry "
+    "cranes, teal yard gantries, colourful shipping containers), hard pixel edges, "
+    "no anti-aliasing, no blur, no photorealism. Do not draw any text, letters, "
+    "numbers, logos, UI or HUD. ")
+
+RECIPES = {
+    "keyart_wide": {
+        "aspect": "16:9",
+        "refs": ["closeup_ship.png", "closeup_wake_trail.png"],
+        "prompt": STYLE + (
+            "A wide cinematic key art of a busy Brazilian container terminal seen "
+            "from above at golden hour: a big container ship arriving up the channel "
+            "leaving a long white V-shaped wake on the water, a second ship moored "
+            "at the quay being worked by three red gantry cranes, containers swinging "
+            "in the air, tall colourful stacks in the yard, little trucks and a tug "
+            "boat, warm sunset light with long soft shadows. Leave calm open sea on "
+            "the left third of the picture for a title."),
+    },
+    "keyart_square": {
+        "aspect": "1:1",
+        "refs": ["closeup_ship.png", "closeup_decor_night.png"],
+        "prompt": STYLE + (
+            "A square key art of the same container port at blue hour, floodlights "
+            "and string lights coming on over the yard, a container ship moored at "
+            "the quay with cranes lit up, reflections and white foam on the dark "
+            "teal water, cozy and inviting. Leave the top quarter as calm sky-lit "
+            "water for a title."),
+    },
+    "icon": {
+        "aspect": "1:1",
+        "refs": ["closeup_ship.png", "closeup_wake_trail.png"],
+        "prompt": (
+            "Design the app icon for a mobile idle clicker game called Stackyard, "
+            "about running a container port. Square, full-bleed artwork filling the "
+            "whole canvas edge to edge (the store rounds the corners itself), no "
+            "border, no text, no letters. One bold centered emblem: a big red "
+            "ship-to-shore gantry crane lifting a bright orange shipping container "
+            "over a short stack of colourful containers, teal sea with a white wake "
+            "at the bottom, warm sunset gradient sky behind with a soft glow. "
+            "Chunky crisp pixel art in the style of the reference screenshots, thick "
+            "dark outlines, high contrast, simple silhouette that still reads at "
+            "48 pixels, cheerful and inviting."),
+    },
+    "logo": {
+        "aspect": "16:9",
+        "refs": ["closeup_ship.png"],
+        "prompt": (
+            "Design the game logo for a mobile idle clicker game. It must read "
+            "exactly STACKYARD in one line, spelled S-T-A-C-K-Y-A-R-D. Each big "
+            "chunky letter is built like a pixel-art shipping container block in a "
+            "different colour (orange, teal, red, yellow, blue), with corrugation "
+            "lines, thick dark outline, slight 3D depth and a hard drop shadow, "
+            "like a stacked container yard. A small red gantry crane hook hangs "
+            "over the letter A. Under the word, a smaller navy ribbon reading "
+            "exactly IDLE PORT TYCOON in clean bold pixel letters. Crisp pixel art "
+            "in the palette of the reference screenshot. Place it on a perfectly "
+            "flat solid pure magenta background (#FF00FF) with nothing else, no "
+            "scenery, so it can be cut out."),
+    },
+}
+
+
+def data_url(name: str) -> str:
+    img = Image.open(os.path.join(SHOTS, name)).convert("RGB")
+    img.thumbnail((900, 900), Image.NEAREST)
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def ask(name: str, recipe: dict) -> dict:
+    content = [{"type": "text", "text": recipe["prompt"]}]
+    for ref in recipe["refs"]:
+        content.append({"type": "image_url", "image_url": {"url": data_url(ref)}})
+    body = {"model": MODEL, "modalities": ["image", "text"],
+            "image_config": {"aspect_ratio": recipe["aspect"]},
+            "messages": [{"role": "user", "content": content}]}
+    req = urllib.request.Request(
+        "https://openrouter.ai/api/v1/chat/completions",
+        data=json.dumps(body).encode(),
+        headers={"Authorization": "Bearer " + os.environ["OPENROUTER_API_KEY"],
+                 "Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=600) as response:
+        answer = json.load(response)
+    if "error" in answer:
+        raise RuntimeError(answer["error"])
+    message = answer["choices"][0]["message"]
+    images = message.get("images") or []
+    if not images:
+        raise RuntimeError(f"{name}: no image ({message.get('content')!r:.200})")
+    url = images[0]["image_url"]["url"]
+    raw = base64.b64decode(url.split(",", 1)[1])
+    Image.open(io.BytesIO(raw)).save(os.path.join(OUT, name + ".png"))
+    return {"model": MODEL, "prompt": recipe["prompt"], "refs": recipe["refs"],
+            "aspect": recipe["aspect"],
+            "cost_usd": (answer.get("usage") or {}).get("cost")}
+
+
+def main() -> None:
+    os.makedirs(OUT, exist_ok=True)
+    ledger_path = os.path.join(OUT, "generations.json")
+    ledger = json.load(open(ledger_path)) if os.path.exists(ledger_path) else {}
+    for name in sys.argv[1:] or list(RECIPES):
+        try:
+            ledger[name] = ask(name, RECIPES[name])
+            print(f"  {name}: ${ledger[name]['cost_usd']}")
+        except Exception as error:  # noqa: BLE001
+            print(f"  {name}: FAILED {error}")
+    with open(ledger_path, "w") as out:
+        json.dump(ledger, out, indent=2, sort_keys=True)
+
+
+if __name__ == "__main__":
+    main()

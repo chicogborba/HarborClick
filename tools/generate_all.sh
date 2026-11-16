@@ -17,5 +17,7 @@ if [ -d ../audio ]; then
   for f in gen_*.py; do
     [ -e "$f" ] && "$PY" "$f"
   done
+  # The soundtrack: committed Lyria answers -> seamless Ogg loops. Offline.
+  "$PY" lyria/render_loops.py
 fi
 echo "done."

@@ -33,6 +33,13 @@ func duty() -> String:
 	return NpcCatalog.duty_of(role)
 
 
+func story() -> String:
+	## The dossier line and the trait line, in the player's language.
+	var line := NpcCatalog.story_of(station(), special_id, dossier)
+	var extra := NpcCatalog.story_of(station(), special_id, trait_line, "trait")
+	return line if extra.is_empty() else "%s %s" % [line, extra]
+
+
 func is_special() -> bool:
 	return special_id != &""
 

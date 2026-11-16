@@ -5,43 +5,41 @@ class_name UpgradeDB
 ## right answer — the cheapest payback — and the card computed it for you, so the
 ## "decision" was arithmetic the interface had already done. This file is the
 ## same catalogue rebuilt as something a player climbs: every node names what
-## opens it, some nodes refuse to sit beside their neighbour, and a few stop
-## making a machine *more* and make it *something else*.
-##
-## Four things carry that weight, and every one of them is readable off a card:
+## opens it, and the deeper ones pay for depth in a machine the port already runs.
 ##
 ## - `requires` — other upgrade ids that must be owned first. This is the edge
-##   that makes the tree a tree. `unlock` still exists and still gates on the
-##   port's size, but a node with an unmet `requires` is visibly blocked by a
-##   *purchase*, which is a thing the player can go and do.
-## - `excludes` — a node that cannot be owned beside this one. Bought later, the
-##   loser is refitted out at `SWAP_SURCHARGE` times the price: expensive, so the
-##   first pick matters; possible, so the pick is not a trap.
+##   that makes the tree a tree. `unlock` still gates on the port's size, but a
+##   node with an unmet `requires` is visibly blocked by a *purchase*, which is
+##   a thing the player can go and do.
 ## - `kind: "synergy"` — a machine gains for every unit of a *different* machine
-##   the port runs. Composition starts to matter: fifteen of one thing and one of
-##   another is now a worse port than a balanced one, or a better one, depending
-##   on which nodes you took.
-## - `kind: "transform"` — the machine changes job. `conductor` mode guts a
-##   machine's own output and pays the port a percentage per unit instead, which
-##   turns a generator into a multiplier and makes a wide cheap fleet a strategy
-##   rather than a rounding error.
+##   the port runs, so a balanced port earns more than a lopsided one.
+##
+## There are no exclusive picks. The tree used to have pairs where buying one
+## half refitted the other out, and "conductor" nodes that gutted a machine to
+## pay the port a share; players read both as traps, so every node can now be
+## owned beside every other. The nodes that were cut are in `RETIRED`, and a
+## save that owned one is refunded on load.
 ##
 ## `kind` values in full: "click_mult" (multiplies click), "structure_mult"
 ## (multiplies one or more structures' cps), "global_mult" (multiplies all cps),
-## "click_cps_pct" (click also gains % of cps), "synergy", "transform",
-## "rail_stat" (moves a real knob on the branch line).
+## "click_cps_pct" (click also gains % of cps), "synergy", "rail_stat" (moves a
+## real knob on the branch line).
 ##
 ## `unlock`: {teus: X} lifetime TEUs or {owned: {id: n}} structure count needed.
 
-## What refitting out an exclusive choice costs, as a multiple of the incoming
-## node's price. The roadmap's requirement was "cara mas possível": a player who
-## picks wrong at hour two must not be reading about it at hour forty, and a
-## player who picks right must not feel the choice was free.
-const SWAP_SURCHARGE := 3.0
+## Nodes taken out of the tree, with their authored price. A save that owned
+## one gets that price back (paced, like every price) when it loads.
+const RETIRED := {
+	"turma_de_terra": 20e6, "bloco_mestre": 400e6, "cais_dedicado": 50e6,
+	"terminal_interior": 120e12, "centro_de_controle": 2e15,
+	"trem_pesado": 30e12, "trem_shuttle": 30e12,
+}
 
 ## Trunks of the tree, in the order they are drawn. `machines` is what the trunk
 ## is *about* — used to pick the art when a node has no single target of its own.
-const BRANCHES: Array[Dictionary] = [
+## A `static var`, not a `const`: `CatalogText` writes the player's language
+## into these rows in place (see scripts/i18n/catalog_text.gd).
+static var BRANCHES: Array[Dictionary] = [
 	{"id": "mao", "title": "Mão de Obra", "art": "estivador"},
 	{"id": "patio", "title": "Pátio", "art": "rtg"},
 	{"id": "cais", "title": "Cais", "art": "sts"},
@@ -85,19 +83,6 @@ const RAW_ITEMS: Array[Dictionary] = [
 		"branch": "mao", "kind": "structure_mult", "target": "estivador",
 		"value": 2.0, "cost": 50000.0, "requires": ["carrinho_mao"],
 		"unlock": {"owned": {"estivador": 30}}},
-	# The first of the five conductors — the `group: "conductor"` nodes that answer
-	# "who actually runs this terminal". Exactly one can be fitted at a time, and
-	# which one is worth taking depends entirely on where the port already has
-	# depth: 1,5% per docker is enormous to a yard with two hundred of them and
-	# nothing to a yard with six. That is the composition axis item 4 was missing,
-	# and it is a question a payback figure cannot answer for you.
-	{"id": "turma_de_terra", "name": "Turma de Terra", "short": "Turma",
-		"desc": "O estivador larga o gancho e passa a orientar o pátio inteiro. Produz quase nada sozinho; os primeiros somam ~2% cada a todo o porto, e o ganho desacelera rumo a +300%.",
-		"branch": "mao", "kind": "transform", "target": "estivador",
-		"mode": "conductor", "group": "conductor",
-		"self_mult": 0.25, "value": 0.023, "cap": 3.0,
-		"cost": 20e6, "requires": ["sindicato"],
-		"unlock": {"owned": {"estivador": 40}}},
 
 	# -------------------------------------------------------------------- pátio
 	{"id": "garfo_duplo", "name": "Garfo Duplo", "short": "Garfo",
@@ -136,28 +121,19 @@ const RAW_ITEMS: Array[Dictionary] = [
 		"branch": "patio", "kind": "synergy", "target": "rtg", "per": "tt",
 		"value": 0.03, "cap": 1.8, "cost": 90e6, "requires": ["gps_rtg"],
 		"unlock": {"owned": {"rtg": 5, "tt": 10}}},
-	# Estoque × giro. Deep stacking wins on the one machine built for it; fast
-	# turnover wins across the three that move boxes sideways.
+	# Two late yard refits, one for the block and one for the machines that move
+	# boxes sideways. They used to exclude each other; now a port can own both.
 	{"id": "estoque_profundo", "name": "Estoque Profundo", "short": "Estoque",
 		"desc": "Cinco alturas no bloco e ninguém remexe. O transtêiner rende 4×; o resto do pátio segue igual.",
 		"branch": "patio", "kind": "structure_mult", "target": "rtg", "value": 4.0,
 		"cost": 300e6, "requires": ["operacao_remota_rtg"],
-		"excludes": ["giro_rapido"], "unlock": {"owned": {"rtg": 15}}},
+		"unlock": {"owned": {"rtg": 15}}},
 	{"id": "giro_rapido", "name": "Giro Rápido", "short": "Giro",
 		"desc": "Pilha baixa, remoção rara, tudo andando. Empilhadeira e reach stacker rendem 2,2×; o bloco não muda.",
 		"branch": "patio", "kind": "structure_mult",
 		"targets": ["empilhadeira", "reach_stacker"], "value": 2.2,
 		"cost": 300e6, "requires": ["operacao_remota_rtg"],
-		"excludes": ["estoque_profundo"], "unlock": {"owned": {"rtg": 15}}},
-	# Conductor two. A yard that stacks deep has few RTGs and a lot riding on each,
-	# so this pays more per unit than the dockers' turma and caps far sooner.
-	{"id": "bloco_mestre", "name": "Bloco Mestre", "short": "Bloco Mestre",
-		"desc": "O transtêiner deixa de mover caixa e passa a reger o bloco. Os primeiros somam ~6% cada a todo o porto, desacelerando rumo a +360% - e o RTG em si quase para.",
-		"branch": "patio", "kind": "transform", "target": "rtg",
-		"mode": "conductor", "group": "conductor",
-		"self_mult": 0.25, "value": 0.06, "cap": 3.6,
-		"cost": 400e6, "requires": ["operacao_remota_rtg"],
-		"unlock": {"owned": {"rtg": 12}}},
+		"unlock": {"owned": {"rtg": 15}}},
 
 	# --------------------------------------------------------------------- cais
 	{"id": "operador_descansado", "name": "Operador Com Sono em Dia", "short": "Operador",
@@ -186,21 +162,6 @@ const RAW_ITEMS: Array[Dictionary] = [
 		"branch": "cais", "kind": "synergy", "target": "sts", "per": "rebocador",
 		"value": 0.04, "cap": 2.0, "cost": 20e9, "requires": ["propulsao_azimutal"],
 		"unlock": {"owned": {"sts": 10, "rebocador": 3}}},
-	# Conductor three, and the tall build's natural answer: a portêiner is the most
-	# expensive thing on the board that a port ever owns dozens of, so 4% a unit
-	# caps at a fleet a deep port has and a wide one never bothers with.
-	# Hangs off the first quay node, not the second, and is priced in the same era
-	# as the dockers' turma on purpose. An identity that only opens after the port
-	# is already rich is not a choice — the sandbox showed exactly that: the build
-	# committed to the quay never reached its own conductor, fell behind, and then
-	# could not afford it precisely because it had fallen behind.
-	{"id": "cais_dedicado", "name": "Cais Dedicado", "short": "Dedicado",
-		"desc": "O portêiner para de trabalhar caixa avulsa e passa a ditar o ritmo do porto. Os primeiros somam ~10% cada, desacelerando rumo a +450% - e o cais rende um terço.",
-		"branch": "cais", "kind": "transform", "target": "sts",
-		"mode": "conductor", "group": "conductor",
-		"self_mult": 0.3, "value": 0.10, "cap": 4.5,
-		"cost": 50e6, "requires": ["operador_descansado"],
-		"unlock": {"owned": {"sts": 10}}},
 	{"id": "estabilizacao_dinamica", "name": "Estabilização Dinâmica", "short": "Dinâmica",
 		"desc": "O mar balança; a carga não.",
 		"branch": "cais", "kind": "structure_mult", "target": "flutuante",
@@ -211,19 +172,18 @@ const RAW_ITEMS: Array[Dictionary] = [
 		"branch": "cais", "kind": "structure_mult", "target": "flutuante",
 		"value": 2.0, "cost": 30e12, "requires": ["estabilizacao_dinamica"],
 		"unlock": {"owned": {"flutuante": 15}}},
-	# Profundidade × cadência no cais: um berço que engole um navio enorme, ou
-	# três berços que nunca ficam vazios.
+	# Dois reforços tardios do cais: um para o portêiner, outro para o apoio.
 	{"id": "escala_profunda", "name": "Escala Profunda", "short": "Escala",
 		"desc": "Um berço, um navio gigante, uma escala longa. O portêiner rende 2,6×; o apoio segue igual.",
 		"branch": "cais", "kind": "structure_mult", "target": "sts", "value": 2.6,
 		"cost": 60e12, "requires": ["spreader_pesado"],
-		"excludes": ["cadencia_de_cais"], "unlock": {"owned": {"sts": 20}}},
+		"unlock": {"owned": {"sts": 20}}},
 	{"id": "cadencia_de_cais", "name": "Cadência de Cais", "short": "Cadência",
 		"desc": "Navio médio entrando e saindo o dia todo. Rebocador e flutuante rendem 2,4×; o portêiner segue igual.",
 		"branch": "cais", "kind": "structure_mult",
 		"targets": ["rebocador", "flutuante"], "value": 2.4,
 		"cost": 60e12, "requires": ["spreader_pesado"],
-		"excludes": ["escala_profunda"], "unlock": {"owned": {"sts": 20}}},
+		"unlock": {"owned": {"sts": 20}}},
 
 	# -------------------------------------------------------------------- ramal
 	# The branch line is a whole subsystem — rake length, service interval, ramp
@@ -263,32 +223,6 @@ const RAW_ITEMS: Array[Dictionary] = [
 		"branch": "ramal", "kind": "synergy", "target": "trem", "per": "armazem",
 		"value": 0.06, "cap": 2.4, "cost": 8e12, "requires": ["composicao_dupla"],
 		"unlock": {"owned": {"trem": 5, "armazem": 10}}},
-	# Profundidade × cadência, na versão ferroviária. O comprimento do trem é
-	# limitado pelo chão, então a escolha se dá no relógio: uma composição que fica
-	# muito tempo e vem raro, ou um vaivém que mal encosta e nunca para. As duas
-	# movem carga; nenhuma move a mesma, e nenhuma é a resposta certa.
-	{"id": "trem_pesado", "name": "Trem Pesado", "short": "Pesado",
-		"desc": "Bloco de longo curso: fica 2 minutos a mais na rampa, mas o intervalo entre serviços cresce 50%. Rende para quem trabalha o trem inteiro.",
-		"branch": "ramal", "kind": "rail_stat",
-		"stats": [{"stat": "dwell", "operation": "add_flat", "value": 120.0},
-			{"stat": "service_gap", "operation": "mult", "value": 1.5}],
-		"cost": 30e12, "requires": ["portico_ferroviario"],
-		"excludes": ["trem_shuttle"], "unlock": {"owned": {"trem": 10}}},
-	{"id": "trem_shuttle", "name": "Shuttle de Cintura", "short": "Shuttle",
-		"desc": "Vaivém para o pátio vizinho: encosta 1 minuto a menos, e vem com menos da metade do intervalo. Rende para quem tem pórtico e não precisa olhar.",
-		"branch": "ramal", "kind": "rail_stat",
-		"stats": [{"stat": "dwell", "operation": "add_flat", "value": -60.0},
-			{"stat": "service_gap", "operation": "mult", "value": 0.45}],
-		"cost": 30e12, "requires": ["portico_ferroviario"],
-		"excludes": ["trem_pesado"], "unlock": {"owned": {"trem": 10}}},
-	{"id": "terminal_interior", "name": "Terminal Interior", "short": "Porto Seco",
-		"desc": "O ramal vira porto seco: o ramal em si quase para de produzir, mas os primeiros somam ~20% cada a todo o porto, rumo a +450% - e o bônus de composição completa triplica.",
-		"branch": "ramal", "kind": "transform", "target": "trem",
-		"mode": "conductor", "group": "conductor",
-		"self_mult": 0.3, "value": 0.20, "cap": 4.5,
-		"stats": [{"stat": "completion", "operation": "mult", "value": 3.0}],
-		"cost": 120e12, "requires": ["portico_ferroviario"],
-		"unlock": {"owned": {"trem": 15}}},
 
 	# ------------------------------------------------------------------- portão
 	{"id": "pneus_novos", "name": "Pneus Sem Careca", "short": "Pneus",
@@ -375,16 +309,170 @@ const RAW_ITEMS: Array[Dictionary] = [
 		"branch": "comando", "kind": "structure_mult", "target": "portal",
 		"value": 2.0, "cost": 1.04e19, "requires": ["calibracao_quantica"],
 		"unlock": {"owned": {"portal": 15}}},
-	# Conductor five, and the last identity a terminal takes on. Few, enormous, and
-	# every one worth 6% of everything — the ceiling is reached by a port with
-	# thirty control towers, which is a sentence only a very late port can say.
-	{"id": "centro_de_controle", "name": "Centro de Controle", "short": "Centro",
-		"desc": "A torre para de operar e passa a mandar. Quase não produz sozinha; as primeiras somam ~20% cada, desacelerando rumo a +450%.",
-		"branch": "comando", "kind": "transform", "target": "torre",
-		"mode": "conductor", "group": "conductor",
-		"self_mult": 0.2, "value": 0.20, "cap": 4.5,
-		"cost": 2e15, "requires": ["janela_berco_ia"],
-		"unlock": {"owned": {"torre": 10}}},
+
+	# -------- mão de obra: mais toque e o fundo da turma
+	{"id": "botina_aco", "name": "Botina com Biqueira",
+		"desc": "Pisa no pé e nem sente. O clique sai com convicção.",
+		"branch": "mao", "kind": "click_mult", "value": 2.0, "cost": 12000.0, "requires": ["gancho"],
+		"unlock": {"teus": 6000.0}},
+	{"id": "luva_titanio", "name": "Luva de Titânio",
+		"desc": "Pesa uma tonelada. Cada toque também.",
+		"branch": "mao", "kind": "click_mult", "value": 3.0, "cost": 5e7, "requires": ["exoesqueleto"],
+		"unlock": {"teus": 2e7}},
+	{"id": "apito_contramestre", "name": "Apito do Contramestre",
+		"desc": "Um apito e o pátio inteiro acelera junto com o seu dedo.",
+		"branch": "mao", "kind": "click_cps_pct", "value": 0.02, "cost": 5e8, "requires": ["clique_sindical"],
+		"unlock": {"teus": 1e8}},
+	{"id": "toque_de_ouro", "name": "Toque de Ouro",
+		"desc": "Lenda do cais: onde ele encosta, sai contêiner.",
+		"branch": "mao", "kind": "click_cps_pct", "value": 0.03, "cost": 5e11, "requires": ["apito_contramestre"],
+		"unlock": {"teus": 1e11}},
+	{"id": "plano_saude", "name": "Plano de Saúde",
+		"desc": "Coluna em dia, turno em dobro.",
+		"branch": "mao", "kind": "structure_mult", "target": "estivador", "value": 2.0, "cost": 810000.0, "requires": ["sindicato"],
+		"unlock": {"owned": {"estivador": 50}}},
+	{"id": "vestiario_ar", "name": "Vestiário com Ar",
+		"desc": "Ninguém mais some na hora do almoço. Só às vezes.",
+		"branch": "mao", "kind": "structure_mult", "target": "estivador", "value": 2.0, "cost": 8.8e8, "requires": ["plano_saude"],
+		"unlock": {"owned": {"estivador": 100}}},
+	{"id": "dupla_dinamica", "name": "Dupla Dinâmica",
+		"desc": "Estivador e empilhadeira se entendem no olhar: +2% no estivador por empilhadeira, até +150%.",
+		"branch": "mao", "kind": "synergy", "target": "estivador", "per": "empilhadeira", "value": 0.02, "cap": 1.5, "cost": 200000.0, "requires": ["carrinho_mao"],
+		"unlock": {"owned": {"estivador": 25, "empilhadeira": 10}}},
+
+	# -------- pátio: os níveis 30, 50 e 100
+	{"id": "bateria_litio", "name": "Bateria de Lítio",
+		"desc": "Carrega no almoço, trabalha o turno inteiro.",
+		"branch": "patio", "kind": "structure_mult", "target": "empilhadeira", "value": 2.0, "cost": 330000.0, "requires": ["buzina_musical"],
+		"unlock": {"owned": {"empilhadeira": 30}}},
+	{"id": "garfo_inteligente", "name": "Garfo Inteligente",
+		"desc": "Sente o peso antes de levantar. Quase um sommelier.",
+		"branch": "patio", "kind": "structure_mult", "target": "empilhadeira", "value": 2.0, "cost": 5.4e6, "requires": ["bateria_litio"],
+		"unlock": {"owned": {"empilhadeira": 50}}},
+	{"id": "frota_eletrica", "name": "Frota Elétrica",
+		"desc": "Silêncio no pátio. Dá até pra ouvir a gaivota.",
+		"branch": "patio", "kind": "structure_mult", "target": "empilhadeira", "value": 2.0, "cost": 5.9e9, "requires": ["garfo_inteligente"],
+		"unlock": {"owned": {"empilhadeira": 100}}},
+	{"id": "lanca_reforcada", "name": "Lança Reforçada",
+		"desc": "Aguenta duas alturas a mais sem reclamar.",
+		"branch": "patio", "kind": "structure_mult", "target": "reach_stacker", "value": 2.0, "cost": 4e7, "requires": ["telemetria_lanca"],
+		"unlock": {"owned": {"reach_stacker": 30}}},
+	{"id": "cabine_giratoria", "name": "Cabine Giratória",
+		"desc": "O operador vê tudo sem torcer o pescoço.",
+		"branch": "patio", "kind": "structure_mult", "target": "reach_stacker", "value": 2.0, "cost": 6.5e8, "requires": ["lanca_reforcada"],
+		"unlock": {"owned": {"reach_stacker": 50}}},
+	{"id": "rtg_hibrido", "name": "RTG Híbrido",
+		"desc": "Metade diesel, metade bateria, inteiro produtivo.",
+		"branch": "patio", "kind": "structure_mult", "target": "rtg", "value": 2.0, "cost": 4.3e8, "requires": ["operacao_remota_rtg"],
+		"unlock": {"owned": {"rtg": 30}}},
+	{"id": "bloco_automatico", "name": "Bloco Automático",
+		"desc": "O bloco se organiza sozinho durante a madrugada.",
+		"branch": "patio", "kind": "structure_mult", "target": "rtg", "value": 2.0, "cost": 7e9, "requires": ["rtg_hibrido"],
+		"unlock": {"owned": {"rtg": 50}}},
+
+	# -------- cais
+	{"id": "cabine_panoramica", "name": "Cabine Panorâmica",
+		"desc": "Vidro do chão ao teto. O operador nunca mais erra a célula.",
+		"branch": "cais", "kind": "structure_mult", "target": "sts", "value": 2.0, "cost": 4.6e9, "requires": ["twin_lift"],
+		"unlock": {"owned": {"sts": 30}}},
+	{"id": "sts_tandem", "name": "Portêiner Tandem",
+		"desc": "Quatro contêineres por içada. O navio nem percebe.",
+		"branch": "cais", "kind": "structure_mult", "target": "sts", "value": 2.0, "cost": 7.6e10, "requires": ["cabine_panoramica"],
+		"unlock": {"owned": {"sts": 50}}},
+	{"id": "patio_sincronizado", "name": "Pátio Sincronizado",
+		"desc": "O transtêiner já espera a caixa no pé do portêiner: +2% no STS por RTG, até +150%.",
+		"branch": "cais", "kind": "synergy", "target": "sts", "per": "rtg", "value": 0.02, "cap": 1.5, "cost": 1e10, "requires": ["twin_lift"],
+		"unlock": {"owned": {"sts": 10, "rtg": 20}}},
+	{"id": "rebocador_eletrico", "name": "Rebocador Elétrico",
+		"desc": "Empurra igual, faz menos fumaça e mais pose.",
+		"branch": "cais", "kind": "structure_mult", "target": "rebocador", "value": 2.0, "cost": 1.1e12, "requires": ["despacho_rebocadores"],
+		"unlock": {"owned": {"rebocador": 30}}},
+	{"id": "lastro_ativo", "name": "Lastro Ativo",
+		"desc": "O flutuante se equilibra antes da onda chegar.",
+		"branch": "cais", "kind": "structure_mult", "target": "flutuante", "value": 2.0, "cost": 2.5e14, "requires": ["spreader_pesado"],
+		"unlock": {"owned": {"flutuante": 30}}},
+
+	# -------- ramal
+	{"id": "locomotiva_nova", "name": "Locomotiva Nova",
+		"desc": "Tração de sobra. O apito é o mesmo de 1970.",
+		"branch": "ramal", "kind": "structure_mult", "target": "trem", "value": 2.0, "cost": 2e11, "requires": ["sinalizacao_ctc"],
+		"unlock": {"owned": {"trem": 5}}},
+	{"id": "trilho_soldado", "name": "Trilho Soldado",
+		"desc": "Sem emenda, sem tranco, sem carga caindo.",
+		"branch": "ramal", "kind": "structure_mult", "target": "trem", "value": 2.0, "cost": 3e12, "requires": ["locomotiva_nova"],
+		"unlock": {"owned": {"trem": 15}}},
+	{"id": "vagao_plataforma", "name": "Vagão Plataforma",
+		"desc": "Dois contêineres empilhados por vagão. O túnel que se cuide.",
+		"branch": "ramal", "kind": "structure_mult", "target": "trem", "value": 2.0, "cost": 9e13, "requires": ["trilho_soldado"],
+		"unlock": {"owned": {"trem": 30}}},
+
+	# -------- portão
+	{"id": "rota_otimizada", "name": "Rota Otimizada",
+		"desc": "O GPS finalmente conhece o pátio.",
+		"branch": "portao", "kind": "structure_mult", "target": "tt", "value": 2.0, "cost": 3.6e6, "requires": ["radio_pesado"],
+		"unlock": {"owned": {"tt": 30}}},
+	{"id": "comboio_patio", "name": "Comboio de Pátio",
+		"desc": "Três carretas em fila, um motorista só no comando.",
+		"branch": "portao", "kind": "structure_mult", "target": "tt", "value": 2.0, "cost": 5.9e7, "requires": ["rota_otimizada"],
+		"unlock": {"owned": {"tt": 50}}},
+	{"id": "cavalo_autonomo", "name": "Cavalo Autônomo",
+		"desc": "Dirige sozinho e nunca para no posto.",
+		"branch": "portao", "kind": "structure_mult", "target": "tt", "value": 2.0, "cost": 6.5e10, "requires": ["comboio_patio"],
+		"unlock": {"owned": {"tt": 100}}},
+	{"id": "cross_docking", "name": "Cross-Docking",
+		"desc": "A carreta encosta, descarrega e sai cheia: +2% no armazém por cavalo, até +150%.",
+		"branch": "portao", "kind": "synergy", "target": "armazem", "per": "tt", "value": 0.02, "cap": 1.5, "cost": 2e9, "requires": ["wms_alfandegado"],
+		"unlock": {"owned": {"armazem": 5, "tt": 30}}},
+	{"id": "porta_paletes", "name": "Porta-Paletes Duplo",
+		"desc": "Corredor estreito, estante alta, estoque feliz.",
+		"branch": "portao", "kind": "structure_mult", "target": "armazem", "value": 2.0, "cost": 6.6e10, "requires": ["docas_automatizadas"],
+		"unlock": {"owned": {"armazem": 30}}},
+	{"id": "armazem_frio", "name": "Câmara Fria",
+		"desc": "Carga refrigerada paga o dobro. O estoquista usa casaco.",
+		"branch": "portao", "kind": "structure_mult", "target": "armazem", "value": 2.0, "cost": 1.1e12, "requires": ["porta_paletes"],
+		"unlock": {"owned": {"armazem": 50}}},
+	{"id": "scanner_portal", "name": "Scanner de Portal",
+		"desc": "O caminhão passa e a Receita já viu tudo.",
+		"branch": "portao", "kind": "structure_mult", "target": "alfandega", "value": 2.0, "cost": 3.3e15, "requires": ["canal_verde"],
+		"unlock": {"owned": {"alfandega": 30}}},
+
+	# -------- comando: o porto inteiro
+	{"id": "iso_9001", "name": "Certificação ISO",
+		"desc": "Tudo documentado. Até o café tem procedimento.",
+		"branch": "comando", "kind": "global_mult", "value": 1.1, "cost": 1e9, "requires": ["wifi_patio"],
+		"unlock": {"teus": 5e8}},
+	{"id": "selo_verde", "name": "Selo Porto Verde",
+		"desc": "Painel solar no telhado e gaivota na foto oficial.",
+		"branch": "comando", "kind": "global_mult", "value": 1.15, "cost": 1e12, "requires": ["iso_9001"],
+		"unlock": {"teus": 5e11}},
+	{"id": "porto_do_ano", "name": "Prêmio Porto do Ano",
+		"desc": "Troféu na recepção. Todo mundo trabalha olhando pra ele.",
+		"branch": "comando", "kind": "global_mult", "value": 1.2, "cost": 1e15, "requires": ["selo_verde"],
+		"unlock": {"teus": 5e14}},
+	{"id": "hub_global", "name": "Hub Global",
+		"desc": "As rotas do mundo passam por aqui. O mundo agradece.",
+		"branch": "comando", "kind": "global_mult", "value": 1.25, "cost": 1e18, "requires": ["porto_do_ano"],
+		"unlock": {"teus": 5e17}},
+	{"id": "radar_banda_x", "name": "Radar Banda X",
+		"desc": "Vê navio atrás da neblina e da burocracia.",
+		"branch": "comando", "kind": "structure_mult", "target": "torre", "value": 2.0, "cost": 1e17, "requires": ["janela_berco_ia"],
+		"unlock": {"owned": {"torre": 30}}},
+	{"id": "malha_de_controle", "name": "Malha de Controle",
+		"desc": "Cada torre guia um enxame inteiro: +3% no drone por torre, até +180%.",
+		"branch": "comando", "kind": "synergy", "target": "drone", "per": "torre", "value": 0.03, "cap": 1.8, "cost": 1e17, "requires": ["visao_termica"],
+		"unlock": {"owned": {"drone": 5, "torre": 10}}},
+	{"id": "bateria_solar", "name": "Bateria Solar",
+		"desc": "O drone pousa no sol e volta voando.",
+		"branch": "comando", "kind": "structure_mult", "target": "drone", "value": 2.0, "cost": 7.3e17, "requires": ["enxame_coordenado"],
+		"unlock": {"owned": {"drone": 30}}},
+	{"id": "rede_neural", "name": "Rede Neural Portuária",
+		"desc": "A IA sonha com contêiner. E acerta.",
+		"branch": "comando", "kind": "structure_mult", "target": "porto_ia", "value": 2.0, "cost": 1.2e19, "requires": ["aprendizado_federado"],
+		"unlock": {"owned": {"porto_ia": 30}}},
+	{"id": "dobra_logistica", "name": "Dobra Logística",
+		"desc": "A carga chega antes de sair. O financeiro surtou.",
+		"branch": "comando", "kind": "structure_mult", "target": "portal", "value": 2.0, "cost": 3e20, "requires": ["corredor_instantaneo"],
+		"unlock": {"owned": {"portal": 30}}},
 ]
 static var ITEMS: Array[Dictionary] = EconomyMath.paced(RAW_ITEMS)
 
@@ -447,9 +535,9 @@ static func short_of(item: Dictionary) -> String:
 
 
 static func targets_of(item: Dictionary) -> Array[String]:
-	## Which machines a node is fitted to. Most nodes name one; the exclusive
-	## "spread" halves name two or three, and a node with no machine at all — a
-	## click or global multiplier — names none.
+	## Which machines a node is fitted to. Most nodes name one; a few name two,
+	## and a node with no machine at all — a click or global multiplier — names
+	## none.
 	var out: Array[String] = []
 	var single := str(item.get("target", ""))
 	if not single.is_empty():
@@ -468,31 +556,8 @@ static func requires_of(item: Dictionary) -> Array[String]:
 	return out
 
 
-static func excludes_of(item: Dictionary) -> Array[String]:
-	## Authored exclusions, plus every other member of this node's group.
-	##
-	## `group` exists so an N-way choice does not have to be written out N times
-	## with N chances to forget one and leave the rule half-applied. The conductor
-	## nodes are one such choice: a terminal is run by its dockers, or its yard, or
-	## its quay, or its railhead, or its tower — one answer, swappable, never two.
-	var out: Array[String] = []
-	for entry in item.get("excludes", []):
-		out.append(str(entry))
-	var group := str(item.get("group", ""))
-	if group.is_empty():
-		return out
-	var id := str(item.get("id", ""))
-	for other in ITEMS:
-		var other_id := str(other.get("id", ""))
-		if other_id != id and str(other.get("group", "")) == group \
-				and not out.has(other_id):
-			out.append(other_id)
-	return out
-
-
 static func stats_of(item: Dictionary) -> Array:
-	## Rail knobs a node moves. A `transform` can carry these too — Terminal
-	## Interior changes what the branch pays as well as what the machine is for.
+	## Rail knobs a node moves.
 	var raw: Variant = item.get("stats", [])
 	return raw if raw is Array else []
 
@@ -532,29 +597,26 @@ static func blocked_by(item: Dictionary, owned_upgrades: Dictionary) -> Array[St
 	return missing
 
 
-static func conflicts_with(item: Dictionary, owned_upgrades: Dictionary) -> Array[String]:
-	## Which owned nodes this one would refit out. Non-empty means the purchase is
-	## a swap at `SWAP_SURCHARGE`, not a plain buy.
-	var hits: Array[String] = []
-	for other in excludes_of(item):
-		if owned_upgrades.has(other):
-			hits.append(other)
-	return hits
+static func price_for(item: Dictionary, _owned_upgrades: Dictionary = {}) -> float:
+	## What this node costs. Kept as a function so every screen asks one place.
+	return float(item.get("cost", 0.0))
 
 
-static func price_for(item: Dictionary, owned_upgrades: Dictionary) -> float:
-	## What this node costs *this* port right now. A first pick is the list price;
-	## replacing the sibling you already fitted is the list price times the
-	## surcharge, and the card says so before the press, not after.
-	var cost := float(item.get("cost", 0.0))
-	return cost * SWAP_SURCHARGE if not conflicts_with(item, owned_upgrades).is_empty() \
-		else cost
+static func refund_retired(owned_upgrades: Dictionary) -> float:
+	## Takes every retired node out of `owned_upgrades` and returns what they
+	## cost, so the caller can hand it back.
+	var refund := 0.0
+	for id: String in RETIRED:
+		if owned_upgrades.has(id):
+			owned_upgrades.erase(id)
+			refund += EconomyMath.pace_cost(float(RETIRED[id]))
+	return refund
 
 
 static func is_valid() -> bool:
-	## Guards the four ways this data can be wrong in a way no screen would show:
-	## a duplicate id, a `requires` pointing nowhere, a one-sided exclusion, and a
-	## cycle. The last one would hang `depth_of` rather than merely look odd.
+	## Guards the three ways this data can be wrong in a way no screen would
+	## show: a duplicate id, a `requires` pointing nowhere, and a cycle. The last
+	## one would hang `depth_of` rather than merely look odd.
 	var ids := {}
 	var branch_ids := {}
 	for branch in branches():
@@ -571,13 +633,6 @@ static func is_valid() -> bool:
 	for item in ITEMS:
 		for parent in requires_of(item):
 			if not ids.has(parent):
-				return false
-		for other in excludes_of(item):
-			# Exclusion has to be mutual, or the order of purchase would decide
-			# whether the rule applied at all.
-			if not ids.has(other):
-				return false
-			if not excludes_of(get_item(other)).has(str(item.get("id", ""))):
 				return false
 	return not _has_cycle()
 

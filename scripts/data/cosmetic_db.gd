@@ -31,9 +31,11 @@ const KIND_CREW := &"crew"
 ## `slot` (optional): items sharing a slot are worn one at a time — switching
 ## one on switches the others off. Every hat is in the `hat` slot.
 ## `hat`: the helmet colour, or "rainbow" for one hue per worker.
-## `art`: the frame of `ui_decor_art.png` the shelf shows it with
+## `art`: the frame of `ui_decor_icons.png` the shelf shows it with
 ## (tools/sprites/gen_decor.py ART, same order).
-const ITEMS: Array[Dictionary] = [
+## A `static var`, not a `const`: `CatalogText` writes the player's language
+## into these rows in place (see scripts/i18n/catalog_text.gd).
+static var ITEMS: Array[Dictionary] = [
 	{
 		"id": "teal_hats", "art": 0, "kind": KIND_CREW, "level": 3, "slot": "hat",
 		"hat": "#46c4b2", "name": "Capacete Verde-Água",

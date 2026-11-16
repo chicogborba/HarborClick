@@ -1749,13 +1749,26 @@ func _drive_boat_toward(target: Vector2, top_speed: float, delta: float) -> void
 	_boat_fx.rotation = _facing
 
 
+func water_wake() -> Dictionary:
+	## Where this boat's stern is on the water and how hard it is pushing, for
+	## WaterWakes; empty when it is not a boat or not making way.
+	if _boat_fx == null or not visible or _cruise <= 2.0:
+		return {}
+	var top := TUG_ESCORT_SPEED if _escort_active else maxf(_speed, TUG_HOLD_SPEED)
+	return {
+		"stern": global_position + Vector2(0.0, 13.0).rotated(_facing),
+		"half": 2.5,
+		"strength": clampf(_cruise / maxf(top, 1.0), 0.25, 1.0),
+	}
+
+
 func _update_boat_fx() -> void:
 	if _boat_fx == null:
 		return
 	var underway := _cruise > 1.0 or _escort_active
 	if _boat_wake != null:
 		_boat_wake.visible = underway
-		_boat_wake.modulate.a = (0.36 if _escort_active else 0.22) \
+		_boat_wake.modulate.a = (0.26 if _escort_active else 0.16) \
 			* (0.90 + sin(_t * 4.0 + _phase) * 0.10)
 		_boat_wake.speed_scale = 1.35 if _escort_active else 0.8
 	var night := Skyscape._night_factor(TimeManager.time_of_day)

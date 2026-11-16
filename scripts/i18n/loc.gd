@@ -151,8 +151,12 @@ func apply(wanted: StringName, notify: bool = true) -> void:
 	var resolved := device_language() if preference == FOLLOW_DEVICE \
 		else preference
 	if resolved == language and not notify:
+		CatalogText.relocalize()
 		return
 	language = resolved
+	# The catalogues hold their text in the rows themselves; rewrite them before
+	# anyone hears about the switch, so a panel that rebuilds reads new words.
+	CatalogText.relocalize()
 	# Keeps engine-side locale-dependent behaviour in step with ours. Nothing in
 	# the game reads it today; a mismatch would be a trap for whatever does next.
 	TranslationServer.set_locale(String(language))

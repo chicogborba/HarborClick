@@ -1,48 +1,48 @@
-"""PWA / home-screen icons, drawn from the title crest on the app's navy.
+"""App, PWA and home-screen icons, from the generated brand icon.
 
-The crest is the one piece of key art that is already square-ish and reads at
-small sizes, so the icons are it centred on the background colour, scaled with
-nearest neighbour (pixel art never resamples). Sizes are the ones the Web
-preset's progressive_web_app block asks for: 144, 180 and 512.
+The icon is the one illustrated piece of branding (see `tools/docs/gen_keyart.py`
+and `docs/media/store/keyart/generations.json` for its prompt): a red gantry
+crane lifting a container at sunset. It is committed as a 1024 px answer and
+this generator only resizes it, offline, into the sizes the presets ask for:
+
+* 144, 180, 512 — the Web preset's progressive_web_app block, and 512 is also
+  `application/config/icon` (the favicon and boot icon of `/jogar/`) and the
+  Android legacy icon;
+* 432 foreground + background — Android adaptive icons. The art is full-bleed,
+  so it is the foreground whole and the background is its own sky colour; a
+  launcher's mask trims the edges, never the crane in the middle.
+
+Downscaling is LANCZOS, not nearest: a 1024 painting taken to 144 by dropping
+pixels shimmers. The landing's favicons are made from the same file
+(`gen_landing.gen_favicon`).
 """
 import os
 
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SPRITES = os.path.normpath(os.path.join(HERE, "..", "..", "assets", "sprites"))
-OUT = os.path.normpath(os.path.join(HERE, "..", "..", "assets", "icons"))
+ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
+SOURCE = os.path.join(ROOT, "docs", "media", "store", "keyart", "icon.png")
+OUT = os.path.join(ROOT, "assets", "icons")
 
-BG = (13, 11, 17, 255)  # matches the PWA background_color in export_presets.cfg
 SIZES = (144, 180, 512)
-# Android adaptive icons want a 432x432 foreground (art on transparent) and a
-# background (solid colour) — the launcher masks both into its own shape.
 ADAPTIVE = 432
+
+
+def icon(size: int) -> Image.Image:
+    return Image.open(SOURCE).convert("RGBA").resize((size, size), Image.LANCZOS)
 
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    crest = Image.open(os.path.join(SPRITES, "ui_title_crest.png")).convert("RGBA")
     for size in SIZES:
-        icon = Image.new("RGBA", (size, size), BG)
-        # 78% of the tile is art, 11% margin each side — a crest that touches
-        # the edge reads as a sticker, not an icon.
-        art = size * 78 // 100
-        scaled = crest.resize((art, art), Image.NEAREST)
-        icon.alpha_composite(scaled, ((size - art) // 2, (size - art) // 2))
-        path = os.path.join(OUT, "icon_%d.png" % size)
-        icon.save(path)
-        print("icon_%d.png %dx%d" % (size, size, size))
-    # adaptive pair: the safe zone is the inner 66%, so the crest at 60% of
-    # the tile survives every launcher mask.
-    fg = Image.new("RGBA", (ADAPTIVE, ADAPTIVE), (0, 0, 0, 0))
-    art = ADAPTIVE * 60 // 100
-    fg.alpha_composite(crest.resize((art, art), Image.NEAREST),
-                       ((ADAPTIVE - art) // 2, (ADAPTIVE - art) // 2))
+        icon(size).save(os.path.join(OUT, f"icon_{size}.png"))
+    fg = icon(ADAPTIVE)
     fg.save(os.path.join(OUT, "icon_432_fg.png"))
-    Image.new("RGBA", (ADAPTIVE, ADAPTIVE), BG).save(
+    sky = fg.getpixel((ADAPTIVE // 2, 4))
+    Image.new("RGBA", (ADAPTIVE, ADAPTIVE), sky).save(
         os.path.join(OUT, "icon_432_bg.png"))
-    print("adaptive 432 pair written")
+    print("  icons: 144 180 512 + adaptive 432")
 
 
 if __name__ == "__main__":

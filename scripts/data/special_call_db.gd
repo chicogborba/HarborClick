@@ -28,7 +28,9 @@ const GAMES: Array[StringName] = [GAME_STACK, GAME_MAZE, GAME_TRAFFIC]
 ## Frame of `ui_minigame_art.png` each game's cover is on (3 is the scanner).
 const COVER := {GAME_STACK: 0, GAME_MAZE: 1, GAME_TRAFFIC: 2, &"xray": 3}
 
-const OFFERS: Array[Dictionary] = [
+## A `static var`, not a `const`: `CatalogText` writes the player's language
+## into these rows in place (see scripts/i18n/catalog_text.gd).
+static var OFFERS: Array[Dictionary] = [
 	{
 		"id": "gala_relampago",
 		"title": "Escala Relâmpago",

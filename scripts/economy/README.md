@@ -26,8 +26,8 @@
 ## The sandbox and the game share their formulas or they are worthless
 
 Since the upgrade catalogue became a graph, three things depend on how many of
-some *other* machine the port runs — synergies, conductors and the capital
-tree's breadth node. That put two obligations on this directory:
+some *other* machine the port runs — synergies and the capital tree's
+breadth node. That put two obligations on this directory:
 
 - **One implementation of the pay-per-unit curve.** `GameState` and
   `EconomySimulator` both call `EconomyMath.saturating_bonus`. Anything that
@@ -55,13 +55,16 @@ balance change should run phase3 economy/progression, route tests,
 **Target: two hours a day for seven days owns everything** (`two_hour_week`:
 four half-hour sessions a day). Two knobs carry it:
 
+- `EconomyMath.OUTPUT_SCALE` (0.5) runs every machine at half the rate its
+  table quotes, which doubles every wait at once. Players were clearing tiers
+  in an evening; with it a nonstop player's first rebuild is ~11 h, not ~5 h.
 - `EconomyMath.pace_cost` runs every list price (machines, land, upgrades)
-  through `price * (price / 15) ^ 0.12`. The `RAW_ITEMS` tables keep the
+  through `price * (price / 15) ^ 0.15`. The `RAW_ITEMS` tables keep the
   authored prices and paybacks; `ITEMS` is the paced view everything reads.
   Cheap things barely move, so the first minutes are as quick as ever; each
   tier pays back slower than the last. With it, `two_hour_week` opens the
   second-to-last machine on day 7 and the last just after.
-- `TerminalLevel.XP_SCALE` (2.5) stretches the level curve: level 30 at ~14 h
+- `TerminalLevel.XP_SCALE` (4.0) stretches the level curve: level 30 at ~22 h
   of active play instead of ~5.6 h.
 
 The game is paced so a casual player — five ten-minute check-ins a day

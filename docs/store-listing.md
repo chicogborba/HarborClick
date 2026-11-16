@@ -8,8 +8,8 @@ Nine storefront languages, matching the game's nine UI languages. Short
 description ≤ 80 chars, long description plain text. Capturas: the QA matrix
 PNGs in `user://uishots/` from `tools/capture/capture.tscn -- matrix` (world,
 shop, wheel, journal at 320×568…1920×1080) plus `landing/` screenshots.
-Feature graphic 1024×500 and video 15–30 s are still to be produced from those
-captures.
+Store screenshots, feature graphic, social banners and key art now exist in
+[`docs/media/store/`](media/store/README.md); a 15–30 s video is still to be made.
 
 ## Title
 

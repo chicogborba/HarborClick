@@ -20,6 +20,8 @@ var _samples: PackedFloat64Array = []
 var _sampling := false
 var _elapsed := 0.0
 var _size := Vector2i(390, 844)
+var _cpu := PackedFloat64Array()
+var _draws := PackedFloat64Array()
 
 
 func _ready() -> void:
@@ -81,6 +83,11 @@ func _process(delta: float) -> void:
 	if not _sampling:
 		return
 	_samples.append(delta * 1000.0)
+	# What the frame was spent on: script/process time on the CPU, and how many
+	# draw calls the renderer was handed. Frame time alone cannot tell the two
+	# apart, and they need opposite fixes.
+	_cpu.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
+	_draws.append(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
 	_elapsed += delta
 	if _elapsed < SAMPLE_SECONDS:
 		return
@@ -97,6 +104,17 @@ func _report() -> void:
 	print("[perf] %dx%d  frames=%d  p50=%.2fms (%.0f fps)  p95=%.2fms  worst=%.2fms  budget=%.2fms"
 		% [_size.x, _size.y, _samples.size(), p50, 1000.0 / maxf(p50, 0.001),
 			p95, worst, BUDGET_MS])
+	var cpu_sorted := Array(_cpu)
+	cpu_sorted.sort()
+	var draws := 0.0
+	for d in _draws:
+		draws += d
+	print("[perf] process p50=%.2fms p95=%.2fms  draw calls avg=%.0f  objects=%d  nodes=%d"
+		% [float(cpu_sorted[int(cpu_sorted.size() * 0.5)]),
+			float(cpu_sorted[int(cpu_sorted.size() * 0.95)]),
+			draws / maxf(1.0, float(_draws.size())),
+			int(Performance.get_monitor(Performance.OBJECT_COUNT)),
+			int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
 	if p95 > BUDGET_MS:
 		printerr("[perf] FAIL: p95 %.2fms misses the 60 FPS budget" % p95)
 		get_tree().quit(1)

@@ -67,16 +67,27 @@ func _ready() -> void:
 			var node := _main.get_node_or_null(path)
 			if node != null:
 				node.queue_free()
-	var focus := await _stage(scenario)
-	if centre.x >= 0.0:
-		focus = centre
+	# `a+b+c` takes several shots in one window, in order, closing any board
+	# between them — one window on the desktop instead of one per picture.
 	var cam: Camera2D = _main.cam
-	cam.set_process(false)
-	if zoom > 0.0:
-		cam.zoom = Vector2.ONE * zoom
-	if focus.x >= 0.0:
-		cam.position = focus
-	await _shot("closeup_" + scenario)
+	var base_zoom := cam.zoom
+	for part in scenario.split("+"):
+		cam.zoom = base_zoom
+		var focus := await _stage(part)
+		if centre.x >= 0.0:
+			focus = centre
+		cam.set_process(false)
+		if zoom > 0.0:
+			cam.zoom = Vector2.ONE * zoom
+		if focus.x >= 0.0:
+			cam.position = focus
+		await _shot("closeup_" + part)
+		if _main.routes.visible:
+			_main.routes.close()
+		if _main.shop.visible:
+			_main.shop._close()
+		await get_tree().create_timer(0.5).timeout
+		cam.set_process(true)
 	get_tree().quit(0)
 
 
@@ -390,6 +401,35 @@ func _stage(scenario: String) -> Vector2:
 			# first minute, before the first purchase changes anything.
 			await get_tree().create_timer(8.0).timeout
 			return Vector2(-1, -1)
+		"tooltip":
+			# The pointer parked on the logbook button long enough for the engine's
+			# tooltip: it has to be the game's caption, not the stock sans.
+			var button: Control = _main.find_child("CommandRail", true, false) \
+				.get("_objective_button")
+			var at := button.get_global_rect().get_center()
+			get_viewport().warp_mouse(at)
+			var motion := InputEventMouseMotion.new()
+			motion.position = at
+			motion.global_position = at
+			get_viewport().push_input(motion, true)
+			await get_tree().create_timer(1.6).timeout
+			return Vector2(-1, -1)
+		"wake_trail":
+			# A long run up the fairway, so the track the water keeps can be seen
+			# behind the hull: arms, wash and slick, aged over several seconds.
+			for running in get_tree().get_processed_tweens():
+				running.kill()
+			var runner: Ship = _main.world.ship
+			runner.visible = true
+			runner._set_phase(Ship.Phase.ARRIVING)
+			runner._under_way = true
+			runner._refresh_wake_state()
+			runner.position = Vector2(PortLayout.FAIRWAY_X, 520.0)
+			for step in 230:
+				runner.position.y -= 1.4
+				await get_tree().process_frame
+			_main.cam.zoom = Vector2.ONE * 1.45
+			return Vector2(PortLayout.WATER_X0 + 18.0, runner.position.y + 250.0)
 		"wake", "wake_stern":
 			# A hull making way up the channel, driven by hand so the wake's
 			# strength comes from real movement and not a forced uniform. The

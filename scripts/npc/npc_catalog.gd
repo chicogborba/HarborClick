@@ -89,12 +89,22 @@ static func station_of(role: String) -> StringName:
 	return ROLES.get(role, {}).get("station", &"")
 
 
+## What someone is called when their role is not in `ROLES`, and the story a
+## station with no backgrounds of its own falls back to.
+const DEFAULT_TITLE := "Trabalhador do porto"
+const DEFAULT_BACKGROUND := "Bateu o ponto pela primeira vez numa segunda de neblina."
+
+
 static func title_of(role: String) -> String:
-	return str(ROLES.get(role, {}).get("title", "Trabalhador do porto"))
+	if not ROLES.has(role):
+		return CatalogText.text("npc_role", "default", "title", DEFAULT_TITLE)
+	return CatalogText.text("npc_role", role, "title", str(ROLES[role].title))
 
 
 static func duty_of(role: String) -> String:
-	return str(ROLES.get(role, {}).get("duty", ""))
+	if not ROLES.has(role):
+		return ""
+	return CatalogText.text("npc_role", role, "duty", str(ROLES[role].duty))
 
 
 static func presents_feminine(first_name: String) -> bool:
@@ -207,8 +217,29 @@ const BACKGROUNDS := {
 static func background_for(station: StringName, index: int) -> String:
 	var pool: Array = BACKGROUNDS.get(station, [])
 	if pool.is_empty():
-		return "Bateu o ponto pela primeira vez numa segunda de neblina."
+		return DEFAULT_BACKGROUND
 	return str(pool[posmod(index, pool.size())])
+
+
+static func story_of(profile_station: StringName, special_id: StringName,
+		stored: String, field: String = "dossier") -> String:
+	## A profile's story in the player's language. Saves keep the Portuguese
+	## line that was dealt (`dossier`, `trait`), so a story is found again by
+	## its authored text rather than by an index the save never recorded.
+	if special_id != &"":
+		for special: Dictionary in SPECIALS:
+			if StringName(special.id) == special_id:
+				return CatalogText.text("npc_special", String(special_id), field, stored)
+		return stored
+	if field != "dossier" or stored.is_empty():
+		return stored
+	if stored == DEFAULT_BACKGROUND:
+		return CatalogText.text("npc_background", "default", "0", stored)
+	var pool: Array = BACKGROUNDS.get(profile_station, [])
+	var index := pool.find(stored)
+	if index < 0:
+		return stored
+	return CatalogText.text("npc_background", String(profile_station), str(index), stored)
 
 
 static func special_for(role: String, slot: int) -> Dictionary:

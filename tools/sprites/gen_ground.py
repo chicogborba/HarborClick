@@ -35,31 +35,29 @@ def grain(img, base, dark, light, density, seed):
 
 
 def gen_yard():
-    """Paved yard: warm asphalt. Four variants, randomised in-game so the
-    ground never shows an obvious repeat."""
+    """Paved yard: asphalt grain, four variants randomised in-game.
+
+    The tiles used to carry their own patches and cracks, which then repeated
+    every sixteen pixels in a grid the eye found at once. Patches, oil, cracks
+    and terminal-scale tone are now laid by `ground_detail.gdshader` across the
+    whole yard, so the tiles are only the grain."""
     for v in range(4):
         img = new_img(T, T)
         rect(img, 0, 0, T, T, P.YARD)
-        grain(img, P.YARD, P.YARD_D, P.YARD_L, 0.11, seed=10 + v)
-        if v in (0, 2):
-            patch(img, 3 + v * 4, 10 - v * 2, 4, 3, P.YARD_PATCH, seed=20 + v)
-        if v in (1, 3):
-            cx = 2 + v * 3
-            for y in range(2, 13):
-                cx += ((y + v) % 3) - 1
-                px(img, max(0, min(T - 1, cx)), y, P.YARD_D)
+        grain(img, P.YARD, P.YARD_D, P.YARD_L, 0.08, seed=10 + v)
         save(img, "gr_yard_%d" % v)
 
 
 def gen_quay():
-    """Concrete apron slabs: lighter, with expansion joints."""
+    """Concrete apron: grain only.
+
+    It used to carry its own joints — a light top/left and a dark bottom/right
+    edge — so the apron tiled into a grid of sixteen-pixel bathroom tiles. The
+    slabs are now cast by `ground_detail.gdshader` at the size a real quay pours
+    them, so the tile is just the concrete they are made of."""
     img = new_img(T, T)
     rect(img, 0, 0, T, T, P.QUAY)
-    grain(img, P.QUAY, P.QUAY_D, P.QUAY_L, 0.09, seed=3)
-    hline(img, 0, 0, T, P.QUAY_L)
-    vline(img, 0, 0, T, P.QUAY_L)
-    hline(img, 0, T - 1, T, P.QUAY_D)
-    vline(img, T - 1, 0, T, P.QUAY_D)
+    grain(img, P.QUAY, P.QUAY_D, P.QUAY_L, 0.07, seed=3)
     save(img, "gr_quay")
 
 

@@ -15,6 +15,8 @@ var _levels: Array[int] = []
 var _sprites: Dictionary = {} # slot -> Array[Node2D]
 var _units: Dictionary = {} # slot -> Array[CargoUnit], bottom to top
 var _reservations: Dictionary = {} # token -> {slot, level}
+## slot -> sector, filled lazily; see `slot_sector`.
+var _sector_cache: Array[StringName] = []
 ## How many reservations each slot carries. `_slot_is_reserved` is asked once per
 ## slot inside loops that already walk every slot, so scanning the reservation
 ## list there made those loops O(slots x reservations) — with a bought-out port
@@ -105,8 +107,16 @@ func slot_sector(slot: int) -> StringName:
 	## The sector a box landing here is filed under. Buffer takes either, and
 	## files as import, because a box with nowhere else to go is a box waiting on
 	## the road rather than one promised to a hull.
-	return CargoUnit.EXPORT if slot_role(slot) == PortLayout.ROLE_EXPORT \
-		else CargoUnit.IMPORT
+	##
+	## Cached: it is pure geometry (`PortLayout.block_role` of the slot's block),
+	## and the yard's read-only scans — hover outlines, auto-dispatch, landing —
+	## asked it for every slot several times a frame. On a bought-out yard that
+	## was most of the berths' and the gate's frame cost.
+	while _sector_cache.size() <= slot:
+		var index := _sector_cache.size()
+		_sector_cache.append(CargoUnit.EXPORT
+			if slot_role(index) == PortLayout.ROLE_EXPORT else CargoUnit.IMPORT)
+	return _sector_cache[slot]
 
 
 func pick_landing_slot(sector: StringName = CargoUnit.IMPORT) -> Dictionary:
@@ -339,9 +349,12 @@ func take_exportable(import_uids: PackedStringArray = PackedStringArray()) -> Di
 
 func can_accept(sector: StringName = CargoUnit.IMPORT) -> bool:
 	## Read-only partner to `pick_landing_slot`, used by hover affordances.
+	## Height first: it is a plain array read, and on a full yard — exactly when
+	## this is asked most — it rejects every slot without touching anything else.
+	var cap := PortLayout.STACK_MAX
 	for slot in _levels.size():
-		if slot_sector(slot) == sector and not _slot_is_reserved(slot) \
-				and _levels[slot] < PortLayout.STACK_MAX:
+		if _levels[slot] < cap and not _reserved_slots.has(slot) \
+				and slot_sector(slot) == sector:
 			return true
 	return false
 

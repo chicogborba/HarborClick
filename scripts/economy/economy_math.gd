@@ -10,7 +10,13 @@ const GROWTH := 1.15
 ## needs - tuned with `tools/balance/week_report.gd -- two_hour_week` so two
 ## hours a day for seven days is what it takes to own everything.
 const PACE_BASE := 15.0
-const PACE_EXPONENT := 0.12
+const PACE_EXPONENT := 0.15
+## What every machine actually produces, against the payback its table quotes.
+## Halving it doubles every wait in the game at once - machines, land, levels
+## that ride on production, the first rebuild - without touching a single price
+## or the shape of the curve. Players were finishing tiers in an evening; the
+## game is meant to be a slow climb.
+const OUTPUT_SCALE := 0.5
 const MILESTONES: Array[int] = [10, 25, 50, 100]
 const MAX_BULK_LIMIT := 10_000
 const MAX_BULK_COUNT := MAX_BULK_LIMIT # compatibility for callers/tests
@@ -253,5 +259,7 @@ static func paced(items: Array[Dictionary]) -> Array[Dictionary]:
 		var copy := item.duplicate(true)
 		if copy.has("cost"):
 			copy["cost"] = pace_cost(float(copy["cost"]))
+		if copy.has("cps"):
+			copy["cps"] = float(copy["cps"]) * OUTPUT_SCALE
 		out.append(copy)
 	return out

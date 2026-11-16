@@ -56,17 +56,26 @@ func rebuild() -> void:
 		_build_duck()
 	if GameState.cosmetic_on(&"palms"):
 		_build_palms()
-	_show = _Show.new()
-	_show.layer = self
-	_show.lighthouse = GameState.cosmetic_on(&"lighthouse")
-	_show.balloon = GameState.cosmetic_on(&"balloon")
-	_show.dolphins = GameState.cosmetic_on(&"dolphins")
-	_show.fireworks = GameState.cosmetic_on(&"fireworks")
-	_show.flags = GameState.cosmetic_on(&"flags")
-	_show.z_index = 6
-	_show.z_as_relative = false
-	add_child(_show)
-	set_process(true)
+	_show = null
+	var lighthouse := GameState.cosmetic_on(&"lighthouse")
+	var balloon := GameState.cosmetic_on(&"balloon")
+	var dolphins := GameState.cosmetic_on(&"dolphins")
+	var fireworks := GameState.cosmetic_on(&"fireworks")
+	var flags := GameState.cosmetic_on(&"flags")
+	# Nothing on the shelf switched on is nothing in the tree and nothing ticking:
+	# the show node used to be added (and advanced every frame) regardless.
+	if lighthouse or balloon or dolphins or fireworks or flags:
+		_show = _Show.new()
+		_show.layer = self
+		_show.lighthouse = lighthouse
+		_show.balloon = balloon
+		_show.dolphins = dolphins
+		_show.fireworks = fireworks
+		_show.flags = flags
+		_show.z_index = 6
+		_show.z_as_relative = false
+		add_child(_show)
+	set_process(_show != null or _duck != null)
 
 
 func _process(delta: float) -> void:

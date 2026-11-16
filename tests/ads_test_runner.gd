@@ -141,9 +141,10 @@ func _test_placements_table() -> void:
 		&"mission_reroll": [1, 0.0],
 		&"boost_2x": [6, 0.0],
 		&"level_bonus": [0, 20.0],
+		&"port_travel": [0, 0.0],
 	}
 	_expect(AdPolicy.PLACEMENTS.size() == expected.size(),
-		"eleven placements are declared (%d)" % AdPolicy.PLACEMENTS.size())
+		"twelve placements are declared (%d)" % AdPolicy.PLACEMENTS.size())
 	for id in expected.keys():
 		_expect(AdPolicy.PLACEMENTS.has(id), "placement %s exists" % String(id))
 		var rule: Dictionary = AdPolicy.PLACEMENTS.get(id, {})

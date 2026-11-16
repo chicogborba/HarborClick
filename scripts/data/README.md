@@ -62,25 +62,22 @@ are persisted.
 
 ## `upgrade_db.gd` is a graph, not a list
 
-Upgrades carry four fields the other catalogues do not, and every one of them is
+Upgrades carry three fields the other catalogues do not, and every one of them is
 a rule some other file enforces:
 
 - `requires` — upgrade ids that must be owned first. `GameState.upgrade_available`
   refuses the purchase; the shop draws the node anyway and says what opens it.
-- `excludes` / `group` — nodes that cannot be fitted together. `group` is the
-  N-way form: every member excludes every other, so an N-way choice cannot be
-  written down with N chances to forget a side. Buying over a fitted sibling is
-  a **swap**: `UpgradeDB.price_for` charges `SWAP_SURCHARGE`× and
-  `GameState.buy_upgrade` removes the loser in the same transaction.
 - `targets` — the plural of `target`, for a node fitted to several machines.
   Read everything through `UpgradeDB.targets_of`, never `item.target`.
 - `stats` — rail knobs, applied by `GameState.rail_stat` over the baseline that
   `RailCargoPolicy`/`RailYard` own.
 
 `kind` is one of `click_mult`, `click_cps_pct`, `structure_mult`, `global_mult`,
-`synergy` (pays per unit of a *different* machine), `transform` (mode
-`conductor`: the machine stops producing and pays the port a share per unit of
-itself) and `rail_stat`.
+`synergy` (pays per unit of a *different* machine) and `rail_stat`.
+
+There are **no exclusive picks**. The old `excludes` pairs and the `conductor`
+transforms were cut because players read them as traps; their ids are in
+`UpgradeDB.RETIRED`, and `GameState.from_save` refunds a save that owned one.
 
 Two invariants worth knowing before editing:
 

@@ -28,9 +28,9 @@ func _run() -> void:
 	test_offline_lines_fit_the_board()
 	test_prestige_quote_reads_as_a_decision()
 	test_cps_breakdown_reproduces_the_rate()
-	test_a_transform_preview_tells_the_truth()
 	test_a_quote_prices_what_a_machine_does_to_the_whole_port()
-	test_an_exclusive_swap_costs_and_replaces()
+	test_retired_upgrades_are_refunded()
+	test_no_upgrade_excludes_another()
 	test_a_blocked_node_is_refused_not_silently_bought()
 	test_fmt_reads_as_a_number_in_this_language()
 	test_the_cat_is_worth_finding_after_automation()
@@ -231,102 +231,64 @@ func test_cps_breakdown_reproduces_the_rate() -> void:
 			_expect(float(row.value) > 0.0, "no factor is zero on an empty port")
 
 
-func test_a_transform_preview_tells_the_truth() -> void:
-	## The conductor card is the only one on the board that can honestly show a
-	## loss, so the figure it shows has to be the figure that happens. It is
-	## derived rather than simulated — `recompute()` emits, so the shop cannot
-	## buy-measure-rollback twice a second — and a derivation is exactly the kind
-	## of thing that quietly stops matching the formula it was derived from.
-	# Both signs, because the clamped `cps_gain` on the card cannot show a loss and
-	# the loss is the half that makes it a decision.
-	for case in [
-		# A yard that is *only* dockers: converting them guts 99% of its own
-		# output to lift a port that is almost entirely those same dockers.
-		{"owned": {"estivador": 120, "empilhadeira": 10}, "gain": false},
-		# A yard where the dockers are long since a rounding error in production
-		# but still a hundred-odd bodies to pay a share on.
-		{"owned": {"estivador": 120, "empilhadeira": 100, "tt": 90,
-			"reach_stacker": 70, "rtg": 55, "sts": 40}, "gain": true},
-	]:
-		GameState.from_save({"owned": case.owned,
-			"upgrades": ["cafe_forte", "carrinho_mao", "sindicato"],
-			"teus": 1e18, "all_time_teus": 1e18})
-		GameState.recompute()
-		var before := GameState.base_cps
-		var predicted := float(GameState._transform_cps_delta(
-			UpgradeDB.get_item("turma_de_terra")))
-		_expect(GameState.buy_upgrade("turma_de_terra"), "the turma can be fitted")
-		var actual := GameState.base_cps - before
-		_expect(absf(predicted - actual) <= maxf(0.001, absf(actual) * 1e-6),
-			"the card promised what the port got (%f vs %f)" % [predicted, actual])
-		_expect((actual > 0.0) == bool(case.gain),
-			"the trade lands the way the port's shape says it should (%+f)" % actual)
-
-	# The same question about a *swap*. The conductors are one exclusive group, so
-	# taking a second drops the first: scored as a factor on top of the share
-	# already fitted, every swap would show a large fake gain.
-	GameState.from_save({"owned": {"estivador": 120, "empilhadeira": 100,
-		"tt": 90, "reach_stacker": 70, "rtg": 55, "sts": 40},
-		"upgrades": ["cafe_forte", "carrinho_mao", "sindicato", "turma_de_terra",
-			"operador_descansado"],
-		"teus": 1e18, "all_time_teus": 1e18})
-	GameState.recompute()
-	var swap_before := GameState.base_cps
-	var swap_predicted := GameState._transform_cps_delta(
-		UpgradeDB.get_item("cais_dedicado"))
-	_expect(GameState.buy_upgrade("cais_dedicado"), "the swap goes through")
-	_expect(not GameState.has_upgrade("turma_de_terra"),
-		"and the identity it replaced actually came off")
-	var swap_actual := GameState.base_cps - swap_before
-	_expect(absf(swap_predicted - swap_actual) <= maxf(0.001, absf(swap_actual) * 1e-6),
-		"a swap is priced as a replacement, not as a second identity (%f vs %f)"
-			% [swap_predicted, swap_actual])
-
-
 func test_a_quote_prices_what_a_machine_does_to_the_whole_port() -> void:
-	## Since a machine's count can move *other* machines' rates — a conductor's
-	## share, a synergy's ceiling, the capital tree's breadth — a quote that only
-	## added up the new units' own output would understate exactly the purchases
-	## the tree was built to make interesting. The card's "+N TEU/s" is the number
-	## the whole decision hangs on, so it has to be the real one.
-	var owned := {"estivador": 120, "empilhadeira": 100, "tt": 90,
-		"reach_stacker": 70, "rtg": 55, "sts": 40}
-	GameState.from_save({"owned": owned,
-		"upgrades": ["cafe_forte", "carrinho_mao", "sindicato", "turma_de_terra"],
+	## Since a machine's count can move *other* machines' rates — a synergy's
+	## bonus, the capital tree's breadth — a quote that only added up the new
+	## units' own output would understate exactly the purchases the tree was
+	## built to make interesting. The card's "+N TEU/s" is the number the whole
+	## decision hangs on, so it has to be the real one.
+	var owned := {"estivador": 40, "empilhadeira": 30, "tt": 40, "rtg": 25}
+	var fitted := ["garfo_duplo", "buzina_musical", "contrapeso",
+		"telemetria_lanca", "gps_rtg", "bloco_alimentado"]
+	GameState.from_save({"owned": owned, "upgrades": fitted,
 		"teus": 1e18, "all_time_teus": 1e18})
 	GameState.recompute()
-	var quoted := GameState.nominal_cps("estivador", 145) - GameState.nominal_cps()
-	# The honest answer: actually own 145 and look.
-	var truth := {}
-	for id: String in owned:
-		truth[id] = owned[id]
-	truth["estivador"] = 145
-	GameState.from_save({"owned": truth,
-		"upgrades": ["cafe_forte", "carrinho_mao", "sindicato", "turma_de_terra"],
+	var quoted := GameState.nominal_cps("tt", 60) - GameState.nominal_cps()
+	# The honest answer: actually own 60 and look.
+	var truth := owned.duplicate()
+	truth["tt"] = 60
+	GameState.from_save({"owned": truth, "upgrades": fitted,
 		"teus": 1e18, "all_time_teus": 1e18})
 	GameState.recompute()
 	var real_after := GameState.nominal_cps()
-	GameState.from_save({"owned": owned,
-		"upgrades": ["cafe_forte", "carrinho_mao", "sindicato", "turma_de_terra"],
+	GameState.from_save({"owned": owned, "upgrades": fitted,
 		"teus": 1e18, "all_time_teus": 1e18})
 	GameState.recompute()
 	var actual := real_after - GameState.nominal_cps()
-	_expect(actual > 0.0, "twenty-five more dockers are worth something")
+	_expect(actual > 0.0, "twenty more tractors are worth something")
 	_expect(absf(quoted - actual) <= maxf(0.001, absf(actual) * 1e-6),
-		"the quote is the truth, conductor share included (%f vs %f)"
-			% [quoted, actual])
-	# And the lift is the *majority* of it, or the override is being applied
-	# somewhere that does not matter.
-	var own_line := GameState.structure_total_cps("estivador", 145) \
-		- GameState.structure_total_cps("estivador", 120)
-	_expect(actual > own_line * 2.0,
-		"most of what a conductor machine is worth lands on the other machines")
+		"the quote is the truth, synergy included (%f vs %f)" % [quoted, actual])
+	# Part of it has to land on the block the tractors feed, or the override is
+	# being applied somewhere that does not matter.
+	var own_line := GameState.structure_total_cps("tt", 60) \
+		- GameState.structure_total_cps("tt", 40)
+	_expect(actual > own_line * 1.01,
+		"what a feeding machine is worth includes the block it feeds")
 
 
-func test_an_exclusive_swap_costs_and_replaces() -> void:
-	## "Cara mas possível", checked against the wallet rather than against the
-	## catalogue: the second pick has to actually charge the surcharge, and the
-	## first has to actually come off.
+func test_retired_upgrades_are_refunded() -> void:
+	## The exclusive picks and the conductors were cut. A save that owned one
+	## must not keep a node the tree no longer has, and must not lose the money.
+	GameState.from_save({"teus": 100.0, "all_time_teus": 1e9,
+		"upgrades": ["luvas", "turma_de_terra", "trem_shuttle"]})
+	_expect(GameState.has_upgrade("luvas"), "a node still in the tree is kept")
+	_expect(not GameState.has_upgrade("turma_de_terra")
+		and not GameState.has_upgrade("trem_shuttle"), "retired nodes come off")
+	var refund := EconomyMath.pace_cost(float(UpgradeDB.RETIRED["turma_de_terra"])) \
+		+ EconomyMath.pace_cost(float(UpgradeDB.RETIRED["trem_shuttle"]))
+	_expect(absf(GameState.teus - (100.0 + refund)) <= maxf(1.0, refund * 1e-9),
+		"and what they cost is paid back (%f)" % GameState.teus)
+	GameState.from_save({})
+
+
+func test_no_upgrade_excludes_another() -> void:
+	## "Escolher um ou outro" is gone: owning every node at once is allowed, and
+	## buying one never takes another away.
+	for item in UpgradeDB.ITEMS:
+		_expect(not item.has("excludes") and not item.has("group"),
+			"%s stands on its own" % item.id)
+		_expect(str(item.get("kind", "")) != "transform",
+			"%s does not gut a machine" % item.id)
 	GameState.from_save({"owned": {"rtg": 20, "empilhadeira": 30,
 		"reach_stacker": 20},
 		"upgrades": ["garfo_duplo", "buzina_musical", "contrapeso",
@@ -334,15 +296,13 @@ func test_an_exclusive_swap_costs_and_replaces() -> void:
 			"estoque_profundo"],
 		"teus": 1e18, "all_time_teus": 1e18})
 	GameState.recompute()
-	var list_price := float(UpgradeDB.get_item("giro_rapido").cost)
 	var before := GameState.teus
-	_expect(GameState.buy_upgrade("giro_rapido"), "the yard can change its mind")
-	_expect(not GameState.has_upgrade("estoque_profundo"),
-		"and the half it replaced came off in the same transaction")
+	_expect(GameState.buy_upgrade("giro_rapido"), "the second yard refit can be bought")
+	_expect(GameState.has_upgrade("estoque_profundo"), "and the first one stays fitted")
 	var paid := before - GameState.teus
-	# Relative: the wallet is 1e18, where a double's spacing is 128 TEU.
-	_expect(absf(paid - list_price * UpgradeDB.SWAP_SURCHARGE) <= maxf(1.0, paid * 1e-6),
-		"changing its mind cost the surcharge, not the list price (%f)" % paid)
+	_expect(absf(paid - float(UpgradeDB.get_item("giro_rapido").cost)) <= maxf(1.0, paid * 1e-6),
+		"at its list price (%f)" % paid)
+	GameState.from_save({})
 
 
 func test_a_blocked_node_is_refused_not_silently_bought() -> void:
