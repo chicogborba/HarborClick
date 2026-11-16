@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+		<meta name="theme-color" content="#060f1a">
+		<title>$GODOT_PROJECT_NAME</title>
+		<!--
+			Stackyard's own web shell. The stock one shows the engine's logo on a grey
+			page while 60 MB download; this one is the game's own loading screen: a
+			container is lifted aboard for every tenth of the download, in the same
+			palette and the same pixel font as the landing page.
+			Placeholders ($GODOT_*) are filled in by the exporter.
+		-->
+		<style>
+@font-face {
+	font-family: "HC Display";
+	src: url("/media/press-start-2p-latin.woff2") format("woff2");
+	font-display: swap;
+}
+
+html, body, #canvas {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+body {
+	color: #fff;
+	background-color: #060f1a;
+	overflow: hidden;
+	touch-action: none;
+}
+
+#canvas {
+	display: block;
+}
+
+#canvas:focus {
+	outline: none;
+}
+
+#status {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 28px;
+	visibility: hidden;
+	background:
+		radial-gradient(ellipse at 50% 38%, #12304a 0%, #0a1b2c 55%, #060f1a 100%);
+	font-family: "HC Display", "Courier New", monospace;
+	image-rendering: pixelated;
+}
+
+#status-title {
+	margin: 0;
+	font-size: clamp(18px, 6.2vw, 34px);
+	letter-spacing: 0.08em;
+	color: #eeb03e;
+	text-shadow: 0 4px 0 #7a4a10, 0 8px 0 rgba(0, 0, 0, 0.35);
+}
+
+#status-scene {
+	position: relative;
+	width: min(76vw, 340px);
+	height: 120px;
+}
+
+/* The quay, the water, and the stack the containers pile into. */
+#status-sea {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 28px;
+	background:
+		repeating-linear-gradient(90deg, #1d5f86 0 12px, #2a7aa3 12px 16px, #1d5f86 16px 28px);
+	border-top: 4px solid #5fb4d0;
+	box-shadow: 0 -4px 0 #0a1b2c inset;
+	animation: swell 1.4s steps(4) infinite;
+}
+
+@keyframes swell {
+	to { background-position: -28px 0; }
+}
+
+#status-hull {
+	position: absolute;
+	left: 8%;
+	right: 8%;
+	bottom: 14px;
+	height: 22px;
+	background: #5e5a68;
+	border: 4px solid #3a2a34;
+	border-radius: 2px 2px 14px 14px;
+	box-shadow: 0 4px 0 #3a2a34;
+	animation: bob 1.4s steps(2) infinite;
+}
+
+@keyframes bob {
+	50% { transform: translateY(2px); }
+}
+
+#status-stack {
+	position: absolute;
+	left: 14%;
+	right: 14%;
+	bottom: 40px;
+	height: 72px;
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	grid-template-rows: repeat(3, 1fr);
+	gap: 3px;
+	animation: bob 1.4s steps(2) infinite;
+}
+
+/* Fifteen slots; each is dark until its share of the download has arrived,
+   and then drops in. */
+.slot {
+	background: transparent;
+	border: 3px solid transparent;
+	box-sizing: border-box;
+	opacity: 0;
+	transform: translateY(-40px);
+}
+
+.slot.on {
+	opacity: 1;
+	transform: none;
+	transition: transform 0.25s steps(5), opacity 0.05s;
+	border-color: rgba(0, 0, 0, 0.35);
+	background-image: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.18) 0 2px, transparent 2px 6px);
+}
+
+#status-text {
+	margin: 0;
+	font-size: clamp(10px, 3vw, 13px);
+	letter-spacing: 0.12em;
+	color: #aaa6b0;
+	text-transform: uppercase;
+}
+
+#status-notice {
+	display: none;
+	max-width: min(86vw, 420px);
+	padding: 14px;
+	background: #5b3943;
+	border: 3px solid #9b3943;
+	color: #e0e0e0;
+	font-family: "Courier New", monospace;
+	font-size: 14px;
+	line-height: 1.4;
+	text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#status-sea, #status-hull, #status-stack { animation: none; }
+	.slot.on { transition: none; }
+}
+		</style>
+		$GODOT_HEAD_INCLUDE
+	</head>
+	<body>
+		<canvas id="canvas">
+			Your browser does not support the canvas tag.
+		</canvas>
+
+		<noscript>
+			Your browser does not support JavaScript.
+		</noscript>
+
+		<div id="status">
+			<h1 id="status-title">STACKYARD</h1>
+			<div id="status-scene" aria-hidden="true">
+				<div id="status-stack"></div>
+				<div id="status-hull"></div>
+				<div id="status-sea"></div>
+			</div>
+			<p id="status-text" role="status" aria-live="polite"></p>
+			<div id="status-notice"></div>
+		</div>
+
+		<script src="$GODOT_URL"></script>
+		<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+const engine = new Engine(GODOT_CONFIG);
+
+(function () {
+	const statusOverlay = document.getElementById('status');
+	const statusNotice = document.getElementById('status-notice');
+	const statusText = document.getElementById('status-text');
+	const stack = document.getElementById('status-stack');
+
+	// The game's own colours: the container palette from the yard.
+	const COLOURS = ['#c8483c', '#eeb03e', '#2c746e', '#3e7ea0', '#9a6ab0',
+		'#8bb25a', '#d8caa4', '#c8483c', '#3e7ea0', '#eeb03e',
+		'#2c746e', '#d8caa4', '#9a6ab0', '#c8483c', '#8bb25a'];
+	const WORDS = {
+		pt: ['Chamando o rebocador', 'Descarregando o navio', 'Empilhando contêineres', 'Quase lá'],
+		es: ['Llamando al remolcador', 'Descargando el barco', 'Apilando contenedores', 'Casi listo'],
+		fr: ['Appel du remorqueur', 'Déchargement du navire', 'Empilage des conteneurs', 'Presque prêt'],
+		de: ['Schlepper gerufen', 'Schiff wird entladen', 'Container werden gestapelt', 'Gleich fertig'],
+		it: ['Chiamo il rimorchiatore', 'Scarico la nave', 'Impilo i container', 'Quasi pronto'],
+		ru: ['Вызываем буксир', 'Разгружаем судно', 'Штабелируем контейнеры', 'Почти готово'],
+		pl: ['Wzywamy holownik', 'Rozładunek statku', 'Układanie kontenerów', 'Prawie gotowe'],
+		tr: ['Römorkör çağrılıyor', 'Gemi boşaltılıyor', 'Konteynerler istifleniyor', 'Neredeyse hazır'],
+		en: ['Calling the tug', 'Unloading the ship', 'Stacking containers', 'Almost there'],
+	};
+	const lang = String(navigator.language || 'en').slice(0, 2).toLowerCase();
+	const words = WORDS[lang] || WORDS.en;
+
+	const slots = COLOURS.map(function (colour, index) {
+		const slot = document.createElement('div');
+		slot.className = 'slot';
+		slot.style.backgroundColor = colour;
+		// Bottom row first, left to right: the stack grows up from the hull.
+		slot.style.gridRow = String(3 - Math.floor(index / 5));
+		slot.style.gridColumn = String((index % 5) + 1);
+		stack.appendChild(slot);
+		return slot;
+	});
+
+	let initializing = true;
+	let statusMode = '';
+	let shown = 0;
+	let fraction = 0;
+	let indeterminate = true;
+
+	function render() {
+		const target = indeterminate
+			? 1 + Math.floor((performance.now() / 380) % slots.length)
+			: Math.floor(fraction * slots.length);
+		// Never run backwards, so a late size estimate cannot unload a box.
+		if (!indeterminate) {
+			shown = Math.max(shown, target);
+		} else {
+			shown = target;
+		}
+		slots.forEach(function (slot, i) {
+			slot.classList.toggle('on', i < shown);
+		});
+		const step = Math.min(words.length - 1, Math.floor((shown / slots.length) * words.length));
+		const dots = '.'.repeat(1 + (Math.floor(performance.now() / 400) % 3));
+		statusText.textContent = words[step] + dots;
+		if (initializing) {
+			requestAnimationFrame(render);
+		}
+	}
+
+	function setStatusMode(mode) {
+		if (statusMode === mode || !initializing) {
+			return;
+		}
+		if (mode === 'hidden') {
+			statusOverlay.remove();
+			initializing = false;
+			return;
+		}
+		statusOverlay.style.visibility = 'visible';
+		statusNotice.style.display = mode === 'notice' ? 'block' : 'none';
+		statusMode = mode;
+	}
+
+	function setStatusNotice(text) {
+		while (statusNotice.lastChild) {
+			statusNotice.removeChild(statusNotice.lastChild);
+		}
+		text.split('\n').forEach(function (line) {
+			statusNotice.appendChild(document.createTextNode(line));
+			statusNotice.appendChild(document.createElement('br'));
+		});
+	}
+
+	function displayFailureNotice(err) {
+		console.error(err);
+		if (err instanceof Error) {
+			setStatusNotice(err.message);
+		} else if (typeof err === 'string') {
+			setStatusNotice(err);
+		} else {
+			setStatusNotice('An unknown error occurred.');
+		}
+		setStatusMode('notice');
+		statusText.style.display = 'none';
+		initializing = false;
+	}
+
+	const missing = Engine.getMissingFeatures({
+		threads: GODOT_THREADS_ENABLED,
+	});
+
+	if (missing.length !== 0) {
+		const missingMsg = 'Error\nThe following features required to run Godot projects on the Web are missing:\n';
+		displayFailureNotice(missingMsg + missing.join('\n'));
+	} else {
+		setStatusMode('progress');
+		requestAnimationFrame(render);
+		engine.startGame({
+			'onProgress': function (current, total) {
+				if (current > 0 && total > 0) {
+					indeterminate = false;
+					fraction = Math.min(1, current / total);
+				} else {
+					indeterminate = true;
+				}
+			},
+		}).then(function () {
+			// Everything is aboard; hold the full stack for a beat, then sail.
+			indeterminate = false;
+			fraction = 1;
+			shown = slots.length;
+			setTimeout(function () { setStatusMode('hidden'); }, 250);
+		}, displayFailureNotice);
+	}
+}());
+		</script>
+	</body>
+</html>
