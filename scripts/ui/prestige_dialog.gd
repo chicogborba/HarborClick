@@ -212,7 +212,7 @@ func _build_tree() -> void:
 		return
 	_rows.clear()
 	for branch: Dictionary in PrestigeDB.purchasable_branches():
-		var caption := UiTheme.label(str(branch.get("title", "Ramo")).to_upper(),
+		var caption := UiTheme.label(str(branch.get("title", "")).to_upper(),
 			UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
 		_tree.add_child(caption)
 		# One node per full-width row. Laying a branch out horizontally made the

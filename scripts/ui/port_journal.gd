@@ -23,24 +23,19 @@ signal arcade_requested
 
 ## The ship album moved to the port diary (`NoticeBell`, NAVIOS), next to the
 ## medals: it is a collection, and the diary is where the port keeps those.
-const TABS := [["next", "PRÓXIMAS"], ["all", "TODAS"], ["troph", "TROFÉUS"],
-	["crew", "EQUIPE"]]
+## Each tab's label is `journal.tab.<id>`.
+const TABS := ["next", "all", "troph", "crew"]
 
 ## The trophy board's twelve branches, in the order they are shown, with the
-## medallion struck for each and the word the player reads.
+## medallion struck for each; the word the player reads is
+## `journal.branch.<category>`.
 ##
 ## CONCLUÍDAS is gone and this took its slot: a flat list of everything already
 ## earned answered "what have I done" in the least interesting way available,
 ## while the same fact — thirty-eight goals, twelve trades, how far along each —
 ## is what a board of struck coins says at a glance.
-const BRANCHES := [
-	["teu", "TEUs MOVIMENTADOS"], ["ships", "NAVIOS ATENDIDOS"],
-	["structures", "ESTRUTURAS"], ["cargo", "CONTÊINERES"],
-	["critical", "CRÍTICOS"], ["events", "EVENTOS"],
-	["routes", "ROTAS"], ["terrain", "TERRENOS"],
-	["collection", "COLEÇÃO"], ["contracts", "CONTRATOS"],
-	["prestige", "RECONSTRUÇÃO"], ["tutorial", "PRIMEIROS PASSOS"],
-]
+const BRANCHES := ["teu", "ships", "structures", "cargo", "critical", "events",
+	"routes", "terrain", "collection", "contracts", "prestige", "tutorial"]
 
 var _source: Variant
 var _callbacks: Dictionary = {}
@@ -53,6 +48,7 @@ var _sheet: PanelContainer
 var _page: Control
 var _list: VBoxContainer
 var _tab_buttons: Dictionary = {}
+var _header_title: Label
 var _focus_return: Control
 var _rail: CommandRail
 ## The cup whose card is open on the trophy page.
@@ -81,7 +77,7 @@ func _ready() -> void:
 	column.add_theme_constant_override(&"separation", 4)
 	_sheet.add_child(column)
 
-	var header := UiTheme.header("DIÁRIO DO PORTO", close, UiTheme.Icon.TROPHY,
+	var header := UiTheme.header(Loc.t("journal.title"), close, UiTheme.Icon.TROPHY,
 		UiTheme.book_header_style())
 	column.add_child(header.root)
 	(header.close as Button).tooltip_text = Loc.t("common.close_hint")
@@ -90,18 +86,20 @@ func _ready() -> void:
 	tabs.add_theme_constant_override(&"separation", 2)
 	tabs.custom_minimum_size.y = 22.0
 	column.add_child(tabs)
-	for tab: Array in TABS:
+	_header_title = header.title
+	for tab: String in TABS:
 		var button := Button.new()
-		button.text = str(tab[1])
+		button.text = Loc.t("journal.tab." + tab)
 		# Without this the three labels set a 314px floor on the board, which is
 		# wider than the command rail it now lives in.
 		button.clip_text = true
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		UiTheme.apply_font(button, UiTheme.SIZE_SMALL)
-		UiTheme.style_book_tab(button, tab[0] == _active_tab)
-		button.pressed.connect(_select_tab.bind(tab[0]))
+		UiTheme.style_book_tab(button, tab == _active_tab)
+		button.pressed.connect(_select_tab.bind(tab))
 		tabs.add_child(button)
-		_tab_buttons[tab[0]] = button
+		_tab_buttons[tab] = button
+	Loc.language_changed.connect(func(_code: StringName) -> void: _apply_language())
 
 	# The cards lie on the page itself: no tray inside a book.
 	var page_box := StyleBoxEmpty.new()
@@ -133,7 +131,7 @@ func _ready() -> void:
 
 
 func open(tab := "next") -> void:
-	_active_tab = tab if TABS.any(func(entry: Array) -> bool: return entry[0] == tab) else "next"
+	_active_tab = tab if TABS.has(tab) else "next"
 	_open = true
 	_focus_return = get_viewport().gui_get_focus_owner()
 	_refresh()
@@ -244,7 +242,7 @@ func _build_trophy_page() -> void:
 
 	var width := maxf(160.0, _sheet.size.x - 44.0 - UiTheme.SCROLL_WIDTH)
 	var columns := clampi(int(width / _Cup.CELL.x), 3, 12)
-	for branch: Array in BRANCHES:
+	for branch: String in BRANCHES:
 		var rows: Array[Dictionary] = []
 		for objective: Dictionary in objectives:
 			if String(objective.get("category", "")) == str(branch[0]):
@@ -254,7 +252,7 @@ func _build_trophy_page() -> void:
 		# Cheapest first, so a shelf reads left to right as a ladder.
 		rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 			return float(a.get("target", 0.0)) < float(b.get("target", 0.0)))
-		_list.add_child(_trophy_shelf(str(branch[1]), rows, columns))
+		_list.add_child(_trophy_shelf(Loc.t("journal.branch." + branch), rows, columns))
 
 
 func _trophy_shelf(title: String, rows: Array[Dictionary], columns: int) -> Control:
@@ -474,12 +472,12 @@ func _make_record_card(record: Dictionary) -> PanelContainer:
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text.add_theme_constant_override(&"separation", 1)
 	row.add_child(text)
-	text.add_child(UiTheme.label("ESCALAS ESPECIAIS", UiTheme.SIZE_SMALL,
+	text.add_child(UiTheme.label(Loc.t("journal.charters"), UiTheme.SIZE_SMALL,
 		UiTheme.INK))
 	var played := int(record.get("played", 0))
 	var won := int(record.get("won", 0))
-	var detail := "nenhuma ainda" if played == 0 \
-		else "%d de %d concluídas" % [won, played]
+	var detail := Loc.t("journal.charters.none") if played == 0 \
+		else Loc.t("journal.charters.record", {"won": won, "played": played})
 	text.add_child(UiTheme.label(detail, UiTheme.SIZE_SMALL, UiTheme.AMBER_DEEP))
 	return card
 
@@ -516,7 +514,7 @@ func _make_crew_card(member: Dictionary) -> PanelContainer:
 		text.add_child(role_label)
 	var task := str(member.get("objective", ""))
 	var task_label := UiTheme.label(task if not task.is_empty() \
-		else "Sem tarefa agora.", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+		else Loc.t("journal.crew.idle"), UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	task_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	task_label.max_lines_visible = 2
 	task_label.custom_minimum_size.x = 0.0
@@ -573,8 +571,8 @@ func _refresh() -> void:
 				continue
 			_list.add_child(_make_card(objective))
 	if _list.get_child_count() == 0:
-		var empty := UiTheme.label("Nenhuma meta nesta página."
-			if _active_tab != "crew" else "Ninguém contratado ainda.",
+		var empty := UiTheme.label(Loc.t("journal.empty.goals")
+			if _active_tab != "crew" else Loc.t("journal.empty.crew"),
 			UiTheme.SIZE_SMALL, UiTheme.BOOK_INK_SOFT)
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_list.add_child(empty)
@@ -650,7 +648,7 @@ func _make_card(objective: Dictionary) -> PanelContainer:
 	text.add_theme_constant_override(&"separation", 2)
 	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(text)
-	var title := UiTheme.label(str(objective.get("title", "Meta de operação")),
+	var title := UiTheme.label(str(objective.get("title", Loc.t("journal.goal.fallback"))),
 		UiTheme.SIZE_SMALL, UiTheme.INK)
 	title.clip_text = true
 	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -672,9 +670,9 @@ func _make_card(objective: Dictionary) -> PanelContainer:
 			&"amber" if pinned else &"ghost", 28.0)
 		pin.custom_minimum_size = Vector2(30, 28)
 		pin.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		UiTheme.describe(pin, "Fixar \"%s\" no HUD"
-			% str(objective.get("title", "meta")))
-		pin.tooltip_text = "Fixada no HUD" if pinned else "Fixar no HUD"
+		UiTheme.describe(pin, Loc.t("journal.pin.name",
+			{"title": str(objective.get("title", Loc.t("journal.goal.fallback")))}))
+		pin.tooltip_text = Loc.t("journal.pin.pinned" if pinned else "journal.pin.hint")
 		pin.disabled = pinned
 		pin.pressed.connect(_pin.bind(StringName(objective.get("id", ""))))
 		row.add_child(pin)
@@ -696,7 +694,7 @@ func _pin(id: StringName) -> void:
 func _reward_text(reward: Variant) -> String:
 	## Reward payloads are engine data; a player reads a sentence, never a key.
 	if not reward is Dictionary or reward.is_empty():
-		return "sem recompensa"
+		return Loc.t("journal.reward.none")
 	var kind := StringName(reward.get("kind", ""))
 	# Short on purpose: this line shares a 256px rail with the progress figures,
 	# and a truncated reward tells the player nothing at all.
@@ -705,7 +703,15 @@ func _reward_text(reward: Variant) -> String:
 			return "+%s TEU" % GameState.fmt(float(reward.get("amount", 0.0)))
 		&"xp":
 			return "+%d XP" % int(reward.get("amount", 0))
-	return "especial"
+	return Loc.t("journal.reward.special")
+
+
+func _apply_language() -> void:
+	if _header_title != null:
+		_header_title.text = Loc.t("journal.title")
+	for tab: String in _tab_buttons:
+		(_tab_buttons[tab] as Button).text = Loc.t("journal.tab." + tab)
+	refresh()
 
 
 func _layout() -> void:

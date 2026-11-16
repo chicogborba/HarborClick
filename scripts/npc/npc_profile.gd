@@ -65,7 +65,7 @@ func joined_text() -> String:
 	## their head: the day of the run, and the day they actually hired the person.
 	## The separator is a bullet because the game's bitmap font has one; it has no
 	## middle dot and no em dash, and a missing glyph prints as an empty box.
-	var stamp := "Dia %d" % joined_day
+	var stamp := Loc.t("crew.joined", {"n": joined_day})
 	if joined_unix > 0:
 		var date := Time.get_datetime_dict_from_unix_time(joined_unix)
 		stamp += " • %02d/%02d/%04d" % [int(date.day), int(date.month), int(date.year)]

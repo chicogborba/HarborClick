@@ -65,8 +65,8 @@ func _build_controls(column: VBoxContainer) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 6)
 	column.add_child(row)
-	_left = UiTheme.button("<  ESQ", &"steel", UiTheme.SIZE_BODY)
-	_right = UiTheme.button("DIR  >", &"steel", UiTheme.SIZE_BODY)
+	_left = UiTheme.button(Loc.t("mg.traffic.left"), &"steel", UiTheme.SIZE_BODY)
+	_right = UiTheme.button(Loc.t("mg.traffic.right"), &"steel", UiTheme.SIZE_BODY)
 	for key: Button in [_left, _right]:
 		key.custom_minimum_size.y = UiTheme.TOUCH_MIN + 4.0
 		key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -82,7 +82,7 @@ func _begin(offer: Dictionary) -> void:
 	_lane_x = float(game.lane)
 	_sparks.clear()
 	_smoke.clear()
-	_hint.text = "Toque num lado da pista (ou arraste) pra trocar de faixa. Café é turbo, relógio dá tempo."
+	_hint.text = Loc.t("mg.traffic.hint")
 	_refresh()
 
 
@@ -123,14 +123,14 @@ func _on_event(event: Dictionary) -> void:
 	match StringName(event.event):
 		TrafficGame.HIT:
 			_shake = 1.2
-			_say("BATEU!", UiTheme.DANGER)
+			_say(Loc.t("mg.traffic.hit"), UiTheme.DANGER)
 			AudioManager.play_sfx("deny", 0.06)
 			_burst(Color8(255, 200, 80), 10)
 		TrafficGame.SKID:
-			_say("ÓLEO!", UiTheme.AMBER)
+			_say(Loc.t("mg.traffic.skid"), UiTheme.AMBER)
 			AudioManager.play_sfx("rail_brake", 0.08, -6.0)
 		TrafficGame.TURBO:
-			_say("TURBO!", UiTheme.TEAL_LIGHT)
+			_say(Loc.t("mg.traffic.turbo"), UiTheme.TEAL_LIGHT)
 			AudioManager.play_sfx("combo", 0.05)
 			_burst(Color8(150, 96, 56), 6)
 		TrafficGame.BONUS:
@@ -153,7 +153,7 @@ func _refresh() -> void:
 	if game == null:
 		return
 	var metres := maxi(0, int((game.distance_goal - game.travelled) * 0.5))
-	_set_stats("%4.1fs" % game.time_left, "%dm" % metres, "vidas %d" % game.lives)
+	_set_stats("%4.1fs" % game.time_left, "%dm" % metres, Loc.t("mg.traffic.lives", {"n": game.lives}))
 
 
 func _over() -> bool:
@@ -172,14 +172,14 @@ func _closing_hint() -> String:
 	if game == null:
 		return ""
 	if game.victory:
-		return "Chegou com %.1fs de folga." % game.time_left
+		return Loc.t("mg.traffic.arrived", {"s": "%.1f" % game.time_left})
 	if game.lives <= 0:
-		return "Três batidas: a carga ficou no caminho."
-	return "O portão fechou a %dm do porto." % int((game.distance_goal - game.travelled) * 0.5)
+		return Loc.t("mg.traffic.wrecked")
+	return Loc.t("mg.traffic.closed", {"m": int((game.distance_goal - game.travelled) * 0.5)})
 
 
 func _result_text(won: bool) -> String:
-	return "CHEGOU!" if won else "ATRASOU"
+	return Loc.t("mg.traffic.won" if won else "mg.traffic.lost")
 
 
 # ------------------------------------------------------------------ input
@@ -373,7 +373,7 @@ func _draw_road() -> void:
 		_field.draw_rect(Rect2(right + 2.0, gy - 22.0, 18, 18), Color8(64, 156, 160))
 		_field.draw_rect(Rect2(right + 4.0, gy - 20.0, 14, 6), Color8(146, 194, 208))
 		_field.draw_string(UiTheme.FONT, Vector2(left + road_w * 0.5 - 22.0, gy - 12.0),
-			"PORTO", HORIZONTAL_ALIGNMENT_LEFT, -1, UiTheme.SIZE_SMALL, LINE)
+			Loc.t("mg.traffic.port_sign"), HORIZONTAL_ALIGNMENT_LEFT, -1, UiTheme.SIZE_SMALL, LINE)
 	# --- traffic and things in the road ---------------------------------------
 	for thing: Dictionary in game.things:
 		var kind: StringName = thing.kind

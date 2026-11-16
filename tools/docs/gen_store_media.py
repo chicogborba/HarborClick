@@ -52,6 +52,8 @@ SCREENS = {
     "en": [
         ("ship", "TAP THE SHIP", "TAP", "Every tap, one container"),
         ("wake_trail", "AUTOMATE YOUR PORT", "AUTOMATE", "Machines work for you"),
+        ("shop_upgrades", "GROW WITHOUT LIMITS", "WITHOUT LIMITS", "From 1 container to trillions"),
+        ("ports", "OPEN PORTS WORLDWIDE", "WORLDWIDE", "Santos, Long Beach, Shanghai"),
         ("rail", "TRAINS, TUGS, TRUCKS", "TRAINS", "A port that keeps growing"),
         ("decor_night", "EARN WHILE YOU SLEEP", "SLEEP", "Your port works offline"),
     ],

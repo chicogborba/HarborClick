@@ -63,7 +63,7 @@ func _ready() -> void:
 	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heading.add_theme_constant_override(&"separation", 0)
 	head.add_child(heading)
-	heading.add_child(UiTheme.label("ESCALA ESPECIAL", UiTheme.SIZE_SMALL,
+	heading.add_child(UiTheme.label(Loc.t("charter.alert.heading"), UiTheme.SIZE_SMALL,
 		UiTheme.TEAL_DEEP))
 	_title = UiTheme.label("", UiTheme.SIZE_TITLE)
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -104,12 +104,12 @@ func _ready() -> void:
 	var keys := HBoxContainer.new()
 	keys.add_theme_constant_override(&"separation", 6)
 	column.add_child(keys)
-	_decline = UiTheme.button("RECUSAR", &"ghost", UiTheme.SIZE_SMALL)
+	_decline = UiTheme.button(Loc.t("charter.alert.decline"), &"ghost", UiTheme.SIZE_SMALL)
 	_decline.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_decline.custom_minimum_size.y = UiTheme.TOUCH_MIN
 	_decline.pressed.connect(_on_decline)
 	keys.add_child(_decline)
-	_accept = UiTheme.button("ACEITAR", &"amber", UiTheme.SIZE_SMALL)
+	_accept = UiTheme.button(Loc.t("charter.alert.accept"), &"amber", UiTheme.SIZE_SMALL)
 	_accept.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_accept.custom_minimum_size.y = UiTheme.TOUCH_MIN
 	_accept.pressed.connect(_on_accept)
@@ -122,14 +122,14 @@ func open(offer: Dictionary, seconds: float) -> void:
 		return
 	_offer = offer.duplicate(true)
 	_left = maxf(1.0, seconds)
-	_title.text = str(_offer.get("title", "Escala"))
-	_brief.text = str(_offer.get("brief", ""))
+	_title.text = SpecialCallDB.title_of(_offer)
+	_brief.text = SpecialCallDB.brief_of(_offer)
 	var game := StringName(_offer.get("game", SpecialCallDB.GAME_STACK))
 	_cover.texture = ArcadePicker.cover(game)
 	_game_label.text = "%s • %s" % [ArcadePicker.game_name(game), ArcadePicker.game_desc(game)]
 	_game_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_reward.text = "Se der conta: %s" % SpecialCallDB.reward_text(_offer)
-	_penalty.text = "Se falhar: %s" % SpecialCallDB.penalty_text(_offer)
+	_reward.text = Loc.t("charter.alert.if_won", {"text": SpecialCallDB.reward_text(_offer)})
+	_penalty.text = Loc.t("charter.alert.if_lost", {"text": SpecialCallDB.penalty_text(_offer)})
 	_update_clock()
 	visible = true
 	_layout()
@@ -175,7 +175,7 @@ func _process(delta: float) -> void:
 
 
 func _update_clock() -> void:
-	_clock.text = "O armador espera resposta: %ds" % int(ceilf(_left))
+	_clock.text = Loc.t("charter.alert.clock", {"s": int(ceilf(_left))})
 
 
 func _on_accept() -> void:

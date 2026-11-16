@@ -401,38 +401,32 @@ func label_for(task: Dictionary) -> String:
 	var meta: Dictionary = task.get("meta", {})
 	match StringName(task.get("kind", &"")):
 		KIND_SHIP_TO_YARD:
-			return "Descarregando o navio do berço %d para o pátio%s" % [
-				int(meta.get("berth", 0)) + 1,
-				_berth_progress(int(meta.get("berth", 0)))]
+			return Loc.t("task.ship_to_yard", {"n": int(meta.get("berth", 0)) + 1,
+				"progress": _berth_progress(int(meta.get("berth", 0)))})
 		KIND_YARD_TO_SHIP:
-			return "Embarcando exportação no berço %d%s" % [
-				int(meta.get("berth", 0)) + 1,
-				_berth_progress(int(meta.get("berth", 0)))]
+			return Loc.t("task.yard_to_ship", {"n": int(meta.get("berth", 0)) + 1,
+				"progress": _berth_progress(int(meta.get("berth", 0)))})
 		KIND_RESTACK:
-			return "Arrumando a pilha do bloco %d" % (int(meta.get("block", 0)) + 1)
+			return Loc.t("task.restack", {"n": int(meta.get("block", 0)) + 1})
 		KIND_CHECK_BERTH:
-			return "Conferindo a carga no berço %d" % (int(meta.get("berth", 0)) + 1)
+			return Loc.t("task.check_berth", {"n": int(meta.get("berth", 0)) + 1})
 		KIND_CHECK_BLOCK:
-			return "Conferindo lacres no bloco %d" % (int(meta.get("block", 0)) + 1)
+			return Loc.t("task.check_block", {"n": int(meta.get("block", 0)) + 1})
 		KIND_CHECK_GATE:
-			return "Conferindo a carreta na baia %d" % (int(meta.get("bay", 0)) + 1)
+			return Loc.t("task.check_gate", {"n": int(meta.get("bay", 0)) + 1})
 		KIND_HAUL_OUT:
-			return "Levando um contêiner do bloco %d ao portão" \
-				% (_block_of_slot(int(meta.get("slot", 0))) + 1)
+			return Loc.t("task.haul_out", {"n": _block_of_slot(int(meta.get("slot", 0))) + 1})
 		KIND_HAUL_IN:
-			return "Trazendo um contêiner da cidade para o bloco %d" \
-				% (int(meta.get("block", 0)) + 1)
+			return Loc.t("task.haul_in", {"n": int(meta.get("block", 0)) + 1})
 		KIND_RELEASE_BAY:
-			return "Liberando a carreta da baia %d" % (int(meta.get("bay", 0)) + 1)
+			return Loc.t("task.release_bay", {"n": int(meta.get("bay", 0)) + 1})
 		KIND_ESCORT:
 			# Both tugs work one manoeuvre, one on each quarter, and the seat is
 			# the side they are really on. Two people on the same job have to be
 			# able to say which half of it is theirs.
-			return "Assistindo a manobra pela alheta de %s" \
-				% _quarter(int(meta.get("seat", 0)))
+			return Loc.t("task.escort", {"side": _quarter(int(meta.get("seat", 0)))})
 		KIND_STANDBY:
-			return "De prontidão a %s do navio atracado" \
-				% _quarter(int(meta.get("seat", 0)))
+			return Loc.t("task.standby", {"side": _quarter(int(meta.get("seat", 0)))})
 		KIND_ROAD_TRIP:
 			return _road_trip_label(int(meta.get("bay", 0)))
 	return ""
@@ -441,16 +435,16 @@ func label_for(task: Dictionary) -> String:
 func stage_text(stage: StringName) -> String:
 	match stage:
 		STAGE_WORKING:
-			return "trabalhando"
+			return Loc.t("task.stage.working")
 		STAGE_RETURNING:
-			return "voltando"
-	return "a caminho"
+			return Loc.t("task.stage.returning")
+	return Loc.t("task.stage.en_route")
 
 
 func _quarter(seat: int) -> String:
 	## `StructureActor` puts even-indexed tugs on the port quarter, and the seat a
 	## tug claims is its own index, so this is the side it is actually on.
-	return "bombordo" if seat % 2 == 0 else "estibordo"
+	return Loc.t("task.side.port" if seat % 2 == 0 else "task.side.starboard")
 
 
 func _berth_progress(berth_index: int) -> String:
@@ -470,21 +464,19 @@ func _berth_progress(berth_index: int) -> String:
 
 func _road_trip_label(bay: int) -> String:
 	if world == null or world.gate == null or not world.gate.bays.has(bay):
-		return "Voltando para a cidade"
+		return Loc.t("task.road.home")
 	var record: Dictionary = world.gate.bays[bay]
 	var stage := int(record.get("stage", GateDock.Stage.DOCKED))
 	if stage == int(GateDock.Stage.ARRIVING):
-		return "Entrando pelo portão com %d contêiner(es)" \
-			% (record.get("cargo", []) as Array).size()
+		return Loc.tn("task.road.arriving", (record.get("cargo", []) as Array).size())
 	if stage == int(GateDock.Stage.LEAVING):
-		return "Saindo para a cidade com %d contêiner(es)" \
-			% (record.get("cargo", []) as Array).size()
+		return Loc.tn("task.road.leaving", (record.get("cargo", []) as Array).size())
 	var drops := int(record.get("drops", 0))
 	if drops > 0:
-		return "Entregando %d contêiner(es) da cidade" % drops
+		return Loc.tn("task.road.delivering", drops)
 	if int(record.get("lifts", 0)) > 0:
-		return "Esperando carga do pátio para levar"
-	return "Pronto para sair da baia %d" % (bay + 1)
+		return Loc.t("task.road.waiting")
+	return Loc.t("task.road.ready", {"n": bay + 1})
 
 
 # ------------------------------------------------------------------ internals

@@ -127,6 +127,15 @@ G = {
     # Russian typography quotes with guillemets rather than curly quotes.
     "«": [".....", ".#.#.", "#.#..", ".#.#.", ".....", ".....", "....."],
     "»": [".....", "#.#..", ".#.#.", "#.#..", ".....", ".....", "....."],
+    # Russian sets a parenthetical with a spaced em dash where Portuguese and
+    # English get by with " - ". Six wide on purpose — the full cell, so it
+    # reads as a dash and not as the five-wide hyphen beside it.
+    "—": ["......", "......", "......", "######", "......", "......", "......"],
+    # The X-ray console's maker plate ("CREATUS SECURITY & VWI"), which used
+    # to join the two names with a Portuguese "e".
+    "&": [".##..", "#..#.", "#.#..", ".#...", "#.#.#", "#..#.", ".##.#"],
+    # "~30% mais juntos": an approximate figure in an upgrade's description.
+    "~": [".....", ".....", ".##.#", "#..#.", ".....", ".....", "....."],
 
     # ---------------------------------------------------------- direct glyphs
     # Letters that are not an existing base plus an accent mark — the shape

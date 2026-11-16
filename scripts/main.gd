@@ -230,7 +230,7 @@ func _ready() -> void:
 		# moment that earns a banner: a goal actually completed.
 		EventBus.notification_requested.emit({
 			"id": "achievement_%s" % id, "kind": &"milestone", "priority": 2,
-			"text": "Conquista: %s" % str(item.get("title", "meta cumprida")),
+			"text": Loc.t("notice.achievement", {"title": str(item.get("title", ""))}),
 		}))
 	Progression.album_changed.connect(func() -> void: journal.refresh())
 	# A ship the album had never seen is worth a line in the diary: it is the
@@ -369,8 +369,7 @@ func _ready() -> void:
 			"id": "land_%s" % id,
 			"type": &"unlock",
 			"priority": 1,
-			"text": "%s pavimentado. Mais espaço pra empilhar!"
-				% parcel.get("name", "Terreno"),
+			"text": Loc.t("notice.land_paved", {"name": str(parcel.get("name", ""))}),
 		})
 		cam.focus_on(PortLayout.yard_bottom() - 120.0, 0.9))
 
@@ -482,16 +481,16 @@ func _refresh_berth_board() -> void:
 	var text := ""
 	match hull.phase:
 		Ship.Phase.DISCHARGING:
-			text = "Descarga: toque no navio"
+			text = Loc.t("berth.hint.discharging")
 		Ship.Phase.WAITING_EXPORT:
-			text = "Aguardando exportação"
+			text = Loc.t("berth.hint.waiting_export")
 		Ship.Phase.LOADING:
 			var progress := hull.export_progress()
-			text = "Embarque %d/%d: toque no navio" % [progress.x, progress.y]
+			text = Loc.t("berth.hint.loading", {"done": progress.x, "total": progress.y})
 		Ship.Phase.ARRIVING:
-			text = "Navio se aproximando"
+			text = Loc.t("berth.hint.arriving")
 		Ship.Phase.DEPARTING:
-			text = "Navio partindo"
+			text = Loc.t("berth.hint.departing")
 		_:
 			# Empty on purpose: with no hull alongside there is nothing to tap and
 			# nothing to report, and a chip that says so is just a sign reading
@@ -500,7 +499,7 @@ func _refresh_berth_board() -> void:
 	# The chip is one narrow line, so the berth number goes on it and the rest of
 	# the quay goes on the rail, where there is room for it.
 	if world.ships.size() > 1:
-		text = "Berço %d - %s" % [index + 1, text]
+		text = Loc.t("berth.hint.numbered", {"n": index + 1, "text": text})
 	_set_berth_hint(text, index)
 	if world.ships.size() > 1:
 		# The tag names the berth it is talking about; the lamps beside it say how

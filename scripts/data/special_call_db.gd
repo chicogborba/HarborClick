@@ -148,29 +148,50 @@ static func materialize(career_seed: int, index: int) -> Dictionary:
 	return offer
 
 
+static func title_of(offer: Dictionary) -> String:
+	## An offer is a copy taken when it was dealt (and saved like that), so its
+	## `title` is in whatever language was on then. The live row is not.
+	var live := _live(offer)
+	return str(live.get("title", offer.get("title", Loc.t("charter.title_fallback"))))
+
+
+static func brief_of(offer: Dictionary) -> String:
+	return str(_live(offer).get("brief", offer.get("brief", "")))
+
+
+static func _live(offer: Dictionary) -> Dictionary:
+	var id := StringName(offer.get("id", &""))
+	for row in OFFERS:
+		if StringName(row.id) == id:
+			return row
+	return {}
+
+
 static func reward_text(offer: Dictionary) -> String:
 	var reward: Dictionary = offer.get("reward", {})
 	match StringName(reward.get("kind", &"")):
 		REWARD_SURGE:
-			return "%dx a produção por %ds" % [int(reward.get("mult", 1.0)),
-				int(reward.get("seconds", 0.0))]
+			return Loc.t("charter.reward.surge", {"mult": int(reward.get("mult", 1.0)),
+				"s": int(reward.get("seconds", 0.0))})
 		REWARD_LUMP:
-			return "+%s TEU de uma vez" % GameState.fmt(
-				_income(float(reward.get("seconds", 0.0))))
-	return "frete extra"
+			return Loc.t("charter.reward.lump", {"amount": GameState.fmt(
+				_income(float(reward.get("seconds", 0.0))))})
+	return Loc.t("charter.reward.other")
 
 
 static func penalty_text(offer: Dictionary) -> String:
+	## Empty when there is nothing to lose. It used to return the word "nenhuma",
+	## which every caller then had to compare against in Portuguese.
 	var penalty: Dictionary = offer.get("penalty", {})
 	match StringName(penalty.get("kind", &"")):
 		PENALTY_FINE:
-			return "multa de %s TEU" % GameState.fmt(
-				_income(float(penalty.get("seconds", 0.0))))
+			return Loc.t("charter.penalty.fine", {"amount": GameState.fmt(
+				_income(float(penalty.get("seconds", 0.0))))})
 		PENALTY_SLUMP:
-			return "produção a %d%% por %ds" % [
-				int(float(penalty.get("mult", 1.0)) * 100.0),
-				int(penalty.get("seconds", 0.0))]
-	return "nenhuma"
+			return Loc.t("charter.penalty.slump", {
+				"pct": int(float(penalty.get("mult", 1.0)) * 100.0),
+				"s": int(penalty.get("seconds", 0.0))})
+	return ""
 
 
 static func apply_reward(offer: Dictionary) -> Dictionary:
@@ -183,14 +204,14 @@ static func apply_reward(offer: Dictionary) -> Dictionary:
 			var seconds := maxf(1.0, float(reward.get("seconds", 0.0)))
 			GameState.grant_surge(mult, seconds)
 			return {"kind": REWARD_SURGE, "mult": mult, "seconds": seconds,
-				"text": "%dx a produção por %ds!" % [int(mult), int(seconds)]}
+				"text": Loc.t("charter.outcome.surge", {"mult": int(mult), "s": int(seconds)})}
 		REWARD_LUMP:
 			var amount := _income(float(reward.get("seconds", 0.0))) * prize_mult
 			# Career money: it spends, but it must not shortcut the prestige curve
 			# the simulator was balanced against.
 			GameState.grant_nonproductive_reward(amount)
 			return {"kind": REWARD_LUMP, "amount": amount,
-				"text": "+%s TEU de frete!" % GameState.fmt(amount)}
+				"text": Loc.t("charter.outcome.lump", {"amount": GameState.fmt(amount)})}
 	return {}
 
 
@@ -201,13 +222,13 @@ static func apply_penalty(offer: Dictionary) -> Dictionary:
 			var taken := GameState.apply_fine(
 				_income(float(penalty.get("seconds", 0.0))))
 			return {"kind": PENALTY_FINE, "amount": taken,
-				"text": "Multa de %s TEU." % GameState.fmt(taken)}
+				"text": Loc.t("charter.outcome.fine", {"amount": GameState.fmt(taken)})}
 		PENALTY_SLUMP:
 			var mult := clampf(float(penalty.get("mult", 1.0)), 0.05, 1.0)
 			var seconds := maxf(1.0, float(penalty.get("seconds", 0.0)))
 			GameState.grant_surge(mult, seconds)
 			return {"kind": PENALTY_SLUMP, "mult": mult, "seconds": seconds,
-				"text": "Produção a %d%% por %ds." % [int(mult * 100.0), int(seconds)]}
+				"text": Loc.t("charter.outcome.slump", {"pct": int(mult * 100.0), "s": int(seconds)})}
 	return {}
 
 
@@ -227,7 +248,7 @@ static func is_valid() -> bool:
 			return false
 		if ShipCatalog.get_silhouette(StringName(offer.get("hull", ""))).is_empty():
 			return false
-		if reward_text(offer).is_empty() or penalty_text(offer) == "nenhuma":
+		if reward_text(offer).is_empty() or penalty_text(offer).is_empty():
 			return false
 	return ids.size() >= 3 and games.size() >= 2
 

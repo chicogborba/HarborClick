@@ -34,6 +34,13 @@ const ROW_FIELDS: Array[String] = ["name", "short", "desc", "description",
 	"title", "brief", "tagline", "perk", "country"]
 
 
+## key -> the authored Portuguese, taken the first time a row is overwritten.
+## The tables that are translated in place (`PortDB.PORTS`, `CosmeticDb.ITEMS`,
+## ...) no longer hold their authored line after that, and `authored_rows()`
+## must still report it.
+static var _authored: Dictionary = {}
+
+
 static func key(domain: String, id: String, field: String) -> String:
 	return "%s.%s.%s" % [domain, id, field]
 
@@ -88,13 +95,13 @@ static func authored_rows() -> Array[Dictionary]:
 		for row: Dictionary in source.rows:
 			for field in ROW_FIELDS:
 				if not str(row.get(field, "")).is_empty():
-					out.append({"key": key(source.domain, str(row.id), field),
-						"text": str(row[field])})
+					var k := key(source.domain, str(row.id), field)
+					out.append({"key": k, "text": str(_authored.get(k, row[field]))})
 	for port: Dictionary in PortDB.PORTS:
 		var names: Dictionary = port.get("names", {})
 		for id: String in names:
-			out.append({"key": key("port", str(port.id), "names." + id),
-				"text": str(names[id])})
+			var k := key("port", str(port.id), "names." + id)
+			out.append({"key": k, "text": str(_authored.get(k, names[id]))})
 	for alias: String in ShipCatalog.COMPATIBILITY_ALIASES:
 		out.append({"key": key("ship_class", alias, "title"),
 			"text": str(ShipCatalog.COMPATIBILITY_ALIASES[alias].title)})
@@ -125,8 +132,7 @@ static func relocalize() -> void:
 		var names: Dictionary = port.get("names", {})
 		for id: String in names.keys():
 			var k := key("port", str(port.id), "names." + id)
-			if Loc.has(k):
-				names[id] = Loc.t(k)
+			_write(names, id, k)
 	for table in tables():
 		var domain: String = table.domain
 		for row: Dictionary in table.rows:
@@ -134,9 +140,7 @@ static func relocalize() -> void:
 			for field in ROW_FIELDS:
 				if not row.has(field):
 					continue
-				var k := key(domain, id, field)
-				if Loc.has(k):
-					row[field] = Loc.t(k)
+				_write(row, field, key(domain, id, field))
 	# A port renames some machines and parcels ("Longshoreman", "Pier T"); the
 	# local name wins over the catalogue's, as it does in `apply_port`.
 	for rows: Array[Dictionary] in [StructureDB.ITEMS, LandDB.ITEMS]:
@@ -144,6 +148,13 @@ static func relocalize() -> void:
 			var local := PortDB.name_for(str(row.id), "")
 			if not local.is_empty():
 				row["name"] = local
+
+
+static func _write(row: Dictionary, field: String, k: String) -> void:
+	if not _authored.has(k):
+		_authored[k] = row[field]
+	if Loc.has(k):
+		row[field] = Loc.t(k)
 
 
 static func _prestige_nodes() -> Array[Dictionary]:

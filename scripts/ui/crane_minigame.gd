@@ -114,7 +114,7 @@ func _build_field(column: VBoxContainer) -> void:
 
 
 func _build_controls(column: VBoxContainer) -> void:
-	_tap = UiTheme.button("SOLTAR", &"amber", UiTheme.SIZE_BODY)
+	_tap = UiTheme.button(Loc.t("mg.crane.drop"), &"amber", UiTheme.SIZE_BODY)
 	_tap.custom_minimum_size.y = UiTheme.TOUCH_MIN + 6.0
 	_tap.pressed.connect(_on_drop)
 	column.add_child(_tap)
@@ -131,7 +131,7 @@ func _begin(offer: Dictionary) -> void:
 	_falling = null
 	_carried.visible = true
 	_tap.disabled = false
-	_hint.text = "A pilha pende pra onde você errar."
+	_hint.text = Loc.t("mg.crane.hint")
 	_rebuild_tower()
 	_refresh_stats()
 	_tap.grab_focus()
@@ -175,8 +175,8 @@ func _closing_hint() -> String:
 	if game == null:
 		return ""
 	if game.toppled:
-		return "A pilha tombou com %d contêineres" % game.placed
-	return "%d de %d contêineres" % [game.placed, game.goal]
+		return Loc.t("mg.crane.fell", {"n": game.placed})
+	return Loc.t("mg.progress", {"n": game.placed, "goal": game.goal})
 
 
 func _on_scrim_input(event: InputEvent) -> void:
@@ -209,16 +209,16 @@ func _on_drop() -> void:
 	match result:
 		StackGame.RESULT_SLIP:
 			_shake = 1.0
-			_say("ESCORREGOU!", UiTheme.DANGER)
+			_say(Loc.t("mg.crane.slip"), UiTheme.DANGER)
 			AudioManager.play_sfx("deny", 0.06)
 		StackGame.RESULT_TOPPLE:
 			_shake = 1.4
-			_say("TOMBOU!", UiTheme.DANGER)
+			_say(Loc.t("mg.crane.topple"), UiTheme.DANGER)
 			AudioManager.play_sfx("deny", 0.06)
 		_:
 			_colour = (_colour + 1) % 8
 			if result == StackGame.RESULT_PERFECT:
-				_say("PERFEITO! x%d" % int(outcome.get("combo", 1)),
+				_say(Loc.t("mg.crane.perfect", {"n": int(outcome.get("combo", 1))}),
 					UiTheme.TEAL_LIGHT)
 			# A rising scale as the tower grows: the pitch is the score.
 			AudioManager.play_sfx_pitched("thunk",
@@ -406,4 +406,4 @@ func _refresh_stats() -> void:
 	# The third stat used to be lives. There are none: the tower is the health
 	# bar, so it reads how far off plumb it is instead.
 	_set_stats("%4.1fs" % game.time_left, "%d/%d" % [game.placed, game.goal],
-		"prumo %d%%" % roundi((1.0 - absf(game.lean())) * 100.0))
+		Loc.t("mg.crane.plumb", {"pct": roundi((1.0 - absf(game.lean())) * 100.0)}))

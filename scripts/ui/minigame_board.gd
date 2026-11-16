@@ -139,7 +139,7 @@ func _closing_hint() -> String:
 func _result_text(won: bool) -> String:
 	## The big word at the end. Charters say it in charter terms; a board that
 	## is not a charter (the X-ray scanner) says its own.
-	return "ESCALA FEITA!" if won else "ESCALA PERDIDA"
+	return Loc.t("mg.board.won" if won else "mg.board.lost")
 
 
 # -------------------------------------------------------------------- shared
@@ -155,7 +155,9 @@ func open(offer: Dictionary) -> void:
 	_shout_time = 0.0
 	_shout.text = ""
 	_shout.modulate.a = 0.0
-	_title.text = str(_offer.get("title", "Escala especial"))
+	# The offer was copied when it was dealt; its title is read again by id so
+	# a language switch since then still reaches the board.
+	_title.text = SpecialCallDB.title_of(_offer)
 	UiTheme.fit_title(_title)
 	visible = true
 	_layout()

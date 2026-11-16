@@ -121,7 +121,7 @@ func _test_the_catalogue_is_priced_in_the_port_s_own_income() -> void:
 		_expect(str(offer.brief).length() > 40,
 			"%s explains itself before asking for an answer" % offer.id)
 		_expect(not SpecialCallDB.reward_text(offer).is_empty()
-				and SpecialCallDB.penalty_text(offer) != "nenhuma",
+				and not SpecialCallDB.penalty_text(offer).is_empty(),
 			"%s names both the prize and the forfeit" % offer.id)
 		var hull := ShipCatalog.get_silhouette(StringName(offer.hull))
 		_expect(not hull.is_empty(), "%s sails on a real class" % offer.id)

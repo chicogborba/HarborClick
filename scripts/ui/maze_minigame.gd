@@ -66,8 +66,7 @@ func _build_controls(column: VBoxContainer) -> void:
 	_deck.mouse_filter = Control.MOUSE_FILTER_STOP
 	_deck.focus_mode = Control.FOCUS_ALL
 	_deck.add_theme_stylebox_override(&"focus", UiTheme.focus_ring())
-	UiTheme.describe(_deck, "Manche",
-		"Empurre para andar. As setas e WASD fazem o mesmo.")
+	UiTheme.describe(_deck, Loc.t("mg.maze.stick"), Loc.t("mg.maze.stick_hint"))
 	_deck.gui_input.connect(_on_deck_input)
 	_deck.draw.connect(_draw_deck)
 	deck.add_child(_deck)
@@ -82,7 +81,7 @@ func _begin(offer: Dictionary) -> void:
 	_push = Vector2.ZERO
 	_held = 0
 	_lamp = [0.0, 0.0]
-	_hint.text = "Ache os contêineres e chegue no berço."
+	_hint.text = Loc.t("mg.maze.hint")
 	_deck.grab_focus()
 	_refresh()
 
@@ -117,11 +116,11 @@ func _step(direction: int) -> void:
 		return
 	_lamp[0] = 1.0
 	if bool(outcome.get("crate", false)):
-		_say("ACHOU! %d/%d" % [game.collected, game.goal], UiTheme.TEAL_LIGHT)
+		_say(Loc.t("mg.maze.found", {"n": game.collected, "goal": game.goal}), UiTheme.TEAL_LIGHT)
 		AudioManager.play_sfx_pitched("thunk",
 			1.0 + float(game.collected) * 0.12, -2.0)
 		if game.exit_open():
-			_hint.text = "Tudo a bordo. Corre pro berço!"
+			_hint.text = Loc.t("mg.maze.all_aboard")
 	else:
 		AudioManager.play_sfx_pitched("tap", 0.9 + float(game.moves % 4) * 0.05, -12.0)
 	_refresh()
@@ -227,7 +226,7 @@ func _refresh() -> void:
 		return
 	_set_stats("%4.1fs" % game.time_left,
 		"%d/%d" % [game.collected, game.goal],
-		"berço %s" % ("aberto" if game.exit_open() else "fechado"))
+		Loc.t("mg.maze.berth_open" if game.exit_open() else "mg.maze.berth_closed"))
 
 
 func _over() -> bool:
@@ -245,8 +244,8 @@ func _summary() -> Dictionary:
 func _closing_hint() -> String:
 	if game == null:
 		return ""
-	return "%d de %d contêineres, %d movimentos" % [game.collected, game.goal,
-		game.moves]
+	return Loc.t("mg.maze.summary", {"n": game.collected, "goal": game.goal,
+		"moves": game.moves})
 
 
 # ---------------------------------------------------------------------- view

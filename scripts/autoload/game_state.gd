@@ -901,17 +901,18 @@ func upgrade_preview(item: Dictionary) -> Dictionary:
 				names.append(str(StructureDB.get_item(target).get("name", target)))
 			gain *= _global_cps_multiplier() * _upgrade_global_multiplier()
 			return {"cps_gain": maxf(0.0, gain), "click_gain": 0.0,
-				"text": "%s: %s" % [", ".join(names), _scale_text(value)]}
+				"text": Loc.t("effect.structures", {"names": ", ".join(names),
+					"scale": _scale_text(value)})}
 		"global_mult":
 			return {"cps_gain": maxf(0.0, base_cps * (value - 1.0)),
-				"click_gain": 0.0, "text": "Todo o porto: %s" % _scale_text(value)}
+				"click_gain": 0.0, "text": Loc.t("effect.global", {"scale": _scale_text(value)})}
 		"click_mult":
 			return {"cps_gain": 0.0,
 				"click_gain": maxf(0.0, click_power * (value - 1.0)),
-				"text": "Cada toque: %s" % _scale_text(value)}
+				"text": Loc.t("effect.click", {"scale": _scale_text(value)})}
 		"click_cps_pct":
 			return {"cps_gain": 0.0, "click_gain": maxf(0.0, cps * value),
-				"text": "Toque ganha %d%% da produção" % roundi(value * 100.0)}
+				"text": Loc.t("effect.click_cps", {"pct": roundi(value * 100.0)})}
 		"synergy":
 			# A synergy card has to state the part the port has *already earned*,
 			# not only the rule. "+3% por cavalo" with no count is homework; "+3%
@@ -922,11 +923,11 @@ func upgrade_preview(item: Dictionary) -> Dictionary:
 			var gain := structure_total_cps(target) * bonus \
 				* _global_cps_multiplier() * _upgrade_global_multiplier()
 			return {"cps_gain": maxf(0.0, gain), "click_gain": 0.0,
-				"text": "%s: +%d%% por %s (hoje +%d%%)" % [
-					str(StructureDB.get_item(target).get("name", target)),
-					roundi(value * 100.0),
-					str(StructureDB.get_item(per).get("name", per)),
-					roundi(bonus * 100.0)]}
+				"text": Loc.t("effect.synergy", {
+					"target": str(StructureDB.get_item(target).get("name", target)),
+					"pct": roundi(value * 100.0),
+					"per": str(StructureDB.get_item(per).get("name", per)),
+					"now": roundi(bonus * 100.0)})}
 		"rail_stat":
 			# These move a real knob on the branch rather than a rate, and their
 			# card used to print nothing at all: a node costing two hundred billion
@@ -945,18 +946,19 @@ static func _rail_stat_text(entry: Dictionary) -> String:
 	match stat:
 		"service_gap":
 			if op == "mult" and v < 1.0:
-				return "Trens %d%% mais frequentes" % roundi((1.0 / v - 1.0) * 100.0)
-			return "Intervalo entre trens +%d%%" % roundi((v - 1.0) * 100.0)
+				return Loc.t("effect.rail.more_frequent", {"pct": roundi((1.0 / v - 1.0) * 100.0)})
+			return Loc.t("effect.rail.gap", {"pct": roundi((v - 1.0) * 100.0)})
 		"rake_length":
-			return "+%d vagões por trem" % roundi(v)
+			return Loc.t("effect.rail.wagons", {"n": roundi(v)})
 		"dwell":
-			return "Trem fica %s%ds na rampa" % ["+" if v >= 0.0 else "-", absi(roundi(v))]
+			return Loc.t("effect.rail.dwell", {"sign": "+" if v >= 0.0 else "-",
+				"s": absi(roundi(v))})
 		"auto_rate":
-			return "Ramal automático +%s caixas/s" % String.num(v, 2)
+			return Loc.t("effect.rail.auto_rate", {"v": String.num(v, 2)})
 		"auto_cap":
-			return "teto +%s" % String.num(v, 1)
+			return Loc.t("effect.rail.auto_cap", {"v": String.num(v, 1)})
 		"completion":
-			return "Bônus de trem completo x%s" % String.num(v, 1)
+			return Loc.t("effect.rail.completion", {"v": String.num(v, 1)})
 	return stat
 
 
@@ -981,9 +983,9 @@ func _synergy_bonus(item: Dictionary, override_id: String = "",
 static func _scale_text(value: float) -> String:
 	## "x2.00" is a spreadsheet. A person says the double.
 	if is_equal_approx(value, 2.0):
-		return "o dobro"
+		return Loc.t("effect.scale.double")
 	if is_equal_approx(value, 3.0):
-		return "o triplo"
+		return Loc.t("effect.scale.triple")
 	if value > 1.0 and value < 2.0:
 		return "+%d%%" % roundi((value - 1.0) * 100.0)
 	return "x%.1f" % value

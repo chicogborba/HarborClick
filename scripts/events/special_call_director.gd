@@ -90,7 +90,7 @@ func accept() -> bool:
 	offer_closed.emit()
 	EventBus.notification_requested.emit({
 		"id": "special_booked", "kind": &"milestone", "priority": 2,
-		"text": "%s aceita. O navio já vem entrando." % booked.get("title", "Escala"),
+		"text": Loc.t("charter.booked", {"title": SpecialCallDB.title_of(booked)}),
 	})
 	return true
 
@@ -145,8 +145,8 @@ func resolve(won: bool) -> Dictionary:
 	EventBus.notification_requested.emit({
 		"id": "special_result", "kind": &"milestone" if won else &"blocked",
 		"priority": 2,
-		"text": "%s %s %s" % [finished.get("title", "Escala"),
-			"concluída." if won else "perdida.", outcome.get("text", "")],
+		"text": Loc.t("charter.result.won" if won else "charter.result.lost",
+			{"title": SpecialCallDB.title_of(finished), "text": outcome.get("text", "")}),
 	})
 	resolved.emit(finished, won, outcome)
 	return outcome

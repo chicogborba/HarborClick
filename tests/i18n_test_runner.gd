@@ -28,15 +28,17 @@ func _run() -> void:
 	_test_choosing_a_language_changes_the_words()
 	_test_an_unknown_language_falls_back_rather_than_breaking()
 	_test_the_font_can_draw_every_translated_character()
+	_test_every_catalogue_text_has_a_key()
+	_test_the_catalogue_speaks_the_chosen_language()
 	await _test_translations_fit_the_controls_that_show_them()
 
 	Loc.apply(_restore_preference)
-	var expected := 8
+	var expected := 10
 	if _finished.size() != expected:
 		failures.append("only %d of %d tests reached their last line (%s)"
 			% [_finished.size(), expected, ", ".join(_finished)])
 	if failures.is_empty():
-		print("I18N TESTS PASSED (parity, placeholders, plurals, device, fallback, glyphs, fit)")
+		print("I18N TESTS PASSED (parity, placeholders, plurals, device, fallback, glyphs, catalogue keys, catalogue language, fit)")
 		get_tree().quit(0)
 	else:
 		for failure in failures:
@@ -190,6 +192,64 @@ func _test_the_font_can_draw_every_translated_character() -> void:
 		"the pixel font has a glyph for every translated character; missing: %s"
 			% ", ".join(missing.keys()))
 	_finished.append("glyphs")
+
+
+func _test_every_catalogue_text_has_a_key() -> void:
+	## The catalogues are written in Portuguese where the numbers are, and an
+	## upgrade added there without a row in `LocStringsContent` would ship to an
+	## English phone as "Luvas Reforçadas". `CatalogText.authored_rows()` reads
+	## every text field of every catalogue — the abroad ports' upgrades and local
+	## names, the crew dossiers and backgrounds included — straight from the
+	## authored tables, so this cannot be satisfied by translating only what the
+	## active port happens to show.
+	##
+	## The `pt_BR` column must also *be* the authored line. Rewording a joke in
+	## `UpgradeDB` without touching the table would otherwise leave eight
+	## translations of the old joke and a Portuguese column nobody reads.
+	var rows := CatalogText.authored_rows()
+	_expect(rows.size() > 400, "catalogue walk found only %d rows" % rows.size())
+	var seen := {}
+	for row: Dictionary in rows:
+		var key := str(row.key)
+		_expect(not seen.has(key), "two catalogue texts share the key %s" % key)
+		seen[key] = true
+		if not LocStringsContent.STRINGS.has(key):
+			failures.append("catalogue text has no key: %s (\"%s\")" % [key, row.text])
+			continue
+		var table_pt := str(LocStringsContent.STRINGS[key].get("pt_BR", ""))
+		_expect(table_pt == str(row.text),
+			"%s: pt_BR column \"%s\" no longer matches the catalogue's \"%s\""
+				% [key, table_pt, row.text])
+	_finished.append("catalogue keys")
+
+
+func _test_the_catalogue_speaks_the_chosen_language() -> void:
+	## The rows are rewritten in place, so a language switch has to reach them —
+	## the shop reads `item.name`, not a key.
+	Loc.apply(&"en")
+	_expect(str(UpgradeDB.get_item("luvas").name) == "Reinforced Gloves",
+		"English upgrade row still reads %s" % UpgradeDB.get_item("luvas").name)
+	_expect(str(PortDB.get_port(&"shanghai").name) == "Shanghai",
+		"English port row still reads %s" % PortDB.get_port(&"shanghai").name)
+	_expect(str(StructureDB.get_item("estivador").desc).begins_with("Hauling"),
+		"English structure description did not switch")
+	_expect(NpcCatalog.title_of("sts") == Loc.t("npc_role.sts.title"),
+		"crew title did not follow the language")
+	Loc.apply(&"pt_BR")
+	_expect(str(UpgradeDB.get_item("luvas").name) == "Luvas Reforçadas",
+		"switching back left the upgrade row in another language")
+	# A port switch rebuilds the paced tables from the authored Portuguese; the
+	# rows must come out of it translated, local machine names included.
+	Loc.apply(&"en")
+	PortDB.set_active(&"long_beach")
+	_expect(str(UpgradeDB.get_item("lb_chassis").name) == "Chassis Pool",
+		"a port's own upgrade came out of set_active untranslated")
+	_expect(str(LandDB.get_item("area_ferroviaria").name) == "ICTF Rail Yard",
+		"a port's local parcel name came out of set_active untranslated")
+	PortDB.set_active(PortDB.HOME)
+	_expect(str(StructureDB.get_item("estivador").name) == "Docker",
+		"coming home lost the translated machine name")
+	_finished.append("catalogue language")
 
 
 func _test_translations_fit_the_controls_that_show_them() -> void:

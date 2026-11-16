@@ -60,6 +60,36 @@ query catalogs; catalogs must not reach into `PortWorld` or UI nodes. When an
 ID changes, search saves, progression, UI labels and tests because string IDs
 are persisted.
 
+## Catalogue text is authored here, read through `CatalogText`
+
+Every `name`, `short`, `desc`, `description`, `title`, `brief`, `tagline`,
+`perk` and `country` in these tables is written in Brazilian Portuguese, next to
+the numbers it describes, and is *not* what an English phone reads. Each has a
+key in `scripts/i18n/strings_content.gd` shaped `<domain>.<id>.<field>`
+(`upgrade.luvas.name`, `port.shanghai.tagline`, `port.long_beach.names.tt`),
+and `CatalogText.relocalize()` writes the current language over the live rows
+in place — on boot, on every language switch, and after `PortDB.set_active`
+rebuilds the paced tables. That is why `PortDB.PORTS`, `CosmeticDb.ITEMS`,
+`AchievementDB.ITEMS`, `ContractDB.TEMPLATES`, `PrestigeDB.BRANCHES`,
+`SpecialCallDB.OFFERS`, `ShipCatalog.SILHOUETTES` and `UpgradeDB.BRANCHES` are
+`static var`, not `const`.
+
+Consumers keep reading `item.name`; nothing at a read site knows about keys.
+Two things do need care:
+
+- **A copy taken earlier keeps the language it was taken in.** A dealt charter
+  offer is a saved copy, so its title and brief are read back through
+  `SpecialCallDB.title_of` / `brief_of`; an NPC's dossier is saved as the
+  Portuguese line it was dealt and found again by `NpcProfile.story()`.
+- **Adding or rewording a text field means adding or updating its row** in
+  `strings_content.gd`, with the authored line as its `pt_BR` column.
+  `tests/i18n_test_runner.gd` walks `CatalogText.authored_rows()` and fails on a
+  catalogue text with no key, or a `pt_BR` column that no longer matches the
+  catalogue.
+
+`FleetDB` ship names are deliberately not keyed: a ship keeps its name in every
+language.
+
 ## `upgrade_db.gd` is a graph, not a list
 
 Upgrades carry three fields the other catalogues do not, and every one of them is
