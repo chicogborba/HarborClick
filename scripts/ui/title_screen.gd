@@ -572,7 +572,7 @@ func _plate_glow() -> GradientTexture2D:
 
 
 func _wordmark() -> Control:
-	## "HarborClick" as one drawn object, not as two Labels.
+	## "Stackyard" as one drawn object, not as two Labels.
 	##
 	## It used to be the game's body font at title size with a shadow under it,
 	## which is exactly what it looked like: a caption. A logo needs weight the
@@ -786,7 +786,7 @@ func _open_options() -> void:
 			continue
 		rows.append({"kind": "link", "label": Loc.t(str(spec.label)), "url": str(spec.url)})
 	rows.append({"kind": "note",
-		"label": "HarborClick - %s - %s" % [VERSION_LINE, STUDIO_LINE]})
+		"label": "Stackyard - %s - %s" % [VERSION_LINE, STUDIO_LINE]})
 	_open_sheet(Loc.t("settings.title"), rows)
 
 

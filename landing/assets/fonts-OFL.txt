@@ -1,4 +1,4 @@
-Fonts shipped with the HarborClick landing page
+Fonts shipped with the Stackyard landing page
 ===============================================
 
 press-start-2p.woff2 — Copyright 2012 The Press Start 2P Project Authors

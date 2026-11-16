@@ -1,4 +1,4 @@
-"""All HarborClick sound effects, generated from code."""
+"""All Stackyard sound effects, generated from code."""
 from synth import render, add_tone, add_noise, save_wav, note_freq, reverb, delay
 
 

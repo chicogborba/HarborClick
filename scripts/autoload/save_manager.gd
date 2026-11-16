@@ -380,7 +380,7 @@ static func envelope_problem(data: Dictionary) -> String:
 	# stops an empty or foreign JSON object from being read as a valid save —
 	# which would silently wipe the run instead of falling back to the backup.
 	if not data.has("teus"):
-		return "Isso não é um save do HarborClick."
+		return "Isso não é um save do Stackyard."
 	return ""
 
 
@@ -700,7 +700,7 @@ func import_text(text: String) -> Dictionary:
 		return {"ok": false, "error": "Isso não é um save (JSON inválido)."}
 	var parsed: Variant = json.data
 	if not parsed is Dictionary:
-		return {"ok": false, "error": "Isso não é um save do HarborClick."}
+		return {"ok": false, "error": "Isso não é um save do Stackyard."}
 	var envelope: Dictionary = parsed
 	var problem := envelope_problem(envelope)
 	if not problem.is_empty():

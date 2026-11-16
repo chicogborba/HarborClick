@@ -1,6 +1,7 @@
-# HarborClick agent guide
+# Stackyard agent guide
 
-HarborClick is a Godot 4.7 mobile-first container-terminal game. Read
+Stackyard (called HarborClick until 2026-11-16) is a Godot 4.7 mobile-first
+container-terminal game. Read
 [`docs/README.md`](docs/README.md) before exploring source files. It routes work
 to the smallest relevant subsystem and links the generated whole-repository map.
 
@@ -93,6 +94,10 @@ Set `GODOT_BIN` when Godot is installed elsewhere.
   build itself never calls the API and must stay that way.
 - Keep pixel textures nearest-neighbour and UI text on `UiTheme` surfaces.
 - Update the nearest subsystem README when a contract or entry point changes.
+- The player-facing name is Stackyard; storage identity stays `harborclick`
+  (save and test file names, the desktop `user://` folder, the Android package,
+  the landing's `harborclick.lang` key, deploy paths). Renaming any of those
+  orphans real saves, so it needs a migration, not a find-and-replace.
 - Run `tools/docs/generate_code_map.py --check` before handoff.
 
 ## Deployment

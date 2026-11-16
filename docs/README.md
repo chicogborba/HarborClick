@@ -1,4 +1,4 @@
-# HarborClick documentation hub
+# Stackyard documentation hub
 
 This is the shortest route into the repository. Pick the question, read one
 document, then open only the entry-point files it names.
@@ -7,8 +7,8 @@ document, then open only the entry-point files it names.
 
 - [Princípios de clicker](design/principios.md) — as dez regras do gênero
   aplicadas a este jogo, os cinco erros que matam um clicker, e o checklist de
-  aceite que responde "isso está bom?". O [README](../README.md) responde "o que
-  falta?".
+  aceite que responde "isso está bom?". O [manual técnico](reference/manual-tecnico.md)
+  responde "o que falta?".
 
 ## Plan
 
@@ -33,6 +33,9 @@ document, then open only the entry-point files it names.
   generated pixel assets, capture workflow and accessibility.
 - [Testing and release](architecture/testing-release.md) — focused suites,
   full QA, Web export and VPS headers.
+- [Manual técnico](reference/manual-tecnico.md) — run, test, export, deploy,
+  debug keys and how every player-facing system works (formerly the root
+  README, which is now the public showcase).
 - [Generated code map](reference/code-map.md) — every code/config/scene file,
   line count, top-level symbol and declared functions.
 

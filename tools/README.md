@@ -45,7 +45,9 @@
   matrix harness can wedge on a stale frame after its first shot when the
   window is unfocused, which a single shot never does.
 - `balance/` — deterministic economy scenarios.
-- `docs/` — whole-repository code-map generator.
+- `docs/` — whole-repository code-map generator, and `gen_readme_media.py`,
+  which frames `user://uishots` captures and the landing wordmark into the
+  root README's banner and screenshot boards (`docs/media/readme/`).
 - `qa/` — one-command project validation.
 - `generate_all.sh` — regenerate sprites and audio.
 

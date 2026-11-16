@@ -893,7 +893,7 @@ def gen_title_anchor():
 
 # ----------------------------------------------------------------- the logo
 
-WORDMARK = "HarborClick"
+WORDMARK = "Stackyard"
 
 ## A display face, drawn for this word and no other.
 ##
@@ -905,9 +905,22 @@ WORDMARK = "HarborClick"
 ## tight and heavy the way a title should.
 ##
 ## Caps fill all twelve rows; x-height letters start at row 4; ascenders climb
-## back to row 0. Only the letters in `WORDMARK` exist here — anything else
+## back to row 0; a descender (`y`) hangs three rows below the baseline, and the
+## logo grows to hold it. Only the letters in `WORDMARK` exist here — anything else
 ## falls through to the game font, which is the right answer for a stray glyph.
 TITLE_FACE = {
+    "S": ["..######..", ".###..###.", "##......##", "##........", ".####.....",
+          "..######..", ".....####.", "........##", "........##", "##......##",
+          ".###..###.", "..######.."],
+    "t": [".......", "..##...", "..##...", "#######", "#######",
+          "..##...", "..##...", "..##...", "..##...", "..##...",
+          "..##.##", "...###."],
+    "y": ["..........", "..........", "..........", "##......##", "##......##",
+          "##......##", "##......##", "##......##", "##......##", "##......##",
+          ".###..####", "..####.###", "........##", ".##....##.", "..######.."],
+    "d": ["........##", "........##", "........##", "..#####.##", ".###...###",
+          "##......##", "##......##", "##......##", "##......##", "##......##",
+          ".###...###", "..#####.##"],
     "H": ["##.....##", "##.....##", "##.....##", "##.....##", "##.....##",
           "#########", "#########", "##.....##", "##.....##", "##.....##",
           "##.....##", "##.....##"],
@@ -942,13 +955,15 @@ TITLE_FACE = {
 ## Rows in the display face. Everything that sizes the logo reads this rather
 ## than the font's 7.
 FACE_ROWS = 12
+## Rows the word actually needs: the face plus whatever a descender hangs below.
+WORD_ROWS = max(FACE_ROWS, max(len(TITLE_FACE.get(c, [])) for c in WORDMARK))
 ## Air between letters, in face cells. One cell: the ink ring is two pixels and
 ## needs somewhere to happen, but the old four *pixels* of extra tracking on top
 ## of a monospace advance is what made the word read as l e t t e r s.
 TRACK = 1
 
-## Where the gold takes over from the teal.
-SPLIT = 6
+## Where the gold takes over from the teal: "Stack" | "yard".
+SPLIT = 5
 ## 2x on a twelve-row face is taller than the old 3x on a seven-row one, and
 ## narrower: the plate is clamped to 340 logical pixels and the phone this is
 ## designed for gives it 272, so the word has to set tight to be big.
@@ -1055,7 +1070,7 @@ def _blit_word(img, x, y, color, scale=SCALE):
 
 
 def gen_title_word():
-    """`HarborClick` as a single drawn object: extruded, ringed and lit.
+    """`Stackyard` as a single drawn object: extruded, ringed and lit.
 
     Three passes make the difference between type and a logo — a dark body
     dropped straight down so the letters have thickness, a two-pixel ink ring so
@@ -1077,7 +1092,7 @@ def gen_title_word():
     ring_px = 1
     pad = ring_px + 1
     size = (_word_width() + pad * 2,
-            FACE_ROWS * SCALE + pad * 2 + depth)
+            WORD_ROWS * SCALE + pad * 2 + depth)
     img = new_img(*size)
 
     face = _word_mask(size, range(len(WORDMARK)), pad, pad)

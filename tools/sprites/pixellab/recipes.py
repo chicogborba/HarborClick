@@ -1,4 +1,4 @@
-"""What HarborClick asks a pixel-art model for, and why it asks a model at all.
+"""What Stackyard asks a pixel-art model for, and why it asks a model at all.
 
 Almost every PNG in this game is drawn by code, because code is the only way to
 keep a hundred sprites honest to one palette. That breaks down for exactly one

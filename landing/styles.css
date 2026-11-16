@@ -1,4 +1,4 @@
-/* HarborClick — landing page.
+/* Stackyard — landing page.
    Everything is drawn on a pixel grid: every sprite is nearest-neighbour art
    sized as native x one of the integer scales declared in :root, never a
    fractional one. Colours are the game's own palette, straight from
@@ -496,7 +496,7 @@ h1, h2, h3 {
 .wordmark { line-height: 0; }
 
 .wordmark img {
-  width: calc(var(--ls) * 121px);
+  width: calc(var(--ls) * 99px);
   height: calc(var(--ls) * 17px);
   max-width: 100%;
   filter: drop-shadow(0 0 calc(var(--s) * 4px) rgba(238, 176, 62, 0.3));

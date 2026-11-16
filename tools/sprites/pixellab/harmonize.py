@@ -4,7 +4,7 @@ A model answers with its own pigments, its own idea of an outline and a canvas
 of whatever size was asked for. Four passes fix that, and they are separate
 because different assets need different subsets:
 
-  * `snap` pulls every colour to the nearest one HarborClick already paints
+  * `snap` pulls every colour to the nearest one Stackyard already paints
     with — but only if it is close enough to be the same intent. A gold that
     lands 6 units from the game's gold becomes the game's gold; a colour with
     no neighbour is left alone rather than dragged somewhere wrong.

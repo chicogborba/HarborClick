@@ -1,5 +1,5 @@
 #!/bin/bash
-# Regenerate all HarborClick assets (sprites + audio).
+# Regenerate all Stackyard assets (sprites + audio).
 set -e
 cd "$(dirname "$0")/sprites"
 PY="../venv/bin/python"

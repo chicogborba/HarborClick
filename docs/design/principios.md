@@ -1,4 +1,4 @@
-# Princípios de clicker aplicados ao HarborClick
+# Princípios de clicker aplicados ao Stackyard
 
 Destilado da pesquisa de gênero (GDC/Kongregate sobre matemática de idle games,
 os pós-mortems de *Clicker Heroes 2*, *War Clicks* e *RuneScape: Idle Adventures*,
@@ -6,7 +6,7 @@ e a leitura de *Cookie Clicker*, *AdVenture Capitalist*, *Realm Grinder* e
 *Egg, Inc.*) e traduzido para as decisões que este repositório de fato toma.
 
 Este documento é curto de propósito. Ele responde **"isso está bom?"**; o
-[README](../../README.md) responde **"o que falta?"**.
+[manual técnico](../reference/manual-tecnico.md) responde **"o que falta?"**.
 
 ---
 
@@ -18,7 +18,7 @@ O toque existe para ensinar a relação ação → recurso e para dar agência n
 espera. Quando a economia chega a escalas que a mão humana não acompanha, o
 toque deve virar *empurrão* — acelerar, escolher, ativar — e nunca obrigação.
 
-> **No HarborClick:** o toque no navio move uma caixa; portêiner, transtêiner e
+> **No Stackyard:** o toque no navio move uma caixa; portêiner, transtêiner e
 > guindaste flutuante fazem a mesma transação sozinhos. Uma escala inteira roda
 > sem um toque quando há equipamento. ✅
 
@@ -29,7 +29,7 @@ acelerar** e **qual decisão** virá depois. O problema não é o intervalo long
 o *stall não informado*, em que o tempo até a próxima decisão cresce sem meta
 visível.
 
-> **No HarborClick:** o chip do berço diz `DESCARGA 18/24`; o objetivo fixado no
+> **No Stackyard:** o chip do berço diz `DESCARGA 18/24`; o objetivo fixado no
 > rail diz o que vem depois. ⚠️ Falta a estimativa de tempo até a próxima compra
 > possível — o "faltam ~2 min" que transforma espera em previsão.
 
@@ -38,7 +38,7 @@ visível.
 Este é o pecado mais comum e mais letal do gênero: a compra altera um número num
 painel que está cobrindo a tela e nada mais. Uma compra tem que ter **corpo**.
 
-> **No HarborClick:** cada compra faz a máquina correspondente sacudir nas molas
+> **No Stackyard:** cada compra faz a máquina correspondente sacudir nas molas
 > e solta um `+X TEU/s` sobre ela no pátio; a taxa no contador anuncia o ganho em
 > porcentagem. Compras acima do teto visual de uma máquina caem sobre uma que já
 > existe, então dinheiro gasto sempre tem onde aterrissar. Cada melhoria acende
@@ -57,7 +57,7 @@ comparação entre duas compras precisa de uma métrica comum, e a melhor é o
 payback = custo total da compra ÷ ganho de produção por segundo
 ```
 
-> **No HarborClick:** o cartão da loja mostra `+X TEU/s • paga em 4min` assim que
+> **No Stackyard:** o cartão da loja mostra `+X TEU/s • paga em 4min` assim que
 > a máquina é acessível — antes disso ela ainda está sendo *descoberta* e o card
 > mantém a piada. ✅ ⚠️ Falta o painel de decomposição (base × upgrade ×
 > prestígio × evento) para quando os multiplicadores empilham.
@@ -68,7 +68,7 @@ Ao automatizar uma tarefa, abra uma decisão de ordem superior: prioridade,
 configuração, alocação, build. Automação que executa tudo perfeitamente elimina
 escolhas; automação deliberadamente incompetente vende conveniência.
 
-> **No HarborClick:** ✅ ⚠️ parcialmente. `CraneAllocation` fez da gangue um
+> **No Stackyard:** ✅ ⚠️ parcialmente. `CraneAllocation` fez da gangue um
 > recurso único a ser dividido: com mais de um berço trabalhando o jogador dá a
 > ordem permanente — dividir por igual, mandar tudo para quem está mais perto de
 > zarpar, ou para o maior casco. Antes disso cada berço recebia a taxa inteira
@@ -89,7 +89,7 @@ Um contêiner precisa ter identidade, origem, destino e **uma cadeia de custódi
 visível**. Máquinas que animam num timer são cenário; máquinas que se passam a
 carga umas para as outras são o jogo.
 
-> **No HarborClick:** `CargoUnit` tem UID persistente e cada transferência é uma
+> **No Stackyard:** `CargoUnit` tem UID persistente e cada transferência é uma
 > transação com reserva, commit e rollback. Desde o `CargoRelay`, o percurso é
 > uma cadeia: o portêiner tira do costado e põe no apron, o cavalo mecânico
 > dirige até a faixa do bloco, o transtêiner levanta da carreta e empilha. ✅
@@ -103,7 +103,7 @@ Prestígio sem escolha nova é repetição comprimida. O reset precisa responder
 antes de acontecer: o que se perde, o que fica, quanto se ganha, quanto tempo
 para recuperar, e **que conteúdo novo abre**.
 
-> **No HarborClick:** o diálogo de prestígio mostra o ganho e a árvore de
+> **No Stackyard:** o diálogo de prestígio mostra o ganho e a árvore de
 > capital, e desde o `Foreman` a primeira reconstrução **abre alguma coisa**: o
 > capataz, que é exatamente a dor que o segundo run tinha — refazer trinta
 > compras que o jogador já sabe de cor. ⚠️ Ainda falta a estimativa "você
@@ -115,7 +115,7 @@ Save atômico, migração, progresso offline, números grandes e observabilidade
 *features centrais*, não infraestrutura. O pós-mortem de *War Clicks* perdeu mais
 de 100 mil jogadores para bugs de lançamento; nenhum design compensa isso.
 
-> **No HarborClick:** save v3 por perfil com escrita temporária, backup, rotação,
+> **No Stackyard:** save v3 por perfil com escrita temporária, backup, rotação,
 > migração e reconciliação de transferências em voo; 20 suítes headless. ✅
 
 ### 9. Nada pode travar
@@ -124,7 +124,7 @@ Um jogo idle é uma máquina de estado que roda sozinha. Toda decisão de
 apresentação precisa de um caminho de fuga: se a animação bonita não puder
 acontecer, a transação acontece mesmo assim.
 
-> **No HarborClick:** é o contrato explícito do `CargoRelay`. Um cavalo mecânico
+> **No Stackyard:** é o contrato explícito do `CargoRelay`. Um cavalo mecânico
 > que não aparece em 3 s, que trava 22 s, ou que é liberado no meio da viagem
 > devolve a caixa para o arco simples. `tests/relay_test_runner.gd` prova os três
 > casos, mais uma escala inteira ponta a ponta. ✅
@@ -134,7 +134,7 @@ acontecer, a transação acontece mesmo assim.
 A primeira tela é simples; o jogo completo não precisa ser. *Cookie Clicker*
 começa com um botão e termina em ascensões, minigames e lore.
 
-> **No HarborClick:** loja com teaser da próxima máquina, rotas, contratos,
+> **No Stackyard:** loja com teaser da próxima máquina, rotas, contratos,
 > tripulação com dossiê, escalas especiais. ✅ ⚠️ A curva de *novidade* ainda não
 > foi medida contra as metas de progressão do README.
 
@@ -174,7 +174,7 @@ rigoroso em 4–8 e permissivo em "isso muda alguma coisa que dá pra ver?".
 
 ## Métricas que este jogo deveria medir
 
-Não há telemetria no HarborClick e, por ser single-player offline, ela não é
+Não há telemetria no Stackyard e, por ser single-player offline, ela não é
 obrigatória. Mas o **simulador de balanceamento**
 (`tools/balance/run_balance.gd`) pode responder às mesmas perguntas sem coletar
 nada de ninguém:

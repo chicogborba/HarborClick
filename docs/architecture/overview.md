@@ -1,6 +1,6 @@
 # Architecture overview
 
-HarborClick uses a scene-oriented shell with data-first domain objects. The
+Stackyard uses a scene-oriented shell with data-first domain objects. The
 scene tree presents and animates state; pure or `RefCounted` classes decide
 rules; autoloads own cross-scene state.
 

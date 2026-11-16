@@ -1,4 +1,8 @@
-# Store listing — HarborClick (R6)
+# Store listing — Stackyard (R6)
+
+Renamed from HarborClick on 2026-11-16: the idle-port niche is crowded with
+generic titles and "Harbor Tycoon Clicker" already exists. Where a store
+allows a 30-character title, use **Stackyard: Idle Port Tycoon**.
 
 Nine storefront languages, matching the game's nine UI languages. Short
 description ≤ 80 chars, long description plain text. Capturas: the QA matrix
@@ -9,15 +13,15 @@ captures.
 
 ## Title
 
-- pt_BR: HarborClick — porto de contêineres
-- en: HarborClick — container port
-- es: HarborClick — puerto de contenedores
-- fr: HarborClick — port à conteneurs
-- de: HarborClick — Containerhafen
-- it: HarborClick — porto di container
-- ru: HarborClick — контейнерный порт
-- pl: HarborClick — port kontenerowy
-- tr: HarborClick — konteyner limanı
+- pt_BR: Stackyard — porto de contêineres
+- en: Stackyard — container port
+- es: Stackyard — puerto de contenedores
+- fr: Stackyard — port à conteneurs
+- de: Stackyard — Containerhafen
+- it: Stackyard — porto di container
+- ru: Stackyard — контейнерный порт
+- pl: Stackyard — port kontenerowy
+- tr: Stackyard — konteyner limanı
 
 ## Short description (≤ 80 chars)
 
@@ -33,7 +37,7 @@ captures.
 
 ## Long description
 
-- pt_BR: HarborClick é um clicker/idle de terminal de contêineres em pixel art,
+- pt_BR: Stackyard é um clicker/idle de terminal de contêineres em pixel art,
   feito para celular em retrato. Cada navio que atraca traz 24 contêineres com
   identidade própria: toque no casco para descarregar, embarque a carga de
   exportação até encher o convés e veja o bônus de escala pagar. Compre
@@ -44,7 +48,7 @@ captures.
   recarga, álbum de navios para colecionar, conquistas que aumentam sua
   produção de verdade. Anúncios são sempre recompensados e opcionais. Nove
   idiomas. Progresso offline. Nada é enviado para fora do seu aparelho.
-- en: HarborClick is a pixel-art container-terminal clicker/idle made for
+- en: Stackyard is a pixel-art container-terminal clicker/idle made for
   phones in portrait. Every ship that moors brings 24 containers with real
   identities: tap the hull to discharge, load export cargo until the deck is
   full, and watch the departure bonus pay. Buy machines — every purchase
@@ -60,7 +64,7 @@ captures.
 
 ## Privacy policy (summary, all stores)
 
-HarborClick does not collect, send or sell any personal data. Progress saves
+Stackyard does not collect, send or sell any personal data. Progress saves
 live only in the device's local storage. Telemetry is local and opt-in
 (off by default), stored only in `user://telemetry.jsonl` on the device.
 Rewarded ads are placeholder until a provider is connected; when connected,
@@ -68,7 +72,7 @@ the provider's own SDK policy applies and a "no ads" pass is sold. No
 accounts, no analytics SDK, no tracking. Children can play; there is no
 chat, no user content and no purchases of virtual currency.
 
-Política de privacidade (pt_BR): o HarborClick não coleta, envia nem vende
+Política de privacidade (pt_BR): o Stackyard não coleta, envia nem vende
 dados pessoais. O progresso fica só no armazenamento local do aparelho. A
 telemetria é local e opcional (desligada por padrão), guardada apenas em
 `user://telemetry.jsonl` no próprio aparelho. Os anúncios recompensados são

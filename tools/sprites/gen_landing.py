@@ -73,6 +73,18 @@ LETTERS = {
     "K": ["##.....##", "##....##.", "##...##..", "##..##...", "##.##....",
           "#####....", "#####....", "##.##....", "##..##...", "##...##..",
           "##....##.", "##.....##"],
+    "S": [".#######.", "#########", "##.....##", "##.......", "########.",
+          ".########", ".......##", ".......##", ".......##", "##.....##",
+          "#########", ".#######."],
+    "T": ["#########", "#########", "...###...", "...###...", "...###...",
+          "...###...", "...###...", "...###...", "...###...", "...###...",
+          "...###...", "...###..."],
+    "Y": ["##.....##", "##.....##", ".##...##.", ".##...##.", "..##.##..",
+          "...###...", "...###...", "...###...", "...###...", "...###...",
+          "...###...", "...###..."],
+    "D": ["#######..", "########.", "##....##.", "##.....##", "##.....##",
+          "##.....##", "##.....##", "##.....##", "##.....##", "##....##.",
+          "########.", "#######.."],
 }
 
 GLYPH_W, GLYPH_H = 9, 12
@@ -113,7 +125,7 @@ def _word(text: str) -> Image.Image:
 
 
 def gen_logo():
-    save(_word("HARBORCLICK"), "logo")
+    save(_word("STACKYARD"), "logo")
 
 
 # --------------------------------------------------------------------------
@@ -672,8 +684,8 @@ def gen_ship():
     The strip is stepped by CSS rather than tweened: a pixel ship whose foam
     cross-fades is a pixel ship with grey edges."""
     for tiers, name, out, frames in (
-        (HERO_TIERS, "HARBORCLICK", "ship-side", 3),
-        (CARD_TIERS, "HC LINE", "ship-feeder", 3),
+        (HERO_TIERS, "STACKYARD", "ship-side", 3),
+        (CARD_TIERS, "SY LINE", "ship-feeder", 3),
     ):
         base = _draw_ship(tiers, name)
         stern, bow = 6, base.width - 4
@@ -958,8 +970,11 @@ def gen_og():
 
     logo = Image.open(os.path.join(OUT, "logo.png")).convert("RGBA")
     subtitle = "O PORTO NUNCA DORME"
-    plate = _plate(logo.width + 28, logo.height + 34)
-    plate.alpha_composite(logo, (14, 11))
+    # The plate fits whichever is wider, the word or its subtitle, so the
+    # subtitle never runs into the corner rivets.
+    plate = _plate(max(logo.width, text_width(subtitle) + 8) + 28,
+                   logo.height + 34)
+    plate.alpha_composite(logo, ((plate.width - logo.width) // 2, 11))
     text(plate, (plate.width - text_width(subtitle)) // 2, plate.height - 17,
          subtitle, P.SAFETY_L)
     card.alpha_composite(plate, ((w - plate.width) // 2, (h - plate.height) // 2))

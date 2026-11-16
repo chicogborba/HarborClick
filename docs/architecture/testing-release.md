@@ -38,7 +38,7 @@ cross-origin isolation is not required — and the PWA service worker is now
 enabled (`progressive_web_app/enabled=true`, portrait, generated icons,
 offline page `index.html`). Saves live in Godot's browser storage
 (IndexedDB). The cleanup in `html/head_include` still unregisters the legacy
-pre-PWA worker and deletes only `HarborClick-sw-cache-*` caches; bump its
+pre-PWA worker and deletes only `HarborClick-sw-cache-*` and `Stackyard-sw-cache-*` caches (Godot names the cache after `config/name`); bump its
 build marker when a release must force that one-time cleanup.
 
 ## Hosting contract

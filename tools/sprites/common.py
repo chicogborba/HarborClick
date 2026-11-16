@@ -1,4 +1,4 @@
-"""Shared drawing helpers for HarborClick sprite generators."""
+"""Shared drawing helpers for Stackyard sprite generators."""
 import os
 from PIL import Image, ImageDraw
 

@@ -1,4 +1,4 @@
-"""HarborClick palette — Stardew-flavoured: warm, earthy, softly shaded.
+"""Stackyard palette — Stardew-flavoured: warm, earthy, softly shaded.
 Top-down view. Light comes from the upper-left; every object gets a warm top
 face, a cooler right/bottom shade, and a soft brown-plum outline.
 

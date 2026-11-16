@@ -32,7 +32,7 @@ def main() -> int:
         return 1
     handler = functools.partial(IsolatedHandler, directory=root)
     with http.server.ThreadingHTTPServer(("127.0.0.1", port), handler) as httpd:
-        print(f"HarborClick on http://127.0.0.1:{port}/  (Ctrl-C to stop)")
+        print(f"Stackyard on http://127.0.0.1:{port}/  (Ctrl-C to stop)")
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:

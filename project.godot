@@ -10,7 +10,12 @@ config_version=5
 
 [application]
 
-config/name="HarborClick"
+config/name="Stackyard"
+; The game was HarborClick until 2026-11-16. The name is presentation; where
+; saves live is identity, so desktop keeps the old user:// folder. Web (/userfs)
+; and Android (package dev.portstack.harborclick) never depended on the name.
+config/use_custom_user_dir=true
+config/custom_user_dir_name="Godot/app_userdata/HarborClick"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 

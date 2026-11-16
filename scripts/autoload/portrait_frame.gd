@@ -1,7 +1,7 @@
 extends Node
 ## Keeps the game in portrait at any window size.
 ##
-## HarborClick is designed one-handed, so a window wider than the design frame
+## Stackyard is designed one-handed, so a window wider than the design frame
 ## must not turn into a landscape game — it gets **pillarboxed**, the way a phone
 ## game does when it is cast to a wide screen. A window that is *taller* than the
 ## frame is the opposite case and gets the extra height: a modern phone is far
