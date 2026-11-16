@@ -21,7 +21,7 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", ".."))
 OUT = os.path.join(ROOT, "docs", "media", "store", "keyart")
 SHOTS = os.environ.get("STACKYARD_SHOTS", os.path.expanduser(
     "~/Library/Application Support/Godot/app_userdata/HarborClick/uishots"))
-MODEL = "google/gemini-3-pro-image-preview"
+MODEL = os.environ.get("KEYART_MODEL", "google/gemini-3-pro-image-preview")
 
 STYLE = (
     "Match the reference screenshots exactly: the same crisp top-down pixel art, "
@@ -84,6 +84,25 @@ RECIPES = {
             "in the palette of the reference screenshot. Place it on a perfectly "
             "flat solid pure magenta background (#FF00FF) with nothing else, no "
             "scenery, so it can be cut out."),
+    },
+    "logo_crane": {
+        "aspect": "16:9",
+        "refs": ["closeup_ship.png", "logo.png"],
+        "prompt": (
+            "Redesign the game logo shown in the second reference image. The word "
+            "STACKYARD (spelled exactly S-T-A-C-K-Y-A-R-D, one line) must hang from "
+            "a real crane: across the top of the picture runs the horizontal boom of "
+            "a red ship-to-shore gantry crane in chunky pixel art (lattice girders, "
+            "a trolley with a small operator cab riding on the boom, yellow-black "
+            "hazard stripes), and from the trolley two steel cables come straight "
+            "down to a spreader bar that grips the top of the word, so the whole "
+            "word is clearly being lifted like a container, slightly swinging. Each "
+            "letter is a chunky container block in a different colour (orange, teal, "
+            "red, yellow, blue) with corrugation lines, thick dark outline and 3D "
+            "depth. Under the word hangs a smaller navy ribbon reading exactly IDLE "
+            "PORT TYCOON. Crisp pixel art, game palette from the first reference. "
+            "Everything on a perfectly flat solid pure magenta background (#FF00FF), "
+            "no scenery, no sea, no shadow on the background."),
     },
 }
 
