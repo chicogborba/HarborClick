@@ -3,7 +3,12 @@ extends Node
 
 const SFX_DIR := "res://assets/audio/"
 const SFX_POOL_SIZE := 16
-const MUSIC_DB := -20.0        # the music sits well under the effects
+## The bed the music sits on. It was -20, which was right for the old synth
+## loops and wrong for the Lyria ones: `render_loops.py` already levels those to
+## TARGET_RMS (about -24.5 dB mean), so -20 on top put the soundtrack near -48 —
+## under the sea ambience, inaudible on a phone speaker. At -4 the music lands
+## around -31 at the default 70%: under the effects' transients, over the beds.
+const MUSIC_DB := -4.0
 const FADE_TIME := 3.0
 const SETTINGS_PATH := "user://audio.cfg"
 

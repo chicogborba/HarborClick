@@ -420,14 +420,13 @@ static func pip() -> TextureRect:
 	return node
 
 
-const PORTRAITS := preload("res://assets/sprites/portrait_sheet.png")
-const PORTRAIT_HAT := preload("res://assets/sprites/portrait_hat.png")
+const PORTRAITS := preload("res://assets/sprites/portrait_photos.png")
 const BADGE_CLIP := preload("res://assets/sprites/ui_badge_clip.png")
-const PORTRAIT_SIZE := Vector2(24, 28)
-## The sheet is two halves of four: index 0-3 are drawn masculine, 4-7
+const PORTRAIT_SIZE := Vector2(48, 48)
+## The sheet is two halves of twelve: index 0-11 are drawn masculine, 12-23
 ## feminine. `portrait_index()` below picks a half by the person, not by hash,
 ## so the count matters to more than just the atlas math.
-const PORTRAIT_COUNT := 8
+const PORTRAIT_COUNT := 24
 
 
 static func badge_style(content: int = 6) -> StyleBoxTexture:
@@ -448,35 +447,15 @@ static func photo_style() -> StyleBoxTexture:
 	return nine("ui_photo", 4, 4)
 
 
-static func portrait(index: int, hat: Color = Color(0, 0, 0, 0),
-		wears_hat: bool = true, scale: int = 2) -> Control:
+static func portrait(index: int, scale: int = 2) -> Control:
 	## One staff photograph, at an integer multiple of its authored size.
 	##
-	## The hard hat is a separate greyscale overlay so a named crew member's
-	## helmet colour multiplies into a shaded hat instead of flattening it. An
-	## unset colour means the standard yellow everybody else wears; `wears_hat`
-	## is for the two roles that never put one on.
-	var frame := Control.new()
-	frame.custom_minimum_size = PORTRAIT_SIZE * scale
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var face := _portrait_layer(PORTRAITS,
-		Rect2(Vector2(posmod(index, PORTRAIT_COUNT) * PORTRAIT_SIZE.x, 0.0),
-			PORTRAIT_SIZE), scale)
-	frame.add_child(face)
-	if not wears_hat:
-		return frame
-	var helmet := _portrait_layer(PORTRAIT_HAT,
-		Rect2(Vector2.ZERO, PORTRAIT_SIZE), scale)
-	helmet.modulate = hat if hat.a > 0.0 else Color8(240, 196, 66)
-	frame.add_child(helmet)
-	return frame
-
-
-static func _portrait_layer(atlas: Texture2D, region: Rect2,
-		scale: int) -> TextureRect:
+	## Taken bare-headed, the way an ID photo is: the old sheet laid a tinted hard
+	## hat over a code-drawn face, and the helmet was most of what anybody saw.
 	var at := AtlasTexture.new()
-	at.atlas = atlas
-	at.region = region
+	at.atlas = PORTRAITS
+	at.region = Rect2(Vector2(posmod(index, PORTRAIT_COUNT) * PORTRAIT_SIZE.x, 0.0),
+		PORTRAIT_SIZE)
 	var node := TextureRect.new()
 	node.texture = at
 	node.custom_minimum_size = PORTRAIT_SIZE * scale

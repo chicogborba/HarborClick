@@ -89,6 +89,50 @@ def medals() -> None:
         save(coin, "ui_medal_" + key, 6)
 
 
+## The port's cats, by candidate index in `raw/cats/` (one create_image_pro
+## call, 64 answers). Loafers first — they nap on the stacks — then sitters.
+CATS = [7, 17, 26, 5, 33, 35, 44, 30, 0, 11, 3, 36]
+CAT_CELL = 24
+
+
+def cats() -> None:
+    """Twelve cats on one strip of 24x24 cells, bottom-aligned.
+
+    They replace a hand-drawn 14x12 ellipse with two dots for eyes that read as
+    a potato. A cat is all silhouette — ears, loaf, tail — and that is exactly
+    the kind of drawing a loop is bad at and the model is good at.
+    """
+    strip = Image.new("RGBA", (CAT_CELL * len(CATS), CAT_CELL), (0, 0, 0, 0))
+    for i, idx in enumerate(CATS):
+        art = H.trim(H.harden(raw(f"cats/cat_{idx}")))
+        x = i * CAT_CELL + (CAT_CELL - art.width) // 2
+        strip.alpha_composite(art, (x, CAT_CELL - art.height))
+    save(strip, "prop_cats", 6)
+
+
+## Staff photographs, by candidate index in `raw/portraits/` (one
+## create_image_pro call, 25 answers). The first half is drawn masculine and the
+## second feminine — `UiTheme.portrait_index` picks the half by the person.
+FACES_M = [0, 2, 4, 8, 9, 11, 13, 15, 17, 19, 21, 23]
+FACES_F = [1, 3, 5, 7, 10, 12, 14, 16, 18, 20, 22, 24]
+FACE = 48
+
+
+def portraits() -> None:
+    """The badge photographs: 24 people at 48x48 on one strip.
+
+    They replace eight 24x28 faces drawn by code — two dots, a line and a hat —
+    which were the right size for a sprite and the wrong size for the biggest
+    thing on a staff card. Not snapped: a face is skin ramps, and the UI palette
+    has none, so pulling it onto the yard's colours turns everybody grey.
+    """
+    order = FACES_M + FACES_F
+    strip = Image.new("RGBA", (FACE * len(order), FACE), (0, 0, 0, 0))
+    for i, idx in enumerate(order):
+        strip.alpha_composite(H.harden(raw(f"portraits/face_{idx}")), (i * FACE, 0))
+    save(strip, "portrait_photos", 3)
+
+
 def berths() -> None:
     # Snapped harder than the crest: these are little paintings of *the yard*,
     # and the yard has a palette. The frame is the mount, so the art can meet
@@ -105,4 +149,6 @@ if __name__ == "__main__":
     ship()
     duck()
     medals()
+    cats()
+    portraits()
     berths()

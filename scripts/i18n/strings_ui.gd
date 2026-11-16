@@ -2022,6 +2022,10 @@ const STRINGS := {
 	"de": "Stufenbonus: Leistung x2 für {min} Min.!", "it": "Bonus di livello: produzione x2 per {min} min!",
 	"ru": "Бонус уровня: выработка x2 на {min} мин!", "pl": "Bonus poziomu: produkcja x2 przez {min} min!",
 	"tr": "Seviye bonusu: üretim x2, {min} dk!"},
+"level.banner": {
+	"pt_BR": "SUBIU DE NÍVEL!", "en": "LEVEL UP!", "es": "¡SUBISTE DE NIVEL!",
+	"fr": "NIVEAU SUPÉRIEUR !", "de": "AUFGESTIEGEN!", "it": "LIVELLO SU!",
+	"ru": "НОВЫЙ УРОВЕНЬ!", "pl": "NOWY POZIOM!", "tr": "SEVİYE ATLADIN!"},
 "level.up": {
 	"pt_BR": "NÍVEL {n}!", "en": "LEVEL {n}!", "es": "¡NIVEL {n}!",
 	"fr": "NIVEAU {n} !", "de": "STUFE {n}!", "it": "LIVELLO {n}!",

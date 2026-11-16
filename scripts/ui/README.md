@@ -127,14 +127,24 @@ Entry points:
 - `route_map.gd`, `port_journal.gd`, `settings_panel.gd`,
   `prestige_dialog.gd` — overlays. The journal's EQUIPE tab is the whole shift in
   one list, which the per-person dossier cannot give.
-- `npc_card.gd` — one crew member's staff badge, opened by tapping them: teal
-  header, a mounted photograph, and the record printed beside it. The photo is a
-  24x28 portrait from `portrait_sheet`, picked from the person's uid so it never
-  changes, with the hard hat as a separate greyscale overlay `modulate` tints —
-  the same trick the walking sprite uses, and for the same reason. Only people on
+- `npc_card.gd` — one crew member's staff badge, opened by tapping them: navy
+  header, laminate with a guilloche security print, a mounted photograph with a
+  band in the person's helmet colour under it, the record beside it, and a
+  serial and barcode along the foot. The photo is a 48x48 cell of
+  `portrait_photos` (generated, `tools/sprites/gen_pixellab.py`), picked from
+  the person's uid so it never changes; the first twelve are drawn masculine and
+  the last twelve feminine. Only people on
   foot open it: `StructureActor.is_person()`, not `is_crew()`. A crewed machine
   is still a machine, and inspecting by crew turned every reach stacker in the
   yard into a personnel card waiting to open.
+- `level_hud.gd` — the level badge and the level-up moment: a gold shield with
+  the number on its navy field (`ui_levelup_shield`), a sunburst turning behind
+  it, a red ribbon (`ui_levelup_ribbon`) and a burst of drawn confetti, with a
+  paper tag under it naming what opened. It never takes taps unless the tag
+  carries the rewarded offer, so a clicker player's taps fall through.
+- `tutorial_spotlight.gd` talks out of a round white bubble (`ui_speech`) with a
+  tail (`ui_speech_tail`) that leaves the edge nearest the speaker, and the
+  speaker's name on an amber tag pinned over its top-left corner.
 - `wheel_button.gd` / `lucky_wheel_panel.gd`, `daily_orders_button.gd` /
   `daily_orders_panel.gd` — the two steel keys stacked under the gantry's left
   end and the paper boards they open: the Roda da Sorte and the Missões do Dia.

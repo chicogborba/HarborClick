@@ -24,7 +24,9 @@ The nine-patch centre is *tiled*, not stretched (`AXIS_STRETCH_MODE_TILE` in
 `UiTheme.nine`), which is what lets the paper carry real fibre texture — a
 stretched centre would smear one row of pixels across the whole panel.
 """
-from common import new_img, rect, hline, vline, px, save, sheet, speckle
+import math
+import random
+from common import new_img, rect, hline, vline, px, save, sheet, speckle, outline
 
 # --- wood: five steps, warm, with a cool dark edge ---
 WOOD_XD = (48, 32, 26, 255)
@@ -389,28 +391,58 @@ def gen_badge():
     what it actually is — so this is the one overlay that is not a slip off the
     manifest.
     """
-    s = 16
     # --- the laminated card ---
+    # 24px with a 7px frame, so the 10px centre can carry the security print a
+    # real badge has: a faint guilloche wave, tiled (UiTheme.nine tiles centres).
+    s = 24
     card = new_img(s, s)
+    LAM = (252, 248, 236, 255)
+    LAM_D = (232, 224, 204, 255)
+    WAVE = (236, 232, 214, 255)
+    WAVE_2 = (226, 236, 228, 255)
     hline(card, 2, s - 1, s - 3, SHADOW_1)
     vline(card, s - 1, 2, s - 3, SHADOW_1)
-    rect(card, 0, 0, s - 1, s - 1, TEAL_D)
-    rect(card, 1, 1, s - 3, s - 3, PAPER)
-    hline(card, 1, 1, s - 3, PAPER_XL)
-    vline(card, 1, 1, s - 3, (58, 74, 100, 255))
-    hline(card, 1, s - 3, s - 3, PAPER_D)
+    rect(card, 0, 0, s - 1, s - 1, INK)
+    rect(card, 1, 1, s - 3, s - 3, LAM)
+    for x in range(1, s - 2):
+        # two interleaved sine lines, period 10 so the tiled centre is seamless
+        y1 = 7 + round(2 * math.sin((x - 7) * math.tau / 10))
+        y2 = 11 + round(2 * math.sin((x - 7) * math.tau / 10 + math.pi))
+        for y in (y1, y1 + 10, y2, y2 + 10):
+            if 1 < y < s - 3:
+                px(card, x, y, WAVE if y in (y1, y1 + 10) else WAVE_2)
+    hline(card, 2, 1, s - 5, (255, 255, 255, 255))   # laminate gloss on the lip
+    vline(card, 1, 2, s - 6, (255, 255, 255, 255))
+    hline(card, 1, s - 3, s - 3, LAM_D)
+    vline(card, s - 3, 1, s - 3, LAM_D)
     for cx, cy in ((0, 0), (s - 2, 0), (0, s - 2), (s - 2, s - 2)):
         px(card, cx, cy, (0, 0, 0, 0))
+    for cx, cy in ((1, 1), (s - 3, 1), (1, s - 3), (s - 3, s - 3)):
+        px(card, cx, cy, INK)
     save(card, "ui_badge")
 
-    # --- the header band the port's name sits on ---
+    # --- the header band: navy enamel with the port's amber hairline ---
+    s = 16
     head = new_img(s, s)
-    rect(head, 0, 0, s, s, TEAL_D)
-    rect(head, 0, 1, s, s - 3, TEAL)
-    hline(head, 0, 1, s, TEAL_L)
-    hline(head, 0, s - 2, s, TEAL_XD)
-    hline(head, 0, s - 1, s, SHADOW_1)
+    rect(head, 0, 0, s, s, HULL_XD)
+    rect(head, 0, 1, s, s - 4, HULL_D)
+    hline(head, 0, 1, s, HULL)
+    hline(head, 0, s - 3, s, AMBER)
+    hline(head, 0, s - 2, s, AMBER_D)
+    hline(head, 0, s - 1, s, HULL_XD)
     save(head, "ui_badge_head")
+
+    # --- the barcode along the foot of the card ---
+    bw, bh = 56, 9
+    bars = new_img(bw, bh)
+    rng = random.Random(4242)
+    x = 1
+    while x < bw - 1:
+        wide = rng.choice((1, 1, 1, 2, 2, 3))
+        if rng.random() < 0.62:
+            rect(bars, x, 0, min(wide, bw - 1 - x), bh, INK)
+        x += wide
+    save(bars, "ui_badge_barcode", preview_scale=6)
 
     # --- the photo mount: white print border, sunk into the card ---
     photo = new_img(s, s)
@@ -1283,3 +1315,206 @@ if __name__ == "__main__":
     gen_desk_props()
     gen_scrims()
     gen_icons()
+
+
+def gen_levelup():
+    """The level-up moment: a medal, the light behind it and a ribbon under it.
+
+    The old card was a green-framed text box: "LEVEL 3!", a list, a button.
+    Nothing on it was a picture of having levelled up. A level is a medal, so
+    the moment is a medal: a gold shield with a navy field for the number,
+    a sunburst turning behind it, and a red ribbon the words are printed on.
+    """
+    # --- the shield: gold rim, navy field, a star over the number ---
+    W, H = 56, 64
+    shield = new_img(W, H)
+    cx = (W - 1) / 2
+
+    def half_width(y, w_top, top, mid, bottom):
+        if y < top:
+            return -1
+        if y <= mid:
+            return w_top
+        t = (y - mid) / (bottom - mid)
+        return w_top * math.sqrt(max(0.0, 1.0 - t * t))
+
+    GOLD_XD, GOLD_D, GOLD, GOLD_L, GOLD_XL = AMBER_XD, AMBER_D, AMBER, AMBER_L, AMBER_XL
+    FIELD_D, FIELD, FIELD_L = HULL_XD, (22, 40, 64, 255), (36, 60, 92, 255)
+    for y in range(H):
+        ho = half_width(y, 26.5, 2, 30, 62)
+        hi = half_width(y, 21.5, 7, 30, 56)
+        if ho < 0:
+            continue
+        for x in range(W):
+            dx = x - cx
+            if abs(dx) > ho:
+                continue
+            edge = ho - abs(dx)
+            if hi >= 0 and abs(dx) <= hi:
+                # the field: lit from the upper left, darker toward the point
+                c = FIELD_L if (dx + (y - 7) * 0.6) < -10 else FIELD
+                if abs(dx) > hi - 1 or y == 7:
+                    c = FIELD_D
+                px(shield, x, y, c)
+            else:
+                lit = (-dx * 0.7 - (y - 30) * 0.5)
+                c = GOLD_XL if lit > 14 else GOLD_L if lit > 2 else GOLD if lit > -12 else GOLD_D
+                if edge < 1.0:
+                    c = GOLD_XD
+                px(shield, x, y, c)
+    # the bevel: a bright line inside the rim on the lit side
+    for y in range(3, 30):
+        px(shield, int(cx - 25), y, GOLD_XL)
+    hline(shield, 4, 3, W - 8, GOLD_XL)
+    # rivets at the corners of the field
+    for rx, ry in ((7, 4), (W - 8, 4)):
+        px(shield, rx, ry, GOLD_XD)
+        px(shield, rx - 1, ry - 1, (255, 248, 220, 255))
+
+    # the star, near the top of the field
+    def star(img, scx, scy, r_out, r_in, fill, lit, edge):
+        pts = []
+        for i in range(10):
+            a = -math.pi / 2 + i * math.pi / 5
+            r = r_out if i % 2 == 0 else r_in
+            pts.append((scx + r * math.cos(a), scy + r * math.sin(a)))
+
+        def inside(x, y):
+            n = len(pts)
+            c = False
+            j = n - 1
+            for i in range(n):
+                xi, yi = pts[i]
+                xj, yj = pts[j]
+                if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / (yj - yi) + xi:
+                    c = not c
+                j = i
+            return c
+        mask = {}
+        for y in range(int(scy - r_out - 2), int(scy + r_out + 2)):
+            for x in range(int(scx - r_out - 2), int(scx + r_out + 2)):
+                if inside(x + 0.5, y + 0.5):
+                    mask[(x, y)] = True
+        for (x, y) in mask:
+            border = any((x + ox, y + oy) not in mask
+                         for ox, oy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+            if border:
+                px(img, x, y, edge)
+            else:
+                px(img, x, y, lit if (x - scx) + (y - scy) < -1 else fill)
+    star(shield, cx + 0.5, 15.5, 7.5, 3.2, GOLD_L, GOLD_XL, GOLD_XD)
+    shield = outline(shield, INK)
+    save(shield, "ui_levelup_shield", preview_scale=6)
+
+    # --- the sunburst behind it: sixteen rays, alternate ones fainter ---
+    R = 72
+    rays = new_img(R * 2, R * 2)
+    for y in range(R * 2):
+        for x in range(R * 2):
+            dx, dy = x - R + 0.5, y - R + 0.5
+            d = math.hypot(dx, dy)
+            if d > R - 1 or d < 18:
+                continue
+            a = (math.atan2(dy, dx) / math.tau * 16) % 1.0
+            if a < 0.5:
+                fade = 1.0 - (d - 18) / (R - 18)
+                alpha = int(150 * fade) // 30 * 30   # banded, not smooth
+                if alpha > 0:
+                    px(rays, x, y, (255, 220, 130, alpha))
+    save(rays, "ui_levelup_rays", preview_scale=2)
+
+    # --- the ribbon: a red band with folded tails, nine-patched across ---
+    RW, RH = 36, 18
+    ribbon = new_img(RW, RH)
+    RED_XD, RED_D, RED, RED_L = (92, 30, 34, 255), (150, 50, 46, 255), (200, 72, 60, 255), (232, 120, 96, 255)
+    # tails behind, a pixel lower, with a V notch
+    for side in (0, 1):
+        for y in range(5, RH):
+            for x in range(0, 8):
+                xx = x if side == 0 else RW - 1 - x
+                notch = abs(y - 11.5) < (7 - x) * 0.9 and x < 4
+                if not notch:
+                    px(ribbon, xx, y, RED_D if y < RH - 1 else RED_XD)
+        # the fold where the band turns under
+        for y in range(5, RH - 3):
+            px(ribbon, 6 if side == 0 else RW - 7, y, RED_XD)
+    # the front band
+    rect(ribbon, 6, 1, RW - 12, RH - 5, RED)
+    hline(ribbon, 6, 1, RW - 12, RED_XD)
+    hline(ribbon, 6, 2, RW - 12, RED_L)
+    hline(ribbon, 6, RH - 5, RW - 12, RED_D)
+    hline(ribbon, 6, RH - 4, RW - 12, RED_XD)
+    vline(ribbon, 6, 1, RH - 4, RED_XD)
+    vline(ribbon, RW - 7, 1, RH - 4, RED_XD)
+    ribbon = outline(ribbon, INK)
+    save(ribbon, "ui_levelup_ribbon", preview_scale=6)
+
+
+gen_levelup()
+
+
+def gen_speech():
+    """A speech bubble that is a speech bubble.
+
+    The tutorial used to talk out of a manifest board — enamel frame, rivets,
+    paper — so a crew member's line read as a form the port had issued. A
+    person talks out of a round white bubble with a tail pointing at their
+    mouth, and that is all this is: rounded corners in whole pixels, a two-pixel
+    ink line, a drop shadow, and a tail drawn both ways up.
+    """
+    s = 24
+    WHITE = (255, 252, 244, 255)
+    WHITE_D = (232, 226, 212, 255)
+    SH = (8, 10, 18, 110)
+    r = 5
+    img = new_img(s, s)
+
+    def inside(x, y, w, h, rad):
+        cx = min(max(x, rad), w - 1 - rad)
+        cy = min(max(y, rad), h - 1 - rad)
+        return (x - cx) ** 2 + (y - cy) ** 2 <= rad * rad + rad * 0.6
+    w, h = s - 2, s - 2
+    for y in range(s):
+        for x in range(s):
+            if inside(x - 2, y - 2, w, h, r) and not inside(x, y, w, h, r):
+                px(img, x, y, SH)
+    for y in range(h):
+        for x in range(w):
+            if not inside(x, y, w, h, r):
+                continue
+            edge = not (inside(x - 2, y, w, h, r) and inside(x + 2, y, w, h, r)
+                        and inside(x, y - 2, w, h, r) and inside(x, y + 2, w, h, r))
+            if edge:
+                px(img, x, y, INK)
+            else:
+                shade = not inside(x, y + 3, w, h, r)
+                px(img, x, y, WHITE_D if shade else WHITE)
+    save(img, "ui_speech", preview_scale=6)
+
+    # The tail, pointing down: overlaps the bubble's bottom line by two rows so
+    # the ink edge opens into it.
+    tw, th = 14, 11
+    tail = new_img(tw, th)
+    for y in range(th):
+        # a curved wedge leaning left, narrowing to a point
+        left = 2 + int(y * 0.35)
+        right = 11 - int(y * 0.95)
+        if right < left:
+            continue
+        for x in range(left - 2, right + 3):
+            if left <= x <= right:
+                px(tail, x, y, WHITE if y >= 2 else WHITE)
+            elif 0 <= x < tw:
+                px(tail, x, y, INK)
+    # close the tip
+    tip_y = next(y for y in range(th) if 11 - int(y * 0.95) < 2 + int(y * 0.35))
+    for x in range(2 + int(tip_y * 0.35) - 2, 2 + int(tip_y * 0.35) + 2):
+        px(tail, x, tip_y, INK)
+    # rows 0-1 are the bubble's own ink line, opened: paint them white inside
+    for y in (0, 1):
+        for x in range(4, 10):
+            px(tail, x, y, WHITE_D)
+    save(tail, "ui_speech_tail", preview_scale=8)
+
+
+gen_speech()

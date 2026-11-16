@@ -18,7 +18,7 @@ Inventory: **309 authored code/config/scene files**.
 | `assets/shaders/ui_scrim.gdshader` | 24 | — | Godot shader |
 | `assets/shaders/ui_sheen.gdshader` | 23 | — | Godot shader |
 | `assets/shaders/water.gdshader` | 46 | — | Godot shader |
-| `assets/shaders/water_top.gdshader` | 408 | — | Godot shader |
+| `assets/shaders/water_top.gdshader` | 294 | — | Godot shader |
 
 ## deploy
 
@@ -46,9 +46,9 @@ Inventory: **309 authored code/config/scene files**.
 | File | Lines | Symbols | Purpose |
 |---|---:|---|---|
 | `scripts/autoload/ad_service.gd` | 135 | 12 functions | AdService: the one door every rewarded ad goes through. Owns one `AdPolicy` |
-| `scripts/autoload/audio_manager.gd` | 475 | 29 functions | SFX pool + crossfading music. Tracks follow the day/night cycle and weather. |
+| `scripts/autoload/audio_manager.gd` | 480 | 29 functions | SFX pool + crossfading music. Tracks follow the day/night cycle and weather. |
 | `scripts/autoload/event_bus.gd` | 49 | 0 functions | Global signal hub. Everything talks through here to stay decoupled. |
-| `scripts/autoload/game_state.gd` | 1477 | 96 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
+| `scripts/autoload/game_state.gd` | 1479 | 96 functions | Core economy state: TEUs (currency), structures, upgrades, CPS. |
 | `scripts/autoload/portrait_frame.gd` | 60 | 3 functions | Keeps the game in portrait at any window size. |
 | `scripts/autoload/save_manager.gd` | 744 | 47 functions | Versioned, recoverable persistence.  The public yard/pending_yard API is |
 | `scripts/autoload/time_manager.gd` | 114 | 9 functions | Day/night cycle + weather. Full lighting arrives in the day/night phase; |
@@ -75,7 +75,7 @@ Inventory: **309 authored code/config/scene files**.
 | `scripts/data/prestige_db.gd` | 125 | class `PrestigeDB`; 5 functions | Declarative prestige branches. A future economy owner applies these effects. |
 | `scripts/data/route_db.gd` | 181 | class `RouteDB`; 10 functions | The trade lanes this terminal is on. |
 | `scripts/data/ship_catalog.gd` | 250 | class `ShipCatalog`; 12 functions | Berth classes, and the bridge from them to the named fleet. |
-| `scripts/data/special_call_db.gd` | 239 | class `SpecialCallDB`; 8 functions | Rare escalas: a charter nobody expected, on a hull nobody has seen, worked as |
+| `scripts/data/special_call_db.gd` | 260 | class `SpecialCallDB`; 11 functions | Rare escalas: a charter nobody expected, on a hull nobody has seen, worked as |
 | `scripts/data/structure_db.gd` | 114 | class `StructureDB`; 3 functions | Static data for every buyable structure. |
 | `scripts/data/upgrade_db.gd` | 659 | class `UpgradeDB`; 17 functions | Static data for upgrades, as a graph rather than a shelf. |
 | `scripts/economy/build_queue.gd` | 58 | class `BuildQueue`; 2 functions | How long a purchase takes to stand: the rules, with no state of its own. |
@@ -96,18 +96,18 @@ Inventory: **309 authored code/config/scene files**.
 | `scripts/events/xray_service.gd` | 94 | class `XrayService`; 13 functions | The scanner as a live node: owns one `XrayPolicy`, persists it as the |
 | `scripts/fx/float_text.gd` | 58 | class `FloatText`; 2 functions | Floating "+N" feedback text. |
 | `scripts/fx/fx.gd` | 193 | class `Fx`; 9 functions | The port's one VFX library: pooled sprite particles living in the world's |
-| `scripts/i18n/catalog_text.gd` | 171 | class `CatalogText`; 8 functions | The catalogues' words, in the player's language. |
+| `scripts/i18n/catalog_text.gd` | 182 | class `CatalogText`; 9 functions | The catalogues' words, in the player's language. |
 | `scripts/i18n/loc.gd` | 229 | 16 functions | Which language the port speaks, and every string it says. |
-| `scripts/i18n/strings_content.gd` | 267 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
-| `scripts/i18n/strings_ui.gd` | 2639 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
-| `scripts/main.gd` | 1359 | 52 functions | Root: assembles world, camera and UI. |
+| `scripts/i18n/strings_content.gd` | 4452 | class `LocStringsContent`; 0 functions | The game's content strings: the things the port is made of, rather than the |
+| `scripts/i18n/strings_ui.gd` | 2643 | class `LocStringsUi`; 0 functions | Every string the interface says, in every language the game speaks. |
+| `scripts/main.gd` | 1358 | 52 functions | Root: assembles world, camera and UI. |
 | `scripts/monetization/ad_policy.gd` | 187 | class `AdPolicy`; 11 functions | The rules of rewarded ads: which placements exist, how many may be watched |
 | `scripts/monetization/ad_provider.gd` | 18 | class `AdProvider`; 1 functions | The seam between the game and a real ad SDK. `AdService` asks the current |
 | `scripts/monetization/placeholder_ad_provider.gd` | 104 | class `PlaceholderAdProvider`; 6 functions | The test stand-in for a real ad SDK: a scrim with a paper board that says |
 | `scripts/npc/npc_catalog.gd` | 249 | class `NpcCatalog`; 9 functions | Who works here, and why the port would stop without them. |
 | `scripts/npc/npc_profile.gd` | 99 | class `NpcProfile`; 10 functions | One person on the terminal's books. |
 | `scripts/npc/npc_roster.gd` | 157 | class `NpcRoster`; 12 functions | The terminal's payroll: who holds each station slot, since when. |
-| `scripts/npc/task_board.gd` | 533 | class `TaskBoard`; 31 functions | What the terminal needs next, and exactly one owner for each of it. |
+| `scripts/npc/task_board.gd` | 525 | class `TaskBoard`; 31 functions | What the terminal needs next, and exactly one owner for each of it. |
 | `scripts/progression/daily_orders.gd` | 228 | class `DailyOrders`; 13 functions | The rules of Missões do Dia: three missions a day, picked deterministically |
 | `scripts/progression/daily_orders_service.gd` | 165 | class `DailyOrdersService`; 19 functions | Missões do Dia as a live node. Owns one `DailyOrders`, persists it as the |
 | `scripts/progression/feature_gate.gd` | 28 | class `FeatureGate`; 4 functions | One question, asked from anywhere: has the terminal grown enough for this? |
@@ -127,19 +127,19 @@ Inventory: **309 authored code/config/scene files**.
 | `scripts/ui/daily_orders_panel.gd` | 530 | class `DailyOrdersPanel`; 16 functions | Missões do Dia: three orders a day, a bonus for all three, and the streak — |
 | `scripts/ui/globe.gd` | 295 | class `Globe`; 16 functions | A planet you can spin with a finger, with the ports on it. |
 | `scripts/ui/hud.gd` | 167 | class `Hud`; 14 functions | The gantry across the top of the port: the tally, the clock and the berth. |
-| `scripts/ui/level_hud.gd` | 255 | class `LevelHud`; 10 functions | The terminal's level, and the moment it grows. |
+| `scripts/ui/level_hud.gd` | 418 | class `LevelHud`; 12 functions | The terminal's level, and the moment it grows. |
 | `scripts/ui/level_roadmap.gd` | 498 | class `LevelRoadmap`; 18 functions | O Passe do Terminal: every level from 1 to 30 laid out as a pass — a track |
 | `scripts/ui/lucky_wheel_panel.gd` | 674 | class `LuckyWheelPanel`; 26 functions | The Guindaste da Sorte: a prize crane over a belt of sealed containers, |
-| `scripts/ui/maze_minigame.gd` | 410 | class `MazeMinigame`; 17 functions | The second charter game: a yard you have to find your way out of. |
-| `scripts/ui/minigame_board.gd` | 303 | class `MinigameBoard`; 25 functions | The shell every charter minigame is played on: the scrim, the board, the three |
+| `scripts/ui/maze_minigame.gd` | 409 | class `MazeMinigame`; 17 functions | The second charter game: a yard you have to find your way out of. |
+| `scripts/ui/minigame_board.gd` | 305 | class `MinigameBoard`; 25 functions | The shell every charter minigame is played on: the scrim, the board, the three |
 | `scripts/ui/notice_bell.gd` | 769 | class `NoticeBell`; 32 functions | The port diary (formerly the notice bell). A leather book on the gantry: tap |
 | `scripts/ui/notification_coordinator.gd` | 148 | class `NotificationCoordinator`; 10 functions | One place decides whether something deserves the player's attention. |
-| `scripts/ui/npc_card.gd` | 293 | class `NpcCard`; 15 functions | Somebody's staff badge: their face, their name, their trade, and the one job |
+| `scripts/ui/npc_card.gd` | 310 | class `NpcCard`; 15 functions | Somebody's staff badge: their face, their name, their trade, and the one job |
 | `scripts/ui/offline_popup.gd` | 148 | class `OfflinePopup`; 9 functions | "While you were away" board, shown once when idle income piled up. |
 | `scripts/ui/pixel_slider.gd` | 199 | class `PixelSlider`; 12 functions | A level you can actually set: drag it, tap it, or arrow it. |
 | `scripts/ui/port_clock.gd` | 197 | class `PortClock`; 8 functions | What day it is, what time it is, what the sky is doing and how hard it blows. |
 | `scripts/ui/port_icon.gd` | 99 | class `PortIcon`; 4 functions | The picture on a shop card is the machine itself, taken straight from the |
-| `scripts/ui/port_journal.gd` | 721 | class `PortJournal`; 27 functions | The career board. The optional callbacks are deliberately tiny adapters: |
+| `scripts/ui/port_journal.gd` | 727 | class `PortJournal`; 28 functions | The career board. The optional callbacks are deliberately tiny adapters: |
 | `scripts/ui/prestige_dialog.gd` | 358 | class `PrestigeDialog`; 20 functions | All state-changing work remains in the supplied callbacks. This surface only |
 | `scripts/ui/rate_breakdown.gd` | 251 | class `RateBreakdown`; 15 functions | Why the rate is what it is: the factors, in the order the economy applies them. |
 | `scripts/ui/readout.gd` | 289 | class `Readout`; 11 functions | The TEU tally: a lit counter behind glass, with the rate on a tag beside it. |
@@ -152,9 +152,9 @@ Inventory: **309 authored code/config/scene files**.
 | `scripts/ui/special_call_alert.gd` | 231 | class `SpecialCallAlert`; 14 functions | The interruption: a charter on the table, with what it pays and what it costs. |
 | `scripts/ui/title_screen.gd` | 1221 | 38 functions | The first thing the game shows. |
 | `scripts/ui/traffic_minigame.gd` | 444 | class `TrafficMinigame`; 22 functions | The late lorry, played by hand: the avenue to the port, three lanes of it, |
-| `scripts/ui/tutorial_spotlight.gd` | 784 | class `TutorialSpotlight`; 42 functions | Alisson, on foot. The first minutes, and every "olha isso, chefe!" after. |
+| `scripts/ui/tutorial_spotlight.gd` | 829 | class `TutorialSpotlight`; 43 functions | Alisson, on foot. The first minutes, and every "olha isso, chefe!" after. |
 | `scripts/ui/ui_motion.gd` | 340 | class `UiMotion`; 20 functions | How the interface moves, in one place. |
-| `scripts/ui/ui_theme.gd` | 1115 | class `UiTheme`; 73 functions | The one place the interface is described. |
+| `scripts/ui/ui_theme.gd` | 1094 | class `UiTheme`; 72 functions | The one place the interface is described. |
 | `scripts/ui/voyage_screen.gd` | 117 | 3 functions | The crossing between two ports, on the globe. |
 | `scripts/ui/wheel_button.gd` | 143 | class `WheelButton`; 8 functions | The Roda da Sorte's key: a small steel key under the gantry's left end, with |
 | `scripts/ui/xray_beacon.gd` | 174 | class `XrayBeacon`; 10 functions | The way back to the scanner when it is somewhere the player is not looking. |
@@ -164,8 +164,8 @@ Inventory: **309 authored code/config/scene files**.
 | `scripts/world/cargo_relay.gd` | 365 | class `CargoRelay`; 20 functions | The visible chain of custody for one container. |
 | `scripts/world/click_outline.gd` | 116 | class `ClickOutline`; 4 functions | A soft white border round anything in the yard the player can tap. |
 | `scripts/world/container_yard.gd` | 656 | class `ContainerYard`; 50 functions | Physical, identity-preserving yard.  A reservation is capacity only; a box |
-| `scripts/world/critters.gd` | 115 | class `Critters`; 7 functions | Ambient life: gulls wheeling over the water and a cat that naps on the |
-| `scripts/world/decor_layer.gd` | 364 | class `DecorLayer`; 11 functions | Everything the player bought purely because it looks good. |
+| `scripts/world/critters.gd` | 141 | class `Critters`; 9 functions | Ambient life: gulls wheeling over the water and a cat that naps on the |
+| `scripts/world/decor_layer.gd` | 354 | class `DecorLayer`; 11 functions | Everything the player bought purely because it looks good. |
 | `scripts/world/flying_container.gd` | 119 | class `FlyingContainer`; 8 functions | A box travelling from the ship's deck to a yard stack. Top-down, so the |
 | `scripts/world/golden_gull.gd` | 269 | class `GoldenGull`; 11 functions | The gaivota dourada: a golden gull carrying a parcel across the visible |
 | `scripts/world/ground_baker.gd` | 655 | class `GroundBaker`; 25 functions | Bakes the whole ground plane into one texture: grass verge, kerb, paved |
@@ -226,7 +226,7 @@ Inventory: **309 authored code/config/scene files**.
 | `tests/gate_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/gull_test_runner.gd` | 232 | 13 functions | The gaivota dourada: the reward clock's rules, the prize table, the gull's |
 | `tests/gull_test_runner.tscn` | 6 | 1 nodes | Godot scene |
-| `tests/i18n_test_runner.gd` | 277 | 13 functions | Translations. |
+| `tests/i18n_test_runner.gd` | 337 | 15 functions | Translations. |
 | `tests/i18n_test_runner.tscn` | 6 | 1 nodes | Godot scene |
 | `tests/level_test_runner.gd` | 392 | 15 functions | Nível do Terminal: the XP curve, the unlock table, and the service that |
 | `tests/level_test_runner.tscn` | 6 | 1 nodes | Godot scene |
@@ -302,7 +302,7 @@ Inventory: **309 authored code/config/scene files**.
 | `tools/docs/gen_brand_logo.py` | 226 | 8 functions | The STACKYARD logo lifted by a gantry crane. |
 | `tools/docs/gen_keyart.py` | 161 | 3 functions | Asks an image model for the store key art, using real captures as reference. |
 | `tools/docs/gen_readme_media.py` | 212 | 10 functions | Builds the pictures the root README shows: a banner and screenshot boards. |
-| `tools/docs/gen_store_media.py` | 356 | 16 functions | Store and social pictures: screenshots with captions, feature graphic, banners. |
+| `tools/docs/gen_store_media.py` | 358 | 16 functions | Store and social pictures: screenshots with captions, feature graphic, banners. |
 | `tools/docs/generate_code_map.py` | 108 | 5 functions | Generate a compact inventory of every authored code/config/scene file. |
 | `tools/export/build_release.sh` | 22 | — | Build the Godot Web game and assemble the static landing page in one release. |
 | `tools/export/build_web.sh` | 46 | — | Reproducible web build. |
@@ -320,7 +320,7 @@ Inventory: **309 authored code/config/scene files**.
 | `tools/sprites/gen_customs.py` | 938 | 15 functions | The Receita Federal at the terminal: the customs auditor and his X-ray scanner. |
 | `tools/sprites/gen_decor.py` | 423 | 27 functions | Decorations: the props new cosmetics put in the port, and the picture each |
 | `tools/sprites/gen_diary.py` | 270 | 13 functions | The port diary: the book that replaced the notice bell. |
-| `tools/sprites/gen_font.py` | 371 | 2 functions | Generates the game's pixel font: a PNG atlas plus a BMFont .fnt descriptor |
+| `tools/sprites/gen_font.py` | 380 | 2 functions | Generates the game's pixel font: a PNG atlas plus a BMFont .fnt descriptor |
 | `tools/sprites/gen_fx.py` | 123 | 6 functions | The port's VFX strips, drawn for the pooled emitter in `scripts/fx/fx.gd`. |
 | `tools/sprites/gen_ground.py` | 224 | 12 functions | Top-down ground tiles, Stardew-flavoured: textured asphalt, worn concrete, |
 | `tools/sprites/gen_guide.py` | 319 | 11 functions | Alisson, the terminal's project manager, who walks a new player through the port. |
@@ -329,19 +329,19 @@ Inventory: **309 authored code/config/scene files**.
 | `tools/sprites/gen_icons16.py` | 336 | 2 functions | 16x16 interface icons, outlined, for the HUD the release plan builds (D2). |
 | `tools/sprites/gen_landing.py` | 1236 | 34 functions | Generates every pixel asset the public landing page ships. |
 | `tools/sprites/gen_minigames.py` | 555 | 22 functions | Minigame art: the late-lorry road (`traffic_minigame.gd`) and the cover |
-| `tools/sprites/gen_people.py` | 357 | 21 functions | Top-down dock workers, Stardew-ish: hard hat and hi-vis vest seen from above. |
-| `tools/sprites/gen_pixellab.py` | 108 | 6 functions | Turns the cached PixelLab generations into game-ready PNGs. |
+| `tools/sprites/gen_people.py` | 182 | 13 functions | Top-down dock workers, Stardew-ish: hard hat and hi-vis vest seen from above. |
+| `tools/sprites/gen_pixellab.py` | 154 | 8 functions | Turns the cached PixelLab generations into game-ready PNGs. |
 | `tools/sprites/gen_ports.py` | 785 | 44 functions | What makes a port not the last one, in pixels. |
 | `tools/sprites/gen_props.py` | 741 | 27 functions | Top-down scenery props: lamps, bollards, greenery, wildlife, FX. |
 | `tools/sprites/gen_rail.py` | 205 | 6 functions | Furniture for the branch line: the signal, the level crossing, the boards. |
 | `tools/sprites/gen_ship.py` | 521 | 14 functions | Top-down container ship, bow pointing UP, moored along a vertical quay. |
 | `tools/sprites/gen_title.py` | 1130 | 46 functions | Generates the title screen's harbour backdrop and its furniture. |
 | `tools/sprites/gen_train.py` | 320 | 14 functions | The branch-line train: locomotive, three kinds of wagon, and the boxes they carry. |
-| `tools/sprites/gen_ui.py` | 1285 | 38 functions | UI chrome, in the two materials the terminal is actually made of. |
+| `tools/sprites/gen_ui.py` | 1520 | 40 functions | UI chrome, in the two materials the terminal is actually made of. |
 | `tools/sprites/gen_vehicles.py` | 384 | 12 functions | Top-down port vehicles. All face UP (north); the game rotates/flips them. |
 | `tools/sprites/gen_wheel.py` | 449 | 22 functions | The Roda da Sorte: a carnival wheel bolted to the terminal's steel. |
 | `tools/sprites/gen_works.py` | 437 | 16 functions | The building site a parcel is made on (`scripts/world/land_works_site.gd`). |
-| `tools/sprites/gen_worldmap.py` | 345 | 7 functions | The chart on the ports board: the world, at the interface's own pixel density. |
+| `tools/sprites/gen_worldmap.py` | 414 | 10 functions | The chart on the ports board: the world, at the interface's own pixel density. |
 | `tools/sprites/palette.py` | 202 | 4 functions | Stackyard palette — Stardew-flavoured: warm, earthy, softly shaded. |
 | `tools/sprites/pixellab/client.py` | 154 | 10 functions | Thin PixelLab REST client, with the raw generations kept on disk. |
 | `tools/sprites/pixellab/harmonize.py` | 157 | 8 functions | Making a generated sprite a citizen of this game rather than a visitor. |

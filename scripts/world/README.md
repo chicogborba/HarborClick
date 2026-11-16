@@ -206,20 +206,25 @@ the harbour in *world* pixels, shown nearest-filtered where the old ColorRect
 was. Its cost is fixed by the harbour, not the screen, so phones get the same
 surface as desktops — before, the shader ran once per screen pixel and phones
 were given the cheap path, four flat bands. `WaterQuality` now only trims detail
-octaves. The surface is a lit height field (swells with sharp crests, light from
-the upper left like everything else), a depth ramp through the port's four
-colours quantised in twelve dithered steps, horizontal ripple strokes gated in
-patches, glitter, caustics on the shelf, swell running up the quay wall in sets,
-cloud shadow, and — fed from `Rainfall` — chop, whitecaps and rain rings.
+octaves. The surface is drawn the way a pixel artist would, not simulated: a few
+flat depth bands of the port's four colours whose contours breathe slowly, with
+a checker fringe on each step; wavelets — short level strokes with drooping
+ends that open, hold and close in whole pixels — and darker trough strokes
+between them; a hard foam line on the quay wall with ripple sets walking off
+it; a pixel of glitter here and there; and, fed from `Rainfall`, more wavelets
+and rain rings. The third pass (lit height field, caustics, cloud shadow, a
+reflected ring round every hull) was each piece defensible and together mud.
 
 **Shader space is world space**: `world_offset` is added in the vertex stage, so
 `PortWorld` hands hull centres and wake samples over *unshifted*. It used to
 subtract the water's origin a second time, which drew every lap and bow wave
 228 px west, under the quay, for as long as the feature existed.
 
-Every hull, moving or not, shelters the water in its lee (between it and the
-quay the swell dies) and is lapped by a band hugging a capsule of its outline. A
-hull under way swaps the lap for the bow wave and collar.
+Every hull, moving or not, shelters the water in its lee: between it and the
+quay the wavelets die. The shader draws nothing *around* a hull any more — it
+only knew a bounding box, which is where the floating capsule halo and the
+square bow wave came from. The foam on the plating is `ShipWake`'s, read from
+the real sprite outline.
 
 The wake behind is the water's memory, not a shape towed by the hull:
 `WaterWakes` takes a sample of each emitter's trailing end every few pixels —

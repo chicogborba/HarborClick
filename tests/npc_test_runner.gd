@@ -249,7 +249,7 @@ func _test_a_face_is_picked_to_fit_the_name() -> void:
 	## masculine then feminine, and which half a person is drawn from has to
 	## follow the name next to the photo rather than a hash that has never
 	## read a name in its life.
-	_expect(UiTheme.PORTRAIT_COUNT == 8 and UiTheme.PORTRAIT_COUNT % 2 == 0,
+	_expect(UiTheme.PORTRAIT_COUNT == 24 and UiTheme.PORTRAIT_COUNT % 2 == 0,
 		"the portrait sheet is an even count so the sheet splits in half")
 
 	_expect(not NpcCatalog.special_presents_feminine(&"alisson"),

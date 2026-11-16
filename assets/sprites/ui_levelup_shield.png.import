@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://2yrrpapyowaq"
-path="res://.godot/imported/portrait_sheet.png-946ca0135c2b6b27ae5b9e7e37dfc1a7.ctex"
+uid="uid://603pyexu7qp3"
+path="res://.godot/imported/ui_levelup_shield.png-59ed2e382d701ce4438c8549228b9e1a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/portrait_sheet.png"
-dest_files=["res://.godot/imported/portrait_sheet.png-946ca0135c2b6b27ae5b9e7e37dfc1a7.ctex"]
+source_file="res://assets/sprites/ui_levelup_shield.png"
+dest_files=["res://.godot/imported/ui_levelup_shield.png-59ed2e382d701ce4438c8549228b9e1a.ctex"]
 
 [params]
 

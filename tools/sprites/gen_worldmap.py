@@ -233,19 +233,74 @@ def is_land(lon, lat):
     return _land_mask()[min(MAP_H - 1, int(y))][min(MAP_W - 1, int(x))]
 
 
+def _noise(x, y, seed):
+    """Smooth value noise, wrapping east-west so the globe has no seam."""
+    def h(ix, iy):
+        ix %= 64
+        n = (ix * 374761393 + iy * 668265263 + seed * 2147483647) & 0xFFFFFFFF
+        n = (n ^ (n >> 13)) * 1274126177 & 0xFFFFFFFF
+        return ((n ^ (n >> 16)) & 0xFFFF) / 65535.0
+    x0, y0 = math.floor(x), math.floor(y)
+    fx, fy = x - x0, y - y0
+    fx, fy = fx * fx * (3 - 2 * fx), fy * fy * (3 - 2 * fy)
+    a = h(x0, y0) + (h(x0 + 1, y0) - h(x0, y0)) * fx
+    b = h(x0, y0 + 1) + (h(x0 + 1, y0 + 1) - h(x0, y0 + 1)) * fx
+    return a + (b - a) * fy
+
+
+def _relief(c, r):
+    """Terrain height 0..1: two octaves, wrapping at 64 cells = MAP_W / 4.5."""
+    k = 64.0 / MAP_W
+    return (_noise(c * k * 4.5 / 4.5 * 2.0, r * k * 2.0, 7) * 0.65
+            + _noise(c * k * 6.0, r * k * 6.0, 13) * 0.35)
+
+
+def _mix(a, b, t):
+    return tuple(int(a[i] + (b[i] - a[i]) * t) for i in range(3)) + (255,)
+
+
+# The sea, in five depths from the beach out, stepped with a checker fringe.
+SEA_TONES = [
+    (88, 158, 176, 255),    # surf on the shelf
+    (58, 120, 152, 255),    # shelf
+    (42, 92, 130, 255),     # slope
+    (32, 70, 108, 255),     # ocean
+    (26, 56, 92, 255),      # deep
+]
+SEA_LIMITS = [1, 2, 5, 9, 99]
+
+
 def build():
+    """The chart, painted.
+
+    The previous pass was flat on purpose — one tone per climate belt, three
+    sea bands — and on the globe that read as a children's atlas: Brazil was
+    two stripes. This one keeps the calm page the pins need but gives the land
+    relief (a hill-shade from the upper left, highlands browner and lighter,
+    rivers of forest darker), the sea five depths with a checker fringe on
+    every step, and beaches on warm coasts. Every feature is three pixels or
+    more, because the globe samples this nearest-neighbour and anything finer
+    would shimmer as it turns.
+    """
     land = _land_mask()
     img = new_img(MAP_W, MAP_H)
-    dist = _sea_distance(land, 9)
+    dist = _sea_distance(land, 12)
     for r in range(MAP_H):
         for c in range(MAP_W):
             if land[r][c]:
                 continue
             d = dist[r][c]
-            tone = SEA_SHELF if d <= 1 else (SEA_MID if d <= 4 else SEA_DEEP)
+            i = next(n for n, lim in enumerate(SEA_LIMITS) if d <= lim)
+            # a checker fringe where one depth gives way to the next
+            if i + 1 < len(SEA_TONES) and d == SEA_LIMITS[i] and (c + r) % 2 == 0 and d > 1:
+                i += 1
+            tone = SEA_TONES[i]
+            # faint long swells out in open water
+            if d > 6 and _noise(c * 0.25, r * 0.9, 3) > 0.78 and (c + r * 3) % 5 == 0:
+                tone = SEA_TONES[2]
             # the graticule: every 30 degrees, dotted, only out in deep water
-            if d > 4 and (c % (MAP_W // 12) == 0 or r % (MAP_H // 6) == 0) \
-                    and (c + r) % 2 == 0:
+            if d > 8 and (c % (MAP_W // 12) == 0 or r % (MAP_H // 6) == 0) \
+                    and (c + r) % 3 == 0:
                 tone = SEA_GRID
             px(img, c, r, tone)
     for r in range(MAP_H):
@@ -253,17 +308,30 @@ def build():
         for c in range(MAP_W):
             if not land[r][c]:
                 continue
-            # Climate follows latitude, but not along a ruler: the boundary
-            # wanders a few degrees with longitude, so the belts read as
-            # country rather than as stripes on a flag.
             lat = abs(true_lat) + 4.0 * math.sin(c * 0.085) \
                 + 2.5 * math.sin(c * 0.21 + r * 0.13)
             base, lit = ICE[1], ICE[2]
+            belt = len(LAND_TONES) - 1
             if true_lat > -60.0:
-                for limit, tone, tone_lit in LAND_TONES:
+                for n, (limit, tone, tone_lit) in enumerate(LAND_TONES):
                     if lat <= limit:
-                        base, lit = tone, tone_lit
+                        base, lit, belt = tone, tone_lit, n
                         break
+            h = _relief(c, r)
+            # hill-shade: the slope facing the upper left is lit
+            slope = _relief(c - 2, r - 2) - _relief(c + 2, r + 2)
+            col = base
+            if belt != len(LAND_TONES) - 1:
+                if h > 0.66:
+                    # highlands: drier, browner, lighter, snow on the tallest
+                    col = _mix(base, (170, 150, 112), 0.55)
+                elif h < 0.34 and belt in (0, 2, 3):
+                    # lowland forest and river country, a shade deeper
+                    col = _mix(base, (52, 96, 62), 0.45)
+                if slope > 0.09:
+                    col = _mix(col, lit, 0.9)
+                elif slope < -0.10:
+                    col = _mix(col, (40, 44, 36), 0.25)
 
             def sea(dr, dc):
                 rr = r + dr
@@ -272,9 +340,10 @@ def build():
             if sea(1, 0) or sea(0, 1):
                 px(img, c, r, COAST_INK)        # the shaded south-east shore
             elif sea(-1, 0) or sea(0, -1):
-                px(img, c, r, lit)              # the lit north-west shore
+                # the lit north-west shore; a beach on warm coasts
+                px(img, c, r, (222, 204, 150, 255) if belt in (0, 1) else lit)
             else:
-                px(img, c, r, base)
+                px(img, c, r, col)
     return img
 
 

@@ -20,10 +20,6 @@ extends CanvasLayer
 
 signal open_changed(opened: bool)
 
-## Roles that work outdoors in a hard hat. The despachante sits in the gate
-## office and the tug master is on a boat; a hard hat on either is a costume.
-const BAREHEADED := ["alfandega", "rebocador"]
-
 var _scrim: ColorRect
 var _card: PanelContainer
 var _clip: TextureRect
@@ -33,6 +29,8 @@ var _name: Label
 var _role: Label
 var _objective: Label
 var _tally: Label
+var _stripe: ColorRect
+var _serial: Label
 var _close: Button
 var _safe_rect := Rect2()
 var _profile: NpcProfile
@@ -46,7 +44,7 @@ func _ready() -> void:
 	_scrim.gui_input.connect(_on_scrim_input)
 	add_child(_scrim)
 
-	_card = UiTheme.panel(UiTheme.badge_style(0), false)
+	_card = UiTheme.panel(UiTheme.badge_style(7), false)
 	add_child(_card)
 	_clip = UiTheme.badge_clip()
 	add_child(_clip)
@@ -62,13 +60,13 @@ func _ready() -> void:
 	head_row.add_theme_constant_override(&"separation", 4)
 	head.add_child(head_row)
 	head_row.add_child(UiTheme.icon(UiTheme.Icon.GLOVE))
-	var issuer := UiTheme.label("CRACHÁ DO TERMINAL", UiTheme.SIZE_SMALL,
+	var issuer := UiTheme.label(Loc.t("crew.card.issuer"), UiTheme.SIZE_SMALL,
 		UiTheme.CREAM)
 	issuer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	issuer.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	issuer.clip_text = true
 	head_row.add_child(issuer)
-	_close = UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 24.0, "Fechar crachá")
+	_close = UiTheme.icon_button(UiTheme.Icon.CLOSE, &"ghost", 24.0, Loc.t("crew.card.close"))
 	_close.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_close.pressed.connect(close)
 	head_row.add_child(_close)
@@ -92,9 +90,18 @@ func _ready() -> void:
 	_column.add_child(identity)
 	# Mounted at 3x rather than 2x. A staff card is a picture of somebody with
 	# their name next to it, so the picture is the biggest thing on it.
+	# The photo and, under it, a band in the colour this person's helmet is in
+	# the yard — the one way to find them again out there.
+	var mount := VBoxContainer.new()
+	mount.add_theme_constant_override(&"separation", 2)
+	mount.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	identity.add_child(mount)
 	_photo = UiTheme.panel(UiTheme.photo_style())
-	_photo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	identity.add_child(_photo)
+	mount.add_child(_photo)
+	_stripe = ColorRect.new()
+	_stripe.custom_minimum_size = Vector2(0, 4)
+	_stripe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mount.add_child(_stripe)
 
 	var titles := VBoxContainer.new()
 	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -105,7 +112,8 @@ func _ready() -> void:
 	_name.clip_text = true
 	titles.add_child(_name)
 	_role = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
-	_role.clip_text = true
+	# Trade and post can outrun a 320px card in German; wrap, never clip.
+	_role.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	titles.add_child(_role)
 	# The tally as a stamp on the card rather than as a labelled row of its own.
 	# "Tarefas" covers all three trades: a crane's completed task is a container,
@@ -136,6 +144,23 @@ func _ready() -> void:
 	_objective.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	task_row.add_child(_objective)
 
+	# The foot of the card: the serial and the barcode every real badge carries.
+	# Nobody reads them; they are what makes a piece of laminate an ID.
+	var foot := HBoxContainer.new()
+	foot.add_theme_constant_override(&"separation", 6)
+	_column.add_child(foot)
+	_serial = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	_serial.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_serial.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	foot.add_child(_serial)
+	var bars := TextureRect.new()
+	bars.texture = preload("res://assets/sprites/ui_badge_barcode.png")
+	bars.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	bars.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+	bars.custom_minimum_size = Vector2(56, 9)
+	bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	foot.add_child(bars)
+
 	_layout()
 
 
@@ -146,17 +171,19 @@ func show_profile(profile: NpcProfile, dossier: Dictionary = {}) -> void:
 	_last_focus = get_viewport().gui_get_focus_owner() if get_viewport() != null else null
 	_set_photo(profile)
 	_name.text = profile.display_name
-	_role.text = "%s  •  %s" % [profile.title().to_upper(),
+	_role.text = "%s\n%s" % [profile.title().to_upper(),
 		_station_words(profile.station())]
 	set_objective(str(dossier.get("objective", "")), str(dossier.get("stage", "")))
 	_tally.text = str(profile.moves)
+	_stripe.color = profile.hat_color if profile.hat_color.a > 0.0 \
+		else Color8(240, 196, 66)
+	var key := profile.uid if not profile.uid.is_empty() else profile.slot
+	_serial.text = "ID %04d" % (posmod(key.hash(), 9000) + 1000)
 	# The card shows four things; a screen reader still gets the whole person,
 	# because there is no cost to a long description and every cost to a long
 	# card.
-	var story := profile.dossier
-	if not profile.trait_line.is_empty():
-		story += " " + profile.trait_line
-	UiTheme.describe(_card, "Crachá de %s" % profile.display_name,
+	var story := profile.story()
+	UiTheme.describe(_card, Loc.t("crew.card.name", {"name": profile.display_name}),
 		"%s. %s. %s" % [profile.title(), profile.duty(), story])
 	visible = true
 	_layout()
@@ -177,30 +204,20 @@ func show_profile(profile: NpcProfile, dossier: Dictionary = {}) -> void:
 func _set_photo(profile: NpcProfile) -> void:
 	for child in _photo.get_children():
 		child.queue_free()
-	# Drawn bare-headed rather than in a hat they would never wear. The portrait
-	# carries hair under the overlay, so dropping it leaves a face rather than a
-	# hole.
-	_photo.add_child(UiTheme.portrait(UiTheme.portrait_index(profile),
-		profile.hat_color, not BAREHEADED.has(profile.role), 3))
+	# A real ID photo: bare-headed, head and shoulders, at 2x of 48.
+	_photo.add_child(UiTheme.portrait(UiTheme.portrait_index(profile), 2))
 
 
 func _station_words(station: StringName) -> String:
-	match station:
-		NpcCatalog.STATION_BERTH: return "Berço"
-		NpcCatalog.STATION_YARD: return "Pátio"
-		NpcCatalog.STATION_STACK: return "Pilha"
-		NpcCatalog.STATION_ROAD: return "Estrada"
-		NpcCatalog.STATION_GATE: return "Portão"
-		NpcCatalog.STATION_CITY: return "Cidade"
-		NpcCatalog.STATION_MANOEUVRE: return "Manobra"
-		_: return "Terminal"
+	var key := "crew.station.%s" % String(station)
+	return Loc.t(key) if Loc.has(key) else Loc.t("crew.station.terminal")
 
 
 func set_objective(objective: String, stage: String) -> void:
 	## Recomputed live by whoever owns the actor, so a card left open while the
 	## berth works counts up instead of freezing on the moment it was tapped.
 	if objective.is_empty():
-		_objective.text = "Sem tarefa agora, aguardando serviço."
+		_objective.text = Loc.t("crew.card.idle")
 		return
 	# Hyphen and bullet, never an em dash: the bitmap font has no glyph for one and
 	# prints a hollow box instead.

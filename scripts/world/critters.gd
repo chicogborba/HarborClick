@@ -7,7 +7,7 @@ const GULL_COUNT := 4
 
 var world: PortWorld
 var _gulls: Array[Dictionary] = []
-var _cat: AnimatedSprite2D
+var _cat: Sprite2D
 var _cat_outline: ClickOutline
 var _t := 0.0
 
@@ -45,20 +45,46 @@ func _add_gull(index: int) -> void:
 	})
 
 
+## The cat sheet: twelve 24x24 cells, loafers first (they nap on the stacks),
+## sitters last. Generated — see `tools/sprites/gen_pixellab.py`.
+const CAT_SHEET := preload("res://assets/sprites/prop_cats.png")
+const CAT_CELL := 24
+const CAT_VARIANTS := 12
+const CAT_LOAFERS := 8
+
+
+static func make_cat(variant: int) -> Sprite2D:
+	## One cat, bottom-centre anchored so a squash breathes from the ground up.
+	var cat := Sprite2D.new()
+	var at := AtlasTexture.new()
+	at.atlas = CAT_SHEET
+	at.region = Rect2(posmod(variant, CAT_VARIANTS) * CAT_CELL, 0, CAT_CELL, CAT_CELL)
+	cat.texture = at
+	cat.centered = false
+	cat.offset = Vector2(-CAT_CELL * 0.5, -CAT_CELL)
+	cat.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	return cat
+
+
+static func breathe(cat: Sprite2D, seed_value: int) -> void:
+	## A nap is slow breathing, and now and then a stretch. Whole-sprite motion
+	## only: there is one frame per cat, and a tail drawn by code next to a
+	## generated cat would be the potato again.
+	if not UserPreferences.can_animate():
+		return
+	var tween := cat.create_tween().set_loops()
+	tween.tween_interval(1.2 + float(posmod(seed_value, 7)) * 0.35)
+	tween.tween_property(cat, "scale", Vector2(1.06, 0.94), 0.9) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(cat, "scale", Vector2.ONE, 1.1) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
 func _add_cat() -> void:
-	_cat = AnimatedSprite2D.new()
-	var frames := SpriteFrames.new()
-	var tex: Texture2D = preload("res://assets/sprites/prop_cat.png")
-	frames.set_animation_speed(&"default", 1.2)
-	for f in 2:
-		var at := AtlasTexture.new()
-		at.atlas = tex
-		at.region = Rect2(f * 14, 0, 14, 12)
-		frames.add_frame(&"default", at)
-	_cat.sprite_frames = frames
-	_cat.centered = false
-	_cat.play()
+	# The yard's own cat is the orange loafer: the one the colony is built round.
+	_cat = make_cat(0)
 	world.entities.add_child(_cat)
+	breathe(_cat, 0)
 	# The cat can be petted, so it is outlined like everything else tappable.
 	_cat_outline = ClickOutline.attach(_cat)
 	_cat.position = _cat_spot()
@@ -68,8 +94,8 @@ func _add_cat() -> void:
 func _cat_spot() -> Vector2:
 	var blocks := PortLayout.block_count()
 	var origin := PortLayout.block_origin(randi() % maxi(1, blocks))
-	return origin + Vector2(randf_range(0.0, PortLayout.BLOCK_W - 14.0),
-		randf_range(0.0, PortLayout.BLOCK_H - 12.0))
+	return origin + Vector2(randf_range(12.0, PortLayout.BLOCK_W - 12.0),
+		randf_range(14.0, PortLayout.BLOCK_H))
 
 
 func _move_cat() -> void:
@@ -84,7 +110,7 @@ func tap_cat(world_pos: Vector2) -> bool:
 	## Petting the cat grants a short click-power boost.
 	if _cat == null or _cat.modulate.a < 0.5:
 		return false
-	if not Rect2(_cat.position - Vector2(4, 4), Vector2(22, 20)).has_point(world_pos):
+	if not Rect2(_cat.position - Vector2(14, 20), Vector2(28, 24)).has_point(world_pos):
 		return false
 	var granted := GameState.grant_cat_boost()
 	if granted:
@@ -92,7 +118,7 @@ func tap_cat(world_pos: Vector2) -> bool:
 			"id": "cat_boost", "kind": &"cat", "priority": 1,
 			"text": "O gato aprovou. Cliques turbinados!"})
 	var tween := create_tween()
-	tween.tween_property(_cat, "scale", Vector2(1.25, 0.8), 0.08)
+	tween.tween_property(_cat, "scale", Vector2(1.2, 0.8), 0.08)
 	tween.tween_property(_cat, "scale", Vector2.ONE, 0.2) \
 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 	return true

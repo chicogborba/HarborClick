@@ -135,32 +135,22 @@ func _build_planters() -> void:
 
 func _build_cats() -> void:
 	## The port already has one cat, asleep on a stack and moving each day. This
-	## is the rest of them. They use the same two-frame sheet and the same idea:
+	## is the rest of them. They draw from the same sheet and keep the same idea:
 	## a cat is a thing you notice on the third look, not on the first.
-	var texture: Texture2D = preload("res://assets/sprites/prop_cat.png")
 	var rng := RandomNumberGenerator.new()
 	# Seeded from the terminal rather than from the clock: the colony should be
 	# in the same places after a reload, or the yard shuffles every session.
 	rng.seed = 5150 + PortLayout.block_count()
 	for index in CAT_COUNT:
-		var frames := SpriteFrames.new()
-		frames.set_animation_speed(&"default", 1.2)
-		for frame in 2:
-			var atlas := AtlasTexture.new()
-			atlas.atlas = texture
-			atlas.region = Rect2(frame * 14, 0, 14, 12)
-			frames.add_frame(&"default", atlas)
-		var cat := AnimatedSprite2D.new()
-		cat.sprite_frames = frames
-		cat.centered = false
-		cat.frame = index % 2
-		cat.play()
+		# Variant 0 is the yard's own cat (Critters); the colony is the rest.
+		var cat := Critters.make_cat(1 + (index * 5 + rng.randi() % 3) % (Critters.CAT_VARIANTS - 1))
 		var origin := PortLayout.block_origin(
 			rng.randi() % maxi(1, PortLayout.block_count()))
 		cat.position = origin + Vector2(
-			rng.randf_range(0.0, PortLayout.BLOCK_W - 14.0),
-			rng.randf_range(0.0, PortLayout.BLOCK_H - 12.0))
+			rng.randf_range(12.0, PortLayout.BLOCK_W - 12.0),
+			rng.randf_range(14.0, PortLayout.BLOCK_H))
 		add_child(cat)
+		Critters.breathe(cat, index + 3)
 
 
 func _duck_home() -> Vector2:

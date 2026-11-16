@@ -97,6 +97,9 @@ var _veil: _Veil
 var _walker: TextureRect
 var _walker_atlas: AtlasTexture
 var _bubble: PanelContainer
+## The tail that points the bubble at his mouth, and the tag his name is on.
+var _tail: TextureRect
+var _tag: PanelContainer
 var _name: Label
 var _role: Label
 var _body: Label
@@ -181,14 +184,25 @@ func _ready() -> void:
 	_excl.visible = false
 	add_child(_excl)
 
-	_bubble = UiTheme.panel(UiTheme.board_style(6), false)
+	# A person talks out of a round white bubble, not out of a manifest board:
+	# the old frame made every line read as a form the port had issued.
+	var speech := UiTheme.nine("ui_speech", 8, 0)
+	speech.content_margin_left = 10
+	speech.content_margin_right = 10
+	speech.content_margin_top = 12
+	speech.content_margin_bottom = 8
+	_bubble = UiTheme.panel(speech, false)
 	_bubble.gui_input.connect(_on_panel_input)
+	_bubble.visibility_changed.connect(_sync_bubble_parts)
 	add_child(_bubble)
-	# Paper needs a margin: the frame's own padding put the first letter of
-	# every line under the enamel.
+	_tail = TextureRect.new()
+	_tail.texture = preload("res://assets/sprites/ui_speech_tail.png")
+	_tail.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_tail)
 	var pad := MarginContainer.new()
 	for side in [&"margin_left", &"margin_right", &"margin_top", &"margin_bottom"]:
-		pad.add_theme_constant_override(side, 8)
+		pad.add_theme_constant_override(side, 0)
 	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_bubble.add_child(pad)
 	var col := VBoxContainer.new()
@@ -199,8 +213,20 @@ func _ready() -> void:
 	plate.add_theme_constant_override(&"separation", 6)
 	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(plate)
-	_name = UiTheme.label(str(_speaker.name), UiTheme.SIZE_BODY, UiTheme.AMBER_DEEP)
-	plate.add_child(_name)
+	# His name on an amber tag pinned over the bubble's top-left edge, the way a
+	# comic letters who is talking.
+	var tag_style := StyleBoxFlat.new()
+	tag_style.bg_color = UiTheme.AMBER
+	tag_style.border_color = UiTheme.INK
+	tag_style.set_border_width_all(2)
+	tag_style.content_margin_left = 6
+	tag_style.content_margin_right = 6
+	tag_style.content_margin_top = 1
+	tag_style.content_margin_bottom = 2
+	_tag = UiTheme.panel(tag_style)
+	_name = UiTheme.label(str(_speaker.name), UiTheme.SIZE_BODY, UiTheme.INK)
+	_tag.add_child(_name)
+	add_child(_tag)
 	_role = UiTheme.label("", UiTheme.SIZE_SMALL, UiTheme.TEAL_DEEP)
 	_role.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_role.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -716,6 +742,25 @@ func _layout_bubble() -> void:
 	if at.y + h > safe.end.y:
 		at.y = maxf(safe.position.y, _pos.y - h - 6.0)
 	_bubble.position = at.round()
+	_tag.reset_size()
+	_tag.position = (_bubble.position + Vector2(10.0, -_tag.size.y * 0.5 - 1.0)).round()
+	# The tail leaves the edge nearest him and leans toward his head.
+	var below := at.y > _pos.y
+	_tail.flip_v = below
+	_tail.size = _tail.texture.get_size()
+	var tx := clampf(_pos.x + me.x * 0.5 - 4.0, _bubble.position.x + 12.0,
+		_bubble.position.x + _bubble.size.x - _tail.size.x - 12.0)
+	var ty := _bubble.position.y - _tail.size.y + 2.0 if below \
+		else _bubble.position.y + _bubble.size.y - 4.0
+	_tail.position = Vector2(tx, ty).round()
+	_sync_bubble_parts()
+
+
+func _sync_bubble_parts() -> void:
+	if _tail == null or _tag == null:
+		return
+	_tail.visible = _bubble.visible
+	_tag.visible = _bubble.visible
 
 
 func _target_key() -> String:
