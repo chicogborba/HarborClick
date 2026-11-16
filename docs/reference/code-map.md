@@ -299,10 +299,10 @@ Inventory: **309 authored code/config/scene files**.
 | `tools/capture/titleshot.tscn` | 6 | 1 nodes | Godot scene |
 | `tools/capture/water_lab.gd` | 75 | 1 functions | The harbour water on its own, for tuning the shader at the pixel. |
 | `tools/capture/water_lab.tscn` | 6 | 1 nodes | Godot scene |
-| `tools/docs/gen_brand_logo.py` | 131 | 4 functions | The STACKYARD logo lifted by a gantry crane. |
+| `tools/docs/gen_brand_logo.py` | 226 | 8 functions | The STACKYARD logo lifted by a gantry crane. |
 | `tools/docs/gen_keyart.py` | 161 | 3 functions | Asks an image model for the store key art, using real captures as reference. |
 | `tools/docs/gen_readme_media.py` | 212 | 10 functions | Builds the pictures the root README shows: a banner and screenshot boards. |
-| `tools/docs/gen_store_media.py` | 346 | 16 functions | Store and social pictures: screenshots with captions, feature graphic, banners. |
+| `tools/docs/gen_store_media.py` | 356 | 16 functions | Store and social pictures: screenshots with captions, feature graphic, banners. |
 | `tools/docs/generate_code_map.py` | 108 | 5 functions | Generate a compact inventory of every authored code/config/scene file. |
 | `tools/export/build_release.sh` | 22 | — | Build the Godot Web game and assemble the static landing page in one release. |
 | `tools/export/build_web.sh` | 46 | — | Reproducible web build. |
@@ -327,7 +327,7 @@ Inventory: **309 authored code/config/scene files**.
 | `tools/sprites/gen_hud24.py` | 217 | 7 functions | The console's own glyphs: 24x24, drawn for the size they are shown at. |
 | `tools/sprites/gen_icons.py` | 49 | 2 functions | App, PWA and home-screen icons, from the generated brand icon. |
 | `tools/sprites/gen_icons16.py` | 336 | 2 functions | 16x16 interface icons, outlined, for the HUD the release plan builds (D2). |
-| `tools/sprites/gen_landing.py` | 1050 | 31 functions | Generates every pixel asset the public landing page ships. |
+| `tools/sprites/gen_landing.py` | 1236 | 34 functions | Generates every pixel asset the public landing page ships. |
 | `tools/sprites/gen_minigames.py` | 555 | 22 functions | Minigame art: the late-lorry road (`traffic_minigame.gd`) and the cover |
 | `tools/sprites/gen_people.py` | 357 | 21 functions | Top-down dock workers, Stardew-ish: hard hat and hi-vis vest seen from above. |
 | `tools/sprites/gen_pixellab.py` | 108 | 6 functions | Turns the cached PixelLab generations into game-ready PNGs. |

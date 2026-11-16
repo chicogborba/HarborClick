@@ -43,89 +43,242 @@ def dim(color, k=0.66):
 # --------------------------------------------------------------------------
 # Wordmark
 # --------------------------------------------------------------------------
-# A 9x12 body with a 2px stroke: heavy enough to carry a hero at any scale, and
+# An 11x14 body with a 3px stroke: three pixels is the least a stroke needs to
+# be a container wall — a lit rail, a corrugated face and a dark sill — and
 # still a grid a human can read as drawn rather than as a font stretched fat.
 LETTERS = {
-    "H": ["##.....##", "##.....##", "##.....##", "##.....##", "##.....##",
-          "#########", "#########", "##.....##", "##.....##", "##.....##",
-          "##.....##", "##.....##"],
-    "A": ["...###...", "..#####..", ".##...##.", "##.....##", "##.....##",
-          "#########", "#########", "##.....##", "##.....##", "##.....##",
-          "##.....##", "##.....##"],
-    "R": ["#######..", "########.", "##....##.", "##....##.", "########.",
-          "#######..", "##..##...", "##...##..", "##....##.", "##....##.",
-          "##.....##", "##.....##"],
-    "B": ["#######..", "########.", "##....##.", "##....##.", "#######..",
-          "#######..", "##....##.", "##.....##", "##.....##", "##....##.",
-          "########.", "#######.."],
-    "O": [".#######.", "#########", "##.....##", "##.....##", "##.....##",
-          "##.....##", "##.....##", "##.....##", "##.....##", "##.....##",
-          "#########", ".#######."],
-    "C": [".#######.", "#########", "##.....##", "##.......", "##.......",
-          "##.......", "##.......", "##.......", "##.......", "##.....##",
-          "#########", ".#######."],
-    "L": ["##.......", "##.......", "##.......", "##.......", "##.......",
-          "##.......", "##.......", "##.......", "##.......", "##.......",
-          "#########", "#########"],
-    "I": ["#########", "#########", "...###...", "...###...", "...###...",
-          "...###...", "...###...", "...###...", "...###...", "...###...",
-          "#########", "#########"],
-    "K": ["##.....##", "##....##.", "##...##..", "##..##...", "##.##....",
-          "#####....", "#####....", "##.##....", "##..##...", "##...##..",
-          "##....##.", "##.....##"],
-    "S": [".#######.", "#########", "##.....##", "##.......", "########.",
-          ".########", ".......##", ".......##", ".......##", "##.....##",
-          "#########", ".#######."],
-    "T": ["#########", "#########", "...###...", "...###...", "...###...",
-          "...###...", "...###...", "...###...", "...###...", "...###...",
-          "...###...", "...###..."],
-    "Y": ["##.....##", "##.....##", ".##...##.", ".##...##.", "..##.##..",
-          "...###...", "...###...", "...###...", "...###...", "...###...",
-          "...###...", "...###..."],
-    "D": ["#######..", "########.", "##....##.", "##.....##", "##.....##",
-          "##.....##", "##.....##", "##.....##", "##.....##", "##....##.",
-          "########.", "#######.."],
+    "S": [
+        ".#########.",
+        "###########",
+        "###########",
+        "###.....###",
+        "###........",
+        "###........",
+        "##########.",
+        "###########",
+        ".##########",
+        "........###",
+        "###.....###",
+        "###########",
+        "###########",
+        ".#########.",
+    ],
+    "T": [
+        "###########",
+        "###########",
+        "###########",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+    ],
+    "A": [
+        "...#####...",
+        "..#######..",
+        ".#########.",
+        "####...####",
+        "###.....###",
+        "###.....###",
+        "###########",
+        "###########",
+        "###########",
+        "###.....###",
+        "###.....###",
+        "###.....###",
+        "###.....###",
+        "###.....###",
+    ],
+    "C": [
+        ".#########.",
+        "###########",
+        "###########",
+        "###.....###",
+        "###........",
+        "###........",
+        "###........",
+        "###........",
+        "###........",
+        "###........",
+        "###.....###",
+        "###########",
+        "###########",
+        ".#########.",
+    ],
+    "K": [
+        "###.....###",
+        "###....###.",
+        "###...###..",
+        "###..###...",
+        "###.###....",
+        "######.....",
+        "#####......",
+        "######.....",
+        "#######....",
+        "###.####...",
+        "###..####..",
+        "###...####.",
+        "###....####",
+        "###.....###",
+    ],
+    "Y": [
+        "###.....###",
+        "###.....###",
+        "###.....###",
+        ".###...###.",
+        "..###.###..",
+        "...#####...",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+        "....###....",
+    ],
+    "R": [
+        "#########..",
+        "##########.",
+        "###########",
+        "###.....###",
+        "###.....###",
+        "###.....###",
+        "##########.",
+        "#########..",
+        "##########.",
+        "###..####..",
+        "###...####.",
+        "###....####",
+        "###.....###",
+        "###.....###",
+    ],
+    "D": [
+        "#########..",
+        "##########.",
+        "###########",
+        "###.....###",
+        "###.....###",
+        "###.....###",
+        "###.....###",
+        "###.....###",
+        "###.....###",
+        "###.....###",
+        "###.....###",
+        "###########",
+        "##########.",
+        "#########..",
+    ],
 }
 
-GLYPH_W, GLYPH_H = 9, 12
+GLYPH_W, GLYPH_H = 11, 14
 TRACK = 2          # letter spacing
 PAD = 1            # room for the outline
 SHADOW_DROP = 3    # hard shadow under every letter
 
-# Row bands: lit top, body, shaded base. Chunky type reads as metal when the
-# light comes from one place, so the ramp is by row and never per letter.
-BANDS = [
-    (0, 2, P.SAFETY_L),
-    (2, 9, P.SAFETY),
-    (9, 12, P.SAFETY_D),
-]
 LOGO_SHADOW = (26, 18, 30, 255)
+
+# One livery per letter, in the order the brand logo wears them: the word is a
+# row of boxes before it is a word. Each is (glint, lit, body, groove, base).
+def _livery(wall):
+    """Five steps from one paint colour: glint, lit rail, wall, groove, sill."""
+    def mix(k, toward):
+        return tuple(round(c + (t - c) * k) for c, t in zip(wall, toward)) + (255,)
+    return (mix(0.55, (255, 250, 220)), mix(0.28, (255, 240, 200)), wall + (255,),
+            mix(0.24, (40, 20, 50)), mix(0.5, (40, 20, 50)))
+
+
+_ORANGE, _TEAL = _livery((236, 140, 48)), _livery((70, 178, 166))
+_RED, _GOLD, _BLUE = _livery((216, 78, 62)), _livery((246, 190, 58)), _livery((70, 126, 214))
+LIVERIES = [_ORANGE, _TEAL, _RED, _GOLD, _BLUE, _ORANGE, _TEAL, _RED, _GOLD]
 
 
 def _word(text: str) -> Image.Image:
+    """The wordmark as nine containers: a lit top rail, a corrugated wall (every
+    other column a groove) and a dark bottom rail, over a hard shadow."""
     w = len(text) * GLYPH_W + (len(text) - 1) * TRACK + PAD * 2
     h = GLYPH_H + PAD * 2 + SHADOW_DROP
     img = new_img(w, h)
     body = new_img(w, h)
     for index, char in enumerate(text):
         rows = LETTERS[char]
+        glint, lit, wall, groove, base = LIVERIES[index % len(LIVERIES)]
         ox = PAD + index * (GLYPH_W + TRACK)
         for ry, row in enumerate(rows):
-            color = next(c for lo, hi, c in BANDS if lo <= ry < hi)
             for rx, cell in enumerate(row):
-                if cell == "#":
-                    px(body, ox + rx, PAD + ry, color)
+                if cell != "#":
+                    continue
+                above = ry == 0 or rows[ry - 1][rx] != "#"
+                below = ry == GLYPH_H - 1 or rows[ry + 1][rx] != "#"
+                if above:
+                    color = glint if ry == 0 else lit
+                elif below:
+                    color = base
+                else:
+                    color = groove if rx % 2 else wall
+                px(body, ox + rx, PAD + ry, color)
     # hard shadow first, then the outlined body over it
     for y in range(h):
         for x in range(w):
             if body.getpixel((x, y))[3] and y + SHADOW_DROP < h:
                 px(img, x, y + SHADOW_DROP, LOGO_SHADOW)
-    img.alpha_composite(outline(body))
+    img.alpha_composite(outline(body, LOGO_SHADOW))
     return img
 
 
 def gen_logo():
     save(_word("STACKYARD"), "logo")
+
+
+WORD_UNITS = 287   # the title's width in crane pixels: 287px on a phone
+
+
+def gen_lockup():
+    """The hero's crane, in three layers the page moves on its own, and the
+    title it lifts.
+
+    The title is the brand logo itself — the same cut-out the store media
+    wears (`docs/media/store/keyart/logo.png`), not a redrawing of it: a page
+    whose title is in a different hand from its own link preview has two
+    logos. It is the one illustrated image in the hero, shipped as WebP and
+    sized by the page to `WORD_UNITS` crane pixels.
+
+    The crane is the one that lifts the store logo too
+    (`tools/docs/gen_brand_logo.py`), with a shorter mast and narrower portal
+    so the word is nearly the whole width, taken apart: the frame stands
+    still, the trolley and the spreader are cropped out so CSS can run the
+    hoist. The numbers printed here are the `--lk-*` geometry at the top of
+    `styles.css` and the `.lk-*` offsets; change one side and the word hangs
+    beside its spreader."""
+    import sys
+    sys.path.insert(0, os.path.join(ROOT, "tools", "docs"))
+    import gen_brand_logo as B
+    B.BOOM_Y, B.LEG_L, B.LEG_R, B.APEX, B.WORD_X, B.SWAY = 18, 13, 31, (31, 3), 38, 2
+    word = B.cut_word()
+    word_h = -(-word.height * WORD_UNITS // word.width)
+    lower = 10             # how far the load is let down before the lift
+    args = (WORD_UNITS, word_h + lower - 2)
+    frame, at = B.crane(*args, parts=("frame",), drop=8)
+    save(frame, "sts-frame")
+    big = word.resize((960, round(word.height * 960 / word.width)), Image.LANCZOS)
+    big.save(os.path.join(OUT, "wordmark.webp"), quality=90, method=6)
+    print(f"  wordmark.webp  {big.width}x{big.height}")
+    geometry = {"w": frame.width, "h": frame.height, "word-x": at[0], "word-y": at[1],
+                "word-w": WORD_UNITS, "word-h": word_h, "cx": at[0] + WORD_UNITS // 2,
+                "rope": B.BOOM_Y + B.BOOM_H + 8}
+    for part in ("trolley", "spreader"):
+        layer, _ = B.crane(*args, parts=(part,), drop=8)
+        box = layer.getbbox()
+        save(layer.crop(box), "sts-" + part)
+        geometry[part + "-x"], geometry[part + "-y"] = box[0], box[1]
+        geometry[part + "-w"], geometry[part + "-h"] = box[2] - box[0], box[3] - box[1]
+    print("  lockup: " + " ".join(f"--lk-{k}: {v};" for k, v in geometry.items()))
 
 
 # --------------------------------------------------------------------------
@@ -1014,6 +1167,37 @@ def gen_og():
 
 
 # --------------------------------------------------------------------------
+# Screenshots
+# --------------------------------------------------------------------------
+SHOTS = os.environ.get("STACKYARD_SHOTS", os.path.expanduser(
+    "~/Library/Application Support/Godot/app_userdata/HarborClick/uishots"))
+SHOT_NAMES = ["decor_night", "rail", "wake_trail"]
+
+
+def gen_shots():
+    """Three real captures for the "have a look" strip.
+
+    The only pictures on the page that are photographs rather than sprites, so
+    they are the only JPEGs and the only ones resampled. Each is the world
+    between the HUD and the tab bar: the chrome carries words, and a capture
+    taken in one language would be wrong in the other eight. Skipped, leaving
+    the committed files alone, on a machine that has not run
+    `tools/capture/closeup.tscn`."""
+    for index, name in enumerate(SHOT_NAMES, 1):
+        path = os.path.join(SHOTS, f"closeup_{name}.png")
+        if not os.path.exists(path):
+            print(f"  shot-{index}.jpg  no capture for {name}, kept as committed")
+            continue
+        shot = Image.open(path).convert("RGB")
+        w, h = shot.size
+        world = shot.crop((0, round(h * 0.155), w, round(h * 0.865)))
+        world = world.resize((480, round(world.height * 480 / w)), Image.LANCZOS)
+        os.makedirs(OUT, exist_ok=True)
+        world.save(os.path.join(OUT, f"shot-{index}.jpg"), quality=84, optimize=True)
+        print(f"  shot-{index}.jpg  {world.width}x{world.height}")
+
+
+# --------------------------------------------------------------------------
 # Sprites the page borrows from the game, copied verbatim
 # --------------------------------------------------------------------------
 BORROWED = {
@@ -1033,6 +1217,7 @@ def copy_borrowed():
 if __name__ == "__main__":
     print("landing:")
     gen_logo()
+    gen_lockup()
     gen_port_strip()
     gen_water()
     gen_road()
@@ -1047,4 +1232,5 @@ if __name__ == "__main__":
     gen_marks()
     gen_chips()
     copy_borrowed()
+    gen_shots()
     gen_og()

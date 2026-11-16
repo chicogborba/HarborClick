@@ -30,9 +30,10 @@
   <link rel="icon" href="/favicon.ico" sizes="48x48">
   <link rel="apple-touch-icon" href="/media/favicon-192.png">
   <link rel="preload" href="/media/press-start-2p-latin.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/media/logo.png" as="image">
+  <link rel="preload" href="/media/wordmark.webp" as="image">
+  <link rel="preload" href="/media/sts-frame.png" as="image">
   <link rel="preload" href="/media/port-strip.png" as="image">
-  <link rel="stylesheet" href="/styles.css?v=20260809-fleet">
+  <link rel="stylesheet" href="/styles.css?v=20261116-sts2">
   <noscript><style>.reveal { opacity: 1; transform: none; } .lang { display: none; }</style></noscript>
   <title>Stackyard: clicker de porto</title>
 </head>
@@ -74,9 +75,24 @@
       <div class="hero-skyline" aria-hidden="true"><i></i></div>
 
       <div class="hero-stage">
-        <h1 class="wordmark">
-          <img src="/media/logo.png" width="99" height="17" alt="Stackyard" fetchpriority="high">
-        </h1>
+        <!-- The crane is three layers and a word: the frame stands still, the
+             trolley rides the boom, and the spreader hoists the title up off
+             the quay. Geometry is the --lk-* block in styles.css. -->
+        <div class="lockup" id="lockup">
+          <i class="lk-frame" aria-hidden="true"></i>
+          <i class="lk-beacon" aria-hidden="true"></i>
+          <i class="lk-trolley" aria-hidden="true"></i>
+          <div class="lk-shaft">
+            <div class="lk-load">
+              <i class="lk-rope lk-rope-l" aria-hidden="true"></i>
+              <i class="lk-rope lk-rope-r" aria-hidden="true"></i>
+              <i class="lk-spreader" aria-hidden="true"></i>
+              <h1 class="wordmark">
+                <img src="/media/wordmark.webp" width="960" height="387" alt="Stackyard" fetchpriority="high">
+              </h1>
+            </div>
+          </div>
+        </div>
         <p class="tagline"><i aria-hidden="true"></i><span data-i18n="hero.tagline">CLICA NO NAVIO</span><i aria-hidden="true"></i></p>
         <p class="pitch" data-i18n="hero.pitch">Clicker de porto. Compra guindaste, o pátio anda sozinho, os números incham.</p>
         <a class="btn btn-lg" href="/jogar/"><i class="mark m-play" aria-hidden="true"></i><span data-i18n="hero.cta">JOGAR</span></a>
@@ -135,6 +151,16 @@
           <p data-i18n="step.3.body">Terreno, rota, porto novo. Os números incham.</p>
         </li>
       </ol>
+    </section>
+
+    <!-- ------------------------------------------------------------- SHOTS -->
+    <section class="shots" aria-labelledby="shots-titulo">
+      <h2 id="shots-titulo" class="reveal" data-i18n="shots.title">OLHA SÓ</h2>
+      <ul class="reel">
+        <li class="shot reveal" style="--i: 0"><img src="/media/shot-1.jpg" width="480" height="511" alt="" loading="lazy"></li>
+        <li class="shot reveal" style="--i: 1"><img src="/media/shot-2.jpg" width="480" height="511" alt="" loading="lazy"></li>
+        <li class="shot reveal" style="--i: 2"><img src="/media/shot-3.jpg" width="480" height="511" alt="" loading="lazy"></li>
+      </ul>
     </section>
 
     <!-- -------------------------------------------------------------- YARD -->
@@ -201,7 +227,7 @@
     <a href="https://github.com/chicogborba/HarborClick" target="_blank" rel="noreferrer">GITHUB <i class="mark m-out" aria-hidden="true"></i></a>
   </footer>
 
-  <script src="/i18n.js?v=20260809-fleet" defer></script>
-  <script src="/script.js?v=20260809-fleet" defer></script>
+  <script src="/i18n.js?v=20261116-sts2" defer></script>
+  <script src="/script.js?v=20261116-sts2" defer></script>
 </body>
 </html>

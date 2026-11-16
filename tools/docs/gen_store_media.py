@@ -186,10 +186,15 @@ def logo() -> Image.Image:
     return _LOGO
 
 
-def logo_at(width: int) -> Image.Image:
-    # The crane-lifted version (gen_brand_logo.py) when it has been built.
+def logo_at(width: int, max_height: int = 0) -> Image.Image:
+    """The crane-lifted logo (gen_brand_logo.py) when it has been built.
+
+    The lockup is a whole crane now, legs to apex, so it is nearly as tall as
+    it is wide: a banner has to be able to cap it by height as well."""
     crane = os.path.join(OUT, "brand", "logo_crane.png")
     art = Image.open(crane).convert("RGBA") if os.path.exists(crane) else logo()
+    if max_height and art.height * width / art.width > max_height:
+        width = round(art.width * max_height / art.height)
     return art.resize((width, round(art.height * width / art.width)), Image.LANCZOS)
 
 
@@ -262,7 +267,7 @@ def screen(lang: str, fmt: str, index: int, spec) -> None:
     margin = round(70 * unit)
     blocks = []
     if index == 0:
-        blocks.append(glow(logo_at(round(w * 0.86)), round(18 * unit), 140))
+        blocks.append(glow(logo_at(round(w * 0.94), round(h * 0.3)), round(18 * unit), 140))
         blocks.append(badge(BADGE[lang], max(3, round(6 * unit))))
     blocks.append(fit(headline, max(4, round(11 * unit)), w - margin * 2, highlight=hot))
     blocks.append(fit(sub, max(4, round(7 * unit)), w - margin * 2, fill=(206, 236, 240, 255)))
@@ -286,7 +291,8 @@ def screen(lang: str, fmt: str, index: int, spec) -> None:
 def hero(art: Image.Image, w: int, h: int, lang: str, logo_w: float, left: bool) -> Image.Image:
     """Key art with the logo, the badge and the pitch over its open water."""
     img = art.copy()
-    mark = glow(logo_at(round(w * logo_w)), round(h * 0.03), 150)
+    mark = glow(logo_at(round(w * logo_w), round(h * (0.56 if left else 0.56))),
+                round(h * 0.03), 150)
     tag = badge(BADGE[lang], max(2, round(h / 160)))
     lines = [fit(t, max(2, round(h / 150)), round(w * (0.48 if left else 0.92)))
              for t in PITCH[lang]]
@@ -307,14 +313,14 @@ def hero(art: Image.Image, w: int, h: int, lang: str, logo_w: float, left: bool)
 def social(lang: str) -> None:
     wide = Image.open(os.path.join(KEYART, "keyart_wide.png")).convert("RGBA")
     square = Image.open(os.path.join(KEYART, "keyart_square.png")).convert("RGBA")
-    save(hero(cover(wide, 1920, 1080, 0.4), 1920, 1080, lang, 0.46, True),
+    save(hero(cover(wide, 1920, 1080, 0.4), 1920, 1080, lang, 0.56, True),
          lang, "social_1920x1080.png")
-    save(hero(cover(square, 1080, 1080), 1080, 1080, lang, 0.86, False),
+    save(hero(cover(square, 1080, 1080), 1080, 1080, lang, 0.96, False),
          lang, "social_1080x1080.png")
-    save(hero(cover(wide, 1500, 500, 0.45), 1500, 500, lang, 0.40, True),
+    save(hero(cover(wide, 1500, 500, 0.45), 1500, 500, lang, 0.50, True),
          lang, "header_1500x500.png")
     # The link preview a chat app draws for the landing (og:image).
-    save(hero(cover(wide, 1200, 630, 0.4), 1200, 630, lang, 0.46, True),
+    save(hero(cover(wide, 1200, 630, 0.4), 1200, 630, lang, 0.56, True),
          lang, "og_1200x630.png")
 
 
@@ -322,7 +328,7 @@ def feature_graphic() -> None:
     """Google Play's 1024x500: key art, logo and pitch over the open sea."""
     art = cover(Image.open(os.path.join(KEYART, "keyart_wide.png")).convert("RGBA"),
                 1024, 500, 0.35)
-    save(hero(art, 1024, 500, "en", 0.44, True), "feature_graphic_1024x500.png")
+    save(hero(art, 1024, 500, "en", 0.54, True), "feature_graphic_1024x500.png")
 
 
 def brand() -> None:
@@ -333,10 +339,14 @@ def brand() -> None:
 
 
 def main() -> None:
+    # `logo` redoes only the pieces that carry the lockup (first screen of each
+    # set, banners, feature graphic), for when the logo changed and the other
+    # captures did not.
+    logo_only = "logo" in sys.argv[1:]
     brand()
     for lang, specs in SCREENS.items():
         for fmt in FORMATS:
-            for index, spec in enumerate(specs):
+            for index, spec in enumerate(specs[:1] if logo_only else specs):
                 screen(lang, fmt, index, spec)
         social(lang)
     feature_graphic()

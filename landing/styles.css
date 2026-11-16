@@ -85,7 +85,7 @@
      --ws water and road · --bs the ship · --sk the skyline · --m marks */
   --s: 3;
   --k: 3;
-  --ls: 2;
+  --ls: 1;
   --ai: 1;
   --ds: 2;
   --ws: 3;
@@ -105,18 +105,39 @@
   --sky-y: 0px;
   --skyline-y: 0px;
   --sway: 0px;
+
+  /* The crane lockup, in source pixels, as printed by `gen_lockup()` in
+     tools/sprites/gen_landing.py. --lk-rope is where the falls leave the
+     trolley and --lk-drop how far the word is lowered before the lift. */
+  --lk-w: 339;
+  --lk-h: 186;
+  --lk-rope: 39;
+  --lk-drop: 10;
+  --u: calc(var(--ls) * 1px);
 }
 
 @media (min-width: 700px) {
-  :root { --s: 4; --k: 3; --ls: 3; --ds: 3; --bs: 2; --sk: 2; --gutter: 32px; }
+  :root { --s: 4; --k: 3; --ls: 2; --ds: 3; --bs: 2; --sk: 2; --gutter: 32px; }
 }
 
 @media (min-width: 1080px) {
-  :root { --s: 5; --k: 4; --ls: 4; --ai: 2; --ws: 4; --gutter: 40px; }
+  :root {
+    --s: 5; --k: 4; --ai: 2; --ws: 4; --gutter: 40px;
+    /* The ship may sail behind the last line of copy here: the crane took the
+       height its funnel used to have to itself. */
+    --sea-room: calc(var(--sea-h) + var(--bs) * 38px);
+  }
 }
 
 @media (min-width: 1400px) {
-  :root { --ls: 5; --wide: 1240px; }
+  :root { --wide: 1240px; }
+}
+
+/* The lockup is mostly title, so its scale answers to the height of the
+   window as well: one step too many and the call to action leaves the first
+   screen. */
+@media (min-width: 1500px) and (min-height: 1120px) {
+  :root { --ls: 3; }
 }
 
 * { box-sizing: border-box; }
@@ -404,7 +425,7 @@ h1, h2, h3 {
   align-items: center;
   justify-content: center;
   min-height: 100svh;
-  padding: 88px var(--gutter) var(--sea-room);
+  padding: 80px var(--gutter) var(--sea-room);
   overflow: hidden;
   isolation: isolate;
 }
@@ -493,14 +514,147 @@ h1, h2, h3 {
   text-align: center;
 }
 
-.wordmark { line-height: 0; }
+/* ---------------------------------------------------------------- LOCKUP */
+/* A whole ship-to-shore crane with the title on its spreader. Everything is
+   placed in source pixels times --u, and everything that moves moves by whole
+   source pixels, in steps. */
+.lockup {
+  position: relative;
+  flex: none;
+  width: calc(var(--lk-w) * var(--u));
+  height: calc(var(--lk-h) * var(--u));
+  /* 339px at phone scale: on a 360px screen it borrows from the gutter rather
+     than shrinking the one thing the page is here to say. */
+  margin: 0 calc(var(--gutter) * -0.7);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
 
+/* The crane stands to the left of what it lifts, so the box is shifted until
+   the word, not the steel, is on the page's centre line — where there is room. */
+@media (min-width: 700px) {
+  .lockup { left: calc(-14 * var(--u)); }
+}
+
+.lockup i { image-rendering: pixelated; }
+
+.lk-frame {
+  position: absolute;
+  inset: 0;
+  background: url("/media/sts-frame.png") 0 0 / 100% 100% no-repeat;
+  filter: drop-shadow(0 calc(var(--u) * 2) 0 rgba(6, 15, 26, 0.6));
+}
+
+/* The aircraft warning light on the boom tip. */
+.lk-beacon {
+  position: absolute;
+  left: calc(333 * var(--u));
+  top: calc(12 * var(--u));
+  width: var(--u);
+  height: var(--u);
+  background: #ff5c4e;
+  box-shadow: 0 0 calc(var(--u) * 3) calc(var(--u) * 1) rgba(255, 92, 78, 0.85);
+  animation: blink 1.8s steps(1) infinite;
+}
+
+.lk-trolley {
+  position: absolute;
+  left: calc(170 * var(--u));
+  top: calc(26 * var(--u));
+  width: calc(27 * var(--u));
+  height: calc(14 * var(--u));
+  background: url("/media/sts-trolley.png") 0 0 / 100% 100% no-repeat;
+}
+
+/* The falls are far longer than they need to be and the shaft cuts them off at
+   the trolley, so one transform on the load is the whole hoist: the ropes pay
+   out and take up without being animated at all. */
+.lk-shaft {
+  position: absolute;
+  inset: calc(var(--lk-rope) * var(--u)) 0 0;
+  clip-path: inset(0 -60px -60px -60px);
+}
+
+.lk-load {
+  position: absolute;
+  inset: 0;
+  animation:
+    lift 1500ms steps(10) 350ms both,
+    bob 8s steps(1) 4s infinite;
+}
+
+.lockup.is-working .lk-load { animation: relift 1700ms linear both; }
+
+.lk-rope {
+  position: absolute;
+  top: calc(-70 * var(--u));
+  width: calc(7 * var(--u));
+  height: calc(78 * var(--u));
+  background: repeating-linear-gradient(90deg,
+    #1a121e 0 calc(1 * var(--u)), #bec6d4 0 calc(2 * var(--u)),
+    #1a121e 0 calc(3 * var(--u)), transparent 0 calc(4 * var(--u)));
+}
+
+.lk-rope-l { left: calc(173 * var(--u)); }
+.lk-rope-r { left: calc(187 * var(--u)); }
+
+.lk-spreader {
+  position: absolute;
+  left: calc(60 * var(--u));
+  top: calc(8 * var(--u));
+  width: calc(247 * var(--u));
+  height: calc(9 * var(--u));
+  background: url("/media/sts-spreader.png") 0 0 / 100% 100% no-repeat;
+}
+
+.wordmark {
+  position: absolute;
+  left: calc(40 * var(--u));
+  top: calc(14 * var(--u));
+  line-height: 0;
+}
+
+/* The brand logo itself, the one illustrated image up here: sized in crane
+   pixels so it sits in the twistlocks, and left to the browser to resample. */
 .wordmark img {
-  width: calc(var(--ls) * 99px);
-  height: calc(var(--ls) * 17px);
-  max-width: 100%;
+  width: calc(287 * var(--u));
+  height: auto;
+  max-width: none;
   filter: drop-shadow(0 0 calc(var(--s) * 4px) rgba(238, 176, 62, 0.3));
-  animation: land 700ms steps(5) both;
+}
+
+/* What a click on the crane earns: the game's own verb, once, for free. */
+.pop {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  color: var(--amber-l);
+  font-family: "HC Display", monospace;
+  font-size: clamp(10px, 2.6vw, 16px);
+  white-space: nowrap;
+  text-shadow: 2px 2px 0 #1a121e, -2px 0 0 #1a121e, 0 -2px 0 #1a121e;
+  animation: pop 800ms steps(8) both;
+}
+
+/* The copy waits for the lift, then lands a line at a time. */
+.hero-stage > .tagline,
+.hero-stage > .pitch,
+.hero-stage > .btn,
+.hero-stage > .tags,
+.hero-stage > .cue { animation: land 420ms steps(4) backwards; }
+
+.hero-stage > .tagline { animation-delay: 1500ms; }
+.hero-stage > .pitch { animation-delay: 1650ms; }
+.hero-stage > .btn { animation-delay: 1800ms; }
+.hero-stage > .tags { animation-delay: 1950ms; }
+.hero-stage > .cue { animation-delay: 2100ms; }
+
+/* A short window keeps the button, not the hint that there is more below. */
+@media (max-height: 1000px) and (min-width: 700px) {
+  .hero-stage > .cue,
+  .hero-stage > .tags { display: none; }
 }
 
 .tagline {
@@ -826,6 +980,90 @@ h1, h2, h3 {
   font-size: 0.94em;
 }
 
+/* --------------------------------------------------------------- SHOTS */
+.shots {
+  max-width: var(--wide);
+  margin: 0 auto;
+  padding: 0 var(--gutter) clamp(38px, 4vw, 60px);
+}
+
+.shots h2 {
+  font-size: clamp(14px, 3.6vw, 20px);
+  line-height: 1.75;
+  text-shadow: 0 2px 0 rgba(6, 15, 26, 0.8);
+}
+
+@media (min-width: 1080px) {
+  .shots h2 { font-size: clamp(17px, 1.7vw, 23px); }
+}
+
+/* A strip you drag on a phone and three monitors on a desk. The frames are the
+   panel chrome, so a capture sits in the page the way a card does. */
+.reel {
+  display: flex;
+  gap: clamp(16px, 2.4vw, 28px);
+  margin: clamp(24px, 3vw, 36px) calc(var(--gutter) * -1) 0;
+  padding: 6px var(--gutter) 18px;
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.reel::-webkit-scrollbar { display: none; }
+
+.shot {
+  position: relative;
+  flex: none;
+  width: min(74vw, 340px);
+  scroll-snap-align: center;
+  border: solid transparent;
+  border-width: calc(var(--k) * 4px);
+  border-image: url("/media/panel.png") 6 fill / calc(var(--k) * 4px) repeat;
+  box-shadow: 0 calc(var(--k) * 2px) 0 rgba(6, 15, 26, 0.7);
+}
+
+.shot img {
+  width: 100%;
+  height: auto;
+  image-rendering: auto;
+}
+
+/* Scanlines, so three photographs belong to a page drawn in pixels. */
+.shot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, rgba(4, 10, 18, 0.16) 0 2px, transparent 2px 4px);
+}
+
+@media (min-width: 860px) {
+  .reel {
+    justify-content: center;
+    margin-right: 0;
+    margin-left: 0;
+    padding-right: 0;
+    padding-left: 0;
+    overflow: visible;
+  }
+
+  .shot { flex: 1 1 0; width: auto; max-width: 380px; }
+  .shot.seen:nth-child(1) { transform: rotate(-2deg) translateY(10px); }
+  .shot.seen:nth-child(3) { transform: rotate(2deg) translateY(10px); }
+  .shot.seen:nth-child(2) { z-index: 1; }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .shot.seen { transition: transform 160ms steps(3), box-shadow 160ms steps(3); }
+
+  .shot.seen:hover {
+    z-index: 2;
+    transform: translateY(calc(var(--k) * -3px)) scale(1.03);
+    box-shadow: 0 calc(var(--k) * 5px) 0 rgba(6, 15, 26, 0.75);
+  }
+}
+
 /* ---------------------------------------------------------------- YARD */
 .yard { padding-top: 0; }
 
@@ -1113,6 +1351,34 @@ h1, h2, h3 {
   100% { transform: translateY(0); }
 }
 
+@keyframes lift {
+  from { transform: translateY(calc(var(--lk-drop) * var(--u))); }
+  to { transform: none; }
+}
+
+/* Lowered to the quay and taken up again: paid out quickly, hoisted slowly. */
+@keyframes relift {
+  0% { transform: none; animation-timing-function: steps(6); }
+  22% { transform: translateY(calc(var(--lk-drop) * var(--u))); animation-timing-function: steps(1); }
+  36% { transform: translateY(calc(var(--lk-drop) * var(--u))); animation-timing-function: steps(10); }
+  100% { transform: none; }
+}
+
+/* The operator easing the load: two pixels down and back, now and then. */
+@keyframes bob {
+  0%, 100% { transform: none; }
+  3% { transform: translateY(calc(1 * var(--u))); }
+  6% { transform: translateY(calc(2 * var(--u))); }
+  12% { transform: translateY(calc(1 * var(--u))); }
+  15% { transform: none; }
+}
+
+@keyframes pop {
+  from { opacity: 1; transform: translate(-50%, -50%); }
+  70% { opacity: 1; }
+  to { opacity: 0; transform: translate(-50%, calc(-50% - 44px)); }
+}
+
 @keyframes land {
   from { opacity: 0; transform: translateY(-14px); }
   to { opacity: 1; transform: none; }
@@ -1164,7 +1430,9 @@ h1, h2, h3 {
   .art-ship i,
   .art-crane i,
   .btn-lg::after,
-  .wordmark img,
+  .lk-load,
+  .lk-beacon,
+  .hero-stage > *,
   .stack i,
   .cat {
     animation: none !important;

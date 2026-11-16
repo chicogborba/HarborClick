@@ -7,6 +7,32 @@
   "use strict";
 
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // The crane is the one thing on the page you can play with: a click lowers
+  // the title to the quay and hoists it again, and pays out a box for it,
+  // which is the whole game in one gesture.
+  const lockup = document.getElementById("lockup");
+  if (lockup) {
+    const load = lockup.querySelector(".lk-load");
+    let boxes = 0;
+    lockup.addEventListener("click", (event) => {
+      const box = lockup.getBoundingClientRect();
+      const pop = document.createElement("span");
+      boxes += 1;
+      pop.className = "pop";
+      pop.setAttribute("aria-hidden", "true");
+      pop.textContent = `+${boxes} TEU`;
+      pop.style.left = `${Math.round(event.clientX - box.left)}px`;
+      pop.style.top = `${Math.round(event.clientY - box.top)}px`;
+      pop.addEventListener("animationend", () => pop.remove());
+      lockup.append(pop);
+      if (still || lockup.classList.contains("is-working")) return;
+      lockup.classList.add("is-working");
+    });
+    load.addEventListener("animationend", (event) => {
+      if (event.animationName === "relift") lockup.classList.remove("is-working");
+    });
+  }
   const panels = document.querySelectorAll(".reveal");
 
   if (still || !("IntersectionObserver" in window)) {

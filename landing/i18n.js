@@ -185,6 +185,11 @@
       pl: "Działki, trasy, nowe porty. Liczby puchną.",
       tr: "Arazi, rota, yeni liman. Sayılar şişer.",
     },
+    "shots.title": {
+      pt_BR: "OLHA SÓ", en: "HAVE A LOOK", es: "ECHA UN OJO",
+      fr: "JETTE UN ŒIL", de: "SCHAU MAL", it: "DAI UN'OCCHIATA",
+      ru: "ГЛЯНЬ", pl: "ZERKNIJ", tr: "BİR BAK",
+    },
     "yard.title": {
       pt_BR: "O QUE TEM DENTRO", en: "WHAT'S IN IT", es: "QUÉ TIENE DENTRO",
       fr: "CE QU'IL Y A DEDANS", de: "WAS DRIN IST", it: "COSA C'È DENTRO",
